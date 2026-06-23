@@ -14,6 +14,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
   <script src="config.js"></script>
+  <!-- SheetJS for Excel Ingestion -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base -->
   <link rel="stylesheet" href="style.css">
 </head>
@@ -721,11 +723,11 @@
             <h3 style="font-weight: 700; margin-bottom: 8px;">Importador de Historiales de Mantenimiento</h3>
             <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px;">Sube archivos XLSX/CSV para cargar historiales de OTs anteriores, registros de maquinaria antigua o catálogos externos de forma masiva.</p>
             
-            <div class="excel-upload-container" id="excel-drop-zone" ondragover="event.preventDefault()" ondrop="simulateExcelUpload(event)" onclick="triggerFileInput('excel-file-input')">
+            <div class="excel-upload-container" id="excel-drop-zone" ondragover="event.preventDefault()" ondrop="handleRealExcelUpload(event)" onclick="triggerFileInput('excel-file-input')">
               <span style="font-size: 3rem;">📊</span>
               <h4 style="font-weight: 700; color: var(--accent-blue);">Arrastra tu archivo Excel aquí o haz clic para buscar</h4>
               <p style="font-size: 0.8rem; color: var(--text-muted);">Soporta formatos (.xlsx, .xls, .csv). Tamaño máximo de archivo 15MB.</p>
-              <input type="file" id="excel-file-input" style="display: none;" onchange="simulateExcelUpload(event)">
+              <input type="file" id="excel-file-input" style="display: none;" onchange="handleRealExcelUpload(event)">
             </div>
             
             <div id="excel-success-alert" style="display: none; margin-top: 24px; padding: 16px; background-color: var(--color-preventive-light); border-left: 4px solid var(--color-preventive); border-radius: 6px; display: flex; align-items: center; gap: 12px;">

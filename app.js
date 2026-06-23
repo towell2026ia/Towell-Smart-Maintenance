@@ -2,6 +2,17 @@
    Towell Smart Maintenance AI (TSM-AI) - Lógica de Aplicación (Vanilla JS)
    ========================================================================== */
 
+// --- INITIALIZE SUPABASE CLIENT ---
+let supabaseClient = null;
+if (typeof supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 'undefined') {
+  try {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('Supabase client initialized successfully!');
+  } catch (err) {
+    console.error('Failed to initialize Supabase client:', err);
+  }
+}
+
 // --- VARIABLES GLOBALES Y CONTROL DE ESTADO ---
 let currentUser = null; // { role: 'admin' } o { role: 'tech', id: 'T-01', ... }
 let activeAdminPanel = 'dashboard';
@@ -17,12 +28,391 @@ let chartDowntimeInstance = null;
 // Arreglo temporal de refacciones seleccionadas en el detalle de OT del técnico
 let tempSelectedParts = [];
 
+// --- HELPERS DE BASE DE DATOS (CON FALLBACK A LOCALSTORAGE) ---
+async function dbGetMachines() {
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('cat_maquinas')
+        .select('*');
+      if (error) throw error;
+      return (data || []).map(m => ({
+        id: m.equipo_towell,
+        name: m.equipo_towell,
+        area: m.area,
+        clave: m.clave,
+        proceso: m.proceso,
+        tipo_equipo: m.tipo_equipo,
+        activo: m.activo
+      }));
+    } catch (err) {
+      console.error('Error fetching machines from Supabase:', err);
+    }
+  }
+  return JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+}
+
+async function dbGetTechnicians() {
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('cat_usuarios_roles')
+        .select('*')
+        .eq('rol', 'MANTENIMIENTO')
+        .eq('activo', true);
+      if (error) throw error;
+      return (data || []).map(t => ({
+        id: t.cve_tecnico || t.id_usuario,
+        name: t.nombre_completo,
+        email: t.correo,
+        specialty: t.observaciones || 'General',
+        avatar: '👨‍🔧'
+      }));
+    } catch (err) {
+      console.error('Error fetching technicians from Supabase:', err);
+    }
+  }
+  return JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+}
+
+async function dbGetRequests() {
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('ordenes_trabajo')
+        .select('*')
+        .order('fecha_carga', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(o => ({
+        id: o.folio,
+        applicant: o.nombre_solicitante,
+        shift: o.turno_solicitante === 1 ? 'Turno Mañana' : o.turno_solicitante === 2 ? 'Turno Tarde' : 'Turno Nocturno',
+        area: o.departamento,
+        machine: o.maquina_id,
+        type: o.orden_trabajo,
+        description: o.descripcion,
+        machineStopped: o.observacion_inicial ? 'Sí' : 'No',
+        urgency: o.prioridad,
+        status: o.estatus,
+        date: o.fecha_hora_inicio || o.fecha_carga,
+        evidence: null
+      }));
+    } catch (err) {
+      console.error('Error fetching requests from Supabase:', err);
+    }
+  }
+  return JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+}
+
+async function dbGetOrders() {
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('ordenes_trabajo')
+        .select('*')
+        .order('fecha_carga', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(o => ({
+        id: o.folio,
+        reqId: o.folio,
+        applicant: o.nombre_solicitante,
+        shift: o.turno_solicitante === 1 ? 'Turno Mañana' : o.turno_solicitante === 2 ? 'Turno Tarde' : 'Turno Nocturno',
+        area: o.departamento,
+        machine: o.maquina_id,
+        type: o.orden_trabajo,
+        description: o.descripcion,
+        machineStopped: o.observacion_inicial ? 'Sí' : 'No',
+        urgency: o.prioridad,
+        status: o.estatus,
+        assignedTech: o.cve_atendio,
+        date: o.fecha_hora_inicio || o.fecha_carga,
+        dueDate: o.fecha_fin ? `${o.fecha_fin}T${o.hora_fin}` : null,
+        evidence: null,
+        historyLogs: [
+          { date: o.fecha_carga, status: 'Solicitud recibida', user: o.nombre_solicitante, comment: 'Registro inicial' }
+        ]
+      }));
+    } catch (err) {
+      console.error('Error fetching orders from Supabase:', err);
+    }
+  }
+  return JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+}
+
+async function dbGetParts() {
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('cat_refacciones')
+        .select('*');
+      if (error) throw error;
+      return (data || []).map(p => ({
+        id: p.codigo_articulo,
+        name: p.nombre_articulo,
+        category: p.familia,
+        stock: 50,
+        minStock: 5,
+        cost: 100
+      }));
+    } catch (err) {
+      console.error('Error fetching parts from Supabase:', err);
+    }
+  }
+  return JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+}
+
+async function dbInsertRequest(newRequest) {
+  if (supabaseClient) {
+    try {
+      const insertData = {
+        folio: newRequest.id,
+        orden_trabajo: newRequest.type,
+        origen: 'App',
+        estatus: newRequest.status,
+        fecha_inicio: newRequest.date.split('T')[0],
+        hora_inicio: newRequest.date.split('T')[1].split('.')[0],
+        fecha_hora_inicio: newRequest.date,
+        departamento: newRequest.area,
+        maquina_id: newRequest.machine,
+        falla: newRequest.type,
+        descripcion: newRequest.description,
+        nombre_solicitante: newRequest.applicant,
+        turno_solicitante: newRequest.shift.includes('Mañana') ? 1 : newRequest.shift.includes('Tarde') ? 2 : 3,
+        prioridad: newRequest.urgency,
+        fecha_carga: new Date().toISOString()
+      };
+      
+      const { error } = await supabaseClient
+        .from('ordenes_trabajo')
+        .insert([insertData]);
+      if (error) throw error;
+      return;
+    } catch (err) {
+      console.error('Error inserting request in Supabase:', err);
+    }
+  }
+  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  requests.push(newRequest);
+  localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
+}
+
+async function syncDatabases() {
+  if (!supabaseClient) return;
+  console.log('Starting Supabase synchronization...');
+  
+  try {
+    // 1. Sync Machines
+    const { data: dbMachines, error: mErr } = await supabaseClient.from('cat_maquinas').select('*');
+    if (mErr) throw mErr;
+    if (dbMachines && dbMachines.length > 0) {
+      const localMachines = dbMachines.map(m => ({
+        id: m.equipo_towell,
+        name: m.equipo_towell,
+        area: m.area,
+        clave: m.clave,
+        proceso: m.proceso,
+        tipo_equipo: m.tipo_equipo,
+        status: m.activo ? 'Operativa' : 'Parada'
+      }));
+      localStorage.setItem('TSMAI_machines', JSON.stringify(localMachines));
+    } else {
+      const localMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+      if (localMachines.length > 0) {
+        const insertData = localMachines.map(m => ({
+          equipo_towell: m.id,
+          clave: m.id.split('-')[1] || m.id,
+          area: m.area,
+          proceso: m.area === 'PF' ? 'Tejido' : m.area === 'CF' ? 'Costura' : 'Tintorería',
+          tipo_equipo: 'Maquinaria',
+          activo: m.status === 'Operativa',
+          origen: 'Seed'
+        }));
+        await supabaseClient.from('cat_maquinas').insert(insertData);
+      }
+    }
+
+    // 2. Sync Technicians
+    const { data: dbUsers, error: uErr } = await supabaseClient.from('cat_usuarios_roles').select('*');
+    if (uErr) throw uErr;
+    if (dbUsers && dbUsers.length > 0) {
+      const localTechs = dbUsers.filter(u => u.rol === 'MANTENIMIENTO').map(t => ({
+        id: t.cve_tecnico || t.id_usuario,
+        name: t.nombre_completo,
+        email: t.correo,
+        specialty: t.observaciones || 'General',
+        avatar: '👨‍🔧'
+      }));
+      localStorage.setItem('TSMAI_technicians', JSON.stringify(localTechs));
+    } else {
+      const localTechs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+      if (localTechs.length > 0) {
+        const insertData = localTechs.map(t => ({
+          nombre_completo: t.name,
+          correo: t.email,
+          rol: 'MANTENIMIENTO',
+          cve_tecnico: t.id,
+          cve_empleado: t.id,
+          puede_crear_solicitud: false,
+          puede_ver_ordenes_asignadas: true,
+          puede_ver_todas_ordenes: false,
+          puede_atender_orden: true,
+          puede_cerrar_orden: true,
+          puede_validar_cierre: false,
+          activo: true,
+          observaciones: t.specialty
+        }));
+        insertData.push({
+          nombre_completo: 'Super Administrador',
+          correo: 'admin@tsm-ai.com',
+          rol: 'SUPER_ADMINISTRADOR',
+          cve_empleado: 'ADM001',
+          puede_crear_solicitud: true,
+          puede_ver_ordenes_asignadas: true,
+          puede_ver_todas_ordenes: true,
+          puede_atender_orden: true,
+          puede_cerrar_orden: true,
+          puede_validar_cierre: true,
+          puede_editar_catalogos: true,
+          puede_ver_dashboards: true,
+          puede_configurar_sistema: true,
+          recibe_alertas: true,
+          activo: true,
+          observaciones: 'Acceso Completo'
+        });
+        await supabaseClient.from('cat_usuarios_roles').insert(insertData);
+      }
+    }
+
+    // 3. Sync Spare Parts
+    const { data: dbParts, error: pErr } = await supabaseClient.from('cat_refacciones').select('*');
+    if (pErr) throw pErr;
+    if (dbParts && dbParts.length > 0) {
+      const localParts = dbParts.map(p => ({
+        id: p.codigo_articulo,
+        name: p.nombre_articulo,
+        category: p.familia,
+        stock: 50,
+        minStock: 5,
+        cost: 100
+      }));
+      localStorage.setItem('TSMAI_parts', JSON.stringify(localParts));
+    } else {
+      const localParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+      if (localParts.length > 0) {
+        const insertData = localParts.map(p => ({
+          codigo_articulo: p.id,
+          nombre_articulo: p.name,
+          unidad_medida: 'PZ',
+          familia: p.category,
+          activo: true
+        }));
+        await supabaseClient.from('cat_refacciones').insert(insertData);
+      }
+    }
+
+    // 4. Sync Orders & Requests
+    const { data: dbOrders, error: oErr } = await supabaseClient.from('ordenes_trabajo').select('*');
+    if (oErr) throw oErr;
+    if (dbOrders && dbOrders.length > 0) {
+      const localRequests = [];
+      const localOrders = [];
+      
+      dbOrders.forEach(o => {
+        const item = {
+          id: o.folio,
+          reqId: o.folio,
+          applicant: o.nombre_solicitante,
+          shift: o.turno_solicitante === 1 ? 'Turno Mañana' : o.turno_solicitante === 2 ? 'Turno Tarde' : 'Turno Nocturno',
+          area: o.departamento,
+          machine: o.maquina_id,
+          type: o.orden_trabajo || 'MC',
+          description: o.descripcion,
+          machineStopped: o.observacion_inicial || 'No',
+          urgency: o.prioridad || 'Media',
+          status: o.estatus,
+          assignedTech: o.cve_atendio,
+          date: o.fecha_hora_inicio || o.fecha_carga,
+          dueDate: o.fecha_fin ? `${o.fecha_fin}T${o.hora_fin}` : null,
+          evidence: null,
+          historyLogs: [
+            { date: o.fecha_carga, status: 'Solicitud recibida', user: o.nombre_solicitante, comment: 'Registro inicial.' }
+          ]
+        };
+        
+        localRequests.push(item);
+        if (o.estatus !== 'Solicitud recibida') {
+          localOrders.push(item);
+        }
+      });
+      
+      localStorage.setItem('TSMAI_requests', JSON.stringify(localRequests));
+      localStorage.setItem('TSMAI_orders', JSON.stringify(localOrders));
+    } else {
+      const localRequests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+      const localOrders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+      const combined = new Map();
+      
+      localRequests.forEach(r => {
+        combined.set(r.id, {
+          folio: r.id,
+          orden_trabajo: r.type,
+          origen: 'App',
+          estatus: r.status,
+          fecha_inicio: r.date.split('T')[0],
+          hora_inicio: r.date.split('T')[1]?.split('.')[0] || '12:00:00',
+          fecha_hora_inicio: r.date,
+          departamento: r.area,
+          maquina_id: r.machine,
+          falla: r.type,
+          descripcion: r.description,
+          nombre_solicitante: r.applicant,
+          turno_solicitante: r.shift.includes('Mañana') ? 1 : r.shift.includes('Tarde') ? 2 : 3,
+          prioridad: r.urgency
+        });
+      });
+      
+      localOrders.forEach(o => {
+        combined.set(o.id, {
+          folio: o.id,
+          orden_trabajo: o.type,
+          origen: 'App',
+          estatus: o.status,
+          fecha_inicio: o.date.split('T')[0],
+          hora_inicio: o.date.split('T')[1]?.split('.')[0] || '12:00:00',
+          fecha_hora_inicio: o.date,
+          departamento: o.area,
+          maquina_id: o.machine,
+          falla: o.type,
+          descripcion: o.description,
+          nombre_solicitante: o.applicant,
+          turno_solicitante: o.shift.includes('Mañana') ? 1 : o.shift.includes('Tarde') ? 2 : 3,
+          prioridad: o.urgency,
+          cve_atendio: o.assignedTech,
+          fecha_fin: o.dueDate ? o.dueDate.split('T')[0] : null,
+          hora_fin: o.dueDate ? o.dueDate.split('T')[1]?.slice(0,8) : null,
+          fecha_hora_fin: o.dueDate || null
+        });
+      });
+      
+      if (combined.size > 0) {
+        await supabaseClient.from('ordenes_trabajo').insert(Array.from(combined.values()));
+      }
+    }
+    console.log('Supabase synchronization finished successfully.');
+  } catch (err) {
+    console.error('Error during Supabase synchronization:', err);
+  }
+}
+
 // --- INICIALIZACIÓN ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Asegurar que el seed de datos esté cargado
   if (typeof initLocalStorage === 'function') {
     initLocalStorage();
   }
+  
+  // Sincronizar bases de datos con Supabase
+  await syncDatabases();
   
   // Registrar listeners de eventos de click fuera del dropdown de navbar
   window.addEventListener('click', (e) => {
@@ -151,7 +541,7 @@ function handleFileSelected(input, previewId) {
 }
 
 // Envío de Nueva Solicitud Pública
-function handleRequestSubmit(event) {
+async function handleRequestSubmit(event) {
   event.preventDefault();
   
   const name = document.getElementById('req-name').value;
@@ -163,19 +553,20 @@ function handleRequestSubmit(event) {
   const machineStopped = document.querySelector('input[name="req-stopped"]:checked').value;
   const urgency = document.getElementById('req-urgency').value;
   
-  // Simular archivo subido
   const fileInput = document.getElementById('req-file');
   let evidenceFile = null;
   if (fileInput.files && fileInput.files[0]) {
     evidenceFile = fileInput.files[0].name;
   }
 
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-  
-  // Generar folio temporal format: REQ-AÑO-CONSECUTIVO
-  const currentYear = new Date().getFullYear();
-  const consecutive = String(requests.length + 1).padStart(4, '0');
-  const reqId = `REQ-${currentYear}-${consecutive}`;
+  // Generar folio de negocio: PREFIJO + CONSECUTIVO (ej: PF00001)
+  const prefix = area; // PF, CF, TF, AF
+  const combinedList = [
+    ...(JSON.parse(localStorage.getItem('TSMAI_requests') || '[]')),
+    ...(JSON.parse(localStorage.getItem('TSMAI_orders') || '[]'))
+  ];
+  const count = combinedList.filter(o => o.id.startsWith(prefix)).length + 1;
+  const reqId = `${prefix}${String(count).padStart(5, '0')}`;
 
   const newRequest = {
     id: reqId,
@@ -192,16 +583,27 @@ function handleRequestSubmit(event) {
     evidence: evidenceFile
   };
 
-  requests.push(newRequest);
-  localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
+  // Insertar en la base de datos (con fallback a localstorage)
+  await dbInsertRequest(newRequest);
 
-  // Si la máquina está parada, actualizar estado de la máquina a "Parada"
+  // Si la máquina está parada, actualizar estado de la máquina a "Parada" (activo = false)
   if (machineStopped === 'Sí') {
     const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
     const machineIndex = machines.findIndex(m => m.id === machine);
     if (machineIndex !== -1) {
       machines[machineIndex].status = 'Parada';
       localStorage.setItem('TSMAI_machines', JSON.stringify(machines));
+    }
+    
+    if (supabaseClient) {
+      try {
+        await supabaseClient
+          .from('cat_maquinas')
+          .update({ activo: false })
+          .eq('equipo_towell', machine);
+      } catch (err) {
+        console.error('Error updating machine status in Supabase:', err);
+      }
     }
   }
 
@@ -787,7 +1189,7 @@ function openReviewModal(reqId) {
 }
 
 // Convertir solicitud pública en OT oficial
-function convertToWorkOrder() {
+async function convertToWorkOrder() {
   const reqId = document.getElementById('review-req-id').value;
   const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
   const reqIndex = requests.findIndex(r => r.id === reqId);
@@ -808,25 +1210,15 @@ function convertToWorkOrder() {
   requests[reqIndex].status = 'Asignada';
   localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
 
-  // Generar Folio Oficial: TIPO-ÁREA-AÑO-CONSECUTIVO
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const currentYear = new Date().getFullYear();
-  // Obtener consecutivo
-  const filteredOrders = orders.filter(o => o.id.includes(`-${currentYear}-`));
-  const maxConsecutive = filteredOrders.reduce((max, o) => {
-    const parts = o.id.split('-');
-    const num = parseInt(parts[parts.length - 1]);
-    return num > max ? num : max;
-  }, 0);
-  
-  const consecutiveStr = String(maxConsecutive + 1).padStart(4, '0');
-  const otId = `${type}-${req.area}-${currentYear}-${consecutiveStr}`;
+  // Folio Oficial: Mantiene el folio original generado en el portal (ej: PF00001)
+  const otId = reqId;
 
   // Buscar nombre de técnico
   const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
   const techObj = techs.find(t => t.id === techId);
   const techName = techObj ? techObj.name : 'Técnico';
 
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const newOrder = {
     id: otId,
     reqId: reqId,
@@ -852,15 +1244,37 @@ function convertToWorkOrder() {
   orders.push(newOrder);
   localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
 
+  // Actualizar en Supabase
+  if (supabaseClient) {
+    try {
+      const parsedDueDate = new Date(dueDate);
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({
+          estatus: 'Asignada',
+          orden_trabajo: type,
+          cve_atendio: techId,
+          nombre_atendio: techName,
+          prioridad: priority,
+          fecha_fin: parsedDueDate.toISOString().split('T')[0],
+          hora_fin: parsedDueDate.toTimeString().split(' ')[0],
+          fecha_hora_fin: parsedDueDate.toISOString()
+        })
+        .eq('folio', reqId);
+    } catch (err) {
+      console.error('Error updating order in Supabase:', err);
+    }
+  }
+
   closeModal('modal-admin-review');
-  showToast(`OT ${otId} generada y asignada correctamente.`);
+  showToast(`OT ${otId} asignada correctamente.`);
   
   // Refrescar paneles
   switchAdminPanel('requests');
   updateRequestsBadge();
 }
 
-function requestMoreInfoFromApplicant() {
+async function requestMoreInfoFromApplicant() {
   const reqId = document.getElementById('review-req-id').value;
   const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
   const reqIndex = requests.findIndex(r => r.id === reqId);
@@ -869,13 +1283,24 @@ function requestMoreInfoFromApplicant() {
   requests[reqIndex].status = 'En revisión';
   localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
   
+  if (supabaseClient) {
+    try {
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({ estatus: 'En revisión' })
+        .eq('folio', reqId);
+    } catch (err) {
+      console.error('Error updating request status in Supabase:', err);
+    }
+  }
+  
   closeModal('modal-admin-review');
   showToast(`Se solicitó más información para el reporte ${reqId}.`);
   switchAdminPanel('requests');
   updateRequestsBadge();
 }
 
-function cancelRequest() {
+async function cancelRequest() {
   const reqId = document.getElementById('review-req-id').value;
   const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
   const reqIndex = requests.findIndex(r => r.id === reqId);
@@ -883,6 +1308,17 @@ function cancelRequest() {
 
   requests[reqIndex].status = 'Rechazada';
   localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
+  
+  if (supabaseClient) {
+    try {
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({ estatus: 'Rechazada' })
+        .eq('folio', reqId);
+    } catch (err) {
+      console.error('Error updating request status in Supabase:', err);
+    }
+  }
   
   closeModal('modal-admin-review');
   showToast(`Solicitud ${reqId} cancelada.`);
@@ -1199,17 +1635,372 @@ function renderAdminFormsList() {
 }
 
 // --- EXCEL SIMULATION ---
-function simulateExcelUpload(event) {
+// --- REAL EXCEL UPLOAD & INGESTION ---
+async function handleRealExcelUpload(event) {
   event.preventDefault();
-  const alertBox = document.getElementById('excel-success-alert');
   
-  // Simular progreso de carga
-  showToast('Procesando archivo de históricos...');
+  let files;
+  if (event.dataTransfer) {
+    files = event.dataTransfer.files;
+  } else if (event.target) {
+    files = event.target.files;
+  }
   
-  setTimeout(() => {
-    if (alertBox) alertBox.style.display = 'flex';
-    showToast('Historial cargado con éxito.');
-  }, 1000);
+  if (!files || files.length === 0) return;
+  const file = files[0];
+  const filename = file.name;
+  const maquinaIdFromFilename = filename.split('.')[0];
+  
+  showToast(`Procesando archivo: ${filename}...`);
+  
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      
+      if (jsonData.length === 0) {
+        showToast('El archivo Excel está vacío.');
+        return;
+      }
+      
+      // Crear registro de control de carga
+      const logRecord = {
+        nombre_archivo: filename,
+        tipo_archivo: file.type || filename.split('.').pop(),
+        fuente: 'Excel Import',
+        fecha_carga: new Date().toISOString(),
+        usuario_carga: currentUser ? currentUser.name : 'Super Admin',
+        registros_leidos: jsonData.length,
+        registros_correctos: 0,
+        registros_error: 0,
+        estatus_carga: 'Pendiente',
+        observaciones: 'Procesando archivo...'
+      };
+      
+      let dbCargaId = null;
+      if (supabaseClient) {
+        try {
+          const { data: cData, error: cErr } = await supabaseClient
+            .from('control_cargas_archivos')
+            .insert([logRecord])
+            .select();
+          if (!cErr && cData && cData.length > 0) {
+            dbCargaId = cData[0].id_carga;
+          }
+        } catch (err) {
+          console.error('Error inserting log in Supabase:', err);
+        }
+      }
+      
+      // Autodetectar tipo de archivo basado en columnas del primer registro
+      const firstRow = jsonData[0];
+      const keys = Object.keys(firstRow).map(k => k.toLowerCase().trim());
+      
+      let detectedType = '';
+      let correctCount = 0;
+      let errorCount = 0;
+      
+      const hasKey = (arr, term) => arr.some(k => k.includes(term));
+      
+      if (hasKey(keys, 'equipo tow') || hasKey(keys, 'equipo_tow') || hasKey(keys, 'clave')) {
+        detectedType = 'Catálogo de Máquinas';
+        const machinesToInsert = [];
+        jsonData.forEach(row => {
+          try {
+            const eqTowell = row['EQUIPO TOWELL'] || row['equipo towell'] || row['Equipo Towell'] || row['EQUIPO_TOWELL'];
+            const clave = row['Clave'] || row['clave'] || row['CLAVE'] || row['CLAVE_MAQUINA'];
+            if (!eqTowell) throw new Error('Falta columna EQUIPO TOWELL');
+            
+            let area = 'PF';
+            if (eqTowell.includes('COS')) area = 'CF';
+            else if (eqTowell.includes('TIN') || eqTowell.includes('JET')) area = 'TF';
+            else if (eqTowell.includes('AUX') || eqTowell.includes('SUB') || eqTowell.includes('COM')) area = 'AF';
+            
+            machinesToInsert.push({
+              equipo_towell: eqTowell,
+              clave: clave || eqTowell.split('-')[1] || eqTowell,
+              area: area,
+              proceso: area === 'PF' ? 'Tejido' : area === 'CF' ? 'Costura' : 'Tintorería',
+              tipo_equipo: 'Maquinaria',
+              activo: true,
+              origen: 'Excel Import'
+            });
+            correctCount++;
+          } catch (err) {
+            console.error('Fila con error:', err);
+            errorCount++;
+          }
+        });
+        
+        if (supabaseClient && machinesToInsert.length > 0) {
+          const { error: upsertErr } = await supabaseClient
+            .from('cat_maquinas')
+            .upsert(machinesToInsert, { onConflict: 'equipo_towell' });
+          if (upsertErr) throw upsertErr;
+        }
+        
+      } else if (hasKey(keys, 'depto') || hasKey(keys, 'nom_empl') || hasKey(keys, 'nomempl') || hasKey(keys, 'cveempl') || hasKey(keys, 'cve_empl')) {
+        detectedType = 'Órdenes de Telegram';
+        const telegramStaging = [];
+        const productionOrders = [];
+        
+        jsonData.forEach(row => {
+          try {
+            const id = parseInt(row['Id'] || row['id'] || row['ID']) || correctCount + 1;
+            const folio = row['Folio'] || row['folio'] || row['FOLIO'];
+            const estatus = row['Estatus'] || row['estatus'] || row['ESTATUS'] || 'Solicitud recibida';
+            const fecha = parseExcelDate(row['Fecha'] || row['fecha'] || row['FECHA']);
+            const hora = row['Hora'] || row['hora'] || row['HORA'] || '12:00:00';
+            const depto = row['Depto'] || row['depto'] || row['DEPTO'];
+            const maquina_id = row['MaquinaId'] || row['maquina_id'] || row['Maquinaid'] || row['MAQUINAID'] || row['maquina'];
+            const tipo_falla_id = row['TipoFallaId'] || row['tipofallaid'] || row['tipo_falla_id'];
+            const falla = row['Falla'] || row['falla'] || row['FALLA'];
+            const hora_fin = row['HoraFin'] || row['horafin'] || row['hora_fin'];
+            const cve_empl = row['CveEmpl'] || row['cveempl'] || row['cve_empl'];
+            const nom_empl = row['NomEmpl'] || row['nomempl'] || row['nom_empl'];
+            const turno = parseInt(row['Turno'] || row['turno'] || row['TURNO']) || 1;
+            const cve_atendio = row['CveAtendio'] || row['cveatendio'] || row['cve_atendio'];
+            const nom_atendio = row['NomAtendio'] || row['nomatendio'] || row['nom_atendio'];
+            const turno_atendio = parseInt(row['TurnoAtendio'] || row['turnoatendio'] || row['turno_atendio']) || null;
+            const obs = row['Obs'] || row['obs'] || row['OBS'];
+            const orden_trabajo = row['OrdenTrabajo'] || row['ordentrabajo'] || row['orden_trabajo'];
+            const descripcion = row['Descripcion'] || row['descripción'] || row['descripcion'] || row['DESCRIPCION'];
+            const enviado = row['Enviado'] || row['enviado'] || row['ENVIADO'] || false;
+            const obs_cierre = row['ObsCierre'] || row['obscierre'] || row['obs_cierre'];
+            const calidad = parseInt(row['Calidad'] || row['calidad'] || row['CALIDAD']) || null;
+            const fecha_fin_val = row['FechaFin'] || row['fechafin'] || row['fecha_fin'];
+            const fecha_fin = fecha_fin_val ? parseExcelDate(fecha_fin_val) : null;
+            
+            telegramStaging.push({
+              id, folio, estatus, fecha: fecha.toISOString().split('T')[0], hora, depto, maquina_id, tipo_falla_id,
+              falla, hora_fin, cve_empl, nom_empl, turno, cve_atendio, nom_atendio, turno_atendio, obs,
+              orden_trabajo, descripcion, enviado: enviado === 'True' || enviado === true, obs_cierre, calidad,
+              fecha_fin: fecha_fin ? fecha_fin.toISOString().split('T')[0] : null
+            });
+            
+            productionOrders.push({
+              id_original: id,
+              folio: folio || `TG-${id}`,
+              orden_trabajo: orden_trabajo || 'MC',
+              origen: 'Telegram',
+              estatus: estatus,
+              fecha_inicio: fecha.toISOString().split('T')[0],
+              hora_inicio: hora,
+              fecha_hora_inicio: new Date(fecha.toISOString().split('T')[0] + 'T' + (hora.includes(':') ? hora : '12:00:00')).toISOString(),
+              departamento: depto,
+              maquina_id: maquina_id,
+              tipo_falla_id: tipo_falla_id,
+              falla: falla,
+              descripcion: descripcion || obs,
+              observacion_inicial: obs,
+              cve_solicitante: cve_empl,
+              nombre_solicitante: nom_empl,
+              turno_solicitante: turno,
+              cve_atendio: cve_atendio,
+              nombre_atendio: nom_atendio,
+              turno_atendio: turno_atendio,
+              fecha_fin: fecha_fin ? fecha_fin.toISOString().split('T')[0] : null,
+              hora_fin: hora_fin,
+              fecha_hora_fin: fecha_fin && hora_fin ? new Date(fecha_fin.toISOString().split('T')[0] + 'T' + (hora_fin.includes(':') ? hora_fin : '12:00:00')).toISOString() : null,
+              tiempo_atencion_min: fecha_fin && fecha ? Math.round((fecha_fin - fecha) / (1000 * 60)) : null,
+              observacion_cierre: obs_cierre,
+              calidad: calidad,
+              enviado: enviado === 'True' || enviado === true,
+              prioridad: 'Media'
+            });
+            
+            correctCount++;
+          } catch (err) {
+            console.error('Row error:', err);
+            errorCount++;
+          }
+        });
+        
+        if (supabaseClient) {
+          if (telegramStaging.length > 0) {
+            const { error: stgErr } = await supabaseClient.from('stg_telegram_ordenes_telares').upsert(telegramStaging, { onConflict: 'id' });
+            if (stgErr) throw stgErr;
+          }
+          if (productionOrders.length > 0) {
+            const { error: prodErr } = await supabaseClient.from('ordenes_trabajo').upsert(productionOrders, { onConflict: 'folio' });
+            if (prodErr) throw prodErr;
+          }
+        }
+      } else if (hasKey(keys, 'art') || hasKey(keys, 'código') || hasKey(keys, 'codigo') || hasKey(keys, 'destino')) {
+        detectedType = 'Refacciones por Máquina';
+        const partsToInsert = [];
+        const consumptionsToInsert = [];
+        const pricesToInsert = [];
+        
+        for (const row of jsonData) {
+          try {
+            const fechaStr = row['Fecha'] || row['fecha'] || row['FECHA'];
+            const fecha = parseExcelDate(fechaStr);
+            const destino = row['Destino'] || row['destino'] || row['DESTINO'];
+            const codArt = row['Código de Artículo'] || row['código de artículo'] || row['Codigo de Articulo'] || row['codigo'] || row['Código'];
+            const nomArt = row['Nombre del Artículo'] || row['nombre del artículo'] || row['Nombre'] || row['nombre'];
+            const cant = parseFloat(row['Cantidad'] || row['cantidad'] || row['CANTIDAD']) || 1.0;
+            const precio = parseFloat(row['Precio de Costo'] || row['precio de costo'] || row['Precio'] || row['precio']) || 0.0;
+            const importe = parseFloat(row['Importe de Costo'] || row['importe de costo'] || row['Importe'] || row['importe']) || 0.0;
+            
+            if (!codArt || !nomArt) throw new Error('Falta Código o Nombre de Artículo');
+            
+            const calcImporte = cant * precio;
+            const dif = calcImporte - importe;
+            
+            partsToInsert.push({
+              codigo_articulo: codArt,
+              nombre_articulo: nomArt,
+              unidad_medida: 'PZ',
+              familia: 'General',
+              activo: true
+            });
+            
+            consumptionsToInsert.push({
+              fecha: fecha.toISOString().split('T')[0],
+              maquina_id: destino,
+              destino: destino,
+              codigo_articulo: codArt,
+              nombre_articulo: nomArt,
+              cantidad_estandar: cant,
+              precio_costo_unitario: precio,
+              importe_costo_calculado: calcImporte,
+              importe_costo_origen: importe,
+              diferencia_importe: dif,
+              origen: 'Excel Import'
+            });
+            
+            pricesToInsert.push({
+              codigo_articulo: codArt,
+              fecha: fecha.toISOString().split('T')[0],
+              precio_costo_unitario: precio,
+              moneda: 'MXN',
+              origen: 'Excel Import'
+            });
+            
+            correctCount++;
+          } catch (err) {
+            console.error('Fila con error:', err);
+            errorCount++;
+          }
+        }
+        
+        if (supabaseClient) {
+          const uniqueParts = Array.from(new Map(partsToInsert.map(p => [p.codigo_articulo, p])).values());
+          await supabaseClient.from('cat_refacciones').upsert(uniqueParts, { onConflict: 'codigo_articulo' });
+          await supabaseClient.from('refacciones_por_maquina').insert(consumptionsToInsert);
+          await supabaseClient.from('historico_precios_refacciones').insert(pricesToInsert);
+        }
+        
+      } else if (hasKey(keys, 'descrip') || hasKey(keys, 'creada') || hasKey(keys, 'fecha')) {
+        detectedType = 'Historial de Fallas';
+        const rawFaults = [];
+        const cleanFaults = [];
+        
+        jsonData.forEach(row => {
+          try {
+            const desc = row['Descripción'] || row['descripción'] || row['descripcion'] || row['DESCRIPCION'];
+            const creadaStr = row['Creada'] || row['creada'] || row['CREADA'];
+            if (!desc) throw new Error('Falta Descripción');
+            
+            const creada = parseExcelDate(creadaStr);
+            
+            rawFaults.push({
+              maquina_id: maquinaIdFromFilename,
+              descripcion: desc,
+              creada: creada.toISOString(),
+              archivo_origen: filename
+            });
+            
+            cleanFaults.push({
+              maquina_id: maquinaIdFromFilename,
+              descripcion_falla: desc,
+              fecha_hora_creada: creada.toISOString(),
+              fecha_creada: creada.toISOString().split('T')[0],
+              hora_creada: creada.toTimeString().split(' ')[0],
+              origen: 'Excel Import',
+              archivo_origen: filename,
+              categoria_falla: desc.toLowerCase().includes('eléc') || desc.toLowerCase().includes('sensor') ? 'Eléctrica' : 'Mecánica',
+              es_recurrente: false
+            });
+            correctCount++;
+          } catch (err) {
+            console.error('Fila con error:', err);
+            errorCount++;
+          }
+        });
+        
+        if (supabaseClient) {
+          await supabaseClient.from('stg_fallas_por_maquina_excel').insert(rawFaults);
+          await supabaseClient.from('fallas_por_maquina').insert(cleanFaults);
+        }
+        
+      } else {
+        showToast('No se pudo identificar el tipo de archivo. Revisa las columnas.');
+        if (supabaseClient && dbCargaId) {
+          await supabaseClient.from('control_cargas_archivos').update({
+            estatus_carga: 'Error',
+            observaciones: 'Formato de columnas no identificado.'
+          }).eq('id_carga', dbCargaId);
+        }
+        return;
+      }
+      
+      if (supabaseClient && dbCargaId) {
+        await supabaseClient.from('control_cargas_archivos').update({
+          registros_correctos: correctCount,
+          registros_error: errorCount,
+          estatus_carga: 'Completada',
+          observaciones: `Carga exitosa de ${detectedType}.`
+        }).eq('id_carga', dbCargaId);
+      }
+      
+      const alertBox = document.getElementById('excel-success-alert');
+      if (alertBox) {
+        alertBox.querySelector('strong').innerText = `Archivo "${filename}" procesado como ${detectedType} exitosamente.`;
+        alertBox.querySelector('div').innerText = `Se cargaron ${correctCount} registros (Errores: ${errorCount}) en Supabase.`;
+        alertBox.style.display = 'flex';
+      }
+      
+      showToast(`Carga de ${detectedType} completada con éxito.`);
+      await syncDatabases();
+      
+      // Refrescar vistas en el panel de administrador
+      renderAdminMachinesTable();
+      renderAdminPartsTable();
+      renderAdminLogsTable();
+      
+    } catch (err) {
+      console.error('Excel processing error:', err);
+      showToast(`Error al procesar archivo: ${err.message}`);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseExcelDate(value) {
+  if (!value) return new Date();
+  if (typeof value === 'number') {
+    return new Date((value - 25569) * 86400 * 1000);
+  }
+  const parsed = new Date(value);
+  if (!isNaN(parsed.getTime())) return parsed;
+  if (typeof value === 'string') {
+    const parts = value.split(/[-/]/);
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  return new Date();
 }
 
 // --- PANEL DE EQUIPO TÉCNICO (MANTENIMIENTO) ---
@@ -1369,7 +2160,7 @@ function openTechOrderDetailModal(otId) {
 }
 
 // Actualizar estado del trabajo directamente en sitio
-function setWorkStatus(newStatus) {
+async function setWorkStatus(newStatus) {
   const otId = document.getElementById('tech-ot-id').value;
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const orderIndex = orders.findIndex(o => o.id === otId);
@@ -1397,6 +2188,25 @@ function setWorkStatus(newStatus) {
 
   localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
   localStorage.setItem('TSMAI_machines', JSON.stringify(machines));
+
+  // Actualizar en Supabase
+  if (supabaseClient) {
+    try {
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({ estatus: newStatus })
+        .eq('folio', otId);
+        
+      if (newStatus === 'Ejecutada' || newStatus === 'Cerrada') {
+        await supabaseClient
+          .from('cat_maquinas')
+          .update({ activo: true })
+          .eq('equipo_towell', orders[orderIndex].machine);
+      }
+    } catch (err) {
+      console.error('Error updating status in Supabase:', err);
+    }
+  }
 
   showToast(`Estado de la orden cambiado a ${newStatus}.`);
   renderTechDashboard();
@@ -1476,7 +2286,7 @@ function removePartFromTechOTList(index) {
 }
 
 // Guardar bitácora y finalizar / actualizar orden
-function saveTechnicalLog() {
+async function saveTechnicalLog() {
   const otId = document.getElementById('tech-ot-id').value;
   const diagnosis = document.getElementById('tech-diagnosis').value.trim();
   const activity = document.getElementById('tech-activity').value.trim();
@@ -1540,7 +2350,6 @@ function saveTechnicalLog() {
   orders[orderIndex].usedParts = tempSelectedParts;
 
   // Si no se había marcado como ejecutada o en espera, podemos dejarla en proceso
-  // pero si se completó, normalmente pasa a "Ejecutada" para validación del Admin
   if (orders[orderIndex].status === 'Asignada') {
     orders[orderIndex].status = 'En proceso';
   }
@@ -1559,12 +2368,11 @@ function saveTechnicalLog() {
     comment: `Bitácora técnica actualizada. Diagnóstico: ${diagnosis.slice(0, 40)}...`
   });
 
-  // Guardar
+  // Guardar localmente
   localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
   localStorage.setItem('TSMAI_parts', JSON.stringify(parts));
 
   // Actualizar también costo acumulado en máquina (dinamismo total del MVP)
-  // Calculamos costo total de repuestos usados
   let extraCost = 0;
   tempSelectedParts.forEach(selected => {
     const part = parts.find(p => p.id === selected.partId);
@@ -1576,13 +2384,69 @@ function saveTechnicalLog() {
   if (machIndex !== -1) {
     machines[machIndex].cost += extraCost;
     if (orders[orderIndex].status === 'Ejecutada') {
-      machines[machIndex].failures += 1; // Sumar una falla al historial general
+      machines[machIndex].failures += 1;
     }
     localStorage.setItem('TSMAI_machines', JSON.stringify(machines));
   }
 
+  // Sincronizar reporte a Supabase
+  if (supabaseClient) {
+    try {
+      const combinedObservation = `Diagnóstico: ${diagnosis} | Actividad: ${activity} | Observaciones: ${observations}`;
+      
+      const updateData = {
+        estatus: orders[orderIndex].status,
+        observacion_cierre: combinedObservation,
+        fecha_fin: new Date().toISOString().split('T')[0],
+        hora_fin: new Date().toTimeString().split(' ')[0],
+        fecha_hora_fin: new Date().toISOString()
+      };
+      
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update(updateData)
+        .eq('folio', otId);
+        
+      if (tempSelectedParts.length > 0) {
+        const consumptions = tempSelectedParts.map(selected => {
+          const part = parts.find(p => p.id === selected.partId);
+          const cost = part ? part.cost : 0;
+          const totalCost = cost * selected.quantity;
+          return {
+            fecha: new Date().toISOString().split('T')[0],
+            maquina_id: currentOrder.machine,
+            destino: currentOrder.machine,
+            codigo_articulo: selected.partId,
+            nombre_articulo: selected.partName,
+            cantidad_estandar: selected.quantity,
+            precio_costo_unitario: cost,
+            importe_costo_calculado: totalCost,
+            importe_costo_origen: totalCost,
+            diferencia_importe: 0,
+            origen: 'App'
+          };
+        });
+        
+        await supabaseClient
+          .from('refacciones_por_maquina')
+          .insert(consumptions);
+      }
+      
+      if (orders[orderIndex].status === 'Ejecutada' || orders[orderIndex].status === 'Cerrada') {
+        await supabaseClient
+          .from('cat_maquinas')
+          .update({ activo: true })
+          .eq('equipo_towell', currentOrder.machine);
+      }
+      
+    } catch (err) {
+      console.error('Error updating technical log in Supabase:', err);
+    }
+  }
+
   closeModal('modal-tech-ot-detail');
   showToast('Bitácora técnica guardada exitosamente.');
+  await syncDatabases();
   
   // Recargar vistas
   renderTechDashboard();
