@@ -782,6 +782,23 @@ function logout() {
 }
 
 // --- PANEL SUPER ADMINISTRADOR ---
+// Alternar visualización del submenú de base de datos
+function toggleDatabaseSubmenu(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const submenu = document.getElementById('admin-database-submenu');
+  const arrow = document.querySelector('#menu-admin-database-group .arrow');
+  if (submenu) {
+    const isHidden = submenu.style.display === 'none' || submenu.style.display === '';
+    submenu.style.display = isHidden ? 'block' : 'none';
+    if (arrow) {
+      arrow.innerText = isHidden ? '▲' : '▼';
+    }
+  }
+}
+
 function switchAdminPanel(panelId) {
   activeAdminPanel = panelId;
   
@@ -789,8 +806,24 @@ function switchAdminPanel(panelId) {
   document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
     item.classList.remove('active');
   });
+  
+  const dbGroup = document.getElementById('menu-admin-database-group');
+  if (dbGroup) dbGroup.classList.remove('active');
+
   const activeMenuItem = document.getElementById(`menu-admin-${panelId}`);
   if (activeMenuItem) activeMenuItem.classList.add('active');
+
+  // Si pertenece al grupo de base de datos, asegurar que esté expandido
+  const dbPanels = ['machines', 'parts', 'users', 'logs'];
+  if (dbPanels.includes(panelId)) {
+    if (dbGroup) dbGroup.classList.add('active');
+    const submenu = document.getElementById('admin-database-submenu');
+    const arrow = document.querySelector('#menu-admin-database-group .arrow');
+    if (submenu) {
+      submenu.style.display = 'block';
+      if (arrow) arrow.innerText = '▲';
+    }
+  }
 
   // Cambiar paneles visibles
   document.querySelectorAll('.admin-panel-content').forEach(panel => {

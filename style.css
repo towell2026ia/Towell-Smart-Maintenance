@@ -208,6 +208,37 @@ body {
   background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(30, 41, 59, 0.5) 100%);
 }
 
+/* Submenú de base de datos colapsable */
+.menu-group-header {
+  transition: all var(--transition-fast);
+}
+
+.menu-group-header:hover {
+  color: #ffffff !important;
+  background-color: var(--secondary-dark) !important;
+}
+
+.menu-item-group.active .menu-group-header {
+  color: #ffffff !important;
+}
+
+.submenu .menu-item a {
+  padding: 8px 12px !important;
+  font-size: 0.85rem !important;
+  color: #94a3b8;
+}
+
+.submenu .menu-item a:hover {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.submenu .menu-item.active a {
+  border-left: 3px solid var(--accent-cyan) !important;
+  background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(30, 41, 59, 0.3) 100%) !important;
+  color: #ffffff !important;
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding-top: 16px;
