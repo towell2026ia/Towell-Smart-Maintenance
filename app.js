@@ -1329,9 +1329,18 @@ function toggleDatabaseSubmenu(event) {
   if (submenu) {
     const isHidden = submenu.style.display === 'none' || submenu.style.display === '';
     submenu.style.display = isHidden ? 'block' : 'none';
-    if (arrow) {
-      arrow.innerText = isHidden ? '▲' : '▼';
-    }
+    if (arrow) arrow.innerText = isHidden ? '▲' : '▼';
+  }
+}
+
+function toggleOperationalSubmenu(event) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  const submenu = document.getElementById('admin-operational-submenu');
+  const arrow = document.querySelector('#menu-admin-operational-group .arrow-op');
+  if (submenu) {
+    const isHidden = submenu.style.display === 'none' || submenu.style.display === '';
+    submenu.style.display = isHidden ? 'block' : 'none';
+    if (arrow) arrow.innerText = isHidden ? '▲' : '▼';
   }
 }
 
@@ -1350,7 +1359,9 @@ function switchAdminPanel(panelId) {
   if (activeMenuItem) activeMenuItem.classList.add('active');
 
   // Si pertenece al grupo de base de datos, asegurar que esté expandido
-  const dbPanels = ['machines', 'parts', 'inventory', 'suppliers', 'users', 'logs'];
+  const dbPanels = ['machines', 'parts', 'inventory', 'suppliers', 'tecnicos', 'empleados',
+    'departamentos', 'turnos', 'servicios', 'tiposfalla', 'categfalla', 'criticidad',
+    'estatusot', 'users', 'logs'];
   if (dbPanels.includes(panelId)) {
     if (dbGroup) dbGroup.classList.add('active');
     const submenu = document.getElementById('admin-database-submenu');
@@ -1358,6 +1369,19 @@ function switchAdminPanel(panelId) {
     if (submenu) {
       submenu.style.display = 'block';
       if (arrow) arrow.innerText = '▲';
+    }
+  }
+
+  // Si pertenece al grupo operacional, expandir ese submenu
+  const opPanels = ['alertas', 'fallas', 'costosot', 'evidencias', 'refmaquina', 'histprecios', 'cierres', 'respchk'];
+  const opGroup = document.getElementById('menu-admin-operational-group');
+  if (opPanels.includes(panelId)) {
+    if (opGroup) opGroup.classList.add('active');
+    const opSubmenu = document.getElementById('admin-operational-submenu');
+    const opArrow = document.querySelector('#menu-admin-operational-group .arrow-op');
+    if (opSubmenu) {
+      opSubmenu.style.display = 'block';
+      if (opArrow) opArrow.innerText = '▲';
     }
   }
 
@@ -1379,9 +1403,18 @@ function switchAdminPanel(panelId) {
     parts: '📦 Control de Refacciones',
     inventory: '🏭 Inventario de Refacciones',
     suppliers: '🤝 Catálogo de Proveedores',
+    tecnicos: '🛠️ Catálogo de Técnicos',
+    empleados: '👷 Catálogo de Empleados',
+    departamentos: '🏢 Catálogo de Departamentos',
+    turnos: '🕐 Catálogo de Turnos',
+    servicios: '🔩 Servicios de Mantenimiento',
+    tiposfalla: '⚡ Tipos de Falla',
+    categfalla: '🗂️ Categorías de Falla',
+    criticidad: '🚨 Criticidad de Máquinas',
+    estatusot: '🏷️ Estatus de Órdenes de Trabajo',
+    users: '👥 Control de Usuarios y Permisos',
     forms: '🛠️ Formularios y Checklists Dinámicos',
     excel: '📥 Importador de Historiales de Excel',
-    users: '👥 Control de Usuarios y Permisos',
     config: '⚙️ Configuración del Sistema',
     subtasks: '🔧 Subtareas y Apoyo de otra Área',
     preventive: '📅 Planes de Mantenimiento Preventivo',
@@ -1391,7 +1424,15 @@ function switchAdminPanel(panelId) {
     kpis: '📈 KPIs de Mantenimiento',
     analysis: '🔬 Análisis de Repetibilidad de Fallas',
     ai: '🤖 Recomendaciones IA',
-    alertrules: '🔔 Reglas de Alertas del Sistema'
+    alertrules: '🔔 Reglas de Alertas del Sistema',
+    alertas: '🔔 Alertas del Sistema',
+    fallas: '💥 Fallas por Máquina',
+    costosot: '💵 Costos por Orden de Trabajo',
+    evidencias: '📎 Evidencias de OT',
+    refmaquina: '🔧 Consumo de Refacciones por Máquina',
+    histprecios: '📊 Historial de Precios de Refacciones',
+    cierres: '✅ Cierres de Órdenes de Trabajo',
+    respchk: '📋 Respuestas de Checklist por OT'
   };
   document.getElementById('admin-panel-title').innerText = titleLabels[panelId] || 'Panel de Control';
 
@@ -1416,6 +1457,24 @@ function switchAdminPanel(panelId) {
     renderAdminInventoryTable();
   } else if (panelId === 'suppliers') {
     renderAdminSuppliersTable();
+  } else if (panelId === 'tecnicos') {
+    renderAdminTecnicos();
+  } else if (panelId === 'empleados') {
+    renderAdminEmpleados();
+  } else if (panelId === 'departamentos') {
+    renderAdminDepartamentos();
+  } else if (panelId === 'turnos') {
+    renderAdminTurnos();
+  } else if (panelId === 'servicios') {
+    renderAdminServicios();
+  } else if (panelId === 'tiposfalla') {
+    renderAdminTiposFalla();
+  } else if (panelId === 'categfalla') {
+    renderAdminCategFalla();
+  } else if (panelId === 'criticidad') {
+    renderAdminCriticidad();
+  } else if (panelId === 'estatusot') {
+    renderAdminEstatusOT();
   } else if (panelId === 'users') {
     renderAdminUsersTable();
   } else if (panelId === 'forms') {
@@ -1438,6 +1497,22 @@ function switchAdminPanel(panelId) {
     renderAdminAIRecommendations();
   } else if (panelId === 'alertrules') {
     renderAdminAlertRules();
+  } else if (panelId === 'alertas') {
+    renderAdminAlertas();
+  } else if (panelId === 'fallas') {
+    renderAdminFallas();
+  } else if (panelId === 'costosot') {
+    renderAdminCostosOT();
+  } else if (panelId === 'evidencias') {
+    renderAdminEvidencias();
+  } else if (panelId === 'refmaquina') {
+    renderAdminRefMaquina();
+  } else if (panelId === 'histprecios') {
+    renderAdminHistPrecios();
+  } else if (panelId === 'cierres') {
+    renderAdminCierres();
+  } else if (panelId === 'respchk') {
+    renderAdminRespChk();
   }
 }
 
@@ -1740,6 +1815,376 @@ async function renderAdminAlertRules() {
   } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
 }
 function openAlertRuleModal() { alert('Modal de nueva regla de alerta — próximamente.'); }
+
+// ============================================================================
+// RENDER FUNCTIONS — CATÁLOGOS ADICIONALES Y TABLAS OPERACIONALES
+// ============================================================================
+
+// ── TÉCNICOS ─────────────────────────────────────────────────────────────────
+async function renderAdminTecnicos() {
+  const tbody = document.getElementById('tbody-tecnicos');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(8, 'Cargando técnicos…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(8, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('cat_tecnicos').select('*').order('nombre_tecnico').limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(8, 'No hay técnicos registrados.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code>${r.cve_tecnico}</code></td>
+      <td><strong>${r.nombre_tecnico}</strong></td>
+      <td>${r.departamento_codigo || '—'}</td>
+      <td>${r.turno_id ?? '—'}</td>
+      <td>${r.especialidad || '—'}</td>
+      <td>${r.puesto || '—'}</td>
+      <td>${r.correo || '—'}</td>
+      <td>${badgeActive(r.activo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(8, `❌ Error: ${err.message}`); }
+}
+
+// ── EMPLEADOS ─────────────────────────────────────────────────────────────────
+async function renderAdminEmpleados() {
+  const tbody = document.getElementById('tbody-empleados');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(7, 'Cargando empleados…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('cat_empleados').select('*').order('nombre_empleado').limit(500);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay empleados registrados.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code>${r.cve_empleado}</code></td>
+      <td><strong>${r.nombre_empleado}</strong></td>
+      <td>${r.departamento_codigo || '—'}</td>
+      <td>${r.turno_id ?? '—'}</td>
+      <td>${r.puesto || '—'}</td>
+      <td>${r.correo || '—'}</td>
+      <td>${badgeActive(r.activo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
+}
+
+// ── DEPARTAMENTOS ─────────────────────────────────────────────────────────────
+async function renderAdminDepartamentos() {
+  const tbody = document.getElementById('tbody-departamentos');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(4, 'Cargando departamentos…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(4, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('cat_departamentos').select('*').order('codigo_departamento').limit(50);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(4, 'No hay departamentos registrados.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code style="font-size:1rem;font-weight:700;">${r.codigo_departamento}</code></td>
+      <td><strong>${r.nombre_departamento}</strong></td>
+      <td>${r.descripcion || '—'}</td>
+      <td>${badgeActive(r.activo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(4, `❌ Error: ${err.message}`); }
+}
+
+// ── TURNOS ────────────────────────────────────────────────────────────────────
+async function renderAdminTurnos() {
+  const tbody = document.getElementById('tbody-turnos');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(5, 'Cargando turnos…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(5, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('cat_turnos').select('*').order('id_turno').limit(10);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(5, 'No hay turnos registrados.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td>${r.id_turno}</td>
+      <td><strong>${r.nombre_turno}</strong></td>
+      <td>${r.hora_inicio || '—'}</td>
+      <td>${r.hora_fin || '—'}</td>
+      <td>${badgeActive(r.activo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(5, `❌ Error: ${err.message}`); }
+}
+
+// ── SERVICIOS DE MANTENIMIENTO ────────────────────────────────────────────────
+async function renderAdminServicios() {
+  const tbody = document.getElementById('tbody-servicios');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(5, 'Cargando servicios…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(5, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('cat_servicios_mantenimiento').select('*').order('codigo_servicio').limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(5, 'No hay servicios registrados.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code>${r.codigo_servicio}</code></td>
+      <td><strong>${r.nombre_servicio}</strong></td>
+      <td>${r.tipo_servicio || '—'}</td>
+      <td>${r.duracion_estimada_min != null ? `${r.duracion_estimada_min} min` : '—'}</td>
+      <td>${badgeActive(r.activo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(5, `❌ Error: ${err.message}`); }
+}
+
+// ── TIPOS DE FALLA ────────────────────────────────────────────────────────────
+async function renderAdminTiposFalla() {
+  const tbody = document.getElementById('tbody-tiposfalla');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(5, 'Cargando tipos de falla…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(5, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('cat_tipos_falla').select('*, cat_categorias_falla(nombre_categoria)').order('nombre_falla').limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(5, 'No hay tipos de falla registrados.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code>${r.tipo_falla_id}</code></td>
+      <td><strong>${r.nombre_falla}</strong></td>
+      <td>${r.cat_categorias_falla?.nombre_categoria || '—'}</td>
+      <td>${badgePriority(r.prioridad_default)}</td>
+      <td>${badgeActive(r.activo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(5, `❌ Error: ${err.message}`); }
+}
+
+// ── CATEGORÍAS DE FALLA ───────────────────────────────────────────────────────
+async function renderAdminCategFalla() {
+  const tbody = document.getElementById('tbody-categfalla');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(5, 'Cargando categorías de falla…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(5, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('cat_categorias_falla').select('*').order('nombre_categoria').limit(100);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(5, 'No hay categorías registradas.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code>${r.codigo_categoria}</code></td>
+      <td><strong>${r.nombre_categoria}</strong></td>
+      <td>${r.descripcion || '—'}</td>
+      <td>${r.origen || '—'}</td>
+      <td>${badgeActive(r.activo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(5, `❌ Error: ${err.message}`); }
+}
+
+// ── CRITICIDAD DE MÁQUINAS ────────────────────────────────────────────────────
+async function renderAdminCriticidad() {
+  const tbody = document.getElementById('tbody-criticidad');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(6, 'Cargando criticidad…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(6, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('cat_criticidad_maquina').select('*').order('maquina_id').limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(6, 'No hay registros de criticidad.'); return; }
+    const nivelColor = { A: '#ef4444', B: '#f59e0b', C: '#22c55e' };
+    tbody.innerHTML = data.map(r => {
+      const c = nivelColor[r.nivel_criticidad] || '#94a3b8';
+      return `<tr>
+        <td>${r.maquina_id}</td>
+        <td><span style="padding:3px 10px;border-radius:8px;font-weight:700;background:${c};color:#fff;">${r.nivel_criticidad}</span></td>
+        <td>${r.impacto_produccion || '—'}</td>
+        <td>${r.impacto_calidad || '—'}</td>
+        <td>${r.impacto_seguridad || '—'}</td>
+        <td>${badgeActive(r.activo)}</td>
+      </tr>`;
+    }).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(6, `❌ Error: ${err.message}`); }
+}
+
+// ── ESTATUS DE OT ─────────────────────────────────────────────────────────────
+async function renderAdminEstatusOT() {
+  const tbody = document.getElementById('tbody-estatusot');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(7, 'Cargando estatus…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('cat_estatus_orden').select('*').order('orden_flujo').limit(50);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay estatus configurados.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code>${r.codigo_estatus}</code></td>
+      <td><strong>${r.nombre_estatus}</strong></td>
+      <td>${r.descripcion || '—'}</td>
+      <td>${r.orden_flujo ?? '—'}</td>
+      <td>${r.es_inicial ? '✅' : '—'}</td>
+      <td>${r.es_final ? '🏁' : '—'}</td>
+      <td>${badgeActive(r.activo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
+}
+
+// ── ALERTAS DEL SISTEMA ───────────────────────────────────────────────────────
+async function renderAdminAlertas() {
+  const tbody = document.getElementById('tbody-alertas');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(7, 'Cargando alertas…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('alertas_sistema').select('*').order('fecha_generacion', { ascending: false }).limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay alertas generadas.'); return; }
+    const statusColor = { pendiente: '#f59e0b', vista: '#6366f1', atendida: '#22c55e', cancelada: '#94a3b8' };
+    tbody.innerHTML = data.map(r => {
+      const sc = statusColor[r.estatus_alerta?.toLowerCase()] || '#94a3b8';
+      return `<tr>
+        <td>${r.tipo_alerta || '—'}</td>
+        <td>${r.titulo_alerta || '—'}</td>
+        <td>${r.maquina_id || '—'}</td>
+        <td>${badgePriority(r.prioridad)}</td>
+        <td><span style="padding:2px 8px;border-radius:8px;font-size:0.75rem;font-weight:600;background:${sc};color:#fff">${r.estatus_alerta || '—'}</span></td>
+        <td>${fmtTs(r.fecha_generacion)}</td>
+        <td>${r.fecha_visto ? fmtTs(r.fecha_visto) : '—'}</td>
+      </tr>`;
+    }).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
+}
+
+// ── FALLAS POR MÁQUINA ────────────────────────────────────────────────────────
+async function renderAdminFallas() {
+  const tbody = document.getElementById('tbody-fallas');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(6, 'Cargando fallas…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(6, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('fallas_por_maquina').select('*').order('fecha_hora_creada', { ascending: false }).limit(300);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(6, 'No hay fallas registradas.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td>${r.maquina_id}</td>
+      <td style="max-width:220px;white-space:normal;">${r.descripcion_falla || '—'}</td>
+      <td>${r.categoria_falla || '—'}</td>
+      <td>${fmtTs(r.fecha_hora_creada)}</td>
+      <td>${r.origen || '—'}</td>
+      <td>${r.es_recurrente ? '<span style="color:#ef4444;font-weight:600;">Sí ⚠️</span>' : 'No'}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(6, `❌ Error: ${err.message}`); }
+}
+
+// ── COSTOS POR OT ─────────────────────────────────────────────────────────────
+async function renderAdminCostosOT() {
+  const tbody = document.getElementById('tbody-costosot');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(7, 'Cargando costos…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('costos_orden_trabajo').select('*').order('fecha_calculo', { ascending: false }).limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay costos registrados por OT.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code style="font-size:0.7rem;">${r.id_orden}</code></td>
+      <td>${fmtCurrency(r.costo_refacciones, r.moneda)}</td>
+      <td>${fmtCurrency(r.costo_mano_obra, r.moneda)}</td>
+      <td>${fmtCurrency(r.costo_paro, r.moneda)}</td>
+      <td>${fmtCurrency(r.costo_extra, r.moneda)}</td>
+      <td><strong>${fmtCurrency(r.costo_total, r.moneda)}</strong></td>
+      <td>${fmtTs(r.fecha_calculo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
+}
+
+// ── EVIDENCIAS DE OT ──────────────────────────────────────────────────────────
+async function renderAdminEvidencias() {
+  const tbody = document.getElementById('tbody-evidencias');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(6, 'Cargando evidencias…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(6, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('evidencias_orden').select('*').order('fecha_carga', { ascending: false }).limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(6, 'No hay evidencias registradas.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code style="font-size:0.7rem;">${r.id_orden}</code></td>
+      <td>${r.tipo_evidencia || '—'}</td>
+      <td>${r.url_archivo ? `<a href="${r.url_archivo}" target="_blank" style="color:var(--accent-cyan);">${r.nombre_archivo || 'Ver archivo'}</a>` : (r.nombre_archivo || '—')}</td>
+      <td>${r.comentario || '—'}</td>
+      <td>${r.usuario_carga || '—'}</td>
+      <td>${fmtTs(r.fecha_carga)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(6, `❌ Error: ${err.message}`); }
+}
+
+// ── REFACCIONES POR MÁQUINA ───────────────────────────────────────────────────
+async function renderAdminRefMaquina() {
+  const tbody = document.getElementById('tbody-refmaquina');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(7, 'Cargando consumo de refacciones…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('refacciones_por_maquina').select('*').order('fecha', { ascending: false }).limit(300);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay consumo de refacciones registrado.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td>${fmtDate(r.fecha)}</td>
+      <td>${r.maquina_id}</td>
+      <td>${r.nombre_articulo || r.codigo_articulo}</td>
+      <td>${parseFloat(r.cantidad_estandar || 0).toFixed(2)}</td>
+      <td>${fmtCurrency(r.precio_costo_unitario)}</td>
+      <td><strong>${fmtCurrency(r.importe_costo_calculado)}</strong></td>
+      <td>${r.origen || '—'}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
+}
+
+// ── HISTORIAL DE PRECIOS ──────────────────────────────────────────────────────
+async function renderAdminHistPrecios() {
+  const tbody = document.getElementById('tbody-histprecios');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(5, 'Cargando historial de precios…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(5, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('historico_precios_refacciones').select('*, cat_refacciones(nombre_articulo)').order('fecha', { ascending: false }).limit(300);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(5, 'No hay historial de precios.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td>${r.cat_refacciones?.nombre_articulo || r.codigo_articulo}</td>
+      <td>${fmtDate(r.fecha)}</td>
+      <td><strong>${fmtCurrency(r.precio_costo_unitario, r.moneda)}</strong></td>
+      <td>${r.moneda}</td>
+      <td>${r.origen || '—'}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(5, `❌ Error: ${err.message}`); }
+}
+
+// ── CIERRES DE OT ─────────────────────────────────────────────────────────────
+async function renderAdminCierres() {
+  const tbody = document.getElementById('tbody-cierres');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(7, 'Cargando cierres…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('cierres_orden_trabajo').select('*').order('fecha_cierre', { ascending: false }).limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay cierres registrados.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code style="font-size:0.7rem;">${r.id_orden}</code></td>
+      <td>${r.nombre_tecnico || r.cve_tecnico || '—'}</td>
+      <td>${fmtTs(r.fecha_cierre)}</td>
+      <td>${r.usuario_valida || '—'}</td>
+      <td>${r.calidad != null ? `${'⭐'.repeat(Math.min(r.calidad, 5))} (${r.calidad})` : '—'}</td>
+      <td>${r.requiere_retrabajo ? '<span style="color:#ef4444;font-weight:600;">Sí</span>' : 'No'}</td>
+      <td>${r.estatus_cierre || '—'}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
+}
+
+// ── RESPUESTAS DE CHECKLIST POR OT ────────────────────────────────────────────
+async function renderAdminRespChk() {
+  const tbody = document.getElementById('tbody-respchk');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(6, 'Cargando respuestas de checklist…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(6, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('respuestas_checklist_orden').select('*').order('fecha_respuesta', { ascending: false }).limit(300);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(6, 'No hay respuestas de checklist registradas.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code style="font-size:0.7rem;">${r.id_orden}</code></td>
+      <td><code style="font-size:0.7rem;">${r.id_checklist}</code></td>
+      <td>${r.respuesta || '—'}</td>
+      <td>${r.comentario || '—'}</td>
+      <td>${r.usuario_responde || '—'}</td>
+      <td>${fmtTs(r.fecha_respuesta)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(6, `❌ Error: ${err.message}`); }
+}
 
 // ============================================================================
 // Renderizado de Gráficos y Tablas del Dashboard Ejecutivo (Whiteboard layout)
