@@ -28,6 +28,385 @@ let chartDowntimeInstance = null;
 // Arreglo temporal de refacciones seleccionadas en el detalle de OT del técnico
 let tempSelectedParts = [];
 
+// Arreglo temporal de subtareas por crear en el detalle de OT del técnico
+let tempSubtasksToCreate = [];
+
+// --- FORMATTING HELPERS FOR STATUS, AREA AND PRIORITY ---
+function getDBStatus(status) {
+  if (!status) return 'solicitud_recibida';
+  switch (status.toLowerCase().trim()) {
+    case 'requiere subtarea':
+    case 'requiere_subtarea':
+      return 'requiere_subtarea';
+    case 'en ejecución con subtareas':
+    case 'en ejecucion con subtareas':
+    case 'en_ejecucion_con_subtareas':
+      return 'en_ejecucion_con_subtareas';
+    case 'lista para validación':
+    case 'lista para validacion':
+    case 'lista_para_validacion':
+      return 'lista_para_validacion';
+    case 'solicitud recibida':
+    case 'solicitud_recibida':
+      return 'solicitud_recibida';
+    case 'asignada':
+      return 'asignada';
+    case 'en proceso':
+    case 'en_proceso':
+      return 'en_proceso';
+    case 'ejecutada':
+      return 'ejecutada';
+    case 'cerrada':
+      return 'cerrada';
+    default:
+      return status.toLowerCase().replace(' ', '_');
+  }
+}
+
+function formatStatus(status) {
+  if (!status) return '';
+  switch (status.toLowerCase()) {
+    case 'requiere_subtarea':
+      return 'Requiere subtarea';
+    case 'en_ejecucion_con_subtareas':
+      return 'En ejecución con subtareas';
+    case 'lista_para_validacion':
+      return 'Lista para validación';
+    case 'solicitud recibida':
+    case 'solicitud_recibida':
+      return 'Solicitud recibida';
+    case 'asignada':
+      return 'Asignada';
+    case 'en proceso':
+    case 'en_proceso':
+      return 'En proceso';
+    case 'ejecutada':
+      return 'Ejecutada';
+    case 'cerrada':
+      return 'Cerrada';
+    default:
+      return status.charAt(0).toUpperCase() + status.slice(1);
+  }
+}
+
+function formatSubtaskArea(area) {
+  if (!area) return '';
+  switch (area.toLowerCase()) {
+    case 'mecanico': return 'Mecánico';
+    case 'electrico': return 'Eléctrico';
+    case 'lubricacion': return 'Lubricación';
+    case 'limpieza': return 'Limpieza';
+    case 'ajuste': return 'Ajuste';
+    case 'servicio_externo': return 'Servicio Externo';
+    case 'refacciones': return 'Refacciones';
+    case 'otro': return 'Otro';
+    default: return area;
+  }
+}
+
+function formatSubtaskPriority(priority) {
+  if (!priority) return '';
+  switch (priority.toLowerCase()) {
+    case 'baja': return 'Baja';
+    case 'media': return 'Media';
+    case 'alta': return 'Alta';
+    case 'critica': return 'Crítica';
+    default: return priority;
+  }
+}
+
+function formatSubtaskStatus(status) {
+  if (!status) return '';
+  switch (status.toLowerCase()) {
+    case 'solicitada': return 'Solicitada';
+    case 'asignada': return 'Asignada';
+    case 'en_proceso': return 'En proceso';
+    case 'en_espera': return 'En espera';
+    case 'bloqueada': return 'Bloqueada';
+    case 'terminada': return 'Terminada';
+    case 'cancelada': return 'Cancelada';
+    default: return status.charAt(0).toUpperCase() + status.slice(1);
+  }
+}
+
+// Resolve UUIDs to Name
+function getUserNameByUUID(uuid) {
+  if (!uuid) return 'Sin asignar';
+  const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+  const user = users.find(u => u.id_usuario === uuid);
+  return user ? user.nombre_completo : 'Usuario';
+}
+
+// Get User UUID by cve_tecnico or email
+function getUserUUID(cve) {
+  const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+  const user = users.find(u => u.cve_tecnico === cve || u.id_usuario === cve || u.correo === cve);
+  if (user) return user.id_usuario;
+  if (cve && cve.length === 36 && cve.includes('-')) return cve;
+  return null;
+}
+
+// Get Admin UUID
+function getAdminUUID() {
+  const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+  const admin = users.find(u => u.rol === 'SUPER_ADMINISTRADOR');
+  return admin ? admin.id_usuario : '00000000-0000-0000-0000-000000000000';
+}
+
+// --- SUBTAREAS & MOVIMIENTOS ADAPTERS ---
+async function dbGetSubtasks() {
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('subtareas_orden_trabajo')
+        .select('*')
+        .order('fecha_solicitud', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(s => ({
+        id: s.id_subtarea,
+        otId: s.folio_ot,
+        otUUID: s.id_orden_trabajo,
+        number: s.numero_subtarea,
+        title: s.titulo_subtarea,
+        area: s.area_requerida,
+        description: s.descripcion_subtarea,
+        reason: s.motivo_solicitud,
+        dueDate: s.fecha_deseada,
+        priority: s.prioridad,
+        requiresParo: s.requiere_paro,
+        requiresPart: s.requiere_refaccion,
+        status: s.estatus_subtarea,
+        requestedBy: s.solicitado_por,
+        assignedBy: s.asignado_por,
+        assignedTech: s.responsable_asignado,
+        requestDate: s.fecha_solicitud,
+        assignDate: s.fecha_asignacion,
+        startDate: s.fecha_inicio,
+        closeDate: s.fecha_cierre,
+        observations: s.observaciones,
+        activo: s.activo,
+        createdAt: s.creado_en,
+        updatedAt: s.actualizado_en
+      }));
+    } catch (err) {
+      console.error('Error fetching subtasks from Supabase:', err);
+    }
+  }
+  const localList = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+  return localList.map(s => ({
+    id: s.id,
+    otId: s.otId,
+    otUUID: s.otUUID,
+    number: s.number,
+    title: s.title,
+    area: formatSubtaskArea(s.area),
+    description: s.description,
+    reason: s.reason,
+    dueDate: s.dueDate,
+    priority: formatSubtaskPriority(s.priority),
+    requiresParo: s.requiresParo,
+    requiresPart: s.requiresPart,
+    status: formatSubtaskStatus(s.status),
+    requestedBy: s.requestedBy,
+    assignedBy: s.assignedBy,
+    assignedTech: s.assignedTech,
+    requestDate: s.requestDate,
+    assignDate: s.assignDate,
+    startDate: s.startDate,
+    closeDate: s.closeDate,
+    observations: s.observations,
+    activo: s.activo,
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt
+  }));
+}
+
+async function dbInsertSubtask(sub) {
+  if (supabaseClient) {
+    try {
+      const insertData = {
+        id_subtarea: sub.id,
+        folio_ot: sub.otId,
+        id_orden_trabajo: sub.otUUID,
+        numero_subtarea: sub.number,
+        titulo_subtarea: sub.title || 'Apoyo',
+        area_requerida: (sub.area || 'otro').toLowerCase().replace('é', 'e').replace('ó', 'o').replace(' ', '_'),
+        descripcion_subtarea: sub.description,
+        motivo_solicitud: sub.reason,
+        fecha_deseada: sub.dueDate,
+        prioridad: (sub.priority || 'media').toLowerCase().replace('í', 'i'),
+        requiere_paro: sub.requiresParo,
+        requiere_refaccion: sub.requiresPart,
+        estatus_subtarea: (sub.status || 'solicitada').toLowerCase().replace(' ', '_'),
+        solicitado_por: sub.requestedBy,
+        asignado_por: sub.assignedBy,
+        responsable_asignado: sub.assignedTech,
+        observaciones: sub.observations,
+        activo: sub.activo !== undefined ? sub.activo : true,
+        fecha_solicitud: sub.requestDate || new Date().toISOString()
+      };
+      const { error } = await supabaseClient
+        .from('subtareas_orden_trabajo')
+        .insert([insertData]);
+      if (error) throw error;
+      return;
+    } catch (err) {
+      console.error('Error inserting subtask in Supabase:', err);
+    }
+  }
+  const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+  subtasks.push(sub);
+  localStorage.setItem('TSMAI_subtasks', JSON.stringify(subtasks));
+}
+
+async function dbUpdateSubtask(subId, updateFields) {
+  if (supabaseClient) {
+    try {
+      const mapped = {};
+      if (updateFields.status !== undefined) mapped.estatus_subtarea = updateFields.status.toLowerCase().replace(' ', '_');
+      if (updateFields.assignedTech !== undefined) mapped.responsable_asignado = updateFields.assignedTech;
+      if (updateFields.assignedBy !== undefined) mapped.asignado_por = updateFields.assignedBy;
+      if (updateFields.assignDate !== undefined) mapped.fecha_asignacion = updateFields.assignDate;
+      if (updateFields.startDate !== undefined) mapped.fecha_inicio = updateFields.startDate;
+      if (updateFields.closeDate !== undefined) mapped.fecha_cierre = updateFields.closeDate;
+      if (updateFields.observations !== undefined) mapped.observaciones = updateFields.observations;
+      if (updateFields.priority !== undefined) mapped.prioridad = updateFields.priority.toLowerCase().replace('í', 'i');
+      if (updateFields.activo !== undefined) mapped.activo = updateFields.activo;
+      mapped.actualizado_en = new Date().toISOString();
+      const { error } = await supabaseClient
+        .from('subtareas_orden_trabajo')
+        .update(mapped)
+        .eq('id_subtarea', subId);
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error updating subtask in Supabase:', err);
+    }
+  }
+  const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+  const idx = subtasks.findIndex(s => s.id === subId);
+  if (idx !== -1) {
+    subtasks[idx] = { ...subtasks[idx], ...updateFields, updatedAt: new Date().toISOString() };
+    localStorage.setItem('TSMAI_subtasks', JSON.stringify(subtasks));
+  }
+}
+
+// --- SUBTAREA EVIDENCIAS ADAPTERS ---
+async function dbGetEvidences() {
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('evidencias_subtareas')
+        .select('*');
+      if (error) throw error;
+      return (data || []).map(e => ({
+        id: e.id_evidencia,
+        subtaskId: e.id_subtarea,
+        otUUID: e.id_orden_trabajo,
+        fileType: e.tipo_archivo,
+        origin: e.origen_evidencia,
+        fileName: e.nombre_archivo,
+        fileUrl: e.url_archivo,
+        bucket: e.storage_bucket,
+        path: e.storage_path,
+        description: e.descripcion,
+        uploadedBy: e.subido_por,
+        uploadDate: e.fecha_subida,
+        active: e.activo
+      }));
+    } catch (err) {
+      console.error('Error fetching evidences from Supabase:', err);
+    }
+  }
+  return JSON.parse(localStorage.getItem('TSMAI_subtask_evidences') || '[]');
+}
+
+async function dbInsertEvidence(ev) {
+  if (supabaseClient) {
+    try {
+      const insertData = {
+        id_evidencia: ev.id,
+        id_subtarea: ev.subtaskId,
+        id_orden_trabajo: ev.otUUID,
+        tipo_archivo: ev.fileType,
+        origen_evidencia: ev.origin,
+        nombre_archivo: ev.fileName,
+        url_archivo: ev.fileUrl,
+        storage_bucket: ev.bucket || 'ot-evidencias',
+        storage_path: ev.path,
+        descripcion: ev.description,
+        subido_por: ev.uploadedBy,
+        fecha_subida: ev.uploadDate || new Date().toISOString(),
+        activo: ev.active !== undefined ? ev.active : true
+      };
+      const { error } = await supabaseClient
+        .from('evidencias_subtareas')
+        .insert([insertData]);
+      if (error) throw error;
+      return;
+    } catch (err) {
+      console.error('Error inserting evidence in Supabase:', err);
+    }
+  }
+  const evidences = JSON.parse(localStorage.getItem('TSMAI_subtask_evidences') || '[]');
+  evidences.push(ev);
+  localStorage.setItem('TSMAI_subtask_evidences', JSON.stringify(evidences));
+}
+
+// --- MOVIMIENTOS ADAPTERS ---
+async function dbGetMovements() {
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('bitacora_subtareas')
+        .select('*')
+        .order('fecha_movimiento', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(m => ({
+        id: m.id_movimiento,
+        otUUID: m.id_orden_trabajo,
+        subtaskId: m.id_subtarea,
+        type: m.tipo_movimiento,
+        oldState: m.estado_anterior,
+        newState: m.estado_nuevo,
+        by: m.realizado_por,
+        comment: m.comentario,
+        date: m.fecha_movimiento
+      }));
+    } catch (err) {
+      console.error('Error fetching movements from Supabase:', err);
+    }
+  }
+  return JSON.parse(localStorage.getItem('TSMAI_movements') || '[]');
+}
+
+async function dbInsertMovement(mov) {
+  if (supabaseClient) {
+    try {
+      const insertData = {
+        id_movimiento: mov.id,
+        id_orden_trabajo: mov.otUUID,
+        id_subtarea: mov.subtaskId,
+        tipo_movimiento: mov.type,
+        estado_anterior: mov.oldState,
+        estado_nuevo: mov.newState,
+        realizado_por: mov.by,
+        comentario: mov.comment,
+        fecha_movimiento: mov.date || new Date().toISOString()
+      };
+      const { error } = await supabaseClient
+        .from('bitacora_subtareas')
+        .insert([insertData]);
+      if (error) throw error;
+      return;
+    } catch (err) {
+      console.error('Error inserting movement in Supabase:', err);
+    }
+  }
+  const movements = JSON.parse(localStorage.getItem('TSMAI_movements') || '[]');
+  movements.push(mov);
+  localStorage.setItem('TSMAI_movements', JSON.stringify(movements));
+}
+
 // --- HELPERS DE BASE DE DATOS (CON FALLBACK A LOCALSTORAGE) ---
 async function dbGetMachines() {
   if (supabaseClient) {
@@ -85,6 +464,7 @@ async function dbGetRequests() {
       if (error) throw error;
       return (data || []).map(o => ({
         id: o.folio,
+        uuid: o.id_orden,
         applicant: o.nombre_solicitante,
         shift: o.turno_solicitante === 1 ? 'Turno Mañana' : o.turno_solicitante === 2 ? 'Turno Tarde' : 'Turno Nocturno',
         area: o.departamento,
@@ -114,6 +494,7 @@ async function dbGetOrders() {
       if (error) throw error;
       return (data || []).map(o => ({
         id: o.folio,
+        uuid: o.id_orden,
         reqId: o.folio,
         applicant: o.nombre_solicitante,
         shift: o.turno_solicitante === 1 ? 'Turno Mañana' : o.turno_solicitante === 2 ? 'Turno Tarde' : 'Turno Nocturno',
@@ -205,15 +586,23 @@ async function syncDatabases() {
     const { data: dbMachines, error: mErr } = await supabaseClient.from('cat_maquinas').select('*');
     if (mErr) throw mErr;
     if (dbMachines && dbMachines.length > 0) {
-      const localMachines = dbMachines.map(m => ({
-        id: m.equipo_towell,
-        name: m.equipo_towell,
-        area: m.area,
-        clave: m.clave,
-        proceso: m.proceso,
-        tipo_equipo: m.tipo_equipo,
-        status: m.activo ? 'Operativa' : 'Parada'
-      }));
+      const existingLocalMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+      const localMachines = dbMachines.map(m => {
+        const localM = existingLocalMachines.find(lm => lm.id === m.equipo_towell);
+        return {
+          id: m.equipo_towell,
+          name: localM ? localM.name : m.equipo_towell,
+          area: m.area,
+          clave: m.clave,
+          proceso: m.proceso,
+          tipo_equipo: m.tipo_equipo,
+          status: m.activo ? 'Operativa' : 'Parada',
+          failures: localM ? localM.failures : 0,
+          cost: localM ? localM.cost : 0,
+          mtbf: localM ? localM.mtbf : 120,
+          mttr: localM ? localM.mttr : 2.5
+        };
+      });
       localStorage.setItem('TSMAI_machines', JSON.stringify(localMachines));
     } else {
       const localMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
@@ -235,8 +624,10 @@ async function syncDatabases() {
     const { data: dbUsers, error: uErr } = await supabaseClient.from('cat_usuarios_roles').select('*');
     if (uErr) throw uErr;
     if (dbUsers && dbUsers.length > 0) {
+      localStorage.setItem('TSMAI_users', JSON.stringify(dbUsers));
       const localTechs = dbUsers.filter(u => u.rol === 'MANTENIMIENTO').map(t => ({
         id: t.cve_tecnico || t.id_usuario,
+        uuid: t.id_usuario,
         name: t.nombre_completo,
         email: t.correo,
         specialty: t.observaciones || 'General',
@@ -287,14 +678,19 @@ async function syncDatabases() {
     const { data: dbParts, error: pErr } = await supabaseClient.from('cat_refacciones').select('*');
     if (pErr) throw pErr;
     if (dbParts && dbParts.length > 0) {
-      const localParts = dbParts.map(p => ({
-        id: p.codigo_articulo,
-        name: p.nombre_articulo,
-        category: p.familia,
-        stock: 50,
-        minStock: 5,
-        cost: 100
-      }));
+      const existingLocalParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+      const localParts = dbParts.map(p => {
+        const localP = existingLocalParts.find(lp => lp.id === p.codigo_articulo);
+        return {
+          id: p.codigo_articulo,
+          name: p.nombre_articulo,
+          category: p.familia,
+          stock: localP ? localP.stock : 50,
+          minStock: localP ? localP.minStock : 5,
+          cost: localP ? localP.cost : 100,
+          activo: p.activo !== false
+        };
+      });
       localStorage.setItem('TSMAI_parts', JSON.stringify(localParts));
     } else {
       const localParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
@@ -320,6 +716,7 @@ async function syncDatabases() {
       dbOrders.forEach(o => {
         const item = {
           id: o.folio,
+          uuid: o.id_orden,
           reqId: o.folio,
           applicant: o.nombre_solicitante,
           shift: o.turno_solicitante === 1 ? 'Turno Mañana' : o.turno_solicitante === 2 ? 'Turno Tarde' : 'Turno Nocturno',
@@ -398,6 +795,145 @@ async function syncDatabases() {
         await supabaseClient.from('ordenes_trabajo').insert(Array.from(combined.values()));
       }
     }
+
+    // 5. Sync Subtasks
+    const { data: dbSubtasks, error: sErr } = await supabaseClient.from('subtareas_orden_trabajo').select('*');
+    if (sErr) throw sErr;
+    if (dbSubtasks && dbSubtasks.length > 0) {
+      const localSubtasks = dbSubtasks.map(s => ({
+        id: s.id_subtarea,
+        otId: s.folio_ot,
+        otUUID: s.id_orden_trabajo,
+        number: s.numero_subtarea,
+        title: s.titulo_subtarea,
+        area: s.area_requerida,
+        description: s.descripcion_subtarea,
+        reason: s.motivo_solicitud,
+        dueDate: s.fecha_deseada,
+        priority: s.prioridad,
+        requiresParo: s.requiere_paro,
+        requiresPart: s.requiere_refaccion,
+        status: s.estatus_subtarea,
+        requestedBy: s.solicitado_por,
+        assignedBy: s.assigned_por,
+        assignedTech: s.responsable_asignado,
+        requestDate: s.fecha_solicitud,
+        assignDate: s.fecha_asignacion,
+        startDate: s.fecha_inicio,
+        closeDate: s.fecha_cierre,
+        observations: s.observaciones,
+        activo: s.activo,
+        createdAt: s.creado_en,
+        updatedAt: s.actualizado_en
+      }));
+      localStorage.setItem('TSMAI_subtasks', JSON.stringify(localSubtasks));
+    } else {
+      const localSubtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+      if (localSubtasks.length > 0) {
+        const insertData = localSubtasks.map(s => ({
+          id_subtarea: s.id,
+          folio_ot: s.otId,
+          id_orden_trabajo: s.otUUID,
+          numero_subtarea: s.number,
+          titulo_subtarea: s.title || 'Apoyo',
+          area_requerida: s.area,
+          descripcion_subtarea: s.description,
+          motivo_solicitud: s.reason,
+          fecha_deseada: s.dueDate,
+          prioridad: s.priority,
+          requiere_paro: s.requiresParo,
+          requiere_refaccion: s.requiresPart,
+          estatus_subtarea: s.status,
+          solicitado_por: s.requestedBy,
+          asignado_por: s.assignedBy,
+          responsable_asignado: s.assignedTech,
+          fecha_solicitud: s.requestDate,
+          fecha_asignacion: s.assignDate,
+          fecha_inicio: s.startDate,
+          fecha_cierre: s.closeDate,
+          observaciones: s.observations,
+          activo: s.activo !== undefined ? s.activo : true
+        }));
+        await supabaseClient.from('subtareas_orden_trabajo').insert(insertData);
+      }
+    }
+
+    // 5.5. Sync Subtask Evidences
+    const { data: dbEvidences, error: evErr } = await supabaseClient.from('evidencias_subtareas').select('*');
+    if (evErr) throw evErr;
+    if (dbEvidences && dbEvidences.length > 0) {
+      const localEvidences = dbEvidences.map(e => ({
+        id: e.id_evidencia,
+        subtaskId: e.id_subtarea,
+        otUUID: e.id_orden_trabajo,
+        fileType: e.tipo_archivo,
+        origin: e.origen_evidencia,
+        fileName: e.nombre_archivo,
+        fileUrl: e.url_archivo,
+        bucket: e.storage_bucket,
+        path: e.storage_path,
+        description: e.descripcion,
+        uploadedBy: e.subido_por,
+        uploadDate: e.fecha_subida,
+        active: e.activo
+      }));
+      localStorage.setItem('TSMAI_subtask_evidences', JSON.stringify(localEvidences));
+    } else {
+      const localEvidences = JSON.parse(localStorage.getItem('TSMAI_subtask_evidences') || '[]');
+      if (localEvidences.length > 0) {
+        const insertData = localEvidences.map(e => ({
+          id_evidencia: e.id,
+          id_subtarea: e.subtaskId,
+          id_orden_trabajo: e.otUUID,
+          tipo_archivo: e.fileType,
+          origen_evidencia: e.origin,
+          nombre_archivo: e.fileName,
+          url_archivo: e.fileUrl,
+          storage_bucket: e.bucket,
+          storage_path: e.path,
+          descripcion: e.description,
+          subido_por: e.uploadedBy,
+          fecha_subida: e.uploadDate,
+          activo: e.active !== undefined ? e.active : true
+        }));
+        await supabaseClient.from('evidencias_subtareas').insert(insertData);
+      }
+    }
+
+    // 6. Sync Movements
+    const { data: dbMovements, error: mvErr } = await supabaseClient.from('bitacora_subtareas').select('*');
+    if (mvErr) throw mvErr;
+    if (dbMovements && dbMovements.length > 0) {
+      const localMovements = dbMovements.map(m => ({
+        id: m.id_movimiento,
+        otUUID: m.id_orden_trabajo,
+        subtaskId: m.id_subtarea,
+        type: m.tipo_movimiento,
+        oldState: m.estado_anterior,
+        newState: m.estado_nuevo,
+        by: m.realizado_por,
+        comment: m.comentario,
+        date: m.fecha_movimiento
+      }));
+      localStorage.setItem('TSMAI_movements', JSON.stringify(localMovements));
+    } else {
+      const localMovements = JSON.parse(localStorage.getItem('TSMAI_movements') || '[]');
+      if (localMovements.length > 0) {
+        const insertData = localMovements.map(m => ({
+          id_movimiento: m.id,
+          id_orden_trabajo: m.otUUID,
+          id_subtarea: m.subtaskId,
+          tipo_movimiento: m.type,
+          estado_anterior: m.oldState,
+          estado_nuevo: m.newState,
+          realizado_por: m.by,
+          comentario: m.comment,
+          fecha_movimiento: m.date
+        }));
+        await supabaseClient.from('bitacora_subtareas').insert(insertData);
+      }
+    }
+
     console.log('Supabase synchronization finished successfully.');
   } catch (err) {
     console.error('Error during Supabase synchronization:', err);
@@ -814,7 +1350,7 @@ function switchAdminPanel(panelId) {
   if (activeMenuItem) activeMenuItem.classList.add('active');
 
   // Si pertenece al grupo de base de datos, asegurar que esté expandido
-  const dbPanels = ['machines', 'parts', 'users', 'logs'];
+  const dbPanels = ['machines', 'parts', 'inventory', 'suppliers', 'users', 'logs'];
   if (dbPanels.includes(panelId)) {
     if (dbGroup) dbGroup.classList.add('active');
     const submenu = document.getElementById('admin-database-submenu');
@@ -841,10 +1377,21 @@ function switchAdminPanel(panelId) {
     logs: '📝 Historial de Bitácoras de Trabajo',
     machines: '⚙️ Catálogo de Maquinarias',
     parts: '📦 Control de Refacciones',
+    inventory: '🏭 Inventario de Refacciones',
+    suppliers: '🤝 Catálogo de Proveedores',
     forms: '🛠️ Formularios y Checklists Dinámicos',
     excel: '📥 Importador de Historiales de Excel',
     users: '👥 Control de Usuarios y Permisos',
-    config: '⚙️ Configuración del Sistema'
+    config: '⚙️ Configuración del Sistema',
+    subtasks: '🔧 Subtareas y Apoyo de otra Área',
+    preventive: '📅 Planes de Mantenimiento Preventivo',
+    checklists: '✅ Checklists de Mantenimiento',
+    laborcosts: '💰 Costos de Mano de Obra',
+    downtime: '⏱️ Paros de Máquina',
+    kpis: '📈 KPIs de Mantenimiento',
+    analysis: '🔬 Análisis de Repetibilidad de Fallas',
+    ai: '🤖 Recomendaciones IA',
+    alertrules: '🔔 Reglas de Alertas del Sistema'
   };
   document.getElementById('admin-panel-title').innerText = titleLabels[panelId] || 'Panel de Control';
 
@@ -865,11 +1412,336 @@ function switchAdminPanel(panelId) {
     renderAdminMachinesTable();
   } else if (panelId === 'parts') {
     renderAdminPartsTable();
+  } else if (panelId === 'inventory') {
+    renderAdminInventoryTable();
+  } else if (panelId === 'suppliers') {
+    renderAdminSuppliersTable();
+  } else if (panelId === 'users') {
+    renderAdminUsersTable();
   } else if (panelId === 'forms') {
     renderAdminFormsList();
+  } else if (panelId === 'subtasks') {
+    renderAdminSubtasksTable();
+  } else if (panelId === 'preventive') {
+    renderAdminPreventivePlans();
+  } else if (panelId === 'checklists') {
+    renderAdminChecklists();
+  } else if (panelId === 'laborcosts') {
+    renderAdminLaborCosts();
+  } else if (panelId === 'downtime') {
+    renderAdminDowntime();
+  } else if (panelId === 'kpis') {
+    renderAdminKPIs();
+  } else if (panelId === 'analysis') {
+    renderAdminAnalysis();
+  } else if (panelId === 'ai') {
+    renderAdminAIRecommendations();
+  } else if (panelId === 'alertrules') {
+    renderAdminAlertRules();
   }
 }
 
+// ============================================================================
+// RENDER FUNCTIONS — NEW MODULES (T19–T29)
+// ============================================================================
+
+// ── Helpers compartidos ──────────────────────────────────────────────────────
+
+function badgeRisk(nivel) {
+  const map = { Alto: 'background:#ef4444;color:#fff', Medio: 'background:#f59e0b;color:#fff', Bajo: 'background:#22c55e;color:#fff' };
+  const style = map[nivel] || 'background:#94a3b8;color:#fff';
+  return `<span style="padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;${style}">${nivel || '—'}</span>`;
+}
+function badgePriority(p) {
+  const map = { Crítica: '#ef4444', Alta: '#f97316', Media: '#f59e0b', Baja: '#22c55e' };
+  const bg = map[p] || '#94a3b8';
+  return `<span style="padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;background:${bg};color:#fff">${p || '—'}</span>`;
+}
+function badgeActive(activo) {
+  return activo ? `<span style="padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;background:#22c55e;color:#fff">Activo</span>`
+                : `<span style="padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;background:#94a3b8;color:#fff">Inactivo</span>`;
+}
+function fmtCurrency(val, moneda = 'MXN') {
+  if (val === null || val === undefined) return '—';
+  return `$${parseFloat(val).toLocaleString('es-MX', { minimumFractionDigits: 2 })} ${moneda}`;
+}
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString('es-MX') : '—'; }
+function fmtTs(d)   { return d ? new Date(d).toLocaleString('es-MX')     : '—'; }
+
+function emptyRow(cols, msg) {
+  return `<tr><td colspan="${cols}" style="text-align:center;color:var(--text-muted);padding:40px;">${msg}</td></tr>`;
+}
+
+// ── INVENTARIO ───────────────────────────────────────────────────────────────
+async function renderAdminInventoryTable() {
+  const tbody = document.getElementById('tbody-inventory');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(7, 'Cargando inventario…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('inventario_refacciones').select('*, cat_refacciones(nombre_articulo), cat_proveedores(nombre_proveedor)').order('fecha_alta', { ascending: false }).limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay registros de inventario.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td>${r.cat_refacciones?.nombre_articulo || r.codigo_articulo}</td>
+      <td>${r.cat_proveedores?.nombre_proveedor || '—'}</td>
+      <td>${parseFloat(r.stock_actual || 0).toFixed(2)}</td>
+      <td>${parseFloat(r.stock_minimo || 0).toFixed(2)} ${parseFloat(r.stock_actual) < parseFloat(r.stock_minimo) ? '⚠️' : ''}</td>
+      <td>${r.ubicacion || '—'}</td>
+      <td>${fmtCurrency(r.costo_unitario, r.moneda)}</td>
+      <td>${badgeActive(r.activo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
+}
+function openInventoryModal() { alert('Modal de nuevo registro de inventario — próximamente.'); }
+
+// ── PROVEEDORES ──────────────────────────────────────────────────────────────
+async function renderAdminSuppliersTable() {
+  const tbody = document.getElementById('tbody-suppliers');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(7, 'Cargando proveedores…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('cat_proveedores').select('*').order('nombre_proveedor').limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay proveedores registrados.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code>${r.codigo_proveedor}</code></td>
+      <td><strong>${r.nombre_proveedor}</strong></td>
+      <td>${r.contacto || '—'}</td>
+      <td>${r.telefono || '—'}</td>
+      <td>${[r.ciudad, r.estado, r.pais].filter(Boolean).join(', ') || '—'}</td>
+      <td>${r.tipo_proveedor || '—'}</td>
+      <td>${badgeActive(r.activo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
+}
+function openSupplierModal() { alert('Modal de nuevo proveedor — próximamente.'); }
+
+// ── PLANES MANTENIMIENTO PREVENTIVO ─────────────────────────────────────────
+async function renderAdminPreventivePlans() {
+  const tbody = document.getElementById('tbody-preventive');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(8, 'Cargando planes preventivos…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(8, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('planes_mantenimiento_preventivo').select('*').order('proxima_ejecucion').limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(8, 'No hay planes preventivos registrados.'); return; }
+    const today = new Date();
+    tbody.innerHTML = data.map(r => {
+      const proxima = r.proxima_ejecucion ? new Date(r.proxima_ejecucion) : null;
+      const vencido = proxima && proxima < today;
+      return `<tr>
+        <td>${r.maquina_id}</td>
+        <td><code>${r.codigo_servicio}</code></td>
+        <td>${r.nombre_plan || '—'}</td>
+        <td>${r.frecuencia ? `${r.frecuencia} ${r.unidad_frecuencia || ''}` : '—'}</td>
+        <td>${fmtDate(r.ultima_ejecucion)}</td>
+        <td style="${vencido ? 'color:#ef4444;font-weight:600' : ''}">${fmtDate(r.proxima_ejecucion)} ${vencido ? '⚠️' : ''}</td>
+        <td>${r.responsable || '—'}</td>
+        <td>${badgeActive(r.activo)}</td>
+      </tr>`;
+    }).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(8, `❌ Error: ${err.message}`); }
+}
+function openPreventiveModal() { alert('Modal de nuevo plan preventivo — próximamente.'); }
+
+// ── CHECKLISTS ───────────────────────────────────────────────────────────────
+async function renderAdminChecklists() {
+  const tbody = document.getElementById('tbody-checklists');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(6, 'Cargando checklists…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(6, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('checklists_mantenimiento').select('*').order('codigo_servicio').order('orden').limit(300);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(6, 'No hay preguntas de checklist registradas.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code>${r.codigo_servicio}</code></td>
+      <td>${r.codigo_pregunta || '—'}</td>
+      <td>${r.pregunta}</td>
+      <td>${r.tipo_respuesta || '—'}</td>
+      <td>${r.obligatorio ? '✅ Sí' : 'No'}</td>
+      <td>${r.orden ?? '—'}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(6, `❌ Error: ${err.message}`); }
+}
+function openChecklistModal() { alert('Modal de nueva pregunta de checklist — próximamente.'); }
+
+// ── COSTOS MANO DE OBRA ──────────────────────────────────────────────────────
+async function renderAdminLaborCosts() {
+  const tbody = document.getElementById('tbody-laborcosts');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(7, 'Cargando tarifas de mano de obra…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('costos_mano_obra').select('*').order('cve_tecnico').limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay tarifas de mano de obra registradas.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td>${r.nombre_tecnico || '—'}</td>
+      <td><code>${r.cve_tecnico}</code></td>
+      <td><strong>${fmtCurrency(r.costo_hora, r.moneda)}</strong></td>
+      <td>${r.moneda}</td>
+      <td>${fmtDate(r.fecha_inicio_vigencia)}</td>
+      <td>${fmtDate(r.fecha_fin_vigencia)}</td>
+      <td>${badgeActive(r.activo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
+}
+function openLaborCostModal() { alert('Modal de nueva tarifa de mano de obra — próximamente.'); }
+
+// ── PAROS DE MÁQUINA ─────────────────────────────────────────────────────────
+async function renderAdminDowntime() {
+  const tbody = document.getElementById('tbody-downtime');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(7, 'Cargando paros de máquina…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('paros_maquina').select('*').order('fecha_hora_inicio_paro', { ascending: false }).limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay paros de máquina registrados.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td>${r.maquina_id}</td>
+      <td>${fmtTs(r.fecha_hora_inicio_paro)}</td>
+      <td>${fmtTs(r.fecha_hora_fin_paro)}</td>
+      <td>${r.tiempo_paro_min ?? '—'} min</td>
+      <td>${r.motivo_paro || '—'}</td>
+      <td>${r.impacto_produccion || '—'}</td>
+      <td>${fmtCurrency(r.costo_estimado_paro, r.moneda)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
+}
+function openDowntimeModal() { alert('Modal de nuevo paro de máquina — próximamente.'); }
+
+// ── KPIs DE MANTENIMIENTO ────────────────────────────────────────────────────
+async function renderAdminKPIs() {
+  const tbody = document.getElementById('tbody-kpis');
+  const cardsContainer = document.getElementById('kpi-cards-container');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(10, 'Cargando KPIs…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(10, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('kpis_mantenimiento').select('*').order('fecha', { ascending: false }).limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(10, 'No hay KPIs calculados aún.'); if (cardsContainer) cardsContainer.innerHTML = ''; return; }
+    // Cards de resumen (últimos valores globales)
+    const latest = data[0];
+    if (cardsContainer) {
+      const kpiCards = [
+        { label: 'Total OT', value: latest.total_ordenes, icon: '📋', color: '#6366f1' },
+        { label: 'OT Abiertas', value: latest.ordenes_abiertas, icon: '🔓', color: '#f59e0b' },
+        { label: 'OT Cerradas', value: latest.ordenes_cerradas, icon: '✅', color: '#22c55e' },
+        { label: 'T° Prom. (min)', value: `${parseFloat(latest.tiempo_promedio_atencion_min || 0).toFixed(0)} min`, icon: '⏱️', color: '#06b6d4' },
+        { label: 'Fallas Repet.', value: latest.fallas_repetidas, icon: '🔄', color: '#ef4444' },
+        { label: 'Costo Total', value: fmtCurrency(latest.costo_total, latest.moneda), icon: '💰', color: '#8b5cf6' }
+      ];
+      cardsContainer.innerHTML = kpiCards.map(k => `
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:6px;border-left:4px solid ${k.color};">
+          <span style="font-size:1.4rem;">${k.icon}</span>
+          <span style="font-size:0.75rem;color:var(--text-muted);font-weight:500;">${k.label}</span>
+          <span style="font-size:1.4rem;font-weight:700;color:${k.color};">${k.value}</span>
+        </div>`).join('');
+    }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td>${fmtDate(r.fecha)}</td>
+      <td>${r.periodo || '—'}</td>
+      <td>${r.maquina_id || 'Global'}</td>
+      <td>${r.departamento_codigo || '—'}</td>
+      <td>${r.total_ordenes}</td>
+      <td>${r.ordenes_abiertas}</td>
+      <td>${r.ordenes_cerradas}</td>
+      <td>${parseFloat(r.tiempo_promedio_atencion_min || 0).toFixed(1)} min</td>
+      <td>${r.fallas_repetidas}</td>
+      <td>${fmtCurrency(r.costo_total, r.moneda)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(10, `❌ Error: ${err.message}`); }
+}
+
+// ── ANÁLISIS DE REPETIBILIDAD DE FALLAS ─────────────────────────────────────
+async function renderAdminAnalysis() {
+  const tbody = document.getElementById('tbody-analysis');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(8, 'Cargando análisis de fallas…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(8, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('analisis_repetibilidad_fallas').select('*').order('cantidad_repeticiones', { ascending: false }).limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(8, 'No hay análisis de fallas registrados.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td>${r.maquina_id}</td>
+      <td>${r.tipo_falla_id || '—'}</td>
+      <td>${r.categoria_falla || '—'}</td>
+      <td><strong style="color:#ef4444;">${r.cantidad_repeticiones}</strong></td>
+      <td>${r.periodo_dias ? `${r.periodo_dias} días` : '—'}</td>
+      <td>${fmtDate(r.fecha_ultima_falla)}</td>
+      <td>${badgeRisk(r.nivel_riesgo)}</td>
+      <td style="max-width:200px;white-space:normal;">${r.recomendacion || '—'}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(8, `❌ Error: ${err.message}`); }
+}
+function openAnalysisModal() { alert('Modal de nuevo análisis de fallas — próximamente.'); }
+
+// ── RECOMENDACIONES IA ───────────────────────────────────────────────────────
+async function renderAdminAIRecommendations() {
+  const grid = document.getElementById('ai-recommendations-grid');
+  if (!grid) return;
+  grid.innerHTML = '<p style="color:var(--text-muted);padding:20px;">Cargando recomendaciones IA…</p>';
+  if (!supabaseClient) { grid.innerHTML = '<p style="color:var(--text-muted);padding:20px;">⚠️ Sin conexión a Supabase.</p>'; return; }
+  try {
+    const { data, error } = await supabaseClient.from('recomendaciones_ia').select('*').order('fecha_generacion', { ascending: false }).limit(50);
+    if (error) throw error;
+    if (!data || data.length === 0) { grid.innerHTML = '<p style="color:var(--text-muted);padding:20px;">No hay recomendaciones IA generadas aún.</p>'; return; }
+    const prioColors = { Crítica: '#ef4444', Alta: '#f97316', Media: '#f59e0b', Baja: '#22c55e' };
+    const statusColors = { pendiente: '#f59e0b', revisada: '#6366f1', aplicada: '#22c55e', descartada: '#94a3b8' };
+    grid.innerHTML = data.map(r => {
+      const pColor = prioColors[r.prioridad] || '#94a3b8';
+      const sColor = statusColors[r.estatus_recomendacion?.toLowerCase()] || '#94a3b8';
+      return `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;border-top:4px solid ${pColor};display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:0.7rem;font-weight:600;background:${sColor};color:#fff;padding:2px 8px;border-radius:8px;">${r.estatus_recomendacion || 'Pendiente'}</span>
+          <span style="font-size:0.7rem;color:var(--text-muted);">${fmtTs(r.fecha_generacion)}</span>
+        </div>
+        <h4 style="margin:0;font-size:0.95rem;font-weight:700;">${r.titulo_recomendacion || '—'}</h4>
+        <p style="margin:0;font-size:0.82rem;color:var(--text-muted);">${r.mensaje_recomendacion || ''}</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:0.75rem;">
+          <span>🤖 <strong>${r.generado_por || 'IA'}</strong></span>
+          ${r.maquina_id ? `<span>⚙️ ${r.maquina_id}</span>` : ''}
+          ${r.nivel_confianza != null ? `<span>🎯 ${parseFloat(r.nivel_confianza).toFixed(1)}% confianza</span>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          ${badgePriority(r.prioridad)}
+        </div>
+      </div>`;
+    }).join('');
+  } catch (err) { grid.innerHTML = `<p style="color:#ef4444;padding:20px;">❌ Error: ${err.message}</p>`; }
+}
+
+// ── REGLAS DE ALERTAS ────────────────────────────────────────────────────────
+async function renderAdminAlertRules() {
+  const tbody = document.getElementById('tbody-alertrules');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(7, 'Cargando reglas de alertas…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('reglas_alertas').select('*').order('nombre_regla').limit(200);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay reglas de alertas configuradas.'); return; }
+    tbody.innerHTML = data.map(r => `<tr>
+      <td><code>${r.codigo_regla}</code></td>
+      <td>${r.nombre_regla}</td>
+      <td>${r.tipo_alerta || '—'}</td>
+      <td style="max-width:180px;white-space:normal;">${r.condicion || '—'}</td>
+      <td>${r.valor_umbral != null ? `${r.valor_umbral} ${r.unidad_umbral || ''}` : '—'}</td>
+      <td>${badgePriority(r.prioridad_default)}</td>
+      <td>${badgeActive(r.activo)}</td>
+    </tr>`).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
+}
+function openAlertRuleModal() { alert('Modal de nueva regla de alerta — próximamente.'); }
+
+// ============================================================================
 // Renderizado de Gráficos y Tablas del Dashboard Ejecutivo (Whiteboard layout)
 function renderAdminDashboard() {
   const whiteboardData = JSON.parse(localStorage.getItem('TSMAI_whiteboard') || '{}');
@@ -1379,7 +2251,7 @@ function renderAdminOrdersTable(filteredOrders) {
   const tbody = document.getElementById('table-admin-orders-body');
 
   if (orders.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">No se encontraron órdenes de trabajo.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-muted);">No se encontraron órdenes de trabajo.</td></tr>`;
     return;
   }
 
@@ -1390,6 +2262,7 @@ function renderAdminOrdersTable(filteredOrders) {
     const tech = techs.find(t => t.id === o.assignedTech);
     const techName = tech ? tech.name : 'Sin asignar';
     const formattedDueDate = new Date(o.dueDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const progress = getOTProgressSync(o.id, o.status);
 
     html += `
       <tr>
@@ -1399,7 +2272,8 @@ function renderAdminOrdersTable(filteredOrders) {
         <td>${o.type}</td>
         <td><span class="badge badge-priority-${o.urgency.toLowerCase()}">${o.urgency}</span></td>
         <td>${techName}</td>
-        <td><span class="badge badge-status-${o.status.toLowerCase().replace('ó', 'o')}">${o.status}</span></td>
+        <td><span class="badge badge-status-${o.status.toLowerCase().replace('ó', 'o').replace(' ', '-')}">${o.status}</span></td>
+        <td><strong>${progress}%</strong></td>
         <td>${formattedDueDate}</td>
         <td>
           <button class="btn-table-action" onclick="viewOrderHistoryLogs('${o.id}')">Historial Logs</button>
@@ -1540,20 +2414,28 @@ function renderAdminLogsTable() {
 function renderAdminMachinesTable() {
   const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
   const tbody = document.getElementById('table-admin-machines-body');
+  if (!tbody) return;
 
   let html = '';
   machines.forEach(m => {
-    const statusColor = m.status === 'Operativa' ? 'var(--color-preventive)' : 'var(--color-critical)';
+    const isOperative = m.status === 'Operativa';
+    const statusColor = isOperative ? 'var(--color-preventive)' : 'var(--color-critical)';
     html += `
-      <tr>
+      <tr style="opacity: ${isOperative ? 1 : 0.65}">
         <td><strong>${m.id}</strong></td>
-        <td>${m.name}</td>
+        <td>${m.name || m.id}</td>
         <td>${m.area}</td>
-        <td>${m.mtbf} hrs</td>
-        <td>${m.mttr} hrs</td>
-        <td>${m.failures}</td>
-        <td>$${m.cost} USD</td>
+        <td>${m.mtbf || 0} hrs</td>
+        <td>${m.mttr || 0} hrs</td>
+        <td>${m.failures || 0}</td>
+        <td>$${m.cost || 0} USD</td>
         <td><span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: ${statusColor};"><span style="width: 8px; height: 8px; border-radius:50%; background: ${statusColor}"></span>${m.status}</span></td>
+        <td>
+          <button class="btn-table-action" onclick="openAdminMachineModal('${m.id}')">✏️ Editar</button>
+          <button class="btn-table-action" style="color: ${isOperative ? 'var(--color-critical)' : 'var(--color-preventive)'}; border-color: ${isOperative ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}" onclick="deleteAdminMachine('${m.id}')">
+            ${isOperative ? '🚫 Parar' : '✅ Operar'}
+          </button>
+        </td>
       </tr>
     `;
   });
@@ -1563,25 +2445,689 @@ function renderAdminMachinesTable() {
 function renderAdminPartsTable() {
   const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
   const tbody = document.getElementById('table-admin-parts-body');
+  if (!tbody) return;
 
   let html = '';
   parts.forEach(p => {
+    const isActive = p.activo !== false;
     const lowStock = p.stock <= p.minStock;
-    const stockBadge = lowStock ? '<span class="badge badge-priority-crítica">Reordenar / Bajo</span>' : '<span class="badge badge-status-ejecutada">Óptimo</span>';
+    const stockBadge = !isActive ? '<span class="badge badge-priority-alta">Inactivo</span>' : (lowStock ? '<span class="badge badge-priority-crítica">Reordenar / Bajo</span>' : '<span class="badge badge-status-ejecutada">Óptimo</span>');
     
     html += `
-      <tr>
+      <tr style="opacity: ${isActive ? 1 : 0.65}">
         <td><strong>${p.id}</strong></td>
         <td>${p.name}</td>
         <td>${p.category}</td>
         <td>$${p.cost} USD</td>
-        <td style="font-weight: 700; color: ${lowStock ? 'var(--color-critical)' : 'inherit'};">${p.stock}</td>
+        <td style="font-weight: 700; color: ${isActive && lowStock ? 'var(--color-critical)' : 'inherit'};">${p.stock}</td>
         <td>${p.minStock}</td>
         <td>${stockBadge}</td>
+        <td>
+          <button class="btn-table-action" onclick="openAdminPartModal('${p.id}')">✏️ Editar</button>
+          <button class="btn-table-action" style="color: ${isActive ? 'var(--color-critical)' : 'var(--color-preventive)'}; border-color: ${isActive ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}" onclick="deleteAdminPart('${p.id}')">
+            ${isActive ? '🚫 Desactivar' : '✅ Activar'}
+          </button>
+        </td>
       </tr>
     `;
   });
   tbody.innerHTML = html;
+}
+
+function renderAdminUsersTable() {
+  const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+  const tbody = document.getElementById('table-admin-users-body');
+  if (!tbody) return;
+
+  let html = '';
+  users.forEach(u => {
+    // Formatear rol
+    let rolText = u.rol;
+    if (u.rol === 'SUPER_ADMINISTRADOR') rolText = 'Super Administrador';
+    else if (u.rol === 'MANTENIMIENTO') rolText = `Técnico (${u.cve_tecnico || 'Sin Clave'})`;
+    else if (u.rol === 'SOLICITANTE_PUBLICO') rolText = 'Solicitante Público';
+
+    // Permisos del sistema como badges
+    let permBadges = '';
+    if (u.puede_crear_solicitud) permBadges += '<span class="badge badge-status-recibida" style="margin: 2px;">Crear Sol.</span>';
+    if (u.puede_ver_ordenes_asignadas) permBadges += '<span class="badge badge-status-en-proceso" style="margin: 2px;">Ver Asignadas</span>';
+    if (u.puede_ver_todas_ordenes) permBadges += '<span class="badge badge-status-en-proceso" style="margin: 2px;">Ver Todas</span>';
+    if (u.puede_atender_orden) permBadges += '<span class="badge badge-status-ejecutada" style="margin: 2px;">Atender</span>';
+    if (u.puede_cerrar_orden) permBadges += '<span class="badge badge-status-ejecutada" style="margin: 2px;">Cerrar</span>';
+    if (u.puede_validar_cierre) permBadges += '<span class="badge badge-status-ejecutada" style="margin: 2px;">Validar</span>';
+    if (u.puede_editar_catalogos) permBadges += '<span class="badge badge-priority-media" style="margin: 2px;">Editar Cat.</span>';
+    if (u.puede_ver_dashboards) permBadges += '<span class="badge badge-priority-media" style="margin: 2px;">Ver Dash</span>';
+    if (u.puede_configurar_sistema) permBadges += '<span class="badge badge-priority-alta" style="margin: 2px;">Config</span>';
+    if (u.recibe_alertas) permBadges += '<span class="badge badge-priority-alta" style="margin: 2px;">Alertas</span>';
+
+    if (!permBadges) {
+      permBadges = '<span style="color: var(--text-muted); font-size: 0.8rem;">Ninguno</span>';
+    }
+
+    const lastAccess = u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-ES') : 'N/A';
+    const statusColor = u.activo ? 'var(--color-preventive)' : 'var(--color-critical)';
+    const statusLabel = u.activo ? 'Activo' : 'Inactivo';
+
+    html += `
+      <tr style="opacity: ${u.activo ? 1 : 0.65}">
+        <td>
+          <div style="font-weight: 700;">${u.nombre_completo}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">EMP: ${u.cve_empleado || 'N/A'}</div>
+        </td>
+        <td>${u.correo || 'N/A'}</td>
+        <td>${rolText}</td>
+        <td><div style="display: flex; flex-wrap: wrap; max-width: 300px;">${permBadges}</div></td>
+        <td>
+          <div>${lastAccess}</div>
+          <div style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700; color: ${statusColor};">
+            <span style="width: 6px; height: 6px; border-radius:50%; background: ${statusColor}"></span>${statusLabel}
+          </div>
+        </td>
+        <td>
+          <button class="btn-table-action" onclick="openAdminUserModal('${u.id_usuario}')">✏️ Editar</button>
+          <button class="btn-table-action" style="color: ${u.activo ? 'var(--color-critical)' : 'var(--color-preventive)'}; border-color: ${u.activo ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}" onclick="deleteAdminUser('${u.id_usuario}')">
+            ${u.activo ? '🚫 Desactivar' : '✅ Activar'}
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+}
+
+// --- CRUD USUARIOS (ADMIN) ---
+function toggleAdminUserRoleFields() {
+  const role = document.getElementById('admin-user-role').value;
+  const techGroup = document.getElementById('admin-user-tech-code-group');
+  if (techGroup) {
+    if (role === 'MANTENIMIENTO') {
+      techGroup.style.display = 'block';
+    } else {
+      techGroup.style.display = 'none';
+      document.getElementById('admin-user-tech-code').value = '';
+    }
+  }
+}
+
+function openAdminUserModal(userId = null) {
+  const roleSelect = document.getElementById('admin-user-role');
+  const activeCheck = document.getElementById('admin-user-active');
+  const codeInput = document.getElementById('admin-user-emp-code');
+  
+  if (userId) {
+    const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+    const u = users.find(item => item.id_usuario === userId);
+    if (!u) return;
+
+    document.getElementById('admin-user-id').value = u.id_usuario;
+    document.getElementById('admin-user-name').value = u.nombre_completo || '';
+    document.getElementById('admin-user-email').value = u.correo || '';
+    document.getElementById('admin-user-phone').value = u.telefono || '';
+    roleSelect.value = u.rol || 'SOLICITANTE_PUBLICO';
+    codeInput.value = u.cve_empleado || '';
+    document.getElementById('admin-user-tech-code').value = u.cve_tecnico || '';
+    document.getElementById('admin-user-dept').value = u.departamento || '';
+    document.getElementById('admin-user-shift').value = u.turno || '1';
+    document.getElementById('admin-user-obs').value = u.observaciones || '';
+
+    // Checkboxes
+    document.getElementById('perm-create-req').checked = !!u.puede_crear_solicitud;
+    document.getElementById('perm-view-assigned').checked = !!u.puede_ver_ordenes_asignadas;
+    document.getElementById('perm-view-all').checked = !!u.puede_ver_todas_ordenes;
+    document.getElementById('perm-attend-ot').checked = !!u.puede_atender_orden;
+    document.getElementById('perm-close-ot').checked = !!u.puede_cerrar_orden;
+    document.getElementById('perm-validate-ot').checked = !!u.puede_validar_cierre;
+    document.getElementById('perm-edit-cats').checked = !!u.puede_editar_catalogos;
+    document.getElementById('perm-view-dash').checked = !!u.puede_ver_dashboards;
+    document.getElementById('perm-config').checked = !!u.puede_configurar_sistema;
+    document.getElementById('perm-alerts').checked = !!u.recibe_alertas;
+    activeCheck.checked = u.activo !== false;
+
+    document.getElementById('admin-user-detail-title').innerText = `Editar Usuario: ${u.nombre_completo}`;
+  } else {
+    document.getElementById('admin-user-id').value = '';
+    document.getElementById('admin-user-name').value = '';
+    document.getElementById('admin-user-email').value = '';
+    document.getElementById('admin-user-phone').value = '';
+    roleSelect.value = 'SOLICITANTE_PUBLICO';
+    codeInput.value = '';
+    document.getElementById('admin-user-tech-code').value = '';
+    document.getElementById('admin-user-dept').value = '';
+    document.getElementById('admin-user-shift').value = '1';
+    document.getElementById('admin-user-obs').value = '';
+
+    // Checkboxes defaults
+    document.getElementById('perm-create-req').checked = true;
+    document.getElementById('perm-view-assigned').checked = false;
+    document.getElementById('perm-view-all').checked = false;
+    document.getElementById('perm-attend-ot').checked = false;
+    document.getElementById('perm-close-ot').checked = false;
+    document.getElementById('perm-validate-ot').checked = false;
+    document.getElementById('perm-edit-cats').checked = false;
+    document.getElementById('perm-view-dash').checked = false;
+    document.getElementById('perm-config').checked = false;
+    document.getElementById('perm-alerts').checked = false;
+    activeCheck.checked = true;
+
+    document.getElementById('admin-user-detail-title').innerText = 'Crear Nuevo Usuario';
+  }
+
+  toggleAdminUserRoleFields();
+  openModal('modal-admin-user-detail');
+}
+
+async function saveAdminUser() {
+  const id = document.getElementById('admin-user-id').value;
+  const nombre = document.getElementById('admin-user-name').value.trim();
+  const correo = document.getElementById('admin-user-email').value.trim();
+  const telefono = document.getElementById('admin-user-phone').value.trim();
+  const rol = document.getElementById('admin-user-role').value;
+  const cveEmpleado = document.getElementById('admin-user-emp-code').value.trim();
+  const cveTecnico = document.getElementById('admin-user-tech-code').value.trim();
+  const departamento = document.getElementById('admin-user-dept').value.trim();
+  const shift = document.getElementById('admin-user-shift').value;
+  const observaciones = document.getElementById('admin-user-obs').value.trim();
+
+  // Permisos
+  const puedeCrear = document.getElementById('perm-create-req').checked;
+  const puedeVerAsignadas = document.getElementById('perm-view-assigned').checked;
+  const puedeVerTodas = document.getElementById('perm-view-all').checked;
+  const puedeAtender = document.getElementById('perm-attend-ot').checked;
+  const puedeCerrar = document.getElementById('perm-close-ot').checked;
+  const puedeValidar = document.getElementById('perm-validate-ot').checked;
+  const puedeEditar = document.getElementById('perm-edit-cats').checked;
+  const puedeVerDash = document.getElementById('perm-view-dash').checked;
+  const puedeConfig = document.getElementById('perm-config').checked;
+  const recibeAlertas = document.getElementById('perm-alerts').checked;
+  const activo = document.getElementById('admin-user-active').checked;
+
+  if (!nombre) {
+    alert('Por favor ingresa el nombre completo.');
+    return;
+  }
+  if (!correo) {
+    alert('Por favor ingresa el correo electrónico.');
+    return;
+  }
+  if (rol === 'MANTENIMIENTO' && !cveTecnico) {
+    alert('Por favor ingresa la clave de técnico.');
+    return;
+  }
+
+  const userObj = {
+    nombre_completo: nombre,
+    correo: correo,
+    telefono: telefono || null,
+    rol: rol,
+    cve_empleado: cveEmpleado || null,
+    cve_tecnico: rol === 'MANTENIMIENTO' ? cveTecnico : null,
+    departamento: departamento || null,
+    turno: shift ? parseInt(shift) : null,
+    puede_crear_solicitud: puedeCrear,
+    puede_ver_ordenes_asignadas: puedeVerAsignadas,
+    puede_ver_todas_ordenes: puedeVerTodas,
+    puede_atender_orden: puedeAtender,
+    puede_cerrar_orden: puedeCerrar,
+    puede_validar_cierre: puedeValidar,
+    puede_editar_catalogos: puedeEditar,
+    puede_ver_dashboards: puedeVerDash,
+    puede_configurar_sistema: puedeConfig,
+    recibe_alertas: recibeAlertas,
+    activo: activo,
+    observaciones: observaciones || null,
+    fecha_actualizacion: new Date().toISOString()
+  };
+
+  if (supabaseClient) {
+    try {
+      if (id) {
+        const { error } = await supabaseClient
+          .from('cat_usuarios_roles')
+          .update(userObj)
+          .eq('id_usuario', id);
+        if (error) throw error;
+        showToast('Usuario actualizado en base de datos.');
+      } else {
+        const { error } = await supabaseClient
+          .from('cat_usuarios_roles')
+          .insert([userObj]);
+        if (error) throw error;
+        showToast('Usuario creado en base de datos.');
+      }
+    } catch (err) {
+      console.error('Error guardando usuario en Supabase:', err);
+      alert('Error guardando en Supabase: ' + err.message);
+      return;
+    }
+  } else {
+    showToast('Guardado localmente (Offline).');
+  }
+
+  if (supabaseClient) {
+    await syncDatabases();
+  } else {
+    let localUsers = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+    if (id) {
+      localUsers = localUsers.map(u => u.id_usuario === id ? { ...u, ...userObj } : u);
+    } else {
+      userObj.id_usuario = crypto.randomUUID ? crypto.randomUUID() : 'local-' + Math.random().toString(36).substr(2, 9);
+      userObj.fecha_alta = new Date().toISOString();
+      localUsers.push(userObj);
+    }
+    localStorage.setItem('TSMAI_users', JSON.stringify(localUsers));
+    
+    // Si es técnico, actualizar catálogo de técnicos
+    const localTechs = localUsers.filter(u => u.rol === 'MANTENIMIENTO').map(t => ({
+      id: t.cve_tecnico || t.id_usuario,
+      uuid: t.id_usuario,
+      name: t.nombre_completo,
+      email: t.correo,
+      specialty: t.observaciones || 'General',
+      avatar: '👨‍🔧'
+    }));
+    localStorage.setItem('TSMAI_technicians', JSON.stringify(localTechs));
+  }
+
+  closeModal('modal-admin-user-detail');
+  renderAdminUsersTable();
+}
+
+async function deleteAdminUser(userId) {
+  if (!userId) return;
+
+  const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+  const user = users.find(u => u.id_usuario === userId);
+  if (!user) return;
+
+  const newStatus = !user.activo;
+  const actionLabel = newStatus ? 'activar' : 'desactivar';
+
+  if (!confirm(`¿Estás seguro de que deseas ${actionLabel} al usuario "${user.nombre_completo}"?`)) {
+    return;
+  }
+
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient
+        .from('cat_usuarios_roles')
+        .update({ activo: newStatus, fecha_actualizacion: new Date().toISOString() })
+        .eq('id_usuario', userId);
+      if (error) throw error;
+      showToast(`Usuario ${newStatus ? 'activado' : 'desactivado'} en Supabase.`);
+      await syncDatabases();
+    } catch (err) {
+      console.error('Error toggling user status in Supabase:', err);
+      alert('Error en Supabase: ' + err.message);
+      return;
+    }
+  } else {
+    const updatedUsers = users.map(u => u.id_usuario === userId ? { ...u, activo: newStatus } : u);
+    localStorage.setItem('TSMAI_users', JSON.stringify(updatedUsers));
+    
+    const localTechs = updatedUsers.filter(u => u.rol === 'MANTENIMIENTO').map(t => ({
+      id: t.cve_tecnico || t.id_usuario,
+      uuid: t.id_usuario,
+      name: t.nombre_completo,
+      email: t.correo,
+      specialty: t.observaciones || 'General',
+      avatar: '👨‍🔧'
+    }));
+    localStorage.setItem('TSMAI_technicians', JSON.stringify(localTechs));
+    
+    showToast(`Usuario ${newStatus ? 'activado' : 'desactivado'} localmente.`);
+  }
+
+  renderAdminUsersTable();
+}
+
+// --- CRUD MÁQUINAS (ADMIN) ---
+function openAdminMachineModal(machineId = null) {
+  const codeInput = document.getElementById('admin-machine-code');
+  if (machineId) {
+    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const m = machines.find(item => item.id === machineId);
+    if (!m) return;
+
+    document.getElementById('admin-machine-id').value = m.id;
+    codeInput.value = m.id;
+    codeInput.disabled = true; // No permitir cambiar código si es edición
+    document.getElementById('admin-machine-name').value = m.name || m.id;
+    document.getElementById('admin-machine-area').value = m.area || 'PF';
+    document.getElementById('admin-machine-process').value = m.proceso || '';
+    document.getElementById('admin-machine-type').value = m.tipo_equipo || '';
+    document.getElementById('admin-machine-active').checked = m.status === 'Operativa';
+    document.getElementById('admin-machine-detail-title').innerText = `Editar Equipo: ${m.id}`;
+  } else {
+    document.getElementById('admin-machine-id').value = '';
+    codeInput.value = '';
+    codeInput.disabled = false;
+    document.getElementById('admin-machine-name').value = '';
+    document.getElementById('admin-machine-area').value = 'PF';
+    document.getElementById('admin-machine-process').value = '';
+    document.getElementById('admin-machine-type').value = '';
+    document.getElementById('admin-machine-active').checked = true;
+    document.getElementById('admin-machine-detail-title').innerText = 'Crear Nuevo Equipo';
+  }
+  openModal('modal-admin-machine-detail');
+}
+
+async function saveAdminMachine() {
+  const id = document.getElementById('admin-machine-id').value;
+  const code = document.getElementById('admin-machine-code').value.trim();
+  const name = document.getElementById('admin-machine-name').value.trim();
+  const area = document.getElementById('admin-machine-area').value;
+  const process = document.getElementById('admin-machine-process').value.trim();
+  const type = document.getElementById('admin-machine-type').value.trim();
+  const active = document.getElementById('admin-machine-active').checked;
+
+  if (!code) {
+    alert('Por favor ingresa el código del equipo.');
+    return;
+  }
+  if (!name) {
+    alert('Por favor ingresa el nombre del equipo.');
+    return;
+  }
+
+  const machineObj = {
+    equipo_towell: code,
+    clave: code.split('-')[1] || code,
+    area: area,
+    proceso: process || (area === 'PF' ? 'Tejido' : area === 'CF' ? 'Costura' : area === 'TF' ? 'Tintorería' : 'Planta'),
+    tipo_equipo: type || 'Maquinaria',
+    activo: active,
+    origen: 'App'
+  };
+
+  if (supabaseClient) {
+    try {
+      if (id) {
+        const { error } = await supabaseClient
+          .from('cat_maquinas')
+          .update(machineObj)
+          .eq('equipo_towell', id);
+        if (error) throw error;
+        showToast('Equipo actualizado en base de datos.');
+      } else {
+        const { data: existing } = await supabaseClient
+          .from('cat_maquinas')
+          .select('equipo_towell')
+          .eq('equipo_towell', code);
+        if (existing && existing.length > 0) {
+          alert('Ya existe un equipo con este Código / ID.');
+          return;
+        }
+
+        const { error } = await supabaseClient
+          .from('cat_maquinas')
+          .insert([machineObj]);
+        if (error) throw error;
+        showToast('Equipo creado en base de datos.');
+      }
+    } catch (err) {
+      console.error('Error guardando máquina en Supabase:', err);
+      alert('Error guardando en Supabase: ' + err.message);
+      return;
+    }
+  } else {
+    showToast('Guardado localmente (Offline).');
+  }
+
+  if (supabaseClient) {
+    await syncDatabases();
+    
+    // Restaurar el nombre local personalizado si existía en LocalStorage y no se actualizó
+    let localMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    localMachines = localMachines.map(m => m.id === code ? { ...m, name: name } : m);
+    localStorage.setItem('TSMAI_machines', JSON.stringify(localMachines));
+  } else {
+    let localMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const mappedLocal = {
+      id: code,
+      name: name,
+      area: area,
+      clave: code.split('-')[1] || code,
+      proceso: process,
+      tipo_equipo: type,
+      status: active ? 'Operativa' : 'Parada'
+    };
+
+    if (id) {
+      localMachines = localMachines.map(m => m.id === id ? { ...m, ...mappedLocal } : m);
+    } else {
+      localMachines.push(mappedLocal);
+    }
+    localStorage.setItem('TSMAI_machines', JSON.stringify(localMachines));
+  }
+
+  closeModal('modal-admin-machine-detail');
+  renderAdminMachinesTable();
+}
+
+async function deleteAdminMachine(machineId) {
+  if (!machineId) return;
+
+  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const m = machines.find(item => item.id === machineId);
+  if (!m) return;
+
+  const newStatus = m.status !== 'Operativa';
+  const actionLabel = newStatus ? 'poner en operación' : 'detener';
+
+  if (!confirm(`¿Estás seguro de que deseas ${actionLabel} el equipo "${machineId}"?`)) {
+    return;
+  }
+
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient
+        .from('cat_maquinas')
+        .update({ activo: newStatus })
+        .eq('equipo_towell', machineId);
+      if (error) throw error;
+      showToast(`Equipo ${newStatus ? 'Operativo' : 'Parado'} en Supabase.`);
+      await syncDatabases();
+    } catch (err) {
+      console.error('Error toggling machine status in Supabase:', err);
+      alert('Error en Supabase: ' + err.message);
+      return;
+    }
+  } else {
+    const updated = machines.map(item => item.id === machineId ? { ...item, status: newStatus ? 'Operativa' : 'Parada' } : item);
+    localStorage.setItem('TSMAI_machines', JSON.stringify(updated));
+    showToast(`Equipo ${newStatus ? 'Operativo' : 'Parado'} localmente.`);
+  }
+
+  renderAdminMachinesTable();
+}
+
+// --- CRUD REFACCIONES (ADMIN) ---
+function openAdminPartModal(partId = null) {
+  const codeInput = document.getElementById('admin-part-code');
+  if (partId) {
+    const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+    const p = parts.find(item => item.id === partId);
+    if (!p) return;
+
+    document.getElementById('admin-part-id').value = p.id;
+    codeInput.value = p.id;
+    codeInput.disabled = true; // No permitir cambiar código si es edición
+    document.getElementById('admin-part-name').value = p.name || '';
+    document.getElementById('admin-part-category').value = p.category || '';
+    document.getElementById('admin-part-cost').value = p.cost || 0;
+    document.getElementById('admin-part-stock').value = p.stock || 0;
+    document.getElementById('admin-part-min').value = p.minStock || 0;
+    document.getElementById('admin-part-active').checked = p.activo !== false;
+    document.getElementById('admin-part-detail-title').innerText = `Editar Refacción: ${p.id}`;
+  } else {
+    document.getElementById('admin-part-id').value = '';
+    codeInput.value = '';
+    codeInput.disabled = false;
+    document.getElementById('admin-part-name').value = '';
+    document.getElementById('admin-part-category').value = '';
+    document.getElementById('admin-part-cost').value = '';
+    document.getElementById('admin-part-stock').value = '';
+    document.getElementById('admin-part-min').value = '';
+    document.getElementById('admin-part-active').checked = true;
+    document.getElementById('admin-part-detail-title').innerText = 'Crear Nueva Refacción';
+  }
+  openModal('modal-admin-part-detail');
+}
+
+async function saveAdminPart() {
+  const id = document.getElementById('admin-part-id').value;
+  const code = document.getElementById('admin-part-code').value.trim();
+  const name = document.getElementById('admin-part-name').value.trim();
+  const category = document.getElementById('admin-part-category').value.trim();
+  const cost = document.getElementById('admin-part-cost').value;
+  const stock = document.getElementById('admin-part-stock').value;
+  const minStock = document.getElementById('admin-part-min').value;
+  const active = document.getElementById('admin-part-active').checked;
+
+  if (!code) {
+    alert('Por favor ingresa el código de refacción.');
+    return;
+  }
+  if (!name) {
+    alert('Por favor ingresa el nombre de la refacción.');
+    return;
+  }
+  if (cost === '') {
+    alert('Por favor ingresa el costo unitario.');
+    return;
+  }
+  if (stock === '') {
+    alert('Por favor ingresa el stock actual.');
+    return;
+  }
+  if (minStock === '') {
+    alert('Por favor ingresa el stock mínimo.');
+    return;
+  }
+
+  const partObj = {
+    codigo_articulo: code,
+    nombre_articulo: name,
+    unidad_medida: 'PZ',
+    familia: category || 'General',
+    activo: active
+  };
+
+  if (supabaseClient) {
+    try {
+      if (id) {
+        const { error } = await supabaseClient
+          .from('cat_refacciones')
+          .update(partObj)
+          .eq('codigo_articulo', id);
+        if (error) throw error;
+        showToast('Refacción actualizada en base de datos.');
+      } else {
+        const { data: existing } = await supabaseClient
+          .from('cat_refacciones')
+          .select('codigo_articulo')
+          .eq('codigo_articulo', code);
+        if (existing && existing.length > 0) {
+          alert('Ya existe una refacción con este Código / ID.');
+          return;
+        }
+
+        const { error } = await supabaseClient
+          .from('cat_refacciones')
+          .insert([partObj]);
+        if (error) throw error;
+        showToast('Refacción creada en base de datos.');
+      }
+    } catch (err) {
+      console.error('Error guardando refacción en Supabase:', err);
+      alert('Error guardando en Supabase: ' + err.message);
+      return;
+    }
+  } else {
+    showToast('Guardada localmente (Offline).');
+  }
+
+  if (supabaseClient) {
+    await syncDatabases();
+    
+    // Sobrescribir campos específicos de UI local
+    let localParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+    localParts = localParts.map(p => {
+      if (p.id === code) {
+        return {
+          ...p,
+          cost: parseFloat(cost),
+          stock: parseFloat(stock),
+          minStock: parseFloat(minStock),
+          activo: active
+        };
+      }
+      return p;
+    });
+    localStorage.setItem('TSMAI_parts', JSON.stringify(localParts));
+  } else {
+    let localParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+    const mappedLocal = {
+      id: code,
+      name: name,
+      category: category,
+      cost: parseFloat(cost),
+      stock: parseFloat(stock),
+      minStock: parseFloat(minStock),
+      activo: active
+    };
+
+    if (id) {
+      localParts = localParts.map(p => p.id === id ? { ...p, ...mappedLocal } : p);
+    } else {
+      localParts.push(mappedLocal);
+    }
+    localStorage.setItem('TSMAI_parts', JSON.stringify(localParts));
+  }
+
+  closeModal('modal-admin-part-detail');
+  renderAdminPartsTable();
+}
+
+async function deleteAdminPart(partId) {
+  if (!partId) return;
+
+  const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+  const p = parts.find(item => item.id === partId);
+  if (!p) return;
+
+  const newStatus = p.activo === false;
+  const actionLabel = newStatus ? 'activar' : 'desactivar';
+
+  if (!confirm(`¿Estás seguro de que deseas ${actionLabel} la refacción "${partId}"?`)) {
+    return;
+  }
+
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient
+        .from('cat_refacciones')
+        .update({ activo: newStatus })
+        .eq('codigo_articulo', partId);
+      if (error) throw error;
+      showToast(`Refacción ${newStatus ? 'activada' : 'desactivada'} en Supabase.`);
+      await syncDatabases();
+      
+      let localParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+      localParts = localParts.map(item => item.id === partId ? { ...item, activo: newStatus } : item);
+      localStorage.setItem('TSMAI_parts', JSON.stringify(localParts));
+    } catch (err) {
+      console.error('Error toggling part status in Supabase:', err);
+      alert('Error en Supabase: ' + err.message);
+      return;
+    }
+  } else {
+    const updated = parts.map(item => item.id === partId ? { ...item, activo: newStatus } : item);
+    localStorage.setItem('TSMAI_parts', JSON.stringify(updated));
+    showToast(`Refacción ${newStatus ? 'activada' : 'desactivada'} localmente.`);
+  }
+
+  renderAdminPartsTable();
 }
 
 // --- FORMULARIOS DINÁMICOS (ADMIN) ---
@@ -2074,25 +3620,36 @@ function switchTechPanel(panelId) {
 function renderTechDashboard() {
   if (!currentUser) return;
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
   
-  // Filtrar OTs asignadas a este técnico
+  // Filtrar OTs y Subtareas asignadas a este técnico
   const myOrders = orders.filter(o => o.assignedTech === currentUser.id);
+  const mySubtasks = subtasks.filter(s => s.assignedTech === currentUser.id || s.assignedTech === currentUser.uuid);
 
-  const assigned = myOrders.filter(o => o.status === 'Asignada').length;
-  const process = myOrders.filter(o => o.status === 'En proceso').length;
-  const hold = myOrders.filter(o => o.status === 'En espera').length;
+  const assigned = myOrders.filter(o => o.status === 'Asignada').length + mySubtasks.filter(s => s.status === 'Asignada').length;
+  const process = myOrders.filter(o => o.status === 'En proceso').length + mySubtasks.filter(s => s.status === 'En proceso').length;
+  const hold = myOrders.filter(o => o.status === 'En espera').length + mySubtasks.filter(s => s.status === 'En espera').length;
   
   const now = new Date();
-  const overdue = myOrders.filter(o => {
+  const overdueOrders = myOrders.filter(o => {
     return new Date(o.dueDate) < now && o.status !== 'Cerrada' && o.status !== 'Cancelada' && o.status !== 'Ejecutada';
   }).length;
+  const overdueSubtasks = mySubtasks.filter(s => {
+    return new Date(s.dueDate) < now && s.status !== 'Terminada' && s.status !== 'Cancelada';
+  }).length;
+  const overdue = overdueOrders + overdueSubtasks;
 
   // Terminadas hoy
   const todayStr = now.toISOString().slice(0, 10);
-  const doneToday = myOrders.filter(o => {
+  const doneTodayOrders = myOrders.filter(o => {
     const isClosed = o.status === 'Cerrada' || o.status === 'Ejecutada';
     return isClosed && o.dueDate && o.dueDate.startsWith(todayStr);
   }).length;
+  const doneTodaySubtasks = mySubtasks.filter(s => {
+    const isClosed = s.status === 'Terminada';
+    return isClosed && s.dueDate && s.dueDate.startsWith(todayStr);
+  }).length;
+  const doneToday = doneTodayOrders + doneTodaySubtasks;
 
   document.getElementById('kpi-tech-assigned').innerText = assigned;
   document.getElementById('kpi-tech-process').innerText = process;
@@ -2105,11 +3662,33 @@ function renderTechDashboard() {
 function renderTechOrdersTable() {
   if (!currentUser) return;
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
   const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
   const tbody = document.getElementById('table-tech-orders-body');
 
   const myOrders = orders.filter(o => o.assignedTech === currentUser.id);
-  const activeOrders = myOrders.filter(o => o.status !== 'Cerrada' && o.status !== 'Cancelada');
+  
+  // Convertir subtareas activas del técnico a formato compatible con la tabla
+  const mySubtasks = subtasks.filter(s => (s.assignedTech === currentUser.id || s.assignedTech === currentUser.uuid) && s.status !== 'Terminada' && s.status !== 'Cancelada');
+  const mappedSubtasks = mySubtasks.map(s => {
+    const mainOT = orders.find(o => o.id === s.otId);
+    return {
+      id: `${s.otId}-S${s.number}`,
+      isSubtask: true,
+      subtaskId: s.id,
+      machine: mainOT ? mainOT.machine : 'Máquina',
+      area: `Apoyo ${s.area}`,
+      type: `Subtarea: ${s.description.slice(0, 30)}...`,
+      urgency: s.priority,
+      status: s.status,
+      dueDate: s.dueDate ? `${s.dueDate}T12:00:00` : new Date().toISOString()
+    };
+  });
+
+  const activeOrders = [
+    ...myOrders.filter(o => o.status !== 'Cerrada' && o.status !== 'Cancelada').map(o => ({ ...o, isSubtask: false })),
+    ...mappedSubtasks
+  ];
 
   if (activeOrders.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No tienes órdenes de trabajo pendientes asignadas. ¡Buen trabajo!</td></tr>`;
@@ -2142,59 +3721,339 @@ function renderTechOrdersTable() {
 
 // --- MODAL DETALLE DE OT (TÉCNICO) ---
 function openTechOrderDetailModal(otId) {
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const order = orders.find(o => o.id === otId);
-  if (!order) return;
+  const isSub = otId.includes('-S');
 
-  document.getElementById('tech-ot-id').value = otId;
-  document.getElementById('tech-ot-detail-title').innerText = `Detalle de Orden de Trabajo: ${otId}`;
+  if (isSub) {
+    // Es una subtarea
+    const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+    const sub = subtasks.find(s => `${s.otId}-S${s.number}` === otId);
+    if (!sub) return;
 
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
-  const mach = machines.find(m => m.id === order.machine);
-  
-  document.getElementById('tech-ot-lbl-machine').innerText = mach ? mach.name : order.machine;
-  document.getElementById('tech-ot-lbl-area').innerText = `${order.area} - ${mach ? mach.area : ''}`;
-  document.getElementById('tech-ot-lbl-machinestate').innerText = mach ? mach.status : 'Operativa';
-  document.getElementById('tech-ot-lbl-urgency').innerHTML = `<span class="badge badge-priority-${order.urgency.toLowerCase()}">${order.urgency}</span>`;
-  document.getElementById('tech-ot-lbl-description').innerText = order.description;
+    document.getElementById('tech-ot-id').value = otId;
+    document.getElementById('tech-ot-detail-title').innerText = `Detalle de Subtarea: ${otId}`;
 
-  // Evidencia Inicial
-  const fileBox = document.getElementById('tech-ot-lbl-file-box');
-  if (order.evidence) {
-    fileBox.style.display = 'block';
-    document.getElementById('tech-ot-img-lbl').innerHTML = `🖼️ <a style="color: var(--accent-blue); text-decoration: underline; cursor:pointer;" onclick="alert('Visualizando archivo: ' + '${order.evidence}')">${order.evidence}</a>`;
+    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const parentOrder = orders.find(o => o.id === sub.otId);
+    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const mach = parentOrder ? machines.find(m => m.id === parentOrder.machine) : null;
+
+    document.getElementById('tech-ot-lbl-machine').innerText = mach ? mach.name : (parentOrder ? parentOrder.machine : 'Máquina');
+    document.getElementById('tech-ot-lbl-area').innerText = `Apoyo ${sub.area}`;
+    document.getElementById('tech-ot-lbl-machinestate').innerText = mach ? mach.status : 'Operativa';
+    document.getElementById('tech-ot-lbl-urgency').innerHTML = `<span class="badge badge-priority-${sub.priority.toLowerCase()}">${sub.priority}</span>`;
+    document.getElementById('tech-ot-lbl-description').innerHTML = `<strong>Actividad Requerida:</strong> ${sub.description}<br><strong>Motivo de Apoyo:</strong> ${sub.reason}`;
+
+    // Evidencia Inicial
+    const fileBox = document.getElementById('tech-ot-lbl-file-box');
+    if (sub.evidence) {
+      fileBox.style.display = 'block';
+      document.getElementById('tech-ot-img-lbl').innerHTML = `🖼️ <a style="color: var(--accent-blue); text-decoration: underline; cursor:pointer;" onclick="alert('Visualizando archivo: ' + '${sub.evidence}')">${sub.evidence}</a>`;
+    } else {
+      fileBox.style.display = 'none';
+    }
+
+    // Ocultar formulario de solicitar apoyo secundario
+    document.querySelector('input[name="tech-subtask-req"][value="no"]').checked = true;
+    document.querySelectorAll('input[name="tech-subtask-req"]').forEach(radio => radio.disabled = true);
+    toggleSubtaskForm();
+    document.getElementById('tech-subtasks-list-container').style.display = 'none';
+
+    // Cargar inputs del diagnóstico
+    document.getElementById('tech-diagnosis').value = sub.observations || '';
+    document.getElementById('tech-activity').value = 'Completado por sub-responsable';
+    document.getElementById('tech-observations').value = '';
+
+    // Ocultar refacciones y tipo de intervención para subtareas para simplificar
+    document.querySelector('input[name="tech-interv"]').closest('.form-group').style.display = 'none';
+    document.getElementById('tech-part-select').closest('.form-group').style.display = 'none';
+    tempSelectedParts = [];
+    renderTechSelectedPartsList();
+
+    // Reset file upload
+    document.getElementById('tech-file').value = '';
+    document.getElementById('tech-file-preview').style.display = 'none';
+
+    // Reset temporal subtasks
+    tempSubtasksToCreate = [];
+
+    openModal('modal-tech-ot-detail');
   } else {
-    fileBox.style.display = 'none';
+    // Es una OT normal
+    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const order = orders.find(o => o.id === otId);
+    if (!order) return;
+
+    // Mostrar campos que pudieran estar ocultos por subtarea anterior
+    document.querySelectorAll('input[name="tech-subtask-req"]').forEach(radio => radio.disabled = false);
+    document.querySelector('input[name="tech-interv"]').closest('.form-group').style.display = 'flex';
+    document.getElementById('tech-part-select').closest('.form-group').style.display = 'flex';
+
+    document.getElementById('tech-ot-id').value = otId;
+    document.getElementById('tech-ot-detail-title').innerText = `Detalle de Orden de Trabajo: ${otId}`;
+
+    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const mach = machines.find(m => m.id === order.machine);
+    
+    document.getElementById('tech-ot-lbl-machine').innerText = mach ? mach.name : order.machine;
+    document.getElementById('tech-ot-lbl-area').innerText = `${order.area} - ${mach ? mach.area : ''}`;
+    document.getElementById('tech-ot-lbl-machinestate').innerText = mach ? mach.status : 'Operativa';
+    document.getElementById('tech-ot-lbl-urgency').innerHTML = `<span class="badge badge-priority-${order.urgency.toLowerCase()}">${order.urgency}</span>`;
+    document.getElementById('tech-ot-lbl-description').innerText = order.description;
+
+    // Evidencia Inicial
+    const fileBox = document.getElementById('tech-ot-lbl-file-box');
+    if (order.evidence) {
+      fileBox.style.display = 'block';
+      document.getElementById('tech-ot-img-lbl').innerHTML = `🖼️ <a style="color: var(--accent-blue); text-decoration: underline; cursor:pointer;" onclick="alert('Visualizando archivo: ' + '${order.evidence}')">${order.evidence}</a>`;
+    } else {
+      fileBox.style.display = 'none';
+    }
+
+    // Cargar inputs del diagnóstico
+    document.getElementById('tech-diagnosis').value = order.diagnosis || '';
+    document.getElementById('tech-activity').value = order.activity || '';
+    document.getElementById('tech-observations').value = order.observations || '';
+    
+    // Limpiar/Establecer checkboxes de intervención
+    const selectedInterv = order.interventionType || [];
+    document.querySelectorAll('input[name="tech-interv"]').forEach(chk => {
+      chk.checked = selectedInterv.includes(chk.value);
+    });
+
+    // Inicializar selector de subtarea nueva
+    document.querySelector('input[name="tech-subtask-req"][value="no"]').checked = true;
+    toggleSubtaskForm();
+    renderTechSubtasksList(otId);
+
+    // Inicializar catálogo de refacciones en el selector
+    populateTechSparePartsSelect();
+    
+    // Cargar refacciones que ya se hayan guardado en esta OT
+    tempSelectedParts = order.usedParts ? [...order.usedParts] : [];
+    renderTechSelectedPartsList();
+
+    // Reset file upload
+    document.getElementById('tech-file').value = '';
+    document.getElementById('tech-file-preview').style.display = 'none';
+
+    // Reset temporal subtasks
+    tempSubtasksToCreate = [];
+    renderTechTempSubtasksList();
+
+    openModal('modal-tech-ot-detail');
+  }
+}
+
+function toggleSubtaskForm() {
+  const reqSubtaskEl = document.querySelector('input[name="tech-subtask-req"]:checked');
+  const reqSubtask = reqSubtaskEl ? reqSubtaskEl.value : 'no';
+  const fieldsContainer = document.getElementById('tech-subtask-fields');
+  if (fieldsContainer) {
+    fieldsContainer.style.display = reqSubtask === 'yes' ? 'block' : 'none';
+  }
+}
+
+function addTempSubtask() {
+  const title = document.getElementById('tech-subtask-title').value.trim();
+  const area = document.getElementById('tech-subtask-area').value;
+  const priority = document.getElementById('tech-subtask-priority').value;
+  const subtaskDueDate = document.getElementById('tech-subtask-date').value;
+  const requiresParo = document.querySelector('input[name="tech-subtask-paro"]:checked').value === 'yes';
+  const requiresPart = document.querySelector('input[name="tech-subtask-part"]:checked').value === 'yes';
+  const subtaskDesc = document.getElementById('tech-subtask-desc').value.trim();
+  const subtaskReason = document.getElementById('tech-subtask-reason').value.trim();
+  const subtaskObs = document.getElementById('tech-subtask-obs').value.trim();
+  
+  const fileInput = document.getElementById('tech-subtask-file');
+  let evidenceName = null;
+  if (fileInput && fileInput.files && fileInput.files[0]) {
+    evidenceName = fileInput.files[0].name;
   }
 
-  // Cargar inputs del diagnóstico
-  document.getElementById('tech-diagnosis').value = order.diagnosis || '';
-  document.getElementById('tech-activity').value = order.activity || '';
-  document.getElementById('tech-observations').value = order.observations || '';
+  if (!title || !subtaskDueDate || !subtaskDesc || !subtaskReason) {
+    alert('Por favor completa todos los campos obligatorios de la subtarea (*) (Título, Fecha, Descripción y Motivo).');
+    return;
+  }
+
+  const sub = {
+    id: crypto.randomUUID ? crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36)),
+    title: title,
+    area: area,
+    priority: priority,
+    dueDate: subtaskDueDate,
+    requiresParo: requiresParo,
+    requiresPart: requiresPart,
+    description: subtaskDesc,
+    reason: subtaskReason,
+    observations: subtaskObs,
+    evidenceName: evidenceName,
+    status: 'solicitada',
+    activo: true
+  };
+
+  tempSubtasksToCreate.push(sub);
+  renderTechTempSubtasksList();
+
+  // Limpiar campos
+  document.getElementById('tech-subtask-title').value = '';
+  document.getElementById('tech-subtask-date').value = '';
+  document.getElementById('tech-subtask-desc').value = '';
+  document.getElementById('tech-subtask-reason').value = '';
+  document.getElementById('tech-subtask-obs').value = '';
+  document.querySelector('input[name="tech-subtask-paro"][value="no"]').checked = true;
+  document.querySelector('input[name="tech-subtask-part"][value="no"]').checked = true;
+  if (fileInput) fileInput.value = '';
+  const preview = document.getElementById('tech-subtask-file-preview');
+  if (preview) {
+    preview.innerText = '';
+    preview.style.display = 'none';
+  }
   
-  // Limpiar/Establecer checkboxes de intervención
-  const selectedInterv = order.interventionType || [];
-  document.querySelectorAll('input[name="tech-interv"]').forEach(chk => {
-    chk.checked = selectedInterv.includes(chk.value);
+  showToast('Subtarea agregada a la lista temporal.');
+}
+
+function removeTempSubtask(index) {
+  tempSubtasksToCreate.splice(index, 1);
+  renderTechTempSubtasksList();
+  showToast('Subtarea removida de la lista temporal.');
+}
+
+function renderTechTempSubtasksList() {
+  const container = document.getElementById('tech-temp-subtasks-container');
+  const list = document.getElementById('tech-temp-subtasks-list');
+  if (!container || !list) return;
+
+  if (tempSubtasksToCreate.length === 0) {
+    container.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  container.style.display = 'block';
+  let html = '';
+  tempSubtasksToCreate.forEach((s, idx) => {
+    html += `
+      <li style="background: rgba(6, 182, 212, 0.05); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--accent-blue); display: flex; justify-content: space-between; align-items: center; margin: 0; border-top: none;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <strong style="color: var(--accent-blue);">${s.title} (${formatSubtaskArea(s.area)})</strong>
+          <span style="font-size: 0.75rem; color: #cbd5e1;">Prioridad: ${formatSubtaskPriority(s.priority)} | Fecha: ${s.dueDate}</span>
+        </div>
+        <button type="button" class="btn-logout" onclick="removeTempSubtask(${idx})" style="padding: 4px 8px; font-size: 0.75rem; width: auto; margin: 0; background: #ef4444; border-color: #ef4444;">Quitar</button>
+      </li>
+    `;
   });
+  list.innerHTML = html;
+}
 
-  // Inicializar catálogo de refacciones en el selector
-  populateTechSparePartsSelect();
-  
-  // Cargar refacciones que ya se hayan guardado en esta OT
-  tempSelectedParts = order.usedParts ? [...order.usedParts] : [];
-  renderTechSelectedPartsList();
+async function renderTechSubtasksList(otId) {
+  const subtasksContainer = document.getElementById('tech-subtasks-list-container');
+  const subtasksList = document.getElementById('tech-subtasks-list');
+  if (!subtasksContainer || !subtasksList) return;
 
-  // Reset file upload
-  document.getElementById('tech-file').value = '';
-  document.getElementById('tech-file-preview').style.display = 'none';
+  const allSubtasks = await dbGetSubtasks();
+  const otSubtasks = allSubtasks.filter(s => s.otId === otId);
 
-  openModal('modal-tech-ot-detail');
+  if (otSubtasks.length > 0) {
+    subtasksContainer.style.display = 'block';
+    let html = '';
+    otSubtasks.forEach(s => {
+      let statusBadge = '';
+      if (s.status === 'Solicitada') statusBadge = '<span class="badge badge-priority-media">Solicitada</span>';
+      else if (s.status === 'Asignada') statusBadge = '<span class="badge badge-priority-baja">Asignada</span>';
+      else if (s.status === 'En proceso') statusBadge = '<span class="badge badge-priority-media">En proceso</span>';
+      else if (s.status === 'Terminada') statusBadge = '<span class="badge badge-priority-alta" style="background: #22c55e; color: white;">Terminada</span>';
+      else if (s.status === 'Cancelada') statusBadge = '<span class="badge badge-priority-crítica">Cancelada</span>';
+      else statusBadge = `<span class="badge badge-priority-baja">${s.status}</span>`;
+
+      const respName = s.assignedTech ? s.assignedTech : 'Pendiente de Asignar';
+
+      html += `
+        <li style="background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 6px; border-left: 3px solid var(--accent-blue); display: flex; flex-direction: column; gap: 4px; border-top: none; margin: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong>Subtarea #${s.number}: Apoyo ${s.area}</strong>
+            ${statusBadge}
+          </div>
+          <div style="color: #cbd5e1;"><span style="color: var(--text-muted);">Descripción:</span> ${s.description}</div>
+          <div style="color: #cbd5e1;"><span style="color: var(--text-muted);">Responsable:</span> ${respName}</div>
+          ${s.observations ? `<div style="color: #cbd5e1;"><span style="color: var(--text-muted);">Bitácora:</span> ${s.observations}</div>` : ''}
+        </li>
+      `;
+    });
+    subtasksList.innerHTML = html;
+  } else {
+    subtasksContainer.style.display = 'none';
+  }
 }
 
 // Actualizar estado del trabajo directamente en sitio
 async function setWorkStatus(newStatus) {
   const otId = document.getElementById('tech-ot-id').value;
+  const isSub = otId.includes('-S');
+
+  if (isSub) {
+    // Es una subtarea
+    const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+    const subIndex = subtasks.findIndex(s => `${s.otId}-S${s.number}` === otId);
+    if (subIndex === -1) return;
+
+    const sub = subtasks[subIndex];
+    const oldStatus = sub.status;
+    
+    // Convertir estado
+    let statusToSave = newStatus;
+    if (newStatus === 'Ejecutada') {
+      statusToSave = 'Terminada';
+    }
+
+    subtasks[subIndex].status = statusToSave;
+    if (statusToSave === 'Terminada') {
+      subtasks[subIndex].closeDate = new Date().toISOString();
+    }
+    subtasks[subIndex].updatedAt = new Date().toISOString();
+    localStorage.setItem('TSMAI_subtasks', JSON.stringify(subtasks));
+
+    // Actualizar en Supabase
+    await dbUpdateSubtask(sub.id, {
+      status: statusToSave,
+      closeDate: statusToSave === 'Terminada' ? new Date().toISOString() : null
+    });
+
+    // Registrar en bitácora de movimientos
+    const movement = {
+      id: crypto.randomUUID ? crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36)),
+      otUUID: sub.otUUID,
+      subtaskId: sub.id,
+      type: statusToSave === 'Terminada' ? 'Subtarea terminada' : `Subtarea ${statusToSave.toLowerCase()}`,
+      oldState: oldStatus,
+      newState: statusToSave,
+      by: currentUser.name,
+      comment: `Técnico cambió el estado de la subtarea a ${statusToSave}.`,
+      date: new Date().toISOString()
+    };
+    await dbInsertMovement(movement);
+
+    // Si se terminó, verificar si podemos actualizar el estado de la OT principal (Regla 3 & 4)
+    if (statusToSave === 'Terminada') {
+      await checkAndUpdateMainOTState(sub.otId);
+    }
+
+    showToast(`Estado de la subtarea cambiado a ${statusToSave}.`);
+    renderTechDashboard();
+    renderTechOrdersTable();
+    return;
+  }
+
+  // Es una OT normal
+  if (newStatus === 'Ejecutada' || newStatus === 'Cerrada') {
+    const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+    const otSubtasks = subtasks.filter(s => s.otId === otId);
+    const activeSubtasks = otSubtasks.filter(s => ['solicitada', 'asignada', 'en_proceso', 'en_espera', 'bloqueada'].includes(s.status.toLowerCase()));
+    if (activeSubtasks.length > 0) {
+      alert(`No se puede finalizar la Orden de Trabajo porque tiene ${activeSubtasks.length} subtarea(s) activa(s). Todas las subtareas deben estar Terminadas o Canceladas.`);
+      return;
+    }
+  }
+
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const orderIndex = orders.findIndex(o => o.id === otId);
   if (orderIndex === -1) return;
@@ -2321,6 +4180,85 @@ function removePartFromTechOTList(index) {
 // Guardar bitácora y finalizar / actualizar orden
 async function saveTechnicalLog() {
   const otId = document.getElementById('tech-ot-id').value;
+
+  if (otId.includes('-S')) {
+    // Es una subtarea
+    const observations = document.getElementById('tech-diagnosis').value.trim();
+    if (!observations) {
+      alert('Por favor escribe tus observaciones o bitácora técnica de la subtarea.');
+      return;
+    }
+
+    const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+    const subIndex = subtasks.findIndex(s => `${s.otId}-S${s.number}` === otId);
+    if (subIndex === -1) return;
+
+    const sub = subtasks[subIndex];
+    const oldStatus = sub.status;
+    let newStatus = oldStatus;
+    if (newStatus === 'asignada') {
+      newStatus = 'en_proceso';
+    }
+
+    // Cargar evidencia si aplica y guardarla en evidencias_subtareas
+    const fileInput = document.getElementById('tech-file');
+    let evidenceName = null;
+    if (fileInput.files && fileInput.files[0]) {
+      evidenceName = fileInput.files[0].name;
+      const evUUID = crypto.randomUUID ? crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36));
+      const newEv = {
+        id: evUUID,
+        subtaskId: sub.id,
+        otUUID: sub.otUUID,
+        fileType: 'imagen',
+        origin: 'cierre',
+        fileName: evidenceName,
+        url_archivo: `https://xqfpsavkefhrxfbtqzec.supabase.co/storage/v1/object/public/ot-evidencias/subtareas/${sub.otId}/${evidenceName}`,
+        fileUrl: `https://xqfpsavkefhrxfbtqzec.supabase.co/storage/v1/object/public/ot-evidencias/subtareas/${sub.otId}/${evidenceName}`,
+        bucket: 'ot-evidencias',
+        path: `subtareas/${sub.otId}/${evidenceName}`,
+        description: 'Evidencia de actualización de la subtarea',
+        uploadedBy: getUserUUID(currentUser.id) || getAdminUUID(),
+        uploadDate: new Date().toISOString(),
+        active: true
+      };
+      await dbInsertEvidence(newEv);
+    }
+
+    subtasks[subIndex].status = newStatus;
+    subtasks[subIndex].observations = observations;
+    subtasks[subIndex].updatedAt = new Date().toISOString();
+    localStorage.setItem('TSMAI_subtasks', JSON.stringify(subtasks));
+
+    // Actualizar en Supabase
+    await dbUpdateSubtask(sub.id, {
+      status: newStatus,
+      observations: observations
+    });
+
+    // Registrar en bitácora de movimientos
+    const movement = {
+      id: crypto.randomUUID ? crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36)),
+      otUUID: sub.otUUID,
+      subtaskId: sub.id,
+      type: 'Subtarea actualizada',
+      oldState: oldStatus,
+      newState: newStatus,
+      by: currentUser.name,
+      comment: `Técnico actualizó la subtarea. Observaciones: ${observations}`,
+      date: new Date().toISOString()
+    };
+    await dbInsertMovement(movement);
+
+    closeModal('modal-tech-ot-detail');
+    showToast('Subtarea guardada exitosamente.');
+    await syncDatabases();
+    renderTechDashboard();
+    renderTechOrdersTable();
+    return;
+  }
+
+  // Es una OT normal
   const diagnosis = document.getElementById('tech-diagnosis').value.trim();
   const activity = document.getElementById('tech-activity').value.trim();
   const observations = document.getElementById('tech-observations').value.trim();
@@ -2346,6 +4284,38 @@ async function saveTechnicalLog() {
   if (orderIndex === -1) return;
 
   const currentOrder = orders[orderIndex];
+
+  // Regla 2: Validar si existen subtareas activas al intentar cerrar
+  const currentStatus = currentOrder.status;
+  if (currentStatus === 'Ejecutada' || currentStatus === 'Cerrada' || currentStatus === 'ejecutada' || currentStatus === 'cerrada') {
+    const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+    const otSubtasks = subtasks.filter(s => s.otId === otId);
+    const activeSubtasks = otSubtasks.filter(s => ['solicitada', 'asignada', 'en_proceso', 'en_espera', 'bloqueada'].includes(s.status.toLowerCase()));
+    if (activeSubtasks.length > 0) {
+      alert(`No se puede guardar la Orden de Trabajo como ${currentStatus} porque tiene ${activeSubtasks.length} subtarea(s) activa(s). Todas las subtareas deben estar Terminadas o Canceladas.`);
+      return;
+    }
+  }
+
+  // Comprobar si requiere subtarea
+  const reqSubtaskEl = document.querySelector('input[name="tech-subtask-req"]:checked');
+  const reqSubtask = reqSubtaskEl ? reqSubtaskEl.value : 'no';
+
+  if (reqSubtask === 'yes') {
+    const title = document.getElementById('tech-subtask-title').value.trim();
+    const subtaskDueDate = document.getElementById('tech-subtask-date').value;
+    const subtaskDesc = document.getElementById('tech-subtask-desc').value.trim();
+    const subtaskReason = document.getElementById('tech-subtask-reason').value.trim();
+
+    // Auto-agregar subtarea si hay campos llenos pero olvidaron presionar el botón "Agregar"
+    if (title || subtaskDueDate || subtaskDesc || subtaskReason) {
+      addTempSubtask();
+      // Si la validación falló, salimos del guardado
+      if (tempSubtasksToCreate.length === 0 || tempSubtasksToCreate[tempSubtasksToCreate.length - 1].title !== title) {
+        return;
+      }
+    }
+  }
 
   // Restar refacciones del inventario
   const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
@@ -2382,9 +4352,13 @@ async function saveTechnicalLog() {
   orders[orderIndex].interventionType = interventionTypes;
   orders[orderIndex].usedParts = tempSelectedParts;
 
-  // Si no se había marcado como ejecutada o en espera, podemos dejarla en proceso
-  if (orders[orderIndex].status === 'Asignada') {
-    orders[orderIndex].status = 'En proceso';
+  // Actualizar estado de la OT principal (Regla 3)
+  if (tempSubtasksToCreate.length > 0) {
+    orders[orderIndex].status = 'Requiere subtarea';
+  } else {
+    if (orders[orderIndex].status === 'Asignada') {
+      orders[orderIndex].status = 'En proceso';
+    }
   }
 
   // Simular carga de archivo de cierre
@@ -2428,7 +4402,7 @@ async function saveTechnicalLog() {
       const combinedObservation = `Diagnóstico: ${diagnosis} | Actividad: ${activity} | Observaciones: ${observations}`;
       
       const updateData = {
-        estatus: orders[orderIndex].status,
+        estatus: getDBStatus(orders[orderIndex].status),
         observacion_cierre: combinedObservation,
         fecha_fin: new Date().toISOString().split('T')[0],
         hora_fin: new Date().toTimeString().split(' ')[0],
@@ -2450,7 +4424,7 @@ async function saveTechnicalLog() {
             maquina_id: currentOrder.machine,
             destino: currentOrder.machine,
             codigo_articulo: selected.partId,
-            nombre_articulo: selected.partName,
+            nombre_articulo: selected.partName || selected.name,
             cantidad_estandar: selected.quantity,
             precio_costo_unitario: cost,
             importe_costo_calculado: totalCost,
@@ -2475,6 +4449,63 @@ async function saveTechnicalLog() {
     } catch (err) {
       console.error('Error updating technical log in Supabase:', err);
     }
+  }
+
+  // Insertar todas las subtareas creadas en esta sesión
+  if (tempSubtasksToCreate.length > 0) {
+    const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+    const otSubtasks = subtasks.filter(s => s.otId === otId);
+    let nextNumber = otSubtasks.length + 1;
+    const requestedUUID = getUserUUID(currentUser.id) || getAdminUUID() || null;
+
+    for (const sub of tempSubtasksToCreate) {
+      sub.otId = otId;
+      sub.otUUID = currentOrder.uuid || currentOrder.id || null;
+      sub.number = nextNumber++;
+      sub.requestedBy = requestedUUID;
+      sub.requestDate = new Date().toISOString();
+
+      await dbInsertSubtask(sub);
+
+      // Guardar evidencia si fue seleccionada
+      if (sub.evidenceName) {
+        const evUUID = crypto.randomUUID ? crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36));
+        const newEv = {
+          id: evUUID,
+          subtaskId: sub.id,
+          otUUID: sub.otUUID,
+          fileType: 'imagen',
+          origin: 'solicitud',
+          fileName: sub.evidenceName,
+          url_archivo: `https://xqfpsavkefhrxfbtqzec.supabase.co/storage/v1/object/public/ot-evidencias/subtareas/${sub.otId}/${sub.evidenceName}`,
+          fileUrl: `https://xqfpsavkefhrxfbtqzec.supabase.co/storage/v1/object/public/ot-evidencias/subtareas/${sub.otId}/${sub.evidenceName}`,
+          bucket: 'ot-evidencias',
+          path: `subtareas/${sub.otId}/${sub.evidenceName}`,
+          description: 'Evidencia inicial de la subtarea',
+          uploadedBy: sub.requestedBy,
+          uploadDate: new Date().toISOString(),
+          active: true
+        };
+        await dbInsertEvidence(newEv);
+      }
+
+      // Registrar en bitácora de movimientos
+      const movement = {
+        id: crypto.randomUUID ? crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36)),
+        otUUID: currentOrder.uuid || currentOrder.id || null,
+        subtaskId: sub.id,
+        type: 'Subtarea creada',
+        oldState: null,
+        newState: 'Solicitada',
+        by: currentUser.name,
+        comment: `Solicitud de apoyo de otra área (${sub.area}) creada por técnico. Motivo: ${sub.reason}`,
+        date: new Date().toISOString()
+      };
+      await dbInsertMovement(movement);
+    }
+
+    // Reset temporal subtasks
+    tempSubtasksToCreate = [];
   }
 
   closeModal('modal-tech-ot-detail');
@@ -2660,5 +4691,328 @@ function toggleSidebar() {
   const sidebar = document.querySelector('.sidebar');
   if (sidebar) {
     sidebar.classList.toggle('show');
+  }
+}
+
+// --- SUBTAREAS & PROGRESS OPERATION FUNCTIONS ---
+function getOTProgressSync(otId, status) {
+  const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+  const otSubtasks = subtasks.filter(s => s.otId === otId);
+  if (otSubtasks.length > 0) {
+    const finished = otSubtasks.filter(s => s.status === 'Terminada' || s.status === 'Cancelada').length;
+    return Math.round((finished / otSubtasks.length) * 100);
+  }
+  
+  if (status === 'Cerrada' || status === 'Ejecutada' || status === 'En validación' || status === 'Lista para validación') return 100;
+  if (status === 'En proceso' || status === 'En levantamiento' || status === 'En ejecución' || status === 'En ejecución con subtareas') return 50;
+  if (status === 'Asignada') return 20;
+  return 0;
+}
+
+async function renderAdminSubtasksTable() {
+  const subtasks = await dbGetSubtasks();
+  const evidences = await dbGetEvidences();
+  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const tbody = document.getElementById('table-admin-subtasks-body');
+  if (!tbody) return;
+
+  // Actualizar conteo del badge de subtareas pendientes
+  updateSubtasksBadgeCount(subtasks);
+
+  if (subtasks.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">No se encontraron subtareas registradas.</td></tr>`;
+    return;
+  }
+
+  let html = '';
+  subtasks.forEach(s => {
+    // Buscar nombre de la máquina asociada a la OT principal
+    const order = orders.find(o => o.id === s.otId);
+    let machineName = '-';
+    if (order) {
+      const mach = machines.find(m => m.id === order.machine);
+      machineName = mach ? mach.name : order.machine;
+    }
+
+    let actionBtn = '';
+    if (s.status.toLowerCase() === 'solicitada') {
+      actionBtn = `<button class="btn-table-action" onclick="openSubtaskAssignModal('${s.id}')">Asignar responsable</button>`;
+    } else {
+      actionBtn = `<span style="color: var(--text-muted); font-size: 0.8rem;">Asignada (${getUserNameByUUID(s.assignedTech)})</span>`;
+    }
+
+    let statusBadge = '';
+    if (s.status.toLowerCase() === 'solicitada') statusBadge = '<span class="badge badge-priority-media">Solicitada</span>';
+    else if (s.status.toLowerCase() === 'asignada') statusBadge = '<span class="badge badge-priority-baja">Asignada</span>';
+    else if (s.status.toLowerCase() === 'en_proceso') statusBadge = '<span class="badge badge-priority-media">En proceso</span>';
+    else if (s.status.toLowerCase() === 'terminada') statusBadge = '<span class="badge badge-priority-alta" style="background: #22c55e; color: white;">Terminada</span>';
+    else if (s.status.toLowerCase() === 'cancelada') statusBadge = '<span class="badge badge-priority-crítica">Cancelada</span>';
+    else statusBadge = `<span class="badge badge-priority-baja">${formatSubtaskStatus(s.status)}</span>`;
+
+    html += `
+      <tr>
+        <td><strong>${s.otId}</strong></td>
+        <td>${machineName}</td>
+        <td>${formatSubtaskArea(s.area)}</td>
+        <td>${s.title || s.description}</td>
+        <td><span class="badge badge-priority-${s.priority.toLowerCase()}">${formatSubtaskPriority(s.priority)}</span></td>
+        <td>${new Date(s.dueDate).toLocaleDateString('es-ES')}</td>
+        <td>${getUserNameByUUID(s.requestedBy)}</td>
+        <td>${statusBadge}</td>
+        <td>${actionBtn}</td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+}
+
+function updateSubtasksBadgeCount(subtasksList) {
+  const badge = document.getElementById('badge-count-subtasks');
+  if (!badge) return;
+  const list = subtasksList || JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+  const count = list.filter(s => s.status.toLowerCase() === 'solicitada').length;
+  if (count > 0) {
+    badge.innerText = count;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+async function openSubtaskAssignModal(subtaskId) {
+  const subtasks = await dbGetSubtasks();
+  const sub = subtasks.find(s => s.id === subtaskId);
+  if (!sub) return;
+
+  const evidences = await dbGetEvidences();
+  const subEvidence = evidences.find(e => e.subtaskId === subtaskId && e.origin === 'solicitud');
+  const evidenceName = subEvidence ? subEvidence.fileName : null;
+
+  document.getElementById('assign-subtask-id').value = subtaskId;
+  document.getElementById('subtask-assign-lbl-folio').innerText = sub.otId;
+  document.getElementById('subtask-assign-lbl-area').innerText = formatSubtaskArea(sub.area);
+  document.getElementById('subtask-assign-lbl-priority').innerText = formatSubtaskPriority(sub.priority);
+  document.getElementById('subtask-assign-lbl-date').innerText = new Date(sub.dueDate).toLocaleDateString('es-ES');
+  document.getElementById('subtask-assign-lbl-desc').innerText = sub.description;
+  document.getElementById('subtask-assign-lbl-reason').innerText = sub.reason || '-';
+  document.getElementById('subtask-assign-lbl-paro').innerText = sub.requiresParo ? 'Sí' : 'No';
+  document.getElementById('subtask-assign-lbl-refaccion').innerText = sub.requiresPart ? 'Sí' : 'No';
+  document.getElementById('subtask-assign-lbl-by').innerText = getUserNameByUUID(sub.requestedBy);
+
+  const evidBox = document.getElementById('subtask-assign-lbl-evid-box');
+  if (evidenceName) {
+    evidBox.style.display = 'block';
+    document.getElementById('subtask-assign-img-lbl').innerHTML = `🖼️ <a style="color: var(--accent-blue); text-decoration: underline; cursor:pointer;" onclick="alert('Visualizando evidencia: ' + '${evidenceName}')">${evidenceName}</a>`;
+  } else {
+    evidBox.style.display = 'none';
+  }
+
+  // Populate technician dropdown in assignment modal
+  const techSelect = document.getElementById('subtask-assign-tech');
+  if (techSelect) {
+    const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+    let html = '<option value="">Selecciona técnico...</option>';
+    techs.forEach(t => {
+      html += `<option value="${t.id}">${t.name} (${t.specialty})</option>`;
+    });
+    techSelect.innerHTML = html;
+  }
+
+  // Reset inputs
+  document.getElementById('subtask-assign-priority').value = sub.priority.toLowerCase();
+  document.getElementById('subtask-assign-obs').value = '';
+
+  openModal('modal-admin-subtask-assign');
+}
+
+async function saveSubtaskAssignment() {
+  const subId = document.getElementById('assign-subtask-id').value;
+  const techId = document.getElementById('subtask-assign-tech').value;
+  const priority = document.getElementById('subtask-assign-priority').value;
+  const obs = document.getElementById('subtask-assign-obs').value.trim();
+
+  if (!techId) {
+    alert('Por favor selecciona un técnico responsable.');
+    return;
+  }
+
+  const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+  const tech = techs.find(t => t.id === techId);
+  const techName = tech ? tech.name : techId;
+
+  // Actualizar subtarea
+  await dbUpdateSubtask(subId, {
+    status: 'asignada',
+    assignedTech: getUserUUID(techId) || techId,
+    assignedBy: getUserUUID(currentUser.id) || getAdminUUID(),
+    assignDate: new Date().toISOString(),
+    priority: priority,
+    observations: obs
+  });
+
+  // Obtener subtarea para saber su OT ID
+  const subtasks = await dbGetSubtasks();
+  const sub = subtasks.find(s => s.id === subId);
+
+  if (sub) {
+    // Buscar orden principal y cambiar estado a 'En ejecución con subtareas' (Regla 3)
+    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const orderIndex = orders.findIndex(o => o.id === sub.otId);
+    if (orderIndex !== -1) {
+      orders[orderIndex].status = 'En ejecución con subtareas';
+      orders[orderIndex].historyLogs.push({
+        date: new Date().toISOString(),
+        status: 'En ejecución con subtareas',
+        user: 'Super Admin',
+        comment: `Subtarea #${sub.number} asignada al técnico ${techName}.`
+      });
+      localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+
+      // Actualizar en Supabase si aplica
+      if (supabaseClient) {
+        try {
+          await supabaseClient
+            .from('ordenes_trabajo')
+            .update({ estatus: 'en_ejecucion_con_subtareas' })
+            .eq('folio', sub.otId);
+        } catch (err) {
+          console.error('Error updating order status in Supabase:', err);
+        }
+      }
+    }
+
+    // Registrar en bitácora de movimientos
+    const movement = {
+      id: crypto.randomUUID ? crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36)),
+      otUUID: sub.otUUID,
+      subtaskId: sub.id,
+      type: 'Subtarea asignada',
+      oldState: 'Solicitada',
+      newState: 'Asignada',
+      by: 'Super Admin',
+      comment: `Subtarea #${sub.number} asignada al técnico ${techName}. Obs: ${obs}`,
+      date: new Date().toISOString()
+    };
+    await dbInsertMovement(movement);
+  }
+
+  closeModal('modal-admin-subtask-assign');
+  showToast('Subtarea asignada correctamente.');
+  await syncDatabases();
+  renderAdminSubtasksTable();
+}
+
+async function cancelSubtaskRequest() {
+  const subId = document.getElementById('assign-subtask-id').value;
+  const justification = prompt('Escribe el motivo o justificación del rechazo/cancelación de la subtarea:');
+  if (justification === null) return; // cancelado por el prompt
+  if (justification.trim() === '') {
+    alert('Es obligatorio ingresar una justificación.');
+    return;
+  }
+
+  // Actualizar subtarea a Cancelada
+  await dbUpdateSubtask(subId, {
+    status: 'cancelada',
+    observations: `Rechazada/Cancelada por Admin: ${justification}`
+  });
+
+  const subtasks = await dbGetSubtasks();
+  const sub = subtasks.find(s => s.id === subId);
+
+  if (sub) {
+    // Validar si quedan subtareas activas en la OT principal para recalcular avance / reajustar estado
+    await checkAndUpdateMainOTState(sub.otId);
+
+    // Registrar movimiento
+    const movement = {
+      id: crypto.randomUUID ? crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36)),
+      otUUID: sub.otUUID,
+      subtaskId: sub.id,
+      type: 'Subtarea cancelada',
+      oldState: 'Solicitada',
+      newState: 'Cancelada',
+      by: 'Super Admin',
+      comment: `Subtarea #${sub.number} cancelada por el administrador. Motivo: ${justification}`,
+      date: new Date().toISOString()
+    };
+    await dbInsertMovement(movement);
+  }
+
+  closeModal('modal-admin-subtask-assign');
+  showToast('Subtarea cancelada exitosamente.');
+  await syncDatabases();
+  renderAdminSubtasksTable();
+}
+
+async function cancelSubtaskRequestFromModal() {
+  // Alias helper
+  cancelSubtaskRequest();
+}
+
+async function checkAndUpdateMainOTState(otId) {
+  const subtasks = await dbGetSubtasks();
+  const otSubtasks = subtasks.filter(s => s.otId === otId);
+  if (otSubtasks.length === 0) return;
+
+  const activeSubtasks = otSubtasks.filter(s => ['solicitada', 'asignada', 'en_proceso', 'en_espera', 'bloqueada'].includes(s.status.toLowerCase()));
+  
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orderIndex = orders.findIndex(o => o.id === otId);
+  if (orderIndex === -1) return;
+
+  let newStatus = orders[orderIndex].status;
+  let comment = '';
+
+  if (activeSubtasks.length === 0) {
+    newStatus = 'Lista para validación';
+    comment = 'Todas las subtareas han terminado o se cancelaron. La orden principal pasa a Lista para validación.';
+  } else {
+    // Si hay subtareas activas, comprobar sus estados
+    const assignedOrWorking = activeSubtasks.filter(s => ['asignada', 'en_proceso'].includes(s.status.toLowerCase()));
+    if (assignedOrWorking.length > 0) {
+      newStatus = 'En ejecución con subtareas';
+    } else {
+      newStatus = 'Requiere subtarea';
+    }
+    comment = `Se actualizó el estado de la OT por cambios en sus subtareas (${activeSubtasks.length} activa(s)).`;
+  }
+
+  if (orders[orderIndex].status !== newStatus) {
+    const oldStatus = orders[orderIndex].status;
+    orders[orderIndex].status = newStatus;
+    orders[orderIndex].historyLogs.push({
+      date: new Date().toISOString(),
+      status: newStatus,
+      user: 'Sistema',
+      comment: comment
+    });
+    localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+
+    if (supabaseClient) {
+      try {
+        await supabaseClient
+          .from('ordenes_trabajo')
+          .update({ estatus: getDBStatus(newStatus) })
+          .eq('folio', otId);
+      } catch (err) {
+        console.error('Error updating order status in Supabase:', err);
+      }
+    }
+
+    // Registrar en bitácora de movimientos
+    const movement = {
+      id: crypto.randomUUID ? crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36)),
+      otUUID: orders[orderIndex].uuid || orders[orderIndex].id || null,
+      subtaskId: null,
+      type: 'Cambio estado OT principal',
+      oldState: oldStatus,
+      newState: newStatus,
+      by: 'Sistema',
+      comment: comment,
+      date: new Date().toISOString()
+    };
+    await dbInsertMovement(movement);
   }
 }
