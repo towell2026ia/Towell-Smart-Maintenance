@@ -2032,6 +2032,61 @@
     </div>
   </div>
 
+  <!-- Modal Cambio de Contraseña Obligatorio -->
+  <div class="modal-overlay" id="modal-change-password" style="z-index: 1100;">
+    <div class="modal-card" style="max-width: 400px;">
+      <div class="modal-header" style="background: var(--color-critical); color: white;">
+        <h3 style="margin:0;">🔒 Cambio de Contraseña Requerido</h3>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <p style="font-size: 0.9rem; margin-bottom: 16px; color: var(--text-muted); line-height:1.4;">
+          Por seguridad, debes actualizar tu contraseña temporal antes de continuar al sistema.
+        </p>
+        <input type="hidden" id="change-pass-user-id">
+        <input type="hidden" id="change-pass-target-view">
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="change-pass-new">Nueva Contraseña *</label>
+          <input type="password" id="change-pass-new" class="form-control" placeholder="Mínimo 6 caracteres" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="change-pass-confirm">Confirmar Nueva Contraseña *</label>
+          <input type="password" id="change-pass-confirm" class="form-control" placeholder="Repite la contraseña" required>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 12px 20px;">
+        <button class="btn-action-primary" onclick="submitChangedPassword()" style="width: 100%;">🔑 Actualizar Contraseña y Entrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Simulador de Correo Electrónico -->
+  <div class="modal-overlay" id="modal-email-simulator" style="z-index: 1200; background: rgba(0,0,0,0.75);">
+    <div class="modal-card" style="max-width: 550px; border: 2px solid var(--accent-blue);">
+      <div class="modal-header" style="background: var(--dark-bg); color: white; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--accent-blue); padding: 12px 20px;">
+        <h3 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+          📧 [Simulador de Correo] Nuevo Mensaje Recibido
+        </h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-email-simulator')" style="color: white; border: none; background: transparent; font-size: 1.5rem; cursor: pointer; line-height: 1;">×</button>
+      </div>
+      <div class="modal-body" style="background: #f8fafc; color: #1e293b; padding: 20px; font-family: 'Inter', sans-serif;">
+        <!-- Cabeceras de Correo -->
+        <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; font-size: 0.85rem; text-align: left;">
+          <div><strong>De:</strong> soporte@tsm-ai.com <span style="color: #64748b;">(Towell Smart Maintenance)</span></div>
+          <div style="margin-top: 4px;"><strong>Para:</strong> <span id="mail-to-address" style="color: var(--accent-blue); font-weight: 600;">correo@usuario.com</span></div>
+          <div style="margin-top: 4px;"><strong>Asunto:</strong> <span id="mail-subject" style="font-weight: 700;">Asunto del correo</span></div>
+        </div>
+        <!-- Cuerpo del Correo -->
+        <div id="mail-body" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; min-height: 150px; line-height: 1.5; font-size: 0.95rem; color: #334155; text-align: left;">
+          Cuerpo del correo...
+        </div>
+      </div>
+      <div class="modal-footer" style="background: #f1f5f9; display: flex; gap: 8px; justify-content: flex-end; padding: 12px 20px;">
+        <button class="btn-action-secondary" onclick="closeModal('modal-email-simulator')" style="border-radius: 6px;">Cerrar Correo</button>
+        <button class="btn-action-primary" id="btn-mail-action" style="border-radius: 6px; background: var(--accent-blue); color: white;">Copiar Contraseña</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==========================================================================
        7. MENSAJES FLOTANTES (Toasts)
        ========================================================================== -->

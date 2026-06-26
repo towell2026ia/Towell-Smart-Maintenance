@@ -199,6 +199,8 @@ CREATE TABLE IF NOT EXISTS public.cat_usuarios_roles (
     fecha_alta TIMESTAMP DEFAULT NOW(),
     fecha_actualizacion TIMESTAMP DEFAULT NOW(),
     ultimo_acceso TIMESTAMP,
+    contrasenia VARCHAR(100) DEFAULT 'Temp123',
+    debe_cambiar_contrasenia BOOLEAN DEFAULT TRUE,
     observaciones VARCHAR(255)
 );
 

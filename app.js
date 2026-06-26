@@ -567,6 +567,17 @@ async function dbInsertRequest(newRequest) {
         .from('ordenes_trabajo')
         .insert([insertData]);
       if (error) throw error;
+      
+      // Save locally to localStorage so it is immediately visible in the UI
+      const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+      if (!requests.some(r => r.id === newRequest.id)) {
+        requests.push(newRequest);
+        localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
+      }
+      
+      // Trigger background sync to keep database updated
+      syncDatabases().catch(err => console.error('Error in background sync after request insert:', err));
+      
       return;
     } catch (err) {
       console.error('Error inserting request in Supabase:', err);
@@ -993,11 +1004,45 @@ function showView(viewId) {
     renderAdminFormsList();
     // Actualizar badge de solicitudes nuevas
     updateRequestsBadge();
+
+    // Sincronización en segundo plano para actualizar datos en tiempo real sin bloquear la interfaz
+    if (supabaseClient) {
+      syncDatabases().then(() => {
+        // Solo volver a renderizar si seguimos en la vista de admin
+        const adminView = document.getElementById('view-admin');
+        if (adminView && adminView.classList.contains('active')) {
+          renderAdminDashboard();
+          updateAdminKPIs();
+          renderAdminRequestsTable();
+          renderAdminOrdersTable();
+          renderAdminCalendar();
+          renderAdminLogsTable();
+          renderAdminMachinesTable();
+          renderAdminPartsTable();
+          renderAdminFormsList();
+          updateRequestsBadge();
+        }
+      }).catch(err => console.error('Error in background sync for admin view:', err));
+    }
   } else if (viewId === 'tech') {
     renderTechDashboard();
     renderTechOrdersTable();
     renderTechChecklistsTable();
     populateTechMachineHistorySelect();
+
+    // Sincronización en segundo plano para actualizar datos en tiempo real sin bloquear la interfaz
+    if (supabaseClient) {
+      syncDatabases().then(() => {
+        // Solo volver a renderizar si seguimos en la vista de tech
+        const techView = document.getElementById('view-tech');
+        if (techView && techView.classList.contains('active')) {
+          renderTechDashboard();
+          renderTechOrdersTable();
+          renderTechChecklistsTable();
+          populateTechMachineHistorySelect();
+        }
+      }).catch(err => console.error('Error in background sync for tech view:', err));
+    }
   }
 }
 
@@ -1259,13 +1304,58 @@ function openLogin(role) {
   showView('login');
 }
 
-function quickLogin(role, techId) {
+async function quickLogin(role, techId) {
+  if (supabaseClient) {
+    try {
+      await syncDatabases();
+    } catch (err) {
+      console.error('Error syncing databases on quick login:', err);
+    }
+  }
+
   if (role === 'admin') {
-    currentUser = { role: 'admin', name: 'Super Administrador' };
-    showToast('Sesión iniciada como Super Administrador.');
+    const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+    const dbAdmin = users.find(u => u.rol === 'SUPER_ADMINISTRADOR');
+    if (dbAdmin) {
+      currentUser = { 
+        role: 'admin', 
+        name: dbAdmin.nombre_completo, 
+        email: dbAdmin.correo,
+        uuid: dbAdmin.id_usuario 
+      };
+      showToast(`Sesión iniciada como Super Admin: ${dbAdmin.nombre_completo}`);
+    } else {
+      currentUser = { role: 'admin', name: 'Super Administrador' };
+      showToast('Sesión iniciada como Super Administrador.');
+    }
     showView('admin');
     switchAdminPanel('dashboard');
   } else {
+    // Buscar si es un usuario de mantenimiento real en la base de datos
+    const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+    const dbUser = users.find(u => u.rol === 'MANTENIMIENTO' && (u.cve_tecnico === techId || u.id_usuario === techId));
+    if (dbUser) {
+      currentUser = {
+        role: 'tech',
+        id: dbUser.cve_tecnico || dbUser.id_usuario,
+        uuid: dbUser.id_usuario,
+        name: dbUser.nombre_completo,
+        email: dbUser.correo,
+        specialty: dbUser.observaciones || 'General',
+        avatar: '👨‍🔧'
+      };
+      showToast(`Sesión iniciada como Técnico: ${dbUser.nombre_completo}`);
+      
+      document.getElementById('tech-profile-name').innerText = dbUser.nombre_completo;
+      document.getElementById('tech-profile-specialty').innerText = dbUser.observaciones || 'General';
+      document.getElementById('tech-profile-avatar').innerText = '👨‍🔧';
+      
+      showView('tech');
+      switchTechPanel('dashboard');
+      return;
+    }
+
+    // Fallback a técnicos demo locales
     const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
     const tech = techs.find(t => t.id === techId);
     if (tech) {
@@ -1283,23 +1373,91 @@ function quickLogin(role, techId) {
   }
 }
 
-function handleLoginSubmit(event) {
+async function handleLoginSubmit(event) {
   event.preventDefault();
   const role = document.getElementById('login-role-target').value;
-  const email = document.getElementById('login-email').value;
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const password = document.getElementById('login-password').value.trim();
 
+  // Intentar sincronizar desde base de datos primero para tener los usuarios más nuevos
+  if (supabaseClient) {
+    try {
+      await syncDatabases();
+    } catch (err) {
+      console.error('Error syncing databases on login submit:', err);
+    }
+  }
+
+  const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+  const dbUser = users.find(u => u.correo && u.correo.toLowerCase() === email);
+
+  if (dbUser) {
+    // Validar contraseña
+    const userPassword = dbUser.contrasenia || 'Temp123';
+    if (userPassword !== password) {
+      alert('Contraseña incorrecta. Por favor verifica tus credenciales.');
+      return;
+    }
+
+    // Verificar si debe cambiar la contraseña
+    if (dbUser.debe_cambiar_contrasenia) {
+      document.getElementById('change-pass-user-id').value = dbUser.id_usuario;
+      document.getElementById('change-pass-target-view').value = dbUser.rol === 'SUPER_ADMINISTRADOR' ? 'admin' : 'tech';
+      document.getElementById('change-pass-new').value = '';
+      document.getElementById('change-pass-confirm').value = '';
+      openModal('modal-change-password');
+      return;
+    }
+
+    // Si el usuario existe en Supabase y tiene un rol válido
+    if (dbUser.rol === 'SUPER_ADMINISTRADOR') {
+      currentUser = { 
+        role: 'admin', 
+        name: dbUser.nombre_completo, 
+        email: dbUser.correo,
+        uuid: dbUser.id_usuario 
+      };
+      showToast(`Sesión iniciada como Super Admin: ${dbUser.nombre_completo}`);
+      showView('admin');
+      switchAdminPanel('dashboard');
+    } else if (dbUser.rol === 'MANTENIMIENTO') {
+      const techId = dbUser.cve_tecnico || dbUser.id_usuario;
+      currentUser = { 
+        role: 'tech', 
+        id: techId,
+        uuid: dbUser.id_usuario,
+        name: dbUser.nombre_completo, 
+        email: dbUser.correo,
+        specialty: dbUser.observaciones || 'General',
+        avatar: '👨‍🔧'
+      };
+      showToast(`Sesión iniciada como Técnico: ${dbUser.nombre_completo}`);
+      
+      document.getElementById('tech-profile-name').innerText = dbUser.nombre_completo;
+      document.getElementById('tech-profile-specialty').innerText = dbUser.observaciones || 'General';
+      document.getElementById('tech-profile-avatar').innerText = '👨‍🔧';
+      
+      showView('tech');
+      switchTechPanel('dashboard');
+    } else {
+      alert(`El rol del usuario (${dbUser.rol}) no está configurado para acceso directo a paneles.`);
+    }
+    return;
+  }
+
+  // Fallback a demos (sin dejar de usar los demos)
   if (role === 'admin') {
     currentUser = { role: 'admin', name: 'Super Administrador' };
-    showToast('Sesión iniciada correctamente.');
+    showToast('Sesión iniciada correctamente (Demo).');
     showView('admin');
     switchAdminPanel('dashboard');
   } else {
     // Buscar técnico asociado al email
     const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
-    const tech = techs.find(t => t.email.toLowerCase() === email.toLowerCase()) || techs[0];
+    const tech = techs.find(t => t.email.toLowerCase() === email) || techs[0];
     
     currentUser = { role: 'tech', ...tech };
-    showToast(`Sesión iniciada como Técnico: ${tech.name}`);
+    showToast(`Sesión iniciada como Técnico: ${tech.name} (Demo)`);
     
     document.getElementById('tech-profile-name').innerText = tech.name;
     document.getElementById('tech-profile-specialty').innerText = tech.specialty;
@@ -3080,6 +3238,7 @@ function renderAdminUsersTable() {
         </td>
         <td>
           <button class="btn-table-action" onclick="openAdminUserModal('${u.id_usuario}')">✏️ Editar</button>
+          <button class="btn-table-action" style="color: var(--accent-blue); border-color: rgba(59, 130, 246, 0.3);" onclick="resetAdminUserPassword('${u.id_usuario}')">🔑 Restablecer</button>
           <button class="btn-table-action" style="color: ${u.activo ? 'var(--color-critical)' : 'var(--color-preventive)'}; border-color: ${u.activo ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}" onclick="deleteAdminUser('${u.id_usuario}')">
             ${u.activo ? '🚫 Desactivar' : '✅ Activar'}
           </button>
@@ -3209,6 +3368,8 @@ async function saveAdminUser() {
     return;
   }
 
+  const tempPass = 'TSM-' + Math.floor(1000 + Math.random() * 9000);
+
   const userObj = {
     nombre_completo: nombre,
     correo: correo,
@@ -3233,6 +3394,14 @@ async function saveAdminUser() {
     fecha_actualizacion: new Date().toISOString()
   };
 
+  if (!id) {
+    userObj.contrasenia = tempPass;
+    userObj.debe_cambiar_contrasenia = true;
+    userObj.fecha_alta = new Date().toISOString();
+  }
+
+  let shouldShowEmail = false;
+
   if (supabaseClient) {
     try {
       if (id) {
@@ -3248,6 +3417,7 @@ async function saveAdminUser() {
           .insert([userObj]);
         if (error) throw error;
         showToast('Usuario creado en base de datos.');
+        shouldShowEmail = true;
       }
     } catch (err) {
       console.error('Error guardando usuario en Supabase:', err);
@@ -3266,8 +3436,8 @@ async function saveAdminUser() {
       localUsers = localUsers.map(u => u.id_usuario === id ? { ...u, ...userObj } : u);
     } else {
       userObj.id_usuario = crypto.randomUUID ? crypto.randomUUID() : 'local-' + Math.random().toString(36).substr(2, 9);
-      userObj.fecha_alta = new Date().toISOString();
       localUsers.push(userObj);
+      shouldShowEmail = true;
     }
     localStorage.setItem('TSMAI_users', JSON.stringify(localUsers));
     
@@ -3281,6 +3451,28 @@ async function saveAdminUser() {
       avatar: '👨‍🔧'
     }));
     localStorage.setItem('TSMAI_technicians', JSON.stringify(localTechs));
+  }
+
+  if (shouldShowEmail) {
+    // Mostrar correo electrónico simulado
+    showSimulatedEmail(
+      correo,
+      '🔑 Tu contraseña temporal de acceso a TSM-AI',
+      `<h2>¡Bienvenido a TSM-AI, ${nombre}!</h2>
+       <p>Tu cuenta ha sido creada con éxito por el Super Administrador.</p>
+       <p>Tu rol asignado es: <strong>${rol === 'SUPER_ADMINISTRADOR' ? 'Super Administrador' : rol === 'MANTENIMIENTO' ? 'Técnico' : 'Solicitante Público'}</strong>.</p>
+       <p>Tu contraseña temporal de acceso es:</p>
+       <div style="margin: 20px 0; text-align: center;">
+         <strong style="font-size: 1.5rem; color: var(--accent-blue); background: #f1f5f9; padding: 6px 16px; border: 1px dashed var(--accent-blue); border-radius: 4px; font-family: monospace; display: inline-block;">${tempPass}</strong>
+       </div>
+       <p>Por motivos de seguridad, deberás cambiar esta contraseña la primera vez que ingreses al sistema.</p>
+       <p style="margin-top: 25px; font-size: 0.8rem; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px;">Este es un correo de bienvenida automático simulado por el sistema.</p>`,
+      'Copiar Contraseña',
+      () => {
+        navigator.clipboard.writeText(tempPass);
+        showToast('Contraseña temporal copiada al portapapeles.');
+      }
+    );
   }
 
   closeModal('modal-admin-user-detail');
@@ -5570,4 +5762,200 @@ async function checkAndUpdateMainOTState(otId) {
     };
     await dbInsertMovement(movement);
   }
+}
+
+// --- PASSWORD AND EMAIL SIMULATION FLOWS ---
+
+function showSimulatedEmail(to, subject, bodyHtml, actionText, actionCallback) {
+  document.getElementById('mail-to-address').innerText = to;
+  document.getElementById('mail-subject').innerText = subject;
+  document.getElementById('mail-body').innerHTML = bodyHtml;
+  
+  const actionBtn = document.getElementById('btn-mail-action');
+  if (actionBtn) {
+    actionBtn.innerText = actionText || 'Copiar';
+    
+    // Eliminar listeners de eventos viejos clonando el elemento
+    const newActionBtn = actionBtn.cloneNode(true);
+    actionBtn.parentNode.replaceChild(newActionBtn, actionBtn);
+    
+    newActionBtn.addEventListener('click', () => {
+      if (actionCallback) actionCallback();
+    });
+  }
+  
+  openModal('modal-email-simulator');
+}
+
+async function submitChangedPassword() {
+  const userId = document.getElementById('change-pass-user-id').value;
+  const targetView = document.getElementById('change-pass-target-view').value;
+  const newPass = document.getElementById('change-pass-new').value.trim();
+  const confirmPass = document.getElementById('change-pass-confirm').value.trim();
+
+  if (!newPass || newPass.length < 6) {
+    alert('La contraseña debe tener al menos 6 caracteres.');
+    return;
+  }
+  if (newPass !== confirmPass) {
+    alert('Las contraseñas no coinciden. Por favor inténtalo de nuevo.');
+    return;
+  }
+
+  // Actualizar contraseña en Supabase o LocalStorage
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient
+        .from('cat_usuarios_roles')
+        .update({ 
+          contrasenia: newPass, 
+          debe_cambiar_contrasenia: false,
+          fecha_actualizacion: new Date().toISOString()
+        })
+        .eq('id_usuario', userId);
+      
+      if (error) throw error;
+      showToast('Contraseña actualizada con éxito.');
+    } catch (err) {
+      console.error('Error al actualizar la contraseña en Supabase:', err);
+      alert('Error al guardar en Supabase: ' + err.message);
+      return;
+    }
+  }
+
+  // Actualizar en localStorage
+  let users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+  const userIdx = users.findIndex(u => u.id_usuario === userId);
+  if (userIdx !== -1) {
+    users[userIdx].contrasenia = newPass;
+    users[userIdx].debe_cambiar_contrasenia = false;
+    localStorage.setItem('TSMAI_users', JSON.stringify(users));
+
+    // Iniciar sesión del usuario
+    const dbUser = users[userIdx];
+    if (dbUser.rol === 'SUPER_ADMINISTRADOR') {
+      currentUser = { 
+        role: 'admin', 
+        name: dbUser.nombre_completo, 
+        email: dbUser.correo,
+        uuid: dbUser.id_usuario 
+      };
+      closeModal('modal-change-password');
+      showToast(`Sesión iniciada como Super Admin: ${dbUser.nombre_completo}`);
+      showView('admin');
+      switchAdminPanel('dashboard');
+    } else if (dbUser.rol === 'MANTENIMIENTO') {
+      const techId = dbUser.cve_tecnico || dbUser.id_usuario;
+      currentUser = { 
+        role: 'tech', 
+        id: techId,
+        uuid: dbUser.id_usuario,
+        name: dbUser.nombre_completo, 
+        email: dbUser.correo,
+        specialty: dbUser.observaciones || 'General',
+        avatar: '👨‍🔧'
+      };
+      closeModal('modal-change-password');
+      showToast(`Sesión iniciada como Técnico: ${dbUser.nombre_completo}`);
+      
+      document.getElementById('tech-profile-name').innerText = dbUser.nombre_completo;
+      document.getElementById('tech-profile-specialty').innerText = dbUser.observaciones || 'General';
+      document.getElementById('tech-profile-avatar').innerText = '👨‍🔧';
+      
+      showView('tech');
+      switchTechPanel('dashboard');
+    }
+  }
+
+  if (supabaseClient) {
+    await syncDatabases();
+  }
+}
+
+async function resetAdminUserPassword(userId) {
+  if (!userId) return;
+
+  const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+  const user = users.find(u => u.id_usuario === userId);
+  if (!user) return;
+
+  if (!confirm(`¿Estás seguro de que deseas restablecer la contraseña para el usuario "${user.nombre_completo}"? Se generará una nueva contraseña temporal y se simulará el envío de un correo electrónico.`)) {
+    return;
+  }
+
+  const tempPass = 'RST-' + Math.floor(1000 + Math.random() * 9000);
+
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient
+        .from('cat_usuarios_roles')
+        .update({ 
+          contrasenia: tempPass, 
+          debe_cambiar_contrasenia: true,
+          fecha_actualizacion: new Date().toISOString()
+        })
+        .eq('id_usuario', userId);
+      if (error) throw error;
+      showToast('Contraseña restablecida en Supabase.');
+    } catch (err) {
+      console.error('Error al restablecer la contraseña en Supabase:', err);
+      alert('Error en Supabase: ' + err.message);
+      return;
+    }
+  }
+
+  // Actualizar en localStorage
+  const updatedUsers = users.map(u => u.id_usuario === userId ? { ...u, contrasenia: tempPass, debe_cambiar_contrasenia: true } : u);
+  localStorage.setItem('TSMAI_users', JSON.stringify(updatedUsers));
+
+  if (supabaseClient) {
+    await syncDatabases();
+  }
+
+  // Construir cuerpo de correo simulado con enlace de acción
+  const emailBody = `
+    <h2>Restablecimiento de Contraseña - TSM-AI</h2>
+    <p>Hola <strong>${user.nombre_completo}</strong>,</p>
+    <p>Se ha solicitado un restablecimiento de contraseña para tu cuenta vinculada a este correo electrónico.</p>
+    <p>Tu nueva contraseña temporal de acceso es:</p>
+    <div style="margin: 15px 0;">
+      <strong style="font-size: 1.3rem; color: var(--color-critical); background: #f1f5f9; padding: 6px 12px; border-radius: 4px; font-family: monospace; display: inline-block;">${tempPass}</strong>
+    </div>
+    <p>Por seguridad, se te solicitará cambiarla en cuanto ingreses.</p>
+    <p>También puedes reestablecerla directamente haciendo clic en el siguiente enlace:</p>
+    <div style="margin: 20px 0; text-align: center;">
+      <a href="#" id="reset-mail-link" style="background: var(--accent-blue); color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">Establecer Nueva Contraseña Ahora</a>
+    </div>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top: 25px; border-top: 1px solid #e2e8f0; padding-top: 10px;">Este es un correo automático simulado por el sistema.</p>
+  `;
+
+  showSimulatedEmail(
+    user.correo,
+    '🔄 Solicitud de Restablecimiento de Contraseña - TSM-AI',
+    emailBody,
+    'Copiar Contraseña Temporal',
+    () => {
+      navigator.clipboard.writeText(tempPass);
+      showToast('Contraseña temporal copiada al portapapeles.');
+    }
+  );
+
+  // Registrar listener del enlace simulado después de renderizarse
+  setTimeout(() => {
+    const link = document.getElementById('reset-mail-link');
+    if (link) {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeModal('modal-email-simulator');
+        
+        // Cargar datos en el modal de cambio de contraseña obligatoria
+        document.getElementById('change-pass-user-id').value = user.id_usuario;
+        document.getElementById('change-pass-target-view').value = user.rol === 'SUPER_ADMINISTRADOR' ? 'admin' : 'tech';
+        document.getElementById('change-pass-new').value = '';
+        document.getElementById('change-pass-confirm').value = '';
+        
+        openModal('modal-change-password');
+      });
+    }
+  }, 150);
 }
