@@ -1491,17 +1491,6 @@ function toggleDatabaseSubmenu(event) {
   }
 }
 
-function toggleOperationalSubmenu(event) {
-  if (event) { event.preventDefault(); event.stopPropagation(); }
-  const submenu = document.getElementById('admin-operational-submenu');
-  const arrow = document.querySelector('#menu-admin-operational-group .arrow-op');
-  if (submenu) {
-    const isHidden = submenu.style.display === 'none' || submenu.style.display === '';
-    submenu.style.display = isHidden ? 'block' : 'none';
-    if (arrow) arrow.innerText = isHidden ? '▲' : '▼';
-  }
-}
-
 function switchAdminPanel(panelId) {
   activeAdminPanel = panelId;
   
@@ -1516,10 +1505,13 @@ function switchAdminPanel(panelId) {
   const activeMenuItem = document.getElementById(`menu-admin-${panelId}`);
   if (activeMenuItem) activeMenuItem.classList.add('active');
 
-  // Si pertenece al grupo de base de datos, asegurar que esté expandido
-  const dbPanels = ['machines', 'parts', 'inventory', 'suppliers', 'tecnicos', 'empleados',
+  // Si pertenece al grupo de base de datos (catálogos o tablas operacionales), asegurar que esté expandido
+  const dbPanels = [
+    'machines', 'parts', 'inventory', 'suppliers', 'tecnicos', 'empleados',
     'departamentos', 'turnos', 'servicios', 'tiposfalla', 'categfalla', 'criticidad',
-    'componentes', 'estatusot', 'users', 'logs'];
+    'componentes', 'estatusot', 'users', 'logs',
+    'notificaciones', 'alertas', 'fallas', 'costosot', 'evidencias', 'refmaquina', 'histprecios', 'cierres', 'respchk'
+  ];
   if (dbPanels.includes(panelId)) {
     if (dbGroup) dbGroup.classList.add('active');
     const submenu = document.getElementById('admin-database-submenu');
@@ -1527,19 +1519,6 @@ function switchAdminPanel(panelId) {
     if (submenu) {
       submenu.style.display = 'block';
       if (arrow) arrow.innerText = '▲';
-    }
-  }
-
-  // Si pertenece al grupo operacional, expandir ese submenu
-  const opPanels = ['notificaciones', 'alertas', 'fallas', 'costosot', 'evidencias', 'refmaquina', 'histprecios', 'cierres', 'respchk'];
-  const opGroup = document.getElementById('menu-admin-operational-group');
-  if (opPanels.includes(panelId)) {
-    if (opGroup) opGroup.classList.add('active');
-    const opSubmenu = document.getElementById('admin-operational-submenu');
-    const opArrow = document.querySelector('#menu-admin-operational-group .arrow-op');
-    if (opSubmenu) {
-      opSubmenu.style.display = 'block';
-      if (opArrow) opArrow.innerText = '▲';
     }
   }
 
