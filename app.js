@@ -1373,7 +1373,7 @@ function switchAdminPanel(panelId) {
   }
 
   // Si pertenece al grupo operacional, expandir ese submenu
-  const opPanels = ['alertas', 'fallas', 'costosot', 'evidencias', 'refmaquina', 'histprecios', 'cierres', 'respchk'];
+  const opPanels = ['notificaciones', 'alertas', 'fallas', 'costosot', 'evidencias', 'refmaquina', 'histprecios', 'cierres', 'respchk'];
   const opGroup = document.getElementById('menu-admin-operational-group');
   if (opPanels.includes(panelId)) {
     if (opGroup) opGroup.classList.add('active');
@@ -1426,6 +1426,7 @@ function switchAdminPanel(panelId) {
     analysis: '🔬 Análisis de Repetibilidad de Fallas',
     ai: '🤖 Recomendaciones IA',
     alertrules: '🔔 Reglas de Alertas del Sistema',
+    notificaciones: '📨 Notificaciones Internas',
     alertas: '🔔 Alertas del Sistema',
     fallas: '💥 Fallas por Máquina',
     costosot: '💵 Costos por Orden de Trabajo',
@@ -1500,6 +1501,8 @@ function switchAdminPanel(panelId) {
     renderAdminAIRecommendations();
   } else if (panelId === 'alertrules') {
     renderAdminAlertRules();
+  } else if (panelId === 'notificaciones') {
+    renderAdminNotificaciones();
   } else if (panelId === 'alertas') {
     renderAdminAlertas();
   } else if (panelId === 'fallas') {
@@ -2061,6 +2064,64 @@ async function renderAdminEstatusOT() {
 }
 
 // ── ALERTAS DEL SISTEMA ───────────────────────────────────────────────────────
+// ── NOTIFICACIONES INTERNAS ─────────────────────────────────────────
+async function renderAdminNotificaciones() {
+  const tbody = document.getElementById('tbody-notificaciones');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(7, 'Cargando notificaciones…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient
+      .from('notificaciones_internas')
+      .select(`
+        *,
+        receptor:cat_usuarios_roles!id_usuario_receptor(nombre_completo, rol),
+        emisor:cat_usuarios_roles!id_usuario_emisor(nombre_completo)
+      `)
+      .order('fecha_creacion', { ascending: false })
+      .limit(300);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay notificaciones registradas.'); return; }
+    const tipoIcon = {
+      ot_asignada:         '📋',
+      ot_actualizada:      '🔄',
+      ot_cerrada:          '✅',
+      ot_comentario:       '💬',
+      subtarea_asignada:   '🔧',
+      subtarea_actualizada:'🔄',
+      subtarea_cerrada:    '✅',
+      solicitud_nueva:     '📨',
+      alerta_critica:      '🚨',
+      sistema:             '🤖'
+    };
+    const prioColor = { critica: '#ef4444', alta: '#f59e0b', normal: '#6366f1', baja: '#94a3b8' };
+    tbody.innerHTML = data.map(r => {
+      const icon = tipoIcon[r.tipo_notificacion] || '🔔';
+      const pc = prioColor[r.prioridad] || '#94a3b8';
+      const unread = !r.leida
+        ? '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#22c55e;" title="No leída"></span>'
+        : '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#374151;"></span>';
+      const fuente = r.id_orden
+        ? `<code style="font-size:0.7rem;">OT</code>`
+        : r.id_subtarea
+          ? `<code style="font-size:0.7rem;">SUB</code>`
+          : '—';
+      return `<tr style="${!r.leida ? 'font-weight:600;' : 'opacity:0.8;'}">
+        <td style="text-align:center;">${unread}</td>
+        <td>${icon} <span style="font-size:0.8rem;color:var(--text-muted);">${r.tipo_notificacion}</span></td>
+        <td>${r.titulo}</td>
+        <td>
+          <strong>${r.receptor?.nombre_completo || '—'}</strong>
+          ${r.receptor?.rol ? `<br><small style="color:var(--text-muted);">${r.receptor.rol}</small>` : ''}
+        </td>
+        <td><span style="padding:2px 8px;border-radius:8px;font-size:0.75rem;font-weight:700;background:${pc};color:#fff;">${r.prioridad}</span></td>
+        <td>${fuente}</td>
+        <td>${fmtTs(r.fecha_creacion)}</td>
+      </tr>`;
+    }).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
+}
+
 async function renderAdminAlertas() {
   const tbody = document.getElementById('tbody-alertas');
   if (!tbody) return;

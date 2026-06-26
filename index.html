@@ -344,6 +344,7 @@
             <span class="arrow-op" style="font-size: 0.75rem; transition: transform 0.2s;">▼</span>
           </a>
           <ul class="submenu" id="admin-operational-submenu" style="display: none; padding-left: 12px; margin-top: 4px; list-style: none;">
+            <li class="menu-item" id="menu-admin-notificaciones" onclick="switchAdminPanel('notificaciones')"><a>📨 Notificaciones Internas</a></li>
             <li class="menu-item" id="menu-admin-alertas" onclick="switchAdminPanel('alertas')"><a>🔔 Alertas del Sistema</a></li>
             <li class="menu-item" id="menu-admin-fallas" onclick="switchAdminPanel('fallas')"><a>💥 Fallas por Máquina</a></li>
             <li class="menu-item" id="menu-admin-costosot" onclick="switchAdminPanel('costosot')"><a>💵 Costos por OT</a></li>
@@ -1118,6 +1119,15 @@
             <button class="btn-nav btn-nav-primary" onclick="alert('Módulo próximamente.')">+ Nuevo Estatus</button>
           </div>
           <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Código</th><th>Nombre</th><th>Descripción</th><th>Orden Flujo</th><th>¿Inicial?</th><th>¿Final?</th><th>Estado</th></tr></thead><tbody id="tbody-estatusot"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando estatus...</td></tr></tbody></table></div>
+        </div>
+
+        <!-- ====== PANEL: NOTIFICACIONES INTERNAS ====== -->
+        <div id="panel-admin-notificaciones" class="admin-panel-content" style="display: none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">📨 Notificaciones Internas</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Mensajes de flujo de trabajo: OT asignada, subtarea asignada, cierre de OT, comentarios nuevos.</p></div>
+            <button class="btn-nav btn-nav-primary" onclick="renderAdminNotificaciones()">↻ Recargar</button>
+          </div>
+          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th></th><th>Tipo</th><th>Título</th><th>Receptor</th><th>Prioridad</th><th>OT / Subtarea</th><th>Fecha</th></tr></thead><tbody id="tbody-notificaciones"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando notificaciones...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: ALERTAS DEL SISTEMA ====== -->

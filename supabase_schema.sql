@@ -518,6 +518,63 @@ CREATE TABLE IF NOT EXISTS public.alertas_sistema (
     observaciones VARCHAR(255)
 );
 
+-- Internal User Notifications Table
+-- Tabla separada de alertas_sistema:
+--   alertas_sistema = eventos automáticos del motor de reglas (máquina, falla, KPI)
+--   notificaciones_internas = mensajes de flujo de trabajo usuario-a-usuario
+--     Ej: OT asignada al técnico, subtarea asignada, OT cerrada, comentario nuevo
+CREATE TABLE IF NOT EXISTS public.notificaciones_internas (
+    id_notificacion UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Receptor (obligatorio — FK real a usuarios del sistema)
+    id_usuario_receptor UUID NOT NULL REFERENCES public.cat_usuarios_roles(id_usuario)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+
+    -- Tipo y contenido
+    tipo_notificacion VARCHAR(50) NOT NULL,
+        -- 'ot_asignada' | 'ot_actualizada' | 'ot_cerrada' | 'ot_comentario'
+        -- 'subtarea_asignada' | 'subtarea_actualizada' | 'subtarea_cerrada'
+        -- 'solicitud_nueva' | 'alerta_critica' | 'sistema'
+    titulo VARCHAR(150) NOT NULL,
+    mensaje TEXT NOT NULL,
+    prioridad VARCHAR(20) DEFAULT 'normal',
+        -- 'baja' | 'normal' | 'alta' | 'critica'
+
+    -- Entidad origen (todas opcionales — al menos una debería estar presente)
+    id_orden UUID REFERENCES public.ordenes_trabajo(id_orden)
+        ON DELETE CASCADE,
+    id_subtarea UUID REFERENCES public.subtareas_orden_trabajo(id_subtarea)
+        ON DELETE CASCADE,
+
+    -- Quién la generó (puede ser sistema o un usuario)
+    generada_por VARCHAR(150),           -- 'sistema' o nombre/clave del usuario
+    id_usuario_emisor UUID REFERENCES public.cat_usuarios_roles(id_usuario)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+
+    -- Estado de lectura
+    leida BOOLEAN DEFAULT FALSE,
+    fecha_lectura TIMESTAMP,
+
+    -- Acción asociada (URL o panel a abrir al hacer clic)
+    accion_url VARCHAR(255),             -- e.g. '#panel-orders' o '#panel-subtasks'
+
+    -- Auditoría
+    fecha_creacion TIMESTAMP DEFAULT NOW(),
+    activo BOOLEAN DEFAULT TRUE,
+
+    CONSTRAINT chk_notif_tipo CHECK (
+        tipo_notificacion IN (
+            'ot_asignada', 'ot_actualizada', 'ot_cerrada', 'ot_comentario',
+            'subtarea_asignada', 'subtarea_actualizada', 'subtarea_cerrada',
+            'solicitud_nueva', 'alerta_critica', 'sistema'
+        )
+    ),
+
+    CONSTRAINT chk_notif_prioridad CHECK (
+        prioridad IN ('baja', 'normal', 'alta', 'critica')
+    )
+);
+
 -- ============================================================================
 -- 6. SUBTASKS SYSTEM (INTERACTION MODULE)
 -- ============================================================================
@@ -898,6 +955,14 @@ CREATE INDEX IF NOT EXISTS idx_subtask_evidences_subido_por ON public.evidencias
 CREATE INDEX IF NOT EXISTS idx_ref_maquina ON public.refacciones_por_maquina(maquina_id);
 CREATE INDEX IF NOT EXISTS idx_ref_codigo ON public.refacciones_por_maquina(codigo_articulo);
 
+-- Internal Notifications Indexes
+CREATE INDEX IF NOT EXISTS idx_notif_receptor ON public.notificaciones_internas(id_usuario_receptor);
+CREATE INDEX IF NOT EXISTS idx_notif_leida ON public.notificaciones_internas(leida);
+CREATE INDEX IF NOT EXISTS idx_notif_orden ON public.notificaciones_internas(id_orden);
+CREATE INDEX IF NOT EXISTS idx_notif_subtarea ON public.notificaciones_internas(id_subtarea);
+CREATE INDEX IF NOT EXISTS idx_notif_fecha ON public.notificaciones_internas(fecha_creacion);
+CREATE INDEX IF NOT EXISTS idx_notif_tipo ON public.notificaciones_internas(tipo_notificacion);
+
 -- Machine Components Indexes
 CREATE INDEX IF NOT EXISTS idx_comp_maquina ON public.cat_componentes_maquina(maquina_id);
 CREATE INDEX IF NOT EXISTS idx_comp_estado ON public.cat_componentes_maquina(estado_componente);
@@ -992,6 +1057,7 @@ ALTER TABLE public.refacciones_por_maquina DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.historico_precios_refacciones DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.costos_orden_trabajo DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.alertas_sistema DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notificaciones_internas DISABLE ROW LEVEL SECURITY;
 
 -- Subtasks Module
 ALTER TABLE public.subtareas_orden_trabajo DISABLE ROW LEVEL SECURITY;
