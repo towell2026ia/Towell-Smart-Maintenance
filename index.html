@@ -334,10 +334,11 @@
             <li class="menu-item" id="menu-admin-estatusot" onclick="switchAdminPanel('estatusot')"><a>🏷️ Estatus de OT</a></li>
             <li class="menu-item" id="menu-admin-users" onclick="switchAdminPanel('users')"><a>👥 Usuarios y Permisos</a></li>
             <li class="menu-item" id="menu-admin-logs" onclick="switchAdminPanel('logs')"><a>📝 Bitácoras OT</a></li>
+            <li class="menu-item" id="menu-admin-laborcosts" onclick="switchAdminPanel('laborcosts')"><a>💰 Costos Mano de Obra</a></li>
+            <li class="menu-item" id="menu-admin-alertrules" onclick="switchAdminPanel('alertrules')"><a>🔔 Reglas de Alertas</a></li>
             
             <li style="padding: 12px 8px 6px; font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 8px;">Tablas Operacionales</li>
             <li class="menu-item" id="menu-admin-notificaciones" onclick="switchAdminPanel('notificaciones')"><a>📨 Notificaciones Internas</a></li>
-            <li class="menu-item" id="menu-admin-alertas" onclick="switchAdminPanel('alertas')"><a>🔔 Alertas del Sistema</a></li>
             <li class="menu-item" id="menu-admin-fallas" onclick="switchAdminPanel('fallas')"><a>💥 Fallas por Máquina</a></li>
             <li class="menu-item" id="menu-admin-costosot" onclick="switchAdminPanel('costosot')"><a>💵 Costos por OT</a></li>
             <li class="menu-item" id="menu-admin-evidencias" onclick="switchAdminPanel('evidencias')"><a>📎 Evidencias de OT</a></li>
@@ -345,37 +346,10 @@
             <li class="menu-item" id="menu-admin-histprecios" onclick="switchAdminPanel('histprecios')"><a>📊 Historial de Precios</a></li>
             <li class="menu-item" id="menu-admin-cierres" onclick="switchAdminPanel('cierres')"><a>✅ Cierres de OT</a></li>
             <li class="menu-item" id="menu-admin-respchk" onclick="switchAdminPanel('respchk')"><a>📋 Resp. Checklist</a></li>
+            <li class="menu-item" id="menu-admin-preventive" onclick="switchAdminPanel('preventive')"><a>📅 Mantenimiento Preventivo</a></li>
+            <li class="menu-item" id="menu-admin-checklists" onclick="switchAdminPanel('checklists')"><a>✅ Checklists</a></li>
+            <li class="menu-item" id="menu-admin-downtime" onclick="switchAdminPanel('downtime')"><a>⏱️ Paros de Máquina</a></li>
           </ul>
-        </li>
-
-        <!-- Mantenimiento Preventivo -->
-        <li class="menu-item" id="menu-admin-preventive" onclick="switchAdminPanel('preventive')">
-          <a>📅 Mantenimiento Preventivo</a>
-        </li>
-        <li class="menu-item" id="menu-admin-checklists" onclick="switchAdminPanel('checklists')">
-          <a>✅ Checklists</a>
-        </li>
-
-        <!-- Costos y Paros -->
-        <li class="menu-item" id="menu-admin-laborcosts" onclick="switchAdminPanel('laborcosts')">
-          <a>💰 Costos Mano de Obra</a>
-        </li>
-        <li class="menu-item" id="menu-admin-downtime" onclick="switchAdminPanel('downtime')">
-          <a>⏱️ Paros de Máquina</a>
-        </li>
-
-        <!-- Analítica e IA -->
-        <li class="menu-item" id="menu-admin-kpis" onclick="switchAdminPanel('kpis')">
-          <a>📈 KPIs de Mantenimiento</a>
-        </li>
-        <li class="menu-item" id="menu-admin-analysis" onclick="switchAdminPanel('analysis')">
-          <a>🔬 Análisis de Fallas</a>
-        </li>
-        <li class="menu-item" id="menu-admin-ai" onclick="switchAdminPanel('ai')">
-          <a>🤖 Recomendaciones IA</a>
-        </li>
-        <li class="menu-item" id="menu-admin-alertrules" onclick="switchAdminPanel('alertrules')">
-          <a>🔔 Reglas de Alertas</a>
         </li>
 
         <li class="menu-item" id="menu-admin-forms" onclick="switchAdminPanel('forms')">
@@ -415,6 +389,19 @@
         
         <!-- Panel Admin 1: Dashboard Ejecutivo (DISEÑO PIZARRA) -->
         <div id="panel-admin-dashboard" class="admin-panel-content">
+          <!-- Botones de Acceso a Ventanas Emergentes (Análisis, Recomendaciones IA, Alertas) -->
+          <div class="dashboard-actions-row" style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+            <button class="btn-nav btn-nav-primary" onclick="openAnalysisListModal()" style="display: flex; align-items: center; gap: 8px; background: var(--primary-dark);">
+              🔬 Análisis de Fallas
+            </button>
+            <button class="btn-nav btn-nav-primary" onclick="openAIRecommendationsModal()" style="display: flex; align-items: center; gap: 8px; background: #8b5cf6;">
+              🤖 Recomendaciones IA
+            </button>
+            <button class="btn-nav btn-nav-primary" onclick="openAlertsModal()" style="display: flex; align-items: center; gap: 8px; background: #ef4444;">
+              🔔 Alertas del Sistema
+            </button>
+          </div>
+
           <!-- Tarjetas KPI Tradicionales -->
           <div class="kpi-row">
             <div class="kpi-card kpi-blue">
@@ -900,7 +887,7 @@
             <button class="btn-nav btn-nav-primary" onclick="openInventoryModal()">+ Nuevo Registro</button>
           </div>
           <div style="overflow-x:auto;">
-            <table class="data-table" id="table-inventory"><thead><tr><th>Artículo</th><th>Proveedor</th><th>Stock Actual</th><th>Stock Mín.</th><th>Ubicación</th><th>Costo Unit.</th><th>Estado</th></tr></thead><tbody id="tbody-inventory"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando inventario...</td></tr></tbody></table>
+            <table class="custom-table" id="table-inventory"><thead><tr><th>Artículo</th><th>Proveedor</th><th>Stock Actual</th><th>Stock Mín.</th><th>Ubicación</th><th>Costo Unit.</th><th>Estado</th></tr></thead><tbody id="tbody-inventory"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando inventario...</td></tr></tbody></table>
           </div>
         </div>
 
@@ -914,7 +901,7 @@
             <button class="btn-nav btn-nav-primary" onclick="openSupplierModal()">+ Nuevo Proveedor</button>
           </div>
           <div style="overflow-x:auto;">
-            <table class="data-table" id="table-suppliers"><thead><tr><th>Código</th><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Ciudad</th><th>Tipo</th><th>Estado</th></tr></thead><tbody id="tbody-suppliers"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando proveedores...</td></tr></tbody></table>
+            <table class="custom-table" id="table-suppliers"><thead><tr><th>Código</th><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Ciudad</th><th>Tipo</th><th>Estado</th></tr></thead><tbody id="tbody-suppliers"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando proveedores...</td></tr></tbody></table>
           </div>
         </div>
 
@@ -928,7 +915,7 @@
             <button class="btn-nav btn-nav-primary" onclick="openPreventiveModal()">+ Nuevo Plan</button>
           </div>
           <div style="overflow-x:auto;">
-            <table class="data-table"><thead><tr><th>Máquina</th><th>Servicio</th><th>Nombre Plan</th><th>Frecuencia</th><th>Última Ejec.</th><th>Próxima Ejec.</th><th>Responsable</th><th>Estado</th></tr></thead><tbody id="tbody-preventive"><tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando planes preventivos...</td></tr></tbody></table>
+            <table class="custom-table"><thead><tr><th>Máquina</th><th>Servicio</th><th>Nombre Plan</th><th>Frecuencia</th><th>Última Ejec.</th><th>Próxima Ejec.</th><th>Responsable</th><th>Estado</th></tr></thead><tbody id="tbody-preventive"><tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando planes preventivos...</td></tr></tbody></table>
           </div>
         </div>
 
@@ -942,7 +929,7 @@
             <button class="btn-nav btn-nav-primary" onclick="openChecklistModal()">+ Nueva Pregunta</button>
           </div>
           <div style="overflow-x:auto;">
-            <table class="data-table"><thead><tr><th>Servicio</th><th>Cód. Pregunta</th><th>Pregunta</th><th>Tipo Respuesta</th><th>Obligatoria</th><th>Orden</th></tr></thead><tbody id="tbody-checklists"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando checklists...</td></tr></tbody></table>
+            <table class="custom-table"><thead><tr><th>Servicio</th><th>Cód. Pregunta</th><th>Pregunta</th><th>Tipo Respuesta</th><th>Obligatoria</th><th>Orden</th></tr></thead><tbody id="tbody-checklists"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando checklists...</td></tr></tbody></table>
           </div>
         </div>
 
@@ -956,7 +943,7 @@
             <button class="btn-nav btn-nav-primary" onclick="openLaborCostModal()">+ Nueva Tarifa</button>
           </div>
           <div style="overflow-x:auto;">
-            <table class="data-table"><thead><tr><th>Técnico</th><th>Clave</th><th>Costo/Hora</th><th>Moneda</th><th>Vigencia Inicio</th><th>Vigencia Fin</th><th>Estado</th></tr></thead><tbody id="tbody-laborcosts"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando costos de mano de obra...</td></tr></tbody></table>
+            <table class="custom-table"><thead><tr><th>Técnico</th><th>Clave</th><th>Costo/Hora</th><th>Moneda</th><th>Vigencia Inicio</th><th>Vigencia Fin</th><th>Estado</th></tr></thead><tbody id="tbody-laborcosts"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando costos de mano de obra...</td></tr></tbody></table>
           </div>
         </div>
 
@@ -970,44 +957,11 @@
             <button class="btn-nav btn-nav-primary" onclick="openDowntimeModal()">+ Registrar Paro</button>
           </div>
           <div style="overflow-x:auto;">
-            <table class="data-table"><thead><tr><th>Máquina</th><th>Inicio Paro</th><th>Fin Paro</th><th>Tiempo (min)</th><th>Motivo</th><th>Impacto</th><th>Costo Est.</th></tr></thead><tbody id="tbody-downtime"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando paros de máquina...</td></tr></tbody></table>
+            <table class="custom-table"><thead><tr><th>Máquina</th><th>Inicio Paro</th><th>Fin Paro</th><th>Tiempo (min)</th><th>Motivo</th><th>Impacto</th><th>Costo Est.</th></tr></thead><tbody id="tbody-downtime"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando paros de máquina...</td></tr></tbody></table>
           </div>
         </div>
 
-        <!-- ====== PANEL: KPIs DE MANTENIMIENTO ====== -->
-        <div id="panel-admin-kpis" class="admin-panel-content" style="display: none;">
-          <div style="margin-bottom:20px;">
-            <h3 style="font-weight:700;font-size:1.2rem;margin:0;">📈 KPIs de Mantenimiento</h3>
-            <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Indicadores calculados por período: órdenes, tiempos, costos y fallas repetidas.</p>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;" id="kpi-cards-container"></div>
-          <div style="overflow-x:auto;">
-            <table class="data-table"><thead><tr><th>Fecha</th><th>Período</th><th>Máquina</th><th>Depto.</th><th>Total OT</th><th>Abiertas</th><th>Cerradas</th><th>T° Prom. Atención</th><th>Fallas Repet.</th><th>Costo Total</th></tr></thead><tbody id="tbody-kpis"><tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando KPIs...</td></tr></tbody></table>
-          </div>
-        </div>
 
-        <!-- ====== PANEL: ANÁLISIS DE FALLAS ====== -->
-        <div id="panel-admin-analysis" class="admin-panel-content" style="display: none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-            <div>
-              <h3 style="font-weight:700;font-size:1.2rem;margin:0;">🔬 Análisis de Repetibilidad de Fallas</h3>
-              <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Detección de patrones de falla recurrente por máquina y tipo de falla.</p>
-            </div>
-            <button class="btn-nav btn-nav-primary" onclick="openAnalysisModal()">+ Nuevo Análisis</button>
-          </div>
-          <div style="overflow-x:auto;">
-            <table class="data-table"><thead><tr><th>Máquina</th><th>Tipo Falla</th><th>Categoría</th><th>Repeticiones</th><th>Período (días)</th><th>Última Falla</th><th>Nivel Riesgo</th><th>Recomendación</th></tr></thead><tbody id="tbody-analysis"><tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando análisis de fallas...</td></tr></tbody></table>
-          </div>
-        </div>
-
-        <!-- ====== PANEL: RECOMENDACIONES IA ====== -->
-        <div id="panel-admin-ai" class="admin-panel-content" style="display: none;">
-          <div style="margin-bottom:20px;">
-            <h3 style="font-weight:700;font-size:1.2rem;margin:0;">🤖 Recomendaciones IA</h3>
-            <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Sugerencias inteligentes generadas por el motor IA de TSM-AI.</p>
-          </div>
-          <div id="ai-recommendations-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;"></div>
-        </div>
 
         <!-- ====== PANEL: REGLAS DE ALERTAS ====== -->
         <div id="panel-admin-alertrules" class="admin-panel-content" style="display: none;">
@@ -1019,7 +973,7 @@
             <button class="btn-nav btn-nav-primary" onclick="openAlertRuleModal()">+ Nueva Regla</button>
           </div>
           <div style="overflow-x:auto;">
-            <table class="data-table"><thead><tr><th>Código</th><th>Nombre Regla</th><th>Tipo Alerta</th><th>Condición</th><th>Umbral</th><th>Prioridad</th><th>Estado</th></tr></thead><tbody id="tbody-alertrules"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando reglas de alertas...</td></tr></tbody></table>
+            <table class="custom-table"><thead><tr><th>Código</th><th>Nombre Regla</th><th>Tipo Alerta</th><th>Condición</th><th>Umbral</th><th>Prioridad</th><th>Estado</th></tr></thead><tbody id="tbody-alertrules"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando reglas de alertas...</td></tr></tbody></table>
           </div>
         </div>
 
@@ -1029,7 +983,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">🛠️ Catálogo de Técnicos</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Personal técnico de mantenimiento registrado en el sistema.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="alert('Módulo próximamente.')">+ Nuevo Técnico</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Clave</th><th>Nombre</th><th>Depto.</th><th>Turno</th><th>Especialidad</th><th>Puesto</th><th>Correo</th><th>Estado</th></tr></thead><tbody id="tbody-tecnicos"><tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando técnicos...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Clave</th><th>Nombre</th><th>Depto.</th><th>Turno</th><th>Especialidad</th><th>Puesto</th><th>Correo</th><th>Estado</th></tr></thead><tbody id="tbody-tecnicos"><tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando técnicos...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: EMPLEADOS ====== -->
@@ -1038,7 +992,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">👷 Catálogo de Empleados</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Empleados habilitados para generar solicitudes de mantenimiento.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="alert('Módulo próximamente.')">+ Nuevo Empleado</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Clave</th><th>Nombre</th><th>Depto.</th><th>Turno</th><th>Puesto</th><th>Correo</th><th>Estado</th></tr></thead><tbody id="tbody-empleados"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando empleados...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Clave</th><th>Nombre</th><th>Depto.</th><th>Turno</th><th>Puesto</th><th>Correo</th><th>Estado</th></tr></thead><tbody id="tbody-empleados"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando empleados...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: DEPARTAMENTOS ====== -->
@@ -1047,7 +1001,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">🏢 Catálogo de Departamentos</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Áreas y departamentos de la planta Towell.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="alert('Módulo próximamente.')">+ Nuevo Depto.</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Código</th><th>Nombre</th><th>Descripción</th><th>Estado</th></tr></thead><tbody id="tbody-departamentos"><tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando departamentos...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Código</th><th>Nombre</th><th>Descripción</th><th>Estado</th></tr></thead><tbody id="tbody-departamentos"><tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando departamentos...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: TURNOS ====== -->
@@ -1056,7 +1010,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">🕐 Catálogo de Turnos</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Turnos de trabajo configurados para la planta.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="alert('Módulo próximamente.')">+ Nuevo Turno</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>ID</th><th>Nombre</th><th>Hora Inicio</th><th>Hora Fin</th><th>Estado</th></tr></thead><tbody id="tbody-turnos"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando turnos...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>ID</th><th>Nombre</th><th>Hora Inicio</th><th>Hora Fin</th><th>Estado</th></tr></thead><tbody id="tbody-turnos"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando turnos...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: SERVICIOS DE MANTENIMIENTO ====== -->
@@ -1065,7 +1019,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">🔩 Servicios de Mantenimiento</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Catálogo de servicios que se pueden programar o ejecutar.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="alert('Módulo próximamente.')">+ Nuevo Servicio</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Código</th><th>Nombre</th><th>Tipo</th><th>Duración Est. (min)</th><th>Estado</th></tr></thead><tbody id="tbody-servicios"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando servicios...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Código</th><th>Nombre</th><th>Tipo</th><th>Duración Est. (min)</th><th>Estado</th></tr></thead><tbody id="tbody-servicios"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando servicios...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: TIPOS DE FALLA ====== -->
@@ -1074,7 +1028,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">⚡ Tipos de Falla</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Clasificación de fallas por tipo para estadísticas y análisis.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="alert('Módulo próximamente.')">+ Nuevo Tipo</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>ID Tipo</th><th>Nombre</th><th>Categoría</th><th>Prioridad Default</th><th>Estado</th></tr></thead><tbody id="tbody-tiposfalla"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando tipos de falla...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>ID Tipo</th><th>Nombre</th><th>Categoría</th><th>Prioridad Default</th><th>Estado</th></tr></thead><tbody id="tbody-tiposfalla"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando tipos de falla...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: CATEGORÍAS DE FALLA ====== -->
@@ -1083,7 +1037,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">🗂️ Categorías de Falla</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Agrupación de alto nivel para clasificar tipos de falla.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="alert('Módulo próximamente.')">+ Nueva Categoría</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Código</th><th>Nombre</th><th>Descripción</th><th>Origen</th><th>Estado</th></tr></thead><tbody id="tbody-categfalla"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando categorías...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Código</th><th>Nombre</th><th>Descripción</th><th>Origen</th><th>Estado</th></tr></thead><tbody id="tbody-categfalla"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando categorías...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: CRITICIDAD DE MÁQUINAS ====== -->
@@ -1092,7 +1046,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">🚨 Criticidad de Máquinas</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Nivel de criticidad por equipo: impacto en producción, calidad y seguridad.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="alert('Módulo próximamente.')">+ Registrar Criticidad</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Máquina</th><th>Nivel</th><th>Impacto Producción</th><th>Impacto Calidad</th><th>Impacto Seguridad</th><th>Estado</th></tr></thead><tbody id="tbody-criticidad"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando criticidad...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Máquina</th><th>Nivel</th><th>Impacto Producción</th><th>Impacto Calidad</th><th>Impacto Seguridad</th><th>Estado</th></tr></thead><tbody id="tbody-criticidad"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando criticidad...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: COMPONENTES DE MÁQUINA ====== -->
@@ -1101,7 +1055,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">🔩 Componentes de Máquina</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Subpartes y componentes de cada equipo: tipo, refacción asociada, estado y próxima inspección.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="renderAdminComponentes()">↻ Recargar</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Código</th><th>Componente</th><th>Máquina</th><th>Tipo</th><th>Refacción Asociada</th><th>Falla Frecuente</th><th>Estado</th><th>Próx. Inspección</th></tr></thead><tbody id="tbody-componentes"><tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando componentes...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Código</th><th>Componente</th><th>Máquina</th><th>Tipo</th><th>Refacción Asociada</th><th>Falla Frecuente</th><th>Estado</th><th>Próx. Inspección</th></tr></thead><tbody id="tbody-componentes"><tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando componentes...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: ESTATUS DE OT ====== -->
@@ -1110,7 +1064,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">🏷️ Estatus de Órdenes de Trabajo</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Flujo de estados válidos para el ciclo de vida de las OT.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="alert('Módulo próximamente.')">+ Nuevo Estatus</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Código</th><th>Nombre</th><th>Descripción</th><th>Orden Flujo</th><th>¿Inicial?</th><th>¿Final?</th><th>Estado</th></tr></thead><tbody id="tbody-estatusot"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando estatus...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Código</th><th>Nombre</th><th>Descripción</th><th>Orden Flujo</th><th>¿Inicial?</th><th>¿Final?</th><th>Estado</th></tr></thead><tbody id="tbody-estatusot"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando estatus...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: NOTIFICACIONES INTERNAS ====== -->
@@ -1119,17 +1073,10 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">📨 Notificaciones Internas</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Mensajes de flujo de trabajo: OT asignada, subtarea asignada, cierre de OT, comentarios nuevos.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="renderAdminNotificaciones()">↻ Recargar</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th></th><th>Tipo</th><th>Título</th><th>Receptor</th><th>Prioridad</th><th>OT / Subtarea</th><th>Fecha</th></tr></thead><tbody id="tbody-notificaciones"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando notificaciones...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th></th><th>Tipo</th><th>Título</th><th>Receptor</th><th>Prioridad</th><th>OT / Subtarea</th><th>Fecha</th></tr></thead><tbody id="tbody-notificaciones"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando notificaciones...</td></tr></tbody></table></div>
         </div>
 
-        <!-- ====== PANEL: ALERTAS DEL SISTEMA ====== -->
-        <div id="panel-admin-alertas" class="admin-panel-content" style="display: none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-            <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">🔔 Alertas del Sistema</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Alertas generadas automáticamente por el motor de reglas y el análisis de fallas.</p></div>
-            <button class="btn-nav btn-nav-primary" onclick="renderAdminAlertas()">↻ Recargar</button>
-          </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Tipo</th><th>Título</th><th>Máquina</th><th>Prioridad</th><th>Estatus</th><th>Generada</th><th>Vista</th></tr></thead><tbody id="tbody-alertas"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando alertas...</td></tr></tbody></table></div>
-        </div>
+
 
         <!-- ====== PANEL: FALLAS POR MÁQUINA ====== -->
         <div id="panel-admin-fallas" class="admin-panel-content" style="display: none;">
@@ -1137,7 +1084,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">💥 Fallas por Máquina</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Registro normalizado de fallas históricas importadas desde Telegram y Excel.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="renderAdminFallas()">↻ Recargar</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Máquina</th><th>Descripción</th><th>Categoría</th><th>Fecha/Hora</th><th>Origen</th><th>Recurrente</th></tr></thead><tbody id="tbody-fallas"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando fallas...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Máquina</th><th>Descripción</th><th>Categoría</th><th>Fecha/Hora</th><th>Origen</th><th>Recurrente</th></tr></thead><tbody id="tbody-fallas"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando fallas...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: COSTOS POR OT ====== -->
@@ -1146,7 +1093,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">💵 Costos por Orden de Trabajo</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Desglose de costos: refacciones, mano de obra, paro y extras por OT.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="renderAdminCostosOT()">↻ Recargar</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>OT (ID)</th><th>Refacciones</th><th>Mano de Obra</th><th>Costo Paro</th><th>Costo Extra</th><th>Total</th><th>Calculado</th></tr></thead><tbody id="tbody-costosot"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando costos...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>OT (ID)</th><th>Refacciones</th><th>Mano de Obra</th><th>Costo Paro</th><th>Costo Extra</th><th>Total</th><th>Calculado</th></tr></thead><tbody id="tbody-costosot"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando costos...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: EVIDENCIAS DE OT ====== -->
@@ -1155,7 +1102,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">📎 Evidencias de Órdenes de Trabajo</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Archivos e imágenes adjuntos a las órdenes de trabajo.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="renderAdminEvidencias()">↻ Recargar</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>OT (ID)</th><th>Tipo</th><th>Archivo</th><th>Comentario</th><th>Cargado Por</th><th>Fecha Carga</th></tr></thead><tbody id="tbody-evidencias"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando evidencias...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>OT (ID)</th><th>Tipo</th><th>Archivo</th><th>Comentario</th><th>Cargado Por</th><th>Fecha Carga</th></tr></thead><tbody id="tbody-evidencias"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando evidencias...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: REFACCIONES POR MÁQUINA ====== -->
@@ -1164,7 +1111,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">🔧 Consumo de Refacciones por Máquina</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Historial de refacciones utilizadas por cada equipo con costos.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="renderAdminRefMaquina()">↻ Recargar</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Fecha</th><th>Máquina</th><th>Artículo</th><th>Cantidad</th><th>Precio Unit.</th><th>Importe</th><th>Origen</th></tr></thead><tbody id="tbody-refmaquina"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando consumo de refacciones...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Fecha</th><th>Máquina</th><th>Artículo</th><th>Cantidad</th><th>Precio Unit.</th><th>Importe</th><th>Origen</th></tr></thead><tbody id="tbody-refmaquina"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando consumo de refacciones...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: HISTORIAL DE PRECIOS ====== -->
@@ -1173,7 +1120,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">📊 Historial de Precios de Refacciones</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Evolución de precios unitarios por artículo a lo largo del tiempo.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="renderAdminHistPrecios()">↻ Recargar</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Artículo</th><th>Fecha</th><th>Precio Unitario</th><th>Moneda</th><th>Origen</th></tr></thead><tbody id="tbody-histprecios"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando historial de precios...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Artículo</th><th>Fecha</th><th>Precio Unitario</th><th>Moneda</th><th>Origen</th></tr></thead><tbody id="tbody-histprecios"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando historial de precios...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: CIERRES DE OT ====== -->
@@ -1182,7 +1129,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">✅ Cierres de Órdenes de Trabajo</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Registro de cierres, validaciones y calificaciones de calidad por OT.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="renderAdminCierres()">↻ Recargar</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>OT (ID)</th><th>Técnico</th><th>Fecha Cierre</th><th>Validado Por</th><th>Calidad</th><th>Retrabajo</th><th>Estatus Cierre</th></tr></thead><tbody id="tbody-cierres"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando cierres...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>OT (ID)</th><th>Técnico</th><th>Fecha Cierre</th><th>Validado Por</th><th>Calidad</th><th>Retrabajo</th><th>Estatus Cierre</th></tr></thead><tbody id="tbody-cierres"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando cierres...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: RESPUESTAS DE CHECKLIST ====== -->
@@ -1191,7 +1138,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">📋 Respuestas de Checklist por OT</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Respuestas capturadas al ejecutar checklists en órdenes de trabajo.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="renderAdminRespChk()">↻ Recargar</button>
           </div>
-          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>OT (ID)</th><th>Checklist (ID)</th><th>Respuesta</th><th>Comentario</th><th>Respondido Por</th><th>Fecha</th></tr></thead><tbody id="tbody-respchk"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando respuestas...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>OT (ID)</th><th>Checklist (ID)</th><th>Respuesta</th><th>Comentario</th><th>Respondido Por</th><th>Fecha</th></tr></thead><tbody id="tbody-respchk"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando respuestas...</td></tr></tbody></table></div>
         </div>
 
       </div>
@@ -2075,6 +2022,104 @@
       <div class="modal-footer" style="background: #f1f5f9; display: flex; gap: 8px; justify-content: flex-end; padding: 12px 20px;">
         <button class="btn-action-secondary" onclick="closeModal('modal-email-simulator')" style="border-radius: 6px;">Cerrar Correo</button>
         <button class="btn-action-primary" id="btn-mail-action" style="border-radius: 6px; background: var(--accent-blue); color: white;">Copiar Contraseña</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Análisis de Fallas -->
+  <div class="modal-overlay" id="modal-admin-analysis-list">
+    <div class="modal-card" style="max-width: 90%; width: 1000px;">
+      <div class="modal-header">
+        <h3 style="font-weight:700;font-size:1.2rem;margin:0;">🔬 Análisis de Repetibilidad de Fallas</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-admin-analysis-list')">×</button>
+      </div>
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <p style="color:var(--text-muted);font-size:0.85rem;margin:0;">Detección de patrones de falla recurrente por máquina y tipo de falla.</p>
+          <button class="btn-nav btn-nav-primary" onclick="openAnalysisModal()">+ Nuevo Análisis</button>
+        </div>
+        <div class="responsive-table-wrapper" style="overflow-x:auto;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Máquina</th>
+                <th>Tipo Falla</th>
+                <th>Categoría</th>
+                <th>Repeticiones</th>
+                <th>Período (días)</th>
+                <th>Última Falla</th>
+                <th>Nivel Riesgo</th>
+                <th>Recomendación</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-analysis">
+              <tr>
+                <td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando análisis de fallas...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; padding: 12px 20px;">
+        <button class="btn-action-secondary" onclick="closeModal('modal-admin-analysis-list')" style="border-radius: 6px;">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Recomendaciones IA -->
+  <div class="modal-overlay" id="modal-admin-ai-list">
+    <div class="modal-card" style="max-width: 90%; width: 900px;">
+      <div class="modal-header">
+        <h3 style="font-weight:700;font-size:1.2rem;margin:0;">🤖 Recomendaciones IA</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-admin-ai-list')">×</button>
+      </div>
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 20px;">
+        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Sugerencias inteligentes generadas por el motor IA de TSM-AI.</p>
+        <div id="ai-recommendations-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+          <!-- Se carga dinámicamente -->
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; padding: 12px 20px;">
+        <button class="btn-action-secondary" onclick="closeModal('modal-admin-ai-list')" style="border-radius: 6px;">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Alertas del Sistema -->
+  <div class="modal-overlay" id="modal-admin-alerts-list">
+    <div class="modal-card" style="max-width: 90%; width: 1000px;">
+      <div class="modal-header">
+        <h3 style="font-weight:700;font-size:1.2rem;margin:0;">🔔 Alertas del Sistema</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-admin-alerts-list')">×</button>
+      </div>
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <p style="color:var(--text-muted);font-size:0.85rem;margin:0;">Alertas generadas automáticamente por el motor de reglas y el análisis de fallas.</p>
+          <button class="btn-nav btn-nav-primary" onclick="renderAdminAlertas()">↻ Recargar</button>
+        </div>
+        <div class="responsive-table-wrapper" style="overflow-x:auto;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Título</th>
+                <th>Máquina</th>
+                <th>Prioridad</th>
+                <th>Estatus</th>
+                <th>Generada</th>
+                <th>Vista</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-alertas">
+              <tr>
+                <td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando alertas...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; padding: 12px 20px;">
+        <button class="btn-action-secondary" onclick="closeModal('modal-admin-alerts-list')" style="border-radius: 6px;">Cerrar</button>
       </div>
     </div>
   </div>

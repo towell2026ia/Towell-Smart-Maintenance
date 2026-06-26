@@ -1509,8 +1509,9 @@ function switchAdminPanel(panelId) {
   const dbPanels = [
     'machines', 'parts', 'inventory', 'suppliers', 'tecnicos', 'empleados',
     'departamentos', 'turnos', 'servicios', 'tiposfalla', 'categfalla', 'criticidad',
-    'componentes', 'estatusot', 'users', 'logs',
-    'notificaciones', 'alertas', 'fallas', 'costosot', 'evidencias', 'refmaquina', 'histprecios', 'cierres', 'respchk'
+    'componentes', 'estatusot', 'users', 'logs', 'laborcosts', 'alertrules',
+    'notificaciones', 'fallas', 'costosot', 'evidencias', 'refmaquina', 'histprecios', 'cierres', 'respchk',
+    'preventive', 'checklists', 'downtime'
   ];
   if (dbPanels.includes(panelId)) {
     if (dbGroup) dbGroup.classList.add('active');
@@ -5368,6 +5369,21 @@ function loadTechMachineHistory(machineId) {
   }
 
   if (wrapper) wrapper.style.display = 'block';
+}
+
+function openAnalysisListModal() {
+  renderAdminAnalysis();
+  openModal('modal-admin-analysis-list');
+}
+
+function openAIRecommendationsModal() {
+  renderAdminAIRecommendations();
+  openModal('modal-admin-ai-list');
+}
+
+function openAlertsModal() {
+  renderAdminAlertas();
+  openModal('modal-admin-alerts-list');
 }
 
 // --- UTILERÍAS COMPARTIDAS (MODALES Y MENSAJES) ---
