@@ -232,6 +232,59 @@ CREATE TABLE IF NOT EXISTS public.cat_tipos_falla (
     observaciones VARCHAR(255)
 );
 
+-- Machine Components Catalog
+-- Registra los componentes o subpartes de cada máquina para rastrear
+-- qué parte falló, qué refacción le corresponde y cuál es su criticidad.
+CREATE TABLE IF NOT EXISTS public.cat_componentes_maquina (
+    id_componente UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Máquina padre
+    maquina_id VARCHAR(100) NOT NULL REFERENCES public.cat_maquinas(equipo_towell)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+
+    -- Identificación del componente
+    codigo_componente VARCHAR(50) NOT NULL,          -- e.g. 'COMP-M301-BOMBA'
+    nombre_componente VARCHAR(150) NOT NULL,          -- e.g. 'Bomba de recirculación'
+    descripcion VARCHAR(255),
+
+    -- Clasificación
+    tipo_componente VARCHAR(50),                      -- 'Mecánico', 'Eléctrico', 'Neumático', etc.
+    ubicacion_componente VARCHAR(100),                -- Posición física dentro de la máquina
+    numero_parte_fabricante VARCHAR(100),             -- P/N del fabricante
+
+    -- Refacción asociada (opcional)
+    -- Permite saber qué pieza del inventario reemplaza a este componente
+    codigo_articulo_refaccion VARCHAR(50)
+        REFERENCES public.cat_refacciones(codigo_articulo)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+
+    -- Tipo de falla más común en este componente (opcional, para análisis)
+    tipo_falla_frecuente VARCHAR(50)
+        REFERENCES public.cat_tipos_falla(tipo_falla_id)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+
+    -- Vida útil y mantenimiento
+    vida_util_horas INT,                              -- Vida útil estimada en horas
+    intervalo_inspeccion_dias INT,                    -- Cada cuántos días inspeccionar
+    ultima_inspeccion DATE,
+    proxima_inspeccion DATE,
+
+    -- Estado
+    estado_componente VARCHAR(30) DEFAULT 'operativo', -- 'operativo', 'degradado', 'falla', 'reemplazado'
+    activo BOOLEAN DEFAULT TRUE,
+
+    -- Auditoría
+    fecha_alta TIMESTAMP DEFAULT NOW(),
+    fecha_actualizacion TIMESTAMP DEFAULT NOW(),
+    observaciones VARCHAR(255),
+
+    -- Garantizar unicidad de código dentro de una máquina
+    CONSTRAINT uq_componente_maquina UNIQUE (maquina_id, codigo_componente),
+
+    CONSTRAINT chk_componente_estado
+        CHECK (estado_componente IN ('operativo', 'degradado', 'falla', 'reemplazado', 'baja'))
+);
+
 -- ============================================================================
 -- 3. HISTORICAL DATA / STAGING / AUDITING
 -- ============================================================================
@@ -845,6 +898,12 @@ CREATE INDEX IF NOT EXISTS idx_subtask_evidences_subido_por ON public.evidencias
 CREATE INDEX IF NOT EXISTS idx_ref_maquina ON public.refacciones_por_maquina(maquina_id);
 CREATE INDEX IF NOT EXISTS idx_ref_codigo ON public.refacciones_por_maquina(codigo_articulo);
 
+-- Machine Components Indexes
+CREATE INDEX IF NOT EXISTS idx_comp_maquina ON public.cat_componentes_maquina(maquina_id);
+CREATE INDEX IF NOT EXISTS idx_comp_estado ON public.cat_componentes_maquina(estado_componente);
+CREATE INDEX IF NOT EXISTS idx_comp_proxima_insp ON public.cat_componentes_maquina(proxima_inspeccion);
+CREATE INDEX IF NOT EXISTS idx_comp_tipo_falla ON public.cat_componentes_maquina(tipo_falla_frecuente);
+
 -- New Tables Indexes (T19-T29)
 CREATE INDEX IF NOT EXISTS idx_costo_mo_tecnico ON public.costos_mano_obra(cve_tecnico);
 CREATE INDEX IF NOT EXISTS idx_costo_mo_vigencia ON public.costos_mano_obra(fecha_inicio_vigencia, fecha_fin_vigencia);
@@ -914,6 +973,7 @@ ALTER TABLE public.cat_empleados DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cat_usuarios_roles DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cat_criticidad_maquina DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cat_tipos_falla DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cat_componentes_maquina DISABLE ROW LEVEL SECURITY;
 
 -- Staging & Audit
 ALTER TABLE public.stg_telegram_ordenes_telares DISABLE ROW LEVEL SECURITY;

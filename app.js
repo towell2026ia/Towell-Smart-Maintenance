@@ -1361,7 +1361,7 @@ function switchAdminPanel(panelId) {
   // Si pertenece al grupo de base de datos, asegurar que esté expandido
   const dbPanels = ['machines', 'parts', 'inventory', 'suppliers', 'tecnicos', 'empleados',
     'departamentos', 'turnos', 'servicios', 'tiposfalla', 'categfalla', 'criticidad',
-    'estatusot', 'users', 'logs'];
+    'componentes', 'estatusot', 'users', 'logs'];
   if (dbPanels.includes(panelId)) {
     if (dbGroup) dbGroup.classList.add('active');
     const submenu = document.getElementById('admin-database-submenu');
@@ -1411,6 +1411,7 @@ function switchAdminPanel(panelId) {
     tiposfalla: '⚡ Tipos de Falla',
     categfalla: '🗂️ Categorías de Falla',
     criticidad: '🚨 Criticidad de Máquinas',
+    componentes: '🔩 Componentes de Máquina',
     estatusot: '🏷️ Estatus de Órdenes de Trabajo',
     users: '👥 Control de Usuarios y Permisos',
     forms: '🛠️ Formularios y Checklists Dinámicos',
@@ -1473,6 +1474,8 @@ function switchAdminPanel(panelId) {
     renderAdminCategFalla();
   } else if (panelId === 'criticidad') {
     renderAdminCriticidad();
+  } else if (panelId === 'componentes') {
+    renderAdminComponentes();
   } else if (panelId === 'estatusot') {
     renderAdminEstatusOT();
   } else if (panelId === 'users') {
@@ -1987,6 +1990,52 @@ async function renderAdminCriticidad() {
       </tr>`;
     }).join('');
   } catch (err) { tbody.innerHTML = emptyRow(6, `❌ Error: ${err.message}`); }
+}
+
+// ── COMPONENTES DE MÁQUINA ─────────────────────────────────────────────────
+async function renderAdminComponentes() {
+  const tbody = document.getElementById('tbody-componentes');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(8, 'Cargando componentes…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(8, '⚠️ Sin conexión a Supabase.'); return; }
+  try {
+    const { data, error } = await supabaseClient
+      .from('cat_componentes_maquina')
+      .select(`
+        *,
+        cat_refacciones(nombre_articulo),
+        cat_tipos_falla(nombre_falla)
+      `)
+      .order('maquina_id')
+      .order('codigo_componente')
+      .limit(500);
+    if (error) throw error;
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(8, 'No hay componentes registrados.'); return; }
+    const estadoColor = {
+      operativo:   '#22c55e',
+      degradado:   '#f59e0b',
+      falla:       '#ef4444',
+      reemplazado: '#6366f1',
+      baja:        '#94a3b8'
+    };
+    tbody.innerHTML = data.map(r => {
+      const ec = estadoColor[r.estado_componente] || '#94a3b8';
+      const proxInsp = r.proxima_inspeccion ? fmtDate(r.proxima_inspeccion) : '—';
+      const hoy = new Date();
+      const proxDate = r.proxima_inspeccion ? new Date(r.proxima_inspeccion) : null;
+      const vencido = proxDate && proxDate < hoy;
+      return `<tr>
+        <td><code>${r.codigo_componente}</code></td>
+        <td><strong>${r.nombre_componente}</strong>${r.descripcion ? `<br><small style="color:var(--text-muted);">${r.descripcion}</small>` : ''}</td>
+        <td>${r.maquina_id}</td>
+        <td>${r.tipo_componente || '—'}</td>
+        <td>${r.cat_refacciones?.nombre_articulo ? `<span style="color:var(--accent-cyan);">${r.cat_refacciones.nombre_articulo}</span>` : '—'}</td>
+        <td>${r.cat_tipos_falla?.nombre_falla || '—'}</td>
+        <td><span style="padding:3px 10px;border-radius:8px;font-size:0.75rem;font-weight:700;background:${ec};color:#fff;">${r.estado_componente || '—'}</span></td>
+        <td style="${vencido ? 'color:#ef4444;font-weight:700;' : ''}">${vencido ? '⚠️ ' : ''}${proxInsp}</td>
+      </tr>`;
+    }).join('');
+  } catch (err) { tbody.innerHTML = emptyRow(8, `❌ Error: ${err.message}`); }
 }
 
 // ── ESTATUS DE OT ─────────────────────────────────────────────────────────────

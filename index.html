@@ -330,6 +330,7 @@
             <li class="menu-item" id="menu-admin-tiposfalla" onclick="switchAdminPanel('tiposfalla')"><a>⚡ Tipos de Falla</a></li>
             <li class="menu-item" id="menu-admin-categfalla" onclick="switchAdminPanel('categfalla')"><a>🗂️ Categorías de Falla</a></li>
             <li class="menu-item" id="menu-admin-criticidad" onclick="switchAdminPanel('criticidad')"><a>🚨 Criticidad de Máq.</a></li>
+            <li class="menu-item" id="menu-admin-componentes" onclick="switchAdminPanel('componentes')"><a>🔩 Componentes de Máq.</a></li>
             <li class="menu-item" id="menu-admin-estatusot" onclick="switchAdminPanel('estatusot')"><a>🏷️ Estatus de OT</a></li>
             <li class="menu-item" id="menu-admin-users" onclick="switchAdminPanel('users')"><a>👥 Usuarios y Permisos</a></li>
             <li class="menu-item" id="menu-admin-logs" onclick="switchAdminPanel('logs')"><a>📝 Bitácoras OT</a></li>
@@ -1099,6 +1100,15 @@
             <button class="btn-nav btn-nav-primary" onclick="alert('Módulo próximamente.')">+ Registrar Criticidad</button>
           </div>
           <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Máquina</th><th>Nivel</th><th>Impacto Producción</th><th>Impacto Calidad</th><th>Impacto Seguridad</th><th>Estado</th></tr></thead><tbody id="tbody-criticidad"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando criticidad...</td></tr></tbody></table></div>
+        </div>
+
+        <!-- ====== PANEL: COMPONENTES DE MÁQUINA ====== -->
+        <div id="panel-admin-componentes" class="admin-panel-content" style="display: none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">🔩 Componentes de Máquina</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Subpartes y componentes de cada equipo: tipo, refacción asociada, estado y próxima inspección.</p></div>
+            <button class="btn-nav btn-nav-primary" onclick="renderAdminComponentes()">↻ Recargar</button>
+          </div>
+          <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Código</th><th>Componente</th><th>Máquina</th><th>Tipo</th><th>Refacción Asociada</th><th>Falla Frecuente</th><th>Estado</th><th>Próx. Inspección</th></tr></thead><tbody id="tbody-componentes"><tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando componentes...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: ESTATUS DE OT ====== -->
