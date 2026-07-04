@@ -1,5 +1,14 @@
 {
+  "name": "tsm-ai-app",
+  "version": "1.0.0",
+  "description": "Towell Smart Maintenance AI",
+  "main": "app.js",
+  "scripts": {
+    "import-excel": "node importar_excel.js"
+  },
   "dependencies": {
-    "localtunnel": "^2.0.2"
+    "@supabase/supabase-js": "^2.39.8",
+    "localtunnel": "^2.0.2",
+    "xlsx": "^0.18.5"
   }
 }

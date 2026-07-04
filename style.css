@@ -1589,3 +1589,31 @@ body {
 .toast-notification.show {
   transform: translateY(0);
 }
+
+/* --- ESTILOS ADICIONALES EXCEL & CALENDARIOS --- */
+.excel-upload-container:hover {
+  border-color: var(--accent-blue) !important;
+  background-color: #f1f5f9 !important;
+  transform: scale(1.01);
+  transition: all 0.2s ease-in-out;
+}
+
+.tab-btn {
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.tab-btn:hover {
+  color: var(--primary-color) !important;
+  background-color: #f8fafc !important;
+}
+
+.tab-btn.active {
+  color: var(--primary-color) !important;
+  border-bottom-color: var(--primary-color) !important;
+}
+
+#excel-preview-container tr:hover {
+  background-color: #f8fafc;
+}

@@ -66,10 +66,7 @@ CREATE TABLE IF NOT EXISTS public.cat_maquinas (
     id_maquina UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     equipo_towell VARCHAR(100) NOT NULL UNIQUE, -- e.g., 'TOW-TEL201-TEJI', 'TOW-LOG1-COST'
     clave VARCHAR(50),
-    area VARCHAR(50),
-    proceso VARCHAR(50),
-    tipo_equipo VARCHAR(50),
-    activo BOOLEAN DEFAULT TRUE,
+    ax VARCHAR(100) NULL,
     origen VARCHAR(30),
     fecha_carga TIMESTAMP DEFAULT NOW()
 );
@@ -199,7 +196,6 @@ CREATE TABLE IF NOT EXISTS public.cat_usuarios_roles (
     fecha_alta TIMESTAMP DEFAULT NOW(),
     fecha_actualizacion TIMESTAMP DEFAULT NOW(),
     ultimo_acceso TIMESTAMP,
-    contrasenia VARCHAR(100) DEFAULT 'Temp123',
     debe_cambiar_contrasenia BOOLEAN DEFAULT TRUE,
     observaciones VARCHAR(255)
 );
@@ -380,6 +376,12 @@ CREATE TABLE IF NOT EXISTS public.ordenes_trabajo (
     enviado BOOLEAN DEFAULT FALSE,
     es_reincidente BOOLEAN DEFAULT FALSE,
     prioridad VARCHAR(20),
+    tipo_orden VARCHAR(50) NULL,
+    id_plan UUID NULL REFERENCES public.planes_mantenimiento_preventivo(id_plan) ON DELETE SET NULL,
+    id_carga UUID NULL REFERENCES public.control_cargas_archivos(id_carga) ON DELETE SET NULL,
+    validado_desde_excel BOOLEAN DEFAULT FALSE,
+    fecha_validacion_excel TIMESTAMPTZ NULL,
+    observaciones_validacion TEXT NULL,
     fecha_carga TIMESTAMP DEFAULT NOW()
 );
 
@@ -584,7 +586,7 @@ CREATE TABLE IF NOT EXISTS public.notificaciones_internas (
 -- Subtasks Table
 CREATE TABLE IF NOT EXISTS public.subtareas_orden_trabajo (
     id_subtarea UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    id_orden_trabajo UUID NOT NULL REFERENCES public.ordenes_trabajo(id_orden) ON UPDATE CASCADE ON DELETE RESTRICT,
+    id_orden UUID NOT NULL REFERENCES public.ordenes_trabajo(id_orden) ON UPDATE CASCADE ON DELETE RESTRICT,
     folio_ot VARCHAR(30) NOT NULL REFERENCES public.ordenes_trabajo(folio) ON UPDATE CASCADE ON DELETE RESTRICT,
     numero_subtarea INTEGER NOT NULL,
     titulo_subtarea VARCHAR(150) NOT NULL,
@@ -646,7 +648,7 @@ CREATE TABLE IF NOT EXISTS public.subtareas_orden_trabajo (
         ),
 
     CONSTRAINT uq_subtareas_numero
-        UNIQUE (id_orden_trabajo, numero_subtarea)
+        UNIQUE (id_orden, numero_subtarea)
 );
 
 -- Subtask Assignments Table
@@ -665,7 +667,7 @@ CREATE TABLE IF NOT EXISTS public.asignaciones_subtareas (
 -- Subtask Event Log (Bitácora) Table
 CREATE TABLE IF NOT EXISTS public.bitacora_subtareas (
     id_movimiento UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    id_orden_trabajo UUID REFERENCES public.ordenes_trabajo(id_orden) ON DELETE CASCADE,
+    id_orden UUID REFERENCES public.ordenes_trabajo(id_orden) ON DELETE CASCADE,
     id_subtarea UUID REFERENCES public.subtareas_orden_trabajo(id_subtarea) ON DELETE SET NULL,
     tipo_movimiento VARCHAR(50) NOT NULL,
     estado_anterior VARCHAR(30),
@@ -679,7 +681,7 @@ CREATE TABLE IF NOT EXISTS public.bitacora_subtareas (
 CREATE TABLE IF NOT EXISTS public.evidencias_subtareas (
     id_evidencia UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     id_subtarea UUID NOT NULL REFERENCES public.subtareas_orden_trabajo(id_subtarea) ON UPDATE CASCADE ON DELETE CASCADE,
-    id_orden_trabajo UUID NOT NULL REFERENCES public.ordenes_trabajo(id_orden) ON UPDATE CASCADE ON DELETE RESTRICT,
+    id_orden UUID NOT NULL REFERENCES public.ordenes_trabajo(id_orden) ON UPDATE CASCADE ON DELETE RESTRICT,
     tipo_archivo VARCHAR(50) NOT NULL,
     origen_evidencia VARCHAR(50) NOT NULL DEFAULT 'solicitud',
     nombre_archivo VARCHAR(150),
@@ -938,7 +940,7 @@ CREATE INDEX IF NOT EXISTS idx_ot_maquina ON public.ordenes_trabajo(maquina_id);
 CREATE INDEX IF NOT EXISTS idx_ot_depto ON public.ordenes_trabajo(departamento);
 
 -- Subtasks Indexes
-CREATE INDEX IF NOT EXISTS idx_subtasks_id_orden ON public.subtareas_orden_trabajo(id_orden_trabajo);
+CREATE INDEX IF NOT EXISTS idx_subtasks_id_orden ON public.subtareas_orden_trabajo(id_orden);
 CREATE INDEX IF NOT EXISTS idx_subtasks_folio ON public.subtareas_orden_trabajo(folio_ot);
 CREATE INDEX IF NOT EXISTS idx_subtasks_estatus ON public.subtareas_orden_trabajo(estatus_subtarea);
 CREATE INDEX IF NOT EXISTS idx_subtasks_area ON public.subtareas_orden_trabajo(area_requerida);
@@ -948,7 +950,7 @@ CREATE INDEX IF NOT EXISTS idx_subtasks_prioridad ON public.subtareas_orden_trab
 
 -- Evidences Indexes
 CREATE INDEX IF NOT EXISTS idx_subtask_evidences_id_subtarea ON public.evidencias_subtareas(id_subtarea);
-CREATE INDEX IF NOT EXISTS idx_subtask_evidences_id_orden ON public.evidencias_subtareas(id_orden_trabajo);
+CREATE INDEX IF NOT EXISTS idx_subtask_evidences_id_orden ON public.evidencias_subtareas(id_orden);
 CREATE INDEX IF NOT EXISTS idx_subtask_evidences_tipo ON public.evidencias_subtareas(tipo_archivo);
 CREATE INDEX IF NOT EXISTS idx_subtask_evidences_origen ON public.evidencias_subtareas(origen_evidencia);
 CREATE INDEX IF NOT EXISTS idx_subtask_evidences_subido_por ON public.evidencias_subtareas(subido_por);
@@ -1080,3 +1082,1017 @@ ALTER TABLE public.reglas_alertas DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analisis_repetibilidad_fallas DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.recomendaciones_ia DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kpis_mantenimiento DISABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- 11. NEW STAGING TABLES (Ingestion from Excel)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.stg_maquinas_excel (
+    id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    equipo_towell VARCHAR(255) NULL,
+    clave VARCHAR(255) NULL,
+    ax VARCHAR(255) NULL,
+    archivo_origen VARCHAR(255) NULL,
+    id_carga UUID NULL,
+    fecha_carga TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.stg_refacciones_excel (
+    id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo_articulo VARCHAR(255) NULL,
+    nombre_articulo VARCHAR(255) NULL,
+    unidad_medida VARCHAR(255) NULL,
+    familia VARCHAR(255) NULL,
+    activo VARCHAR(255) NULL,
+    archivo_origen VARCHAR(255) NULL,
+    id_carga UUID NULL,
+    fecha_carga TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.stg_tecnicos_excel (
+    id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cve_tecnico VARCHAR(255) NULL,
+    nombre_tecnico VARCHAR(255) NULL,
+    departamento_codigo VARCHAR(255) NULL,
+    turno_id VARCHAR(255) NULL,
+    especialidad VARCHAR(255) NULL,
+    puesto VARCHAR(255) NULL,
+    correo VARCHAR(255) NULL,
+    telefono VARCHAR(255) NULL,
+    activo VARCHAR(255) NULL,
+    archivo_origen VARCHAR(255) NULL,
+    id_carga UUID NULL,
+    fecha_carga TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.stg_empleados_excel (
+    id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cve_empleado VARCHAR(255) NULL,
+    nombre_empleado VARCHAR(255) NULL,
+    departamento_codigo VARCHAR(255) NULL,
+    turno_id VARCHAR(255) NULL,
+    puesto VARCHAR(255) NULL,
+    correo VARCHAR(255) NULL,
+    telefono VARCHAR(255) NULL,
+    activo VARCHAR(255) NULL,
+    archivo_origen VARCHAR(255) NULL,
+    id_carga UUID NULL,
+    fecha_carga TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.stg_refacciones_por_maquina_excel (
+    id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    fecha VARCHAR(255) NULL,
+    maquina_id VARCHAR(255) NULL,
+    destino VARCHAR(255) NULL,
+    codigo_articulo VARCHAR(255) NULL,
+    nombre_articulo VARCHAR(255) NULL,
+    cantidad_estandar VARCHAR(255) NULL,
+    precio_costo_unitario VARCHAR(255) NULL,
+    importe_costo_origen VARCHAR(255) NULL,
+    archivo_origen VARCHAR(255) NULL,
+    id_carga UUID NULL,
+    fecha_carga TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.stg_historico_precios_refacciones_excel (
+    id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo_articulo VARCHAR(255) NULL,
+    fecha VARCHAR(255) NULL,
+    precio_costo_unitario VARCHAR(255) NULL,
+    moneda VARCHAR(255) NULL,
+    archivo_origen VARCHAR(255) NULL,
+    id_carga UUID NULL,
+    fecha_carga TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.stg_inventario_refacciones_excel (
+    id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo_articulo VARCHAR(255) NULL,
+    codigo_proveedor VARCHAR(255) NULL,
+    stock_actual VARCHAR(255) NULL,
+    stock_minimo VARCHAR(255) NULL,
+    stock_maximo VARCHAR(255) NULL,
+    unidad_medida VARCHAR(255) NULL,
+    ubicacion VARCHAR(255) NULL,
+    costo_unitario VARCHAR(255) NULL,
+    moneda VARCHAR(255) NULL,
+    observaciones TEXT NULL,
+    archivo_origen VARCHAR(255) NULL,
+    id_carga UUID NULL,
+    fecha_carga TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.stg_costos_mano_obra_excel (
+    id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cve_tecnico VARCHAR(255) NULL,
+    nombre_tecnico VARCHAR(255) NULL,
+    costo_hora VARCHAR(255) NULL,
+    moneda VARCHAR(255) NULL,
+    fecha_inicio_vigencia VARCHAR(255) NULL,
+    fecha_fin_vigencia VARCHAR(255) NULL,
+    observaciones TEXT NULL,
+    archivo_origen VARCHAR(255) NULL,
+    id_carga UUID NULL,
+    fecha_carga TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.stg_segundas_por_rollo_excel (
+    id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    produccion VARCHAR(255) NULL,
+    fecha VARCHAR(255) NULL,
+    codigo_bodega VARCHAR(255) NULL,
+    codigo_articulo VARCHAR(255) NULL,
+    nombre_articulo VARCHAR(255) NULL,
+    configuracion VARCHAR(255) NULL,
+    tamano VARCHAR(255) NULL,
+    color VARCHAR(255) NULL,
+    nombre VARCHAR(255) NULL,
+    almacen VARCHAR(255) NULL,
+    numero_lote VARCHAR(255) NULL,
+    localidad VARCHAR(255) NULL,
+    salon VARCHAR(255) NULL,
+    numero_serie VARCHAR(255) NULL,
+    id_flog VARCHAR(255) NULL,
+    nombre_flog VARCHAR(255) NULL,
+    calidad_flog VARCHAR(255) NULL,
+    pzas_rollo VARCHAR(255) NULL,
+    kg_rollo VARCHAR(255) NULL,
+    mts_rollo VARCHAR(255) NULL,
+    no_tiras VARCHAR(255) NULL,
+    medida_1 VARCHAR(255) NULL,
+    medida_2 VARCHAR(255) NULL,
+    pzas_t1 VARCHAR(255) NULL,
+    pzas_t2 VARCHAR(255) NULL,
+    pzas_t3 VARCHAR(255) NULL,
+    pzas_t4 VARCHAR(255) NULL,
+    turno_tejido VARCHAR(255) NULL,
+    codigo_defecto VARCHAR(255) NULL,
+    cantidad VARCHAR(255) NULL,
+    defecto VARCHAR(255) NULL,
+    maquina_id_detectada VARCHAR(255) NULL,
+    archivo_origen VARCHAR(255) NULL,
+    id_carga UUID NULL,
+    fecha_carga TIMESTAMPTZ DEFAULT NOW(),
+    observaciones TEXT NULL
+);
+
+-- ============================================================================
+-- 12. NEW CLEAN/FINAL TABLES
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.segundas_por_rollo (
+    id_segunda_rollo UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    fecha DATE NOT NULL,
+    anio INT NULL,
+    mes INT NULL,
+    semana INT NULL,
+    produccion VARCHAR(100) NOT NULL,
+    maquina_id VARCHAR(100) NOT NULL REFERENCES public.cat_maquinas(equipo_towell) ON UPDATE CASCADE ON DELETE RESTRICT,
+    salon VARCHAR(100) NULL,
+    turno_tejido VARCHAR(50) DEFAULT '' NOT NULL,
+    codigo_articulo VARCHAR(100) NULL,
+    nombre_articulo VARCHAR(255) NULL,
+    configuracion VARCHAR(255) NULL,
+    tamano VARCHAR(255) NULL,
+    color VARCHAR(255) NULL,
+    codigo_defecto VARCHAR(100) NOT NULL,
+    defecto VARCHAR(255) NULL,
+    cantidad_defecto NUMERIC(18,4) NULL,
+    pzas_rollo NUMERIC(18,4) NULL,
+    kg_rollo NUMERIC(18,4) NULL,
+    mts_rollo NUMERIC(18,4) NULL,
+    no_tiras NUMERIC(18,4) NULL,
+    medida_1 NUMERIC(18,4) NULL,
+    medida_2 NUMERIC(18,4) NULL,
+    pzas_t1 NUMERIC(18,4) NULL,
+    pzas_t2 NUMERIC(18,4) NULL,
+    pzas_t3 NUMERIC(18,4) NULL,
+    pzas_t4 NUMERIC(18,4) NULL,
+    id_flog VARCHAR(100) NULL,
+    calidad_flog VARCHAR(100) NULL,
+    numero_serie VARCHAR(255) DEFAULT '' NOT NULL,
+    tipo_falla_id_sugerido VARCHAR(100) NULL,
+    categoria_falla_sugerida VARCHAR(100) NULL,
+    id_componente_sugerido UUID NULL REFERENCES public.cat_componentes_maquina(id_componente) ON UPDATE CASCADE ON DELETE SET NULL,
+    requiere_revision_autonoma BOOLEAN DEFAULT FALSE,
+    nivel_riesgo VARCHAR(50) NULL,
+    score_riesgo NUMERIC(18,4) NULL,
+    origen VARCHAR(100) DEFAULT 'EXCEL_SEGUNDAS_X_ROLLO',
+    id_carga UUID NULL REFERENCES public.control_cargas_archivos(id_carga) ON DELETE SET NULL,
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_carga TIMESTAMPTZ DEFAULT NOW(),
+    fecha_alta TIMESTAMPTZ DEFAULT NOW(),
+    fecha_actualizacion TIMESTAMPTZ DEFAULT NOW(),
+    observaciones TEXT NULL,
+    CONSTRAINT uq_segundas_rollo UNIQUE (fecha, produccion, codigo_defecto, numero_serie, turno_tejido)
+);
+
+CREATE TABLE IF NOT EXISTS public.cat_relacion_defecto_falla (
+    id_relacion UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo_defecto VARCHAR(100) NULL,
+    defecto_calidad VARCHAR(255) NOT NULL,
+    tipo_falla_id VARCHAR(50) NULL REFERENCES public.cat_tipos_falla(tipo_falla_id) ON UPDATE CASCADE ON DELETE SET NULL,
+    categoria_falla VARCHAR(100) NULL,
+    componente_sugerido VARCHAR(150) NULL,
+    actividad_autonoma_sugerida TEXT NULL,
+    actividad_mantenimiento_sugerida TEXT NULL,
+    prioridad_default VARCHAR(50) NULL,
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_alta TIMESTAMPTZ DEFAULT NOW(),
+    fecha_actualizacion TIMESTAMPTZ DEFAULT NOW(),
+    observaciones TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.calendarios_mantenimiento (
+    id_calendario UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tipo_calendario VARCHAR(50) NOT NULL,
+    anio INT NOT NULL,
+    mes INT NULL,
+    semana INT NULL,
+    fecha_inicio_periodo DATE NOT NULL,
+    fecha_fin_periodo DATE NOT NULL,
+    estatus_calendario VARCHAR(50) DEFAULT 'PROPUESTO',
+    generado_por VARCHAR(150) NULL,
+    origen_generacion VARCHAR(100) NULL,
+    fecha_generacion TIMESTAMPTZ DEFAULT NOW(),
+    aprobado_por UUID NULL,
+    fecha_aprobacion TIMESTAMPTZ NULL,
+    observaciones TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.calendario_mantenimiento_detalle (
+    id_detalle UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_calendario UUID NOT NULL REFERENCES public.calendarios_mantenimiento(id_calendario) ON DELETE CASCADE,
+    maquina_id VARCHAR(100) NOT NULL REFERENCES public.cat_maquinas(equipo_towell) ON UPDATE CASCADE ON DELETE RESTRICT,
+    fecha_programada DATE NOT NULL,
+    turno_sugerido VARCHAR(50) NULL,
+    tipo_mantenimiento VARCHAR(50) NOT NULL,
+    prioridad VARCHAR(50) NULL,
+    actividad_sugerida TEXT NOT NULL,
+    responsable_sugerido VARCHAR(150) NULL,
+    fuente_principal VARCHAR(100) NULL,
+    score_riesgo NUMERIC(18,4) NULL,
+    id_plan UUID NULL REFERENCES public.planes_mantenimiento_preventivo(id_plan) ON DELETE SET NULL,
+    id_analisis UUID REFERENCES public.analisis_repetibilidad_fallas(id_analisis) ON DELETE SET NULL,
+    id_orden_referencia UUID NULL,
+    requiere_ot BOOLEAN DEFAULT FALSE,
+    id_orden_generada UUID NULL,
+    estatus_detalle VARCHAR(50) DEFAULT 'PROPUESTO',
+    fecha_alta TIMESTAMPTZ DEFAULT NOW(),
+    fecha_actualizacion TIMESTAMPTZ DEFAULT NOW(),
+    observaciones TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.calendario_mantenimiento_fuentes (
+    id_fuente UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_detalle UUID NOT NULL REFERENCES public.calendario_mantenimiento_detalle(id_detalle) ON DELETE CASCADE,
+    tipo_fuente VARCHAR(50) NOT NULL,
+    id_referencia VARCHAR(255) NULL,
+    maquina_id VARCHAR(100) NULL REFERENCES public.cat_maquinas(equipo_towell) ON UPDATE CASCADE ON DELETE CASCADE,
+    fecha_referencia DATE NULL,
+    peso_riesgo NUMERIC(18,4) NULL,
+    comentario TEXT NULL,
+    fecha_alta TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================================
+-- 13. VALIDATION VIEWS
+-- ============================================================================
+
+CREATE OR REPLACE VIEW public.vw_validacion_maquinas_excel AS
+SELECT 
+    id_stg,
+    equipo_towell,
+    clave,
+    ax,
+    archivo_origen,
+    fecha_carga,
+    id_carga,
+    CASE 
+        WHEN equipo_towell IS NULL OR equipo_towell = '' THEN FALSE
+        ELSE TRUE 
+    END as es_valido,
+    CASE 
+        WHEN equipo_towell IS NULL OR equipo_towell = '' THEN 'Falta EQUIPO TOWELL (código operativo principal).'
+        ELSE 'Registro correcto'
+    END as detalles_error
+FROM public.stg_maquinas_excel;
+
+CREATE OR REPLACE VIEW public.vw_validacion_refacciones_excel AS
+SELECT
+    id_stg,
+    codigo_articulo,
+    nombre_articulo,
+    unidad_medida,
+    familia,
+    activo,
+    archivo_origen,
+    fecha_carga,
+    id_carga,
+    CASE 
+        WHEN codigo_articulo IS NULL OR codigo_articulo = '' THEN FALSE
+        ELSE TRUE 
+    END as es_valido,
+    CASE 
+        WHEN codigo_articulo IS NULL OR codigo_articulo = '' THEN 'Falta código de artículo.'
+        ELSE 'Registro correcto'
+    END as detalles_error
+FROM public.stg_refacciones_excel;
+
+CREATE OR REPLACE VIEW public.vw_validacion_tecnicos_excel AS
+SELECT
+    id_stg,
+    cve_tecnico,
+    nombre_tecnico,
+    departamento_codigo,
+    turno_id,
+    especialidad,
+    puesto,
+    correo,
+    telefono,
+    activo,
+    archivo_origen,
+    fecha_carga,
+    id_carga,
+    CASE 
+        WHEN cve_tecnico IS NULL OR cve_tecnico = '' THEN FALSE
+        WHEN nombre_tecnico IS NULL OR nombre_tecnico = '' THEN FALSE
+        ELSE TRUE 
+    END as es_valido,
+    CASE 
+        WHEN cve_tecnico IS NULL OR cve_tecnico = '' THEN 'Falta clave del técnico.'
+        WHEN nombre_tecnico IS NULL OR nombre_tecnico = '' THEN 'Falta nombre del técnico.'
+        ELSE 'Registro correcto'
+    END as detalles_error
+FROM public.stg_tecnicos_excel;
+
+CREATE OR REPLACE VIEW public.vw_validacion_empleados_excel AS
+SELECT
+    id_stg,
+    cve_empleado,
+    nombre_empleado,
+    departamento_codigo,
+    turno_id,
+    puesto,
+    correo,
+    telefono,
+    activo,
+    archivo_origen,
+    fecha_carga,
+    id_carga,
+    CASE 
+        WHEN cve_empleado IS NULL OR cve_empleado = '' THEN FALSE
+        WHEN nombre_empleado IS NULL OR nombre_empleado = '' THEN FALSE
+        ELSE TRUE 
+    END as es_valido,
+    CASE 
+        WHEN cve_empleado IS NULL OR cve_empleado = '' THEN 'Falta clave del empleado.'
+        WHEN nombre_empleado IS NULL OR nombre_empleado = '' THEN 'Falta nombre del empleado.'
+        ELSE 'Registro correcto'
+    END as detalles_error
+FROM public.stg_empleados_excel;
+
+CREATE OR REPLACE VIEW public.vw_validacion_fallas_por_maquina AS
+SELECT
+    id,
+    maquina_id,
+    descripcion,
+    creada,
+    archivo_origen,
+    fecha_carga,
+    CASE 
+        WHEN maquina_id IS NULL OR maquina_id = '' THEN FALSE
+        WHEN NOT EXISTS (SELECT 1 FROM public.cat_maquinas m WHERE m.equipo_towell = maquina_id) THEN FALSE
+        ELSE TRUE 
+    END as es_valido,
+    CASE 
+        WHEN maquina_id IS NULL OR maquina_id = '' THEN 'Falta identificación de la máquina (equipo_towell).'
+        WHEN NOT EXISTS (SELECT 1 FROM public.cat_maquinas m WHERE m.equipo_towell = maquina_id) THEN 'El telar no existe en el catálogo principal.'
+        ELSE 'Registro correcto'
+    END as detalles_error
+FROM public.stg_fallas_por_maquina_excel;
+
+CREATE OR REPLACE VIEW public.vw_validacion_telegram_ordenes AS
+SELECT
+    id as id_original,
+    folio,
+    estatus,
+    fecha,
+    hora,
+    depto,
+    maquina_id,
+    tipo_falla_id,
+    falla,
+    hora_fin,
+    cve_empl,
+    nom_empl,
+    turno,
+    cve_atendio,
+    nom_atendio,
+    turno_atendio,
+    obs,
+    orden_trabajo,
+    descripcion,
+    enviado,
+    obs_cierre,
+    calidad,
+    fecha_fin,
+    fecha_carga,
+    CASE 
+        WHEN id IS NULL THEN FALSE
+        WHEN maquina_id IS NULL OR maquina_id = '' THEN FALSE
+        ELSE TRUE 
+    END as es_valido,
+    CASE 
+        WHEN id IS NULL THEN 'Falta ID único original.'
+        WHEN maquina_id IS NULL OR maquina_id = '' THEN 'Falta identificación de la máquina (maquina_id).'
+        ELSE 'Registro correcto'
+    END as detalles_error
+FROM public.stg_telegram_ordenes_telares;
+
+CREATE OR REPLACE VIEW public.vw_validacion_refacciones_por_maquina AS
+SELECT
+    id_stg,
+    fecha,
+    maquina_id,
+    destino,
+    codigo_articulo,
+    nombre_articulo,
+    cantidad_estandar,
+    precio_costo_unitario,
+    importe_costo_origen,
+    archivo_origen,
+    fecha_carga,
+    id_carga,
+    CASE 
+        WHEN codigo_articulo IS NULL OR codigo_articulo = '' THEN FALSE
+        WHEN NOT EXISTS (SELECT 1 FROM public.cat_refacciones r WHERE r.codigo_articulo = codigo_articulo) THEN FALSE
+        WHEN COALESCE(maquina_id, destino) IS NULL OR COALESCE(maquina_id, destino) = '' THEN FALSE
+        ELSE TRUE 
+    END as es_valido,
+    CASE 
+        WHEN codigo_articulo IS NULL OR codigo_articulo = '' THEN 'Falta código de artículo.'
+        WHEN NOT EXISTS (SELECT 1 FROM public.cat_refacciones r WHERE r.codigo_articulo = codigo_articulo) THEN 'El artículo no existe en catálogo de refacciones.'
+        WHEN COALESCE(maquina_id, destino) IS NULL OR COALESCE(maquina_id, destino) = '' THEN 'Falta identificar la máquina de destino.'
+        ELSE 'Registro correcto'
+    END as detalles_error
+FROM public.stg_refacciones_por_maquina_excel;
+
+CREATE OR REPLACE VIEW public.vw_validacion_inventario_refacciones AS
+SELECT
+    id_stg,
+    codigo_articulo,
+    codigo_proveedor,
+    stock_actual,
+    stock_minimo,
+    stock_maximo,
+    unidad_medida,
+    ubicacion,
+    costo_unitario,
+    moneda,
+    observaciones,
+    archivo_origen,
+    fecha_carga,
+    id_carga,
+    CASE 
+        WHEN codigo_articulo IS NULL OR codigo_articulo = '' THEN FALSE
+        WHEN NOT EXISTS (SELECT 1 FROM public.cat_refacciones r WHERE r.codigo_articulo = codigo_articulo) THEN FALSE
+        ELSE TRUE 
+    END as es_valido,
+    CASE 
+        WHEN codigo_articulo IS NULL OR codigo_articulo = '' THEN 'Falta código de artículo.'
+        WHEN NOT EXISTS (SELECT 1 FROM public.cat_refacciones r WHERE r.codigo_articulo = codigo_articulo) THEN 'El artículo no existe en catálogo de refacciones.'
+        ELSE 'Registro correcto'
+    END as detalles_error
+FROM public.stg_inventario_refacciones_excel;
+
+CREATE OR REPLACE VIEW public.vw_validacion_costos_mano_obra AS
+SELECT
+    id_stg,
+    cve_tecnico,
+    nombre_tecnico,
+    costo_hora,
+    moneda,
+    fecha_inicio_vigencia,
+    fecha_fin_vigencia,
+    observaciones,
+    archivo_origen,
+    fecha_carga,
+    id_carga,
+    CASE 
+        WHEN cve_tecnico IS NULL OR cve_tecnico = '' THEN FALSE
+        WHEN NOT EXISTS (SELECT 1 FROM public.cat_tecnicos t WHERE t.cve_tecnico = cve_tecnico) THEN FALSE
+        ELSE TRUE 
+    END as es_valido,
+    CASE 
+        WHEN cve_tecnico IS NULL OR cve_tecnico = '' THEN 'Falta clave de técnico.'
+        WHEN NOT EXISTS (SELECT 1 FROM public.cat_tecnicos t WHERE t.cve_tecnico = cve_tecnico) THEN 'El técnico no existe en catálogo de mantenimiento.'
+        ELSE 'Registro correcto'
+    END as detalles_error
+FROM public.stg_costos_mano_obra_excel;
+
+-- Safe validation helper functions
+CREATE OR REPLACE FUNCTION public.safe_is_date(val TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+  IF val IS NULL THEN RETURN FALSE; END IF;
+  PERFORM val::DATE;
+  RETURN TRUE;
+EXCEPTION WHEN OTHERS THEN
+  RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION public.safe_is_numeric(val TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+  IF val IS NULL THEN RETURN FALSE; END IF;
+  PERFORM val::NUMERIC;
+  RETURN TRUE;
+EXCEPTION WHEN OTHERS THEN
+  RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE VIEW public.vw_validacion_segundas_por_rollo AS
+SELECT 
+    s.*,
+    COALESCE(
+        (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.maquina_id_detectada LIMIT 1),
+        (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.produccion LIMIT 1),
+        (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.nombre LIMIT 1),
+        (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.numero_serie LIMIT 1),
+        (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.id_flog LIMIT 1),
+        (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.salon LIMIT 1)
+    ) as maquina_id_resuelta,
+    CASE 
+        WHEN s.id_carga IS NULL THEN FALSE
+        WHEN s.defecto IS NULL OR s.defecto = '' THEN FALSE
+        WHEN NOT public.safe_is_date(s.fecha) THEN FALSE
+        WHEN NOT public.safe_is_numeric(s.cantidad) THEN FALSE
+        WHEN COALESCE(
+            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.maquina_id_detectada LIMIT 1),
+            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.produccion LIMIT 1),
+            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.nombre LIMIT 1),
+            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.numero_serie LIMIT 1),
+            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.id_flog LIMIT 1),
+            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.salon LIMIT 1)
+        ) IS NULL THEN FALSE
+        -- Evitar excepción de casteo si la fecha es inválida
+        WHEN public.safe_is_date(s.fecha) AND EXISTS (
+            SELECT 1 FROM public.segundas_por_rollo r 
+            WHERE r.fecha = s.fecha::DATE 
+              AND r.produccion = s.produccion 
+              AND r.codigo_defecto = s.codigo_defecto 
+              AND r.numero_serie = COALESCE(s.numero_serie, '') 
+              AND r.turno_tejido = COALESCE(s.turno_tejido, '')
+        ) THEN FALSE
+        ELSE TRUE 
+    END as es_valido,
+    CASE 
+        WHEN s.id_carga IS NULL THEN 'Falta ID de carga de control.'
+        WHEN s.defecto IS NULL OR s.defecto = '' THEN 'Falta descripción del defecto.'
+        WHEN NOT public.safe_is_date(s.fecha) THEN 'Fecha inválida o no convertible.'
+        WHEN NOT public.safe_is_numeric(s.cantidad) THEN 'Cantidad de defecto no es un valor numérico válido.'
+        WHEN COALESCE(
+            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.maquina_id_detectada LIMIT 1),
+            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.produccion LIMIT 1),
+            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.nombre LIMIT 1),
+            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.numero_serie LIMIT 1),
+            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.id_flog LIMIT 1),
+            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.salon LIMIT 1)
+        ) IS NULL THEN 'No se pudo identificar un telar válido en las columnas de máquina.'
+        WHEN public.safe_is_date(s.fecha) AND EXISTS (
+            SELECT 1 FROM public.segundas_por_rollo r 
+            WHERE r.fecha = s.fecha::DATE 
+              AND r.produccion = s.produccion 
+              AND r.codigo_defecto = s.codigo_defecto 
+              AND r.numero_serie = COALESCE(s.numero_serie, '') 
+              AND r.turno_tejido = COALESCE(s.turno_tejido, '')
+        ) THEN 'El registro ya existe en el histórico de Segundas por Rollo (Duplicado).'
+        ELSE 'Registro correcto'
+    END as detalles_error
+FROM public.stg_segundas_por_rollo_excel s;
+
+-- ============================================================================
+-- 14. QUALITY & MAINTENANCE ANALYTICAL VIEWS
+-- ============================================================================
+
+CREATE OR REPLACE VIEW public.vw_ranking_semanal_segundas_telares AS
+SELECT 
+    maquina_id, 
+    anio, 
+    semana, 
+    SUM(pzas_rollo) as total_piezas, 
+    SUM(cantidad_defecto) as total_defectos,
+    DENSE_RANK() OVER (PARTITION BY anio, semana ORDER BY SUM(cantidad_defecto) DESC) as ranking_defecto
+FROM public.segundas_por_rollo
+WHERE activo = TRUE
+GROUP BY maquina_id, anio, semana;
+
+CREATE OR REPLACE VIEW public.vw_defectos_por_telar AS
+WITH ranked_defectos AS (
+    SELECT 
+        maquina_id, 
+        defecto, 
+        SUM(cantidad_defecto) as total_defecto,
+        ROW_NUMBER() OVER (PARTITION BY maquina_id ORDER BY SUM(cantidad_defecto) DESC) as rn
+    FROM public.segundas_por_rollo
+    WHERE activo = TRUE
+    GROUP BY maquina_id, defecto
+)
+SELECT 
+    maquina_id, 
+    defecto as defecto_principal, 
+    total_defecto
+FROM ranked_defectos 
+WHERE rn = 1;
+
+CREATE OR REPLACE VIEW public.vw_segundas_vs_fallas_maquina AS
+SELECT 
+    s.maquina_id,
+    s.anio,
+    s.semana,
+    SUM(s.cantidad_defecto) as total_segundas,
+    SUM(s.pzas_rollo) as total_piezas,
+    (SELECT d.defecto_principal FROM public.vw_defectos_por_telar d WHERE d.maquina_id = s.maquina_id) as defecto_principal,
+    COALESCE(COUNT(DISTINCT f.id_falla), 0) as total_fallas,
+    COALESCE(
+        (SELECT f2.categoria_falla FROM public.fallas_por_maquina f2 
+         WHERE f2.maquina_id = s.maquina_id 
+         GROUP BY f2.categoria_falla ORDER BY COUNT(*) DESC LIMIT 1), 
+        'Sin clasificar'
+    ) as falla_principal,
+    CASE 
+        WHEN SUM(s.cantidad_defecto) > 10 AND COUNT(DISTINCT f.id_falla) > 0 THEN 'Alta'
+        WHEN SUM(s.cantidad_defecto) > 5 OR COUNT(DISTINCT f.id_falla) > 0 THEN 'Media'
+        ELSE 'Baja'
+    END as coincidencia_calidad_mantenimiento,
+    CASE 
+        WHEN SUM(s.cantidad_defecto) > 10 AND COUNT(DISTINCT f.id_falla) > 0 THEN 'Programar mantenimiento predictivo urgente y revisar guías.'
+        WHEN SUM(s.cantidad_defecto) > 5 THEN 'Programar inspección autónoma semanal.'
+        ELSE 'Monitorear comportamiento.'
+    END as recomendacion
+FROM public.segundas_por_rollo s
+LEFT JOIN public.fallas_por_maquina f ON f.maquina_id = s.maquina_id AND EXTRACT(WEEK FROM f.fecha_hora_creada) = s.semana AND EXTRACT(YEAR FROM f.fecha_hora_creada) = s.anio
+WHERE s.activo = TRUE
+GROUP BY s.maquina_id, s.anio, s.semana;
+
+CREATE OR REPLACE VIEW public.vw_segundas_vs_ordenes_telegram AS
+SELECT 
+    s.maquina_id,
+    s.fecha as fecha_segundas,
+    s.semana,
+    s.defecto,
+    s.turno_tejido,
+    s.salon,
+    o.folio as folio_ot,
+    o.falla as falla_telegram,
+    o.estatus as estatus_ot,
+    o.fecha_inicio as fecha_ot,
+    o.nombre_atendio as tecnico_atendio
+FROM public.segundas_por_rollo s
+LEFT JOIN public.ordenes_trabajo o ON o.maquina_id = s.maquina_id AND o.fecha_inicio = s.fecha
+WHERE s.activo = TRUE;
+
+CREATE OR REPLACE VIEW public.vw_segundas_vs_fallas_maquina_mensual AS
+SELECT 
+    s.maquina_id,
+    s.anio,
+    s.mes,
+    SUM(s.cantidad_defecto) as total_segundas,
+    SUM(s.pzas_rollo) as total_piezas,
+    COALESCE(
+        (SELECT d.defecto_principal FROM public.vw_defectos_por_telar d WHERE d.maquina_id = s.maquina_id LIMIT 1),
+        'Sin clasificar'
+    ) as defecto_principal,
+    COALESCE(COUNT(DISTINCT f.id_falla), 0) as total_fallas,
+    COALESCE(
+        (SELECT f2.categoria_falla FROM public.fallas_por_maquina f2 
+         WHERE f2.maquina_id = s.maquina_id 
+         GROUP BY f2.categoria_falla ORDER BY COUNT(*) DESC LIMIT 1), 
+        'Sin clasificar'
+    ) as falla_principal,
+    CASE 
+        WHEN SUM(s.cantidad_defecto) > 10 AND COUNT(DISTINCT f.id_falla) > 0 THEN 'Alta'
+        WHEN SUM(s.cantidad_defecto) > 5 OR COUNT(DISTINCT f.id_falla) > 0 THEN 'Media'
+        ELSE 'Baja'
+    END as coincidencia_calidad_mantenimiento,
+    CASE 
+        WHEN SUM(s.cantidad_defecto) > 10 AND COUNT(DISTINCT f.id_falla) > 0 THEN 'Programar mantenimiento predictivo urgente y revisar guías.'
+        WHEN SUM(s.cantidad_defecto) > 5 THEN 'Programar inspección autónoma semanal.'
+        ELSE 'Monitorear comportamiento.'
+    END as recomendacion
+FROM public.segundas_por_rollo s
+LEFT JOIN public.fallas_por_maquina f ON f.maquina_id = s.maquina_id 
+    AND EXTRACT(MONTH FROM f.fecha_hora_creada) = s.mes 
+    AND EXTRACT(YEAR FROM f.fecha_hora_creada) = s.anio
+WHERE s.activo = TRUE
+GROUP BY s.maquina_id, s.anio, s.mes;
+
+CREATE OR REPLACE VIEW public.vw_refacciones_sugeridas_por_calendario AS
+SELECT 
+    rm.maquina_id,
+    'Predictivo/Autónomo' as tipo_mantenimiento,
+    rm.codigo_articulo,
+    rm.nombre_articulo,
+    rm.cantidad_estandar,
+    COALESCE(i.stock_actual, 0) as stock_actual,
+    COALESCE(i.stock_minimo, 0) as stock_minimo,
+    CASE 
+        WHEN COALESCE(i.stock_actual, 0) <= 0 THEN 'Crítico'
+        WHEN COALESCE(i.stock_actual, 0) < COALESCE(i.stock_minimo, 0) THEN 'Bajo'
+        ELSE 'OK'
+    END as riesgo_stock,
+    COALESCE(i.costo_unitario, rm.precio_costo_unitario) as costo_estimado
+FROM public.refacciones_por_maquina rm
+LEFT JOIN public.inventario_refacciones i ON i.codigo_articulo = rm.codigo_articulo;
+
+-- ============================================================================
+-- 15. CALENDAR VIEWS
+-- ============================================================================
+
+-- vw_calendario_preventivo_anual
+CREATE OR REPLACE VIEW public.vw_calendario_preventivo_anual AS
+SELECT 
+    EXTRACT(YEAR FROM p.proxima_ejecucion)::int as anio,
+    EXTRACT(MONTH FROM p.proxima_ejecucion)::int as periodo,
+    p.maquina_id,
+    p.codigo_servicio,
+    p.nombre_plan as actividad_sugerida,
+    p.proxima_ejecucion as fecha_programada,
+    p.responsable as cve_tecnico,
+    'PREVENTIVO'::varchar as tipo_mantenimiento,
+    'Media'::varchar as prioridad,
+    0.00::numeric as score_riesgo,
+    'Bajo'::varchar as nivel_riesgo_calidad
+FROM public.planes_mantenimiento_preventivo p
+WHERE p.activo = TRUE;
+
+-- vw_calendario_predictivo_mensual
+CREATE OR REPLACE VIEW public.vw_calendario_predictivo_mensual AS
+SELECT 
+    s.anio,
+    s.mes as periodo,
+    s.maquina_id,
+    'PREDICTIVO'::varchar as tipo_mantenimiento,
+    s.recomendacion as actividad_sugerida,
+    (CURRENT_DATE + INTERVAL '1 month')::date as fecha_programada,
+    NULL::varchar as cve_tecnico,
+    CASE 
+        WHEN s.coincidencia_calidad_mantenimiento = 'Alta' THEN 'Alta'::varchar
+        WHEN s.coincidencia_calidad_mantenimiento = 'Media' THEN 'Media'::varchar
+        ELSE 'Baja'::varchar
+    END as prioridad,
+    CASE 
+        WHEN s.coincidencia_calidad_mantenimiento = 'Alta' THEN 90.00
+        WHEN s.coincidencia_calidad_mantenimiento = 'Media' THEN 65.00
+        ELSE 30.00
+    END as score_riesgo,
+    s.coincidencia_calidad_mantenimiento as nivel_riesgo_calidad
+FROM public.vw_segundas_vs_fallas_maquina_mensual s;
+
+-- vw_calendario_autonomo_semanal
+CREATE OR REPLACE VIEW public.vw_calendario_autonomo_semanal AS
+SELECT 
+    s.anio,
+    s.semana as periodo,
+    s.maquina_id,
+    'AUTONOMO'::varchar as tipo_mantenimiento,
+    COALESCE(
+        (SELECT r.actividad_autonoma_sugerida FROM public.cat_relacion_defecto_falla r WHERE r.defecto_calidad = s.defecto LIMIT 1),
+        'Realizar inspección autónoma general'
+    ) as actividad_sugerida,
+    (CURRENT_DATE + INTERVAL '7 days')::date as fecha_programada,
+    NULL::varchar as cve_tecnico,
+    SUM(s.pzas_rollo) as total_piezas,
+    SUM(s.cantidad_defecto) as total_segundas,
+    CASE 
+        WHEN SUM(s.cantidad_defecto) > 10 THEN 'Alta'::varchar
+        WHEN SUM(s.cantidad_defecto) > 5 THEN 'Media'::varchar
+        ELSE 'Baja'::varchar
+    END as prioridad,
+    (SUM(s.cantidad_defecto) * 5 + COALESCE((SELECT COUNT(*) FROM public.fallas_por_maquina f WHERE f.maquina_id = s.maquina_id AND EXTRACT(WEEK FROM f.fecha_hora_creada) = s.semana), 0) * 10) as score_riesgo,
+    CASE 
+        WHEN SUM(s.cantidad_defecto) > 10 THEN 'Alto'::varchar
+        WHEN SUM(s.cantidad_defecto) > 5 THEN 'Medio'::varchar
+        ELSE 'Baja'::varchar
+    END as nivel_riesgo_calidad
+FROM public.segundas_por_rollo s
+WHERE s.activo = TRUE
+GROUP BY s.anio, s.semana, s.maquina_id, s.turno_tejido, s.defecto;
+
+-- vw_calendario_mantenimiento_general
+CREATE OR REPLACE VIEW public.vw_calendario_mantenimiento_general AS
+SELECT 
+    id_detalle,
+    id_calendario,
+    maquina_id,
+    fecha_programada,
+    turno_sugerido,
+    tipo_mantenimiento,
+    prioridad,
+    actividad_sugerida,
+    responsable_sugerido,
+    fuente_principal,
+    score_riesgo,
+    estatus_detalle,
+    requiere_ot,
+    id_orden_generada
+FROM public.calendario_mantenimiento_detalle;
+
+-- ============================================================================
+-- 16. ROW LEVEL SECURITY (RLS Policies for Admins and Maintenance)
+-- ============================================================================
+
+-- Create helper function for role verification if not exists
+CREATE OR REPLACE FUNCTION public.check_user_role(required_role VARCHAR)
+RETURNS BOOLEAN SECURITY DEFINER AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.cat_usuarios_roles
+    WHERE correo = auth.jwt()->>'email'
+      AND rol = required_role
+      AND activo = TRUE
+  );
+END;
+$$ LANGUAGE plpgsql;
+
+-- Enable RLS on Clean Tables
+ALTER TABLE public.segundas_por_rollo ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cat_relacion_defecto_falla ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calendarios_mantenimiento ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calendario_mantenimiento_detalle ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calendario_mantenimiento_fuentes ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS super_admin_all ON public.segundas_por_rollo;
+DROP POLICY IF EXISTS mantenimiento_select ON public.segundas_por_rollo;
+DROP POLICY IF EXISTS super_admin_all ON public.cat_relacion_defecto_falla;
+DROP POLICY IF EXISTS mantenimiento_select ON public.cat_relacion_defecto_falla;
+DROP POLICY IF EXISTS super_admin_all ON public.calendarios_mantenimiento;
+DROP POLICY IF EXISTS mantenimiento_select ON public.calendarios_mantenimiento;
+DROP POLICY IF EXISTS super_admin_all ON public.calendario_mantenimiento_detalle;
+DROP POLICY IF EXISTS mantenimiento_select ON public.calendario_mantenimiento_detalle;
+DROP POLICY IF EXISTS super_admin_all ON public.calendario_mantenimiento_fuentes;
+DROP POLICY IF EXISTS mantenimiento_select ON public.calendario_mantenimiento_fuentes;
+
+-- Create Policies for Clean Tables
+CREATE POLICY super_admin_all ON public.segundas_por_rollo FOR ALL TO authenticated USING (public.check_user_role('SUPER_ADMINISTRADOR')) WITH CHECK (public.check_user_role('SUPER_ADMINISTRADOR'));
+CREATE POLICY mantenimiento_select ON public.segundas_por_rollo FOR SELECT TO authenticated USING (public.check_user_role('MANTENIMIENTO') OR public.check_user_role('SUPER_ADMINISTRADOR'));
+
+CREATE POLICY super_admin_all ON public.cat_relacion_defecto_falla FOR ALL TO authenticated USING (public.check_user_role('SUPER_ADMINISTRADOR')) WITH CHECK (public.check_user_role('SUPER_ADMINISTRADOR'));
+CREATE POLICY mantenimiento_select ON public.cat_relacion_defecto_falla FOR SELECT TO authenticated USING (public.check_user_role('MANTENIMIENTO') OR public.check_user_role('SUPER_ADMINISTRADOR'));
+
+CREATE POLICY super_admin_all ON public.calendarios_mantenimiento FOR ALL TO authenticated USING (public.check_user_role('SUPER_ADMINISTRADOR')) WITH CHECK (public.check_user_role('SUPER_ADMINISTRADOR'));
+CREATE POLICY mantenimiento_select ON public.calendarios_mantenimiento FOR SELECT TO authenticated USING (public.check_user_role('MANTENIMIENTO') OR public.check_user_role('SUPER_ADMINISTRADOR'));
+
+CREATE POLICY super_admin_all ON public.calendario_mantenimiento_detalle FOR ALL TO authenticated USING (public.check_user_role('SUPER_ADMINISTRADOR')) WITH CHECK (public.check_user_role('SUPER_ADMINISTRADOR'));
+CREATE POLICY mantenimiento_select ON public.calendario_mantenimiento_detalle FOR SELECT TO authenticated USING (public.check_user_role('MANTENIMIENTO') OR public.check_user_role('SUPER_ADMINISTRADOR'));
+
+CREATE POLICY super_admin_all ON public.calendario_mantenimiento_fuentes FOR ALL TO authenticated USING (public.check_user_role('SUPER_ADMINISTRADOR')) WITH CHECK (public.check_user_role('SUPER_ADMINISTRADOR'));
+CREATE POLICY mantenimiento_select ON public.calendario_mantenimiento_fuentes FOR SELECT TO authenticated USING (public.check_user_role('MANTENIMIENTO') OR public.check_user_role('SUPER_ADMINISTRADOR'));
+
+-- Disable RLS on Staging Tables
+ALTER TABLE public.stg_maquinas_excel DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stg_refacciones_excel DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stg_tecnicos_excel DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stg_empleados_excel DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stg_refacciones_por_maquina_excel DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stg_historico_precios_refacciones_excel DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stg_inventario_refacciones_excel DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stg_costos_mano_obra_excel DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stg_segundas_por_rollo_excel DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stg_fallas_por_maquina_excel DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stg_telegram_ordenes_telares DISABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS super_admin_staging ON public.stg_maquinas_excel;
+DROP POLICY IF EXISTS super_admin_staging ON public.stg_refacciones_excel;
+DROP POLICY IF EXISTS super_admin_staging ON public.stg_tecnicos_excel;
+DROP POLICY IF EXISTS super_admin_staging ON public.stg_empleados_excel;
+DROP POLICY IF EXISTS super_admin_staging ON public.stg_refacciones_por_maquina_excel;
+DROP POLICY IF EXISTS super_admin_staging ON public.stg_historico_precios_refacciones_excel;
+DROP POLICY IF EXISTS super_admin_staging ON public.stg_inventario_refacciones_excel;
+DROP POLICY IF EXISTS super_admin_staging ON public.stg_costos_mano_obra_excel;
+DROP POLICY IF EXISTS super_admin_staging ON public.stg_segundas_por_rollo_excel;
+DROP POLICY IF EXISTS super_admin_staging ON public.stg_fallas_por_maquina_excel;
+DROP POLICY IF EXISTS super_admin_staging ON public.stg_telegram_ordenes_telares;
+
+-- 15. PERFORMANCE INDEXES FOR STAGING & INGESTION
+CREATE INDEX IF NOT EXISTS idx_stg_segundas_id_carga ON public.stg_segundas_por_rollo_excel(id_carga);
+CREATE INDEX IF NOT EXISTS idx_segundas_rollo_id_carga ON public.segundas_por_rollo(id_carga);
+
+-- 16. SAFE CAST FUNCTIONS
+CREATE OR REPLACE FUNCTION public.safe_cast_to_numeric(val TEXT)
+RETURNS NUMERIC AS $$
+BEGIN
+  IF val IS NULL OR val = '' THEN RETURN 0; END IF;
+  RETURN val::NUMERIC;
+EXCEPTION WHEN OTHERS THEN
+  RETURN 0;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION public.safe_cast_to_int(val TEXT)
+RETURNS INT AS $$
+BEGIN
+  IF val IS NULL OR val = '' THEN RETURN 0; END IF;
+  RETURN val::NUMERIC::INT;
+EXCEPTION WHEN OTHERS THEN
+  RETURN 0;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- 17. SERVER-SIDE INGESTION COMMIT FUNCTION FOR SEGUNDAS
+CREATE OR REPLACE FUNCTION public.commit_segundas_por_rollo(p_id_carga UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_inserted INT := 0;
+    v_errors INT := 0;
+    v_total INT := 0;
+BEGIN
+    -- Configurar temporalmente el timeout de consulta a 10 minutos para esta ejecución
+    PERFORM set_config('statement_timeout', '600000', true);
+
+    -- Insertar registros válidos en la tabla productiva de forma instantánea usando un LEFT JOIN directo
+    INSERT INTO public.segundas_por_rollo (
+        fecha, anio, mes, semana, produccion, maquina_id, salon, turno_tejido,
+        codigo_articulo, nombre_articulo, configuracion, tamano, color,
+        codigo_defecto, defecto, cantidad_defecto, pzas_rollo, kg_rollo, mts_rollo,
+        no_tiras, medida_1, medida_2, pzas_t1, pzas_t2, pzas_t3, pzas_t4,
+        id_flog, calidad_flog, numero_serie, origen, id_carga, score_riesgo, nivel_riesgo
+    )
+    SELECT DISTINCT ON (s.fecha::DATE, s.produccion, s.codigo_defecto, COALESCE(s.numero_serie, ''), COALESCE(s.turno_tejido, ''))
+        (s.fecha)::DATE,
+        EXTRACT(YEAR FROM (s.fecha)::DATE)::INT,
+        EXTRACT(MONTH FROM (s.fecha)::DATE)::INT,
+        EXTRACT(WEEK FROM (s.fecha)::DATE)::INT,
+        s.produccion,
+        COALESCE(m.equipo_towell, s.produccion), -- resolved machine id
+        s.salon,
+        COALESCE(s.turno_tejido, ''),
+        s.codigo_articulo,
+        s.nombre_articulo,
+        s.configuracion,
+        s.tamano,
+        s.color,
+        s.codigo_defecto,
+        s.defecto,
+        COALESCE(NULLIF(s.cantidad, '')::NUMERIC, 0),
+        COALESCE(NULLIF(s.pzas_rollo, '')::NUMERIC, 0),
+        COALESCE(NULLIF(s.kg_rollo, '')::NUMERIC, 0),
+        COALESCE(NULLIF(s.mts_rollo, '')::NUMERIC, 0),
+        COALESCE(NULLIF(s.no_tiras, '')::NUMERIC, 0),
+        COALESCE(NULLIF(s.medida_1, '')::NUMERIC, 0),
+        COALESCE(NULLIF(s.medida_2, '')::NUMERIC, 0),
+        COALESCE(NULLIF(s.pzas_t1, '')::NUMERIC, 0),
+        COALESCE(NULLIF(s.pzas_t2, '')::NUMERIC, 0),
+        COALESCE(NULLIF(s.pzas_t3, '')::NUMERIC, 0),
+        COALESCE(NULLIF(s.pzas_t4, '')::NUMERIC, 0),
+        s.id_flog,
+        s.calidad_flog,
+        COALESCE(s.numero_serie, ''),
+        'EXCEL_SEGUNDAS_X_ROLLO',
+        s.id_carga,
+        COALESCE(NULLIF(s.cantidad, '')::NUMERIC, 0) * 10,
+        'Bajo'
+    FROM public.stg_segundas_por_rollo_excel s
+    LEFT JOIN public.cat_maquinas m ON m.ax = s.localidad
+    WHERE s.id_carga = p_id_carga 
+      AND s.fecha IS NOT NULL
+      AND s.defecto IS NOT NULL 
+      AND s.defecto <> ''
+    ORDER BY s.fecha::DATE, s.produccion, s.codigo_defecto, COALESCE(s.numero_serie, ''), COALESCE(s.turno_tejido, ''), s.id_stg DESC
+    ON CONFLICT (fecha, produccion, codigo_defecto, numero_serie, turno_tejido) 
+    DO UPDATE SET 
+        cantidad_defecto = EXCLUDED.cantidad_defecto,
+        pzas_rollo = EXCLUDED.pzas_rollo,
+        kg_rollo = EXCLUDED.kg_rollo,
+        mts_rollo = EXCLUDED.mts_rollo,
+        no_tiras = EXCLUDED.no_tiras;
+
+    GET DIAGNOSTICS v_inserted = ROW_COUNT;
+
+    -- Contar total
+    SELECT COUNT(*) INTO v_total 
+    FROM public.stg_segundas_por_rollo_excel 
+    WHERE id_carga = p_id_carga;
+
+    v_errors := v_total - v_inserted;
+
+    -- Actualizar log de control
+    UPDATE public.control_cargas_archivos
+    SET 
+        estatus_carga = 'Completada',
+        registros_correctos = v_inserted,
+        registros_error = v_errors,
+        observaciones = 'Ingestión finalizada con éxito desde el servidor. ' || v_inserted || ' importados, ' || v_errors || ' omitidos.'
+    WHERE id_carga = p_id_carga;
+
+    RETURN jsonb_build_object('success', true, 'inserted', v_inserted, 'errors', v_errors);
+END;
+$$;
