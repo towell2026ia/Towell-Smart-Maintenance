@@ -7418,6 +7418,129 @@ async function handleApproveCalItem() {
   }
 }
 
+async function getAICriticalPoints(maquinaId, tipoMantenimiento, actividad) {
+  let aiText = `\n\n🤖 PUNTOS CRÍTICOS RECOMENDADOS POR IA (Historial de Planta):`;
+  
+  if (!supabaseClient) {
+    if (tipoMantenimiento === 'PREVENTIVO') {
+      aiText += `
+• Inspección visual y limpieza profunda del telar.
+• Ajuste de tensión en el sistema de urdimbre.
+• Lubricación de los puntos de fricción principales.`;
+    } else if (tipoMantenimiento === 'PREDICTIVO') {
+      aiText += `
+• Medición de temperatura en el motor principal.
+• Análisis visual de vibraciones o ruidos inusuales.
+• Revisión del desgaste de bandas y engranes.`;
+    } else {
+      aiText += `
+• Limpieza general de pelusa y residuos de hilo.
+• Verificación visual del enhebrado de trama y urdimbre.
+• Reportar cualquier fuga de aceite detectada en tinas.`;
+    }
+    return aiText;
+  }
+
+  try {
+    if (tipoMantenimiento === 'PREVENTIVO') {
+      const cat = (actividad || '').replace('Preventivo: ', '').trim();
+      
+      const { data: fallas } = await supabaseClient
+        .from('fallas_por_maquina')
+        .select('descripcion_falla')
+        .eq('maquina_id', maquinaId)
+        .eq('categoria_falla', cat)
+        .limit(100);
+
+      if (fallas && fallas.length > 0) {
+        const counts = {};
+        fallas.forEach(f => {
+          const desc = f.descripcion_falla || 'Falla General';
+          counts[desc] = (counts[desc] || 0) + 1;
+        });
+        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        const topFalla = sorted[0][0];
+        const topFallaPct = Math.round((sorted[0][1] / fallas.length) * 100);
+
+        aiText += `
+• Análisis de Repetibilidad: Esta máquina tiene ${fallas.length} fallas históricas de tipo "${cat}".
+• Foco Crítico IA: "${topFalla}" representa el ${topFallaPct}% de las ocurrencias.
+• Puntos sugeridos a revisar por técnico:
+  1. Verificar estado físico de componentes asociados a: ${topFalla}.
+  2. Ajustar y calibrar sensores del área de trabajo afectada.
+  3. Realizar pruebas de continuidad en cableados y señales de control.`;
+      } else {
+        aiText += `
+• Historial limpio: No hay fallas graves de tipo "${cat}" registradas recientemente.
+• Recomendación Preventiva Estándar:
+  1. Inspección general de conexiones del bloque de "${cat}".
+  2. Limpieza de polvo acumulado y reapriete de terminales.
+  3. Comprobar ciclos de operación libre de alarmas.`;
+      }
+
+    } else if (tipoMantenimiento === 'PREDICTIVO') {
+      const { data: fallas } = await supabaseClient
+        .from('fallas_por_maquina')
+        .select('descripcion_falla, creada')
+        .eq('maquina_id', maquinaId)
+        .order('creada', { ascending: false })
+        .limit(3);
+
+      if (fallas && fallas.length > 0) {
+        aiText += `
+• Alerta de Repetibilidad: El telar registró paros recientes por:
+  - "${fallas[0].descripcion_falla}"
+• Puntos de monitoreo predictivo:
+  1. Tomar lectura de temperatura en el módulo del componente indicado.
+  2. Comprobar desgaste milimétrico en guías o rodamientos.
+  3. Realizar inspección por termografía en el gabinete eléctrico asociado.`;
+      } else {
+        aiText += `
+• Recomendación Predictiva Basada en Tendencia General:
+  1. Medir nivel de vibración en flechas principales.
+  2. Revisar temperatura de rodamientos de motor principal.
+  3. Verificar desgaste prematuro de bandas de transmisión.`;
+      }
+
+    } else if (tipoMantenimiento === 'AUTONOMO') {
+      const { data: defectos } = await supabaseClient
+        .from('segundas_por_rollo')
+        .select('defecto')
+        .eq('maquina_id', maquinaId)
+        .limit(50);
+
+      if (defectos && defectos.length > 0) {
+        const counts = {};
+        defectos.forEach(d => {
+          const def = d.defecto || 'Defecto General';
+          counts[def] = (counts[def] || 0) + 1;
+        });
+        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        const topDefect = sorted[0][0];
+
+        aiText += `
+• Alerta de Calidad: Se han registrado rollos de segunda con defecto de "${topDefect}".
+• Puntos de inspección para operador autónomo:
+  1. Limpiar guías de hilo, agujas y peines del telar para evitar: ${topDefect}.
+  2. Inspeccionar tensión y alineación en el filetero.
+  3. Comprobar que no haya acumulaciones de grasa/aceite que puedan manchar el tejido.`;
+      } else {
+        aiText += `
+• Calidad Excelente: No se registran defectos de segunda recientes.
+• Rutina Autónoma Básica:
+  1. Sopleteado de pelusa en la zona de formación de la tela.
+  2. Limpieza de agujas y guías con aire comprimido.
+  3. Verificar engrase correcto de tinas de lubricación de la máquina.`;
+      }
+    }
+  } catch (err) {
+    console.error('Error generating AI points:', err);
+    aiText += `\n• (Error cargando recomendaciones en tiempo real: ${err.message})`;
+  }
+
+  return aiText;
+}
+
 async function handleGenerateOTCalItem() {
   if (!currentSelectedCalItem) return;
   const { id_detalle, maquina_id, tipo_mantenimiento, actividad_sugerida, prioridad, responsable_sugerido } = currentSelectedCalItem;
@@ -7427,6 +7550,8 @@ async function handleGenerateOTCalItem() {
   try {
     if (supabaseClient) {
       const newId = 'CAL-OT-' + Date.now().toString().slice(-6);
+      
+      const aiRecs = await getAICriticalPoints(maquina_id, tipo_mantenimiento, actividad_sugerida);
       
       const otObj = {
         folio: newId,
@@ -7439,7 +7564,7 @@ async function handleGenerateOTCalItem() {
         fecha_hora_inicio: new Date().toISOString(),
         maquina_id: maquina_id,
         falla: actividad_sugerida,
-        descripcion: `Generada automáticamente desde Calendario de Mantenimiento. Actividad: ${actividad_sugerida}`,
+        descripcion: `Generada automáticamente desde Calendario de Mantenimiento. Actividad: ${actividad_sugerida}${aiRecs}`,
         prioridad: prioridad || 'Media',
         cve_atendio: responsable_sugerido
       };
