@@ -6759,11 +6759,12 @@ async function handleProposeCalendarSubmit(event) {
       if (hErr) throw hErr;
       const calId = hData[0].id_calendario;
 
-      let viewName = 'vw_calendario_preventivo_anual';
+      // Use the new consolidated views defined in calendar_views.sql
+      let viewName = 'vw_preventivo_anual';
       if (type === 'PREDICTIVO_MENSUAL') {
-        viewName = 'vw_calendario_predictivo_mensual';
+        viewName = 'vw_predictivo_mensual';
       } else if (type === 'AUTONOMO_SEMANAL') {
-        viewName = 'vw_calendario_autonomo_semanal';
+        viewName = 'vw_autonomo_semanal';
       }
 
       const { data: viewData, error: vErr } = await supabaseClient
@@ -6773,10 +6774,9 @@ async function handleProposeCalendarSubmit(event) {
       if (vErr) throw vErr;
 
       let filtered = viewData || [];
+      // Preventivo: filter by anio_plan. Predictivo/Autonomo already return current period.
       if (type === 'PREVENTIVO_ANUAL') {
-        filtered = filtered.filter(item => item.anio === year);
-      } else {
-        filtered = filtered.filter(item => item.anio === year && item.periodo === period);
+        filtered = filtered.filter(item => item.anio_plan === year);
       }
 
       if (filtered.length === 0) {
@@ -6791,12 +6791,11 @@ async function handleProposeCalendarSubmit(event) {
           id_calendario: calId,
           maquina_id: item.maquina_id,
           tipo_mantenimiento: type.replace('_ANUAL', '').replace('_MENSUAL', '').replace('_SEMANAL', ''),
-          fecha_programada: item.fecha_programada || new Date().toISOString().split('T')[0],
-          actividad_sugerida: item.actividad_sugerida || 'Mantenimiento General',
-          responsable_sugerido: item.cve_tecnico || null,
-          prioridad: item.prioridad || 'Media',
-          score_riesgo: item.score_riesgo || 0,
-          nivel_riesgo_calidad: item.nivel_riesgo_calidad || 'Bajo',
+          fecha_programada: item.fecha_sugerida || new Date().toISOString().split('T')[0],
+          actividad_sugerida: item.actividad || 'Mantenimiento General',
+          responsable_sugerido: item.responsable || null,
+          prioridad: item.prioridad || 'BAJA',
+          score_riesgo: item.total_fallas_mes || item.fallas_acumuladas_anio || item.total_defectos || 0,
           estatus_detalle: 'PROPUESTO'
         };
 
