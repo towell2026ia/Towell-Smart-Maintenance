@@ -1657,7 +1657,7 @@ function switchAdminPanel(panelId) {
     populateTechFilters();
     renderAdminOrdersTable();
   } else if (panelId === 'calendar') {
-    renderAdminCalendar();
+    switchCalendarViewMode('grid');
   } else if (panelId === 'logs') {
     renderAdminLogsTable();
   } else if (panelId === 'machines') {
@@ -3091,46 +3091,156 @@ function viewOrderHistoryLogs(otId) {
 }
 
 // --- CALENDARIO (ADMIN) ---
-function renderAdminCalendar() {
+// Helper to calculate week numbers in JS
+function getWeekNumber(d) {
+  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  var startOfYear = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  var weekNo = Math.ceil(( ( (d - startOfYear) / 86400000) + 1)/7);
+  return weekNo;
+}
+
+async function renderAdminCalendar() {
   const container = document.getElementById('calendar-grid-container');
+  const monthLabel = document.getElementById('calendar-month-label');
   if (!container) return;
 
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  // Actualizar label de mes
+  const monthsNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  if (monthLabel) {
+    monthLabel.innerText = `${monthsNames[currentCalendarMonth]} ${currentCalendarYear}`;
+  }
+
+  // Leer checkboxes de filtros
+  const showCorrectivos = document.getElementById('filter-cal-correctivo')?.checked !== false;
+  const showPreventivos = document.getElementById('filter-cal-preventivo')?.checked !== false;
+  const showPredictivos = document.getElementById('filter-cal-predictivo')?.checked !== false;
+  const showAutonomos = document.getElementById('filter-cal-autonomo')?.checked !== false;
+
+  // Obtener órdenes de trabajo (correctivos) locales
+  let localOrders = [];
+  if (showCorrectivos) {
+    const allLocalOrders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    localOrders = allLocalOrders.filter(o => o.type !== 'MP' && o.type !== 'PREVENTIVO' && o.type !== 'PREDICTIVO' && o.type !== 'AUTONOMO');
+  }
+
+  // Obtener sugerencias de la base de datos (Supabase)
+  let suggestions = [];
+  if (supabaseClient && (showPreventivos || showPredictivos || showAutonomos)) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('vw_calendario_consolidado')
+        .select('*')
+        .eq('anio', currentCalendarYear);
+        
+      if (!error && data) {
+        suggestions = data.filter(item => {
+          // Filtrar por mes
+          if (item.mes && item.mes !== (currentCalendarMonth + 1)) return false;
+          
+          if (!item.mes && item.fecha_sugerida) {
+            const sugMonth = new Date(item.fecha_sugerida).getMonth();
+            if (sugMonth !== currentCalendarMonth) return false;
+          }
+
+          if (item.tipo_mantenimiento === 'PREVENTIVO' && !showPreventivos) return false;
+          if (item.tipo_mantenimiento === 'PREDICTIVO' && !showPredictivos) return false;
+          if (item.tipo_mantenimiento === 'AUTONOMO' && !showAutonomos) return false;
+          
+          return true;
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching consolidated calendar suggestions:', err);
+    }
+  }
+
+  // Combinar eventos
+  const correctiveEvents = localOrders.map(o => ({
+    id: o.id,
+    type: 'CORRECTIVO',
+    title: `${o.id}: ${o.description || 'Fallo'}`,
+    date: o.dueDate || o.date
+  }));
+
+  const suggestionEvents = suggestions.map(s => ({
+    id: s.maquina_id,
+    id_ref: s.id_sugerencia || s.id_referencia || s.maquina_id,
+    type: s.tipo_mantenimiento,
+    title: `${s.tipo_mantenimiento} - ${s.actividad}`,
+    date: s.fecha_sugerida
+  }));
+
+  const allEvents = [...correctiveEvents, ...suggestionEvents];
+
+  // Generar grid de días
+  const firstDayObj = new Date(currentCalendarYear, currentCalendarMonth, 1);
+  const startDayOfWeek = firstDayObj.getDay();
+  const totalDays = new Date(currentCalendarYear, currentCalendarMonth + 1, 0).getDate();
+  const prevMonthTotalDays = new Date(currentCalendarYear, currentCalendarMonth, 0).getDate();
+
   const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-  
   let html = '';
-  // Encabezados
+  
   daysOfWeek.forEach(d => {
     html += `<div class="calendar-day-header">${d}</div>`;
   });
 
-  // Generamos Junio 2026 (empieza lunes 1 de junio)
-  // Añadimos celdas vacías previas si fuera necesario (Lunes es index 1, Dom es 0. En Junio 2026, 1 es Lunes, por tanto, Dom del día anterior es vacío)
-  // Junio 2026 tiene 30 días
-  
-  // Agregar espacio vacío para el domingo anterior (1 de junio 2026 es lunes, por tanto, 1er día de la semana)
-  html += `<div class="calendar-cell" style="opacity: 0.4;"><span class="calendar-date">31</span></div>`;
+  for (let i = startDayOfWeek - 1; i >= 0; i--) {
+    const prevDay = prevMonthTotalDays - i;
+    html += `<div class="calendar-cell" style="opacity: 0.4;"><span class="calendar-date">${prevDay}</span></div>`;
+  }
 
-  for (let day = 1; day <= 30; day++) {
-    const dateStr = `2026-06-${String(day).padStart(2, '0')}`;
-    const dailyEvents = orders.filter(o => o.dueDate.startsWith(dateStr) || o.date.startsWith(dateStr));
-    const isToday = day === 3; // Suponemos que hoy es 3 de junio de 2026
+  const today = new Date();
+  const isCurrentYear = today.getFullYear() === currentCalendarYear;
+  const isCurrentMonth = today.getMonth() === currentCalendarMonth;
+  const todayDate = today.getDate();
+
+  for (let day = 1; day <= totalDays; day++) {
+    const dateStr = `${currentCalendarYear}-${String(currentCalendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dailyEvents = allEvents.filter(e => e.date && e.date.startsWith(dateStr));
+    const isToday = isCurrentYear && isCurrentMonth && day === todayDate;
 
     html += `
       <div class="calendar-cell ${isToday ? 'today' : ''}">
         <span class="calendar-date">${day} ${isToday ? '(Hoy)' : ''}</span>
-        <div style="display: flex; flex-direction: column; gap: 2px; margin-top: 4px; overflow-y: auto; max-height: 60px;">
+        <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 4px; overflow-y: auto; max-height: 80px;">
     `;
 
     dailyEvents.forEach(e => {
-      const cls = e.type === 'MP' ? 'mp' : 'mc';
-      html += `<span class="calendar-event calendar-event-${cls}" title="${e.id}: ${e.description}">${e.id}</span>`;
+      let cls = 'preventivo';
+      let clickHandler = '';
+      
+      if (e.type === 'CORRECTIVO') {
+        cls = 'correctivo';
+        clickHandler = `onclick="viewOrderHistoryLogs('${e.id}')"`;
+      } else {
+        if (e.type === 'PREDICTIVO') cls = 'predictivo';
+        if (e.type === 'AUTONOMO') cls = 'autonomo';
+        
+        let viewName = 'vw_preventivo_anual';
+        if (e.type === 'PREDICTIVO') viewName = 'vw_predictivo_mensual';
+        if (e.type === 'AUTONOMO') viewName = 'vw_autonomo_semanal';
+        
+        clickHandler = `onclick="viewCalendarDetail('${e.id_ref}', '${viewName}')"`;
+      }
+
+      html += `<span class="calendar-event ${cls}" style="cursor: pointer;" ${clickHandler} title="${e.title}">${e.id}</span>`;
     });
 
     html += `
         </div>
       </div>
     `;
+  }
+
+  const totalCellsUsed = startDayOfWeek + totalDays;
+  const cellsToFill = 42 - totalCellsUsed;
+  for (let day = 1; day <= cellsToFill; day++) {
+    html += `<div class="calendar-cell" style="opacity: 0.4;"><span class="calendar-date">${day}</span></div>`;
   }
 
   container.innerHTML = html;
@@ -6279,6 +6389,58 @@ async function resetAdminUserPassword(userId) {
 
 let currentCalendarTab = 'preventivo';
 let currentSelectedCalItem = null;
+let currentCalendarViewMode = 'grid'; // 'grid' o 'table'
+let currentCalendarYear = 2026;
+let currentCalendarMonth = 5; // Junio (0-indexed)
+
+function switchCalendarViewMode(mode) {
+  currentCalendarViewMode = mode;
+  const gridFilters = document.getElementById('calendar-grid-filters');
+  const gridModeDiv = document.getElementById('calendar-view-grid-mode');
+  const tableModeDiv = document.getElementById('calendar-view-table-mode');
+  const btnGrid = document.getElementById('btn-toggle-view-grid');
+  const btnTable = document.getElementById('btn-toggle-view-table');
+
+  if (mode === 'grid') {
+    if (gridFilters) gridFilters.style.display = 'flex';
+    if (gridModeDiv) gridModeDiv.style.display = 'block';
+    if (tableModeDiv) tableModeDiv.style.display = 'none';
+    if (btnGrid) {
+      btnGrid.style.backgroundColor = 'var(--primary-color)';
+      btnGrid.style.color = 'white';
+    }
+    if (btnTable) {
+      btnTable.style.backgroundColor = '#f1f5f9';
+      btnTable.style.color = 'var(--text-color)';
+    }
+    renderAdminCalendar();
+  } else {
+    if (gridFilters) gridFilters.style.display = 'none';
+    if (gridModeDiv) gridModeDiv.style.display = 'none';
+    if (tableModeDiv) tableModeDiv.style.display = 'flex';
+    if (btnGrid) {
+      btnGrid.style.backgroundColor = '#f1f5f9';
+      btnGrid.style.color = 'var(--text-color)';
+    }
+    if (btnTable) {
+      btnTable.style.backgroundColor = 'var(--primary-color)';
+      btnTable.style.color = 'white';
+    }
+    renderAdminCalendars();
+  }
+}
+
+function changeCalendarMonth(delta) {
+  currentCalendarMonth += delta;
+  if (currentCalendarMonth < 0) {
+    currentCalendarMonth = 11;
+    currentCalendarYear--;
+  } else if (currentCalendarMonth > 11) {
+    currentCalendarMonth = 0;
+    currentCalendarYear++;
+  }
+  renderAdminCalendar();
+}
 
 function renderExcelPreviewTable(rows) {
   const thead = document.getElementById('excel-preview-thead');
@@ -6617,26 +6779,26 @@ async function renderAdminCalendars() {
   const tbody = document.getElementById('table-calendar-tbody');
   if (!thead || !tbody) return;
 
-  document.querySelectorAll('#panel-admin-calendars .tab-btn').forEach(btn => {
+  document.querySelectorAll('#panel-admin-calendar .tab-btn').forEach(btn => {
     btn.classList.remove('active');
     btn.style.borderBottomColor = 'transparent';
     btn.style.color = 'var(--text-muted)';
   });
   
-  const activeBtn = document.getElementById(`tab-btn-${currentCalendarTab}`);
+  const activeBtn = document.getElementById(`tab-btn-${currentCalendarTab}-sub`);
   if (activeBtn) {
     activeBtn.classList.add('active');
     activeBtn.style.borderBottomColor = 'var(--primary-color)';
     activeBtn.style.color = 'var(--primary-color)';
   }
 
-  let viewName = 'vw_calendario_preventivo_anual';
+  let viewName = 'vw_preventivo_anual';
   let periodLabel = 'Mes';
   if (currentCalendarTab === 'predictivo') {
-    viewName = 'vw_calendario_predictivo_mensual';
+    viewName = 'vw_predictivo_mensual';
     periodLabel = 'Mes';
   } else if (currentCalendarTab === 'autonomo') {
-    viewName = 'vw_calendario_autonomo_semanal';
+    viewName = 'vw_autonomo_semanal';
     periodLabel = 'Semana';
   }
 
@@ -6647,8 +6809,8 @@ async function renderAdminCalendars() {
       <th>Año</th>
       <th>${periodLabel}</th>
       <th>Fecha Programada</th>
-      <th>Responsable</th>
-      <th>Score de Riesgo</th>
+      <th>Responsable / Sugerencia</th>
+      <th>Prioridad</th>
       <th>Estatus</th>
       <th>Acciones</th>
     </tr>
@@ -6661,7 +6823,7 @@ async function renderAdminCalendars() {
       const { data, error } = await supabaseClient
         .from(viewName)
         .select('*')
-        .order('fecha_programada', { ascending: true });
+        .order('fecha_sugerida', { ascending: true });
 
       if (error) throw error;
 
@@ -6672,25 +6834,42 @@ async function renderAdminCalendars() {
 
       let html = '';
       data.forEach(row => {
-        const riskLevel = row.nivel_riesgo_calidad || 'Bajo';
+        const riskLevel = row.prioridad || 'Baja';
         const riskBadge = badgeRisk(riskLevel);
-        const dateStr = row.fecha_programada ? new Date(row.fecha_programada).toLocaleDateString() : '—';
-        const estatus = row.estatus_detalle || 'PROPUESTO';
-        const statusBadge = `<span style="padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;background-color:${estatus === 'APROBADO' ? '#dcfce7;color:#166534;' : estatus === 'OT_GENERADA' ? '#dbeafe;color:#1e40af;' : '#f1f5f9;color:#475569;'}">${estatus}</span>`;
+        const dateStr = row.fecha_sugerida ? new Date(row.fecha_sugerida).toLocaleDateString() : '—';
+        const estatus = 'PROPUESTO';
+        const statusBadge = `<span style="padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;background-color:#f1f5f9;color:#475569;">${estatus}</span>`;
+
+        let anio = row.anio_plan;
+        if (!anio && row.fecha_sugerida) {
+          anio = new Date(row.fecha_sugerida).getFullYear();
+        }
+
+        let periodo = '—';
+        if (currentCalendarTab === 'preventivo') {
+          periodo = 'Anual';
+        } else if (currentCalendarTab === 'predictivo') {
+          periodo = row.mes_plan ? `Mes ${row.mes_plan}` : '—';
+        } else if (currentCalendarTab === 'autonomo' && row.fecha_sugerida) {
+          periodo = `Semana ${getWeekNumber(new Date(row.fecha_sugerida))}`;
+        }
+
+        const responsable = row.responsable || row.componente_sugerido || '—';
+        const score = row.total_fallas_mes || row.total_defectos || row.fallas_acumuladas_anio || 0;
 
         html += `
           <tr>
             <td><strong>${row.maquina_id}</strong></td>
             <td>${row.tipo_mantenimiento}</td>
-            <td>${row.anio}</td>
-            <td>${row.periodo}</td>
+            <td>${anio || '—'}</td>
+            <td>${periodo}</td>
             <td>${dateStr}</td>
-            <td>${row.nombre_completo || 'Sin asignar'}</td>
-            <td>${row.score_riesgo || 0} ${riskBadge}</td>
+            <td>${responsable}</td>
+            <td>${score} ${riskBadge}</td>
             <td>${statusBadge}</td>
             <td>
               <div style="display:flex;gap:6px;">
-                <button class="btn-table btn-table-view" onclick="viewCalendarDetail('${row.id_detalle}', '${viewName}')" style="padding:4px 8px;font-size:0.75rem;border-radius:4px;">🔍 Ver Detalle</button>
+                <button class="btn-table btn-table-view" onclick="viewCalendarDetail('${row.id_sugerencia}', '${viewName}')" style="padding:4px 8px;font-size:0.75rem;border-radius:4px;">🔍 Ver Detalle</button>
               </div>
             </td>
           </tr>
@@ -6703,7 +6882,7 @@ async function renderAdminCalendars() {
     }
   }
 
-  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">Calendario no disponible offline.</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">Calendario no disponible offline o error en base de datos.</td></tr>';
 }
 
 function switchCalendarTab(tab) {
@@ -6782,7 +6961,11 @@ async function handleProposeCalendarSubmit(event) {
       if (filtered.length === 0) {
         showToast('La vista no sugirió propuestas para este periodo/año. Se creó el calendario vacío.');
         closeModal('modal-admin-calendar-propose');
-        renderAdminCalendars();
+        if (currentCalendarViewMode === 'grid') {
+          renderAdminCalendar();
+        } else {
+          renderAdminCalendars();
+        }
         return;
       }
 
@@ -6819,7 +7002,11 @@ async function handleProposeCalendarSubmit(event) {
 
       showToast(`Propuesta generada con éxito con ${filtered.length} sugerencias.`);
       closeModal('modal-admin-calendar-propose');
-      renderAdminCalendars();
+      if (currentCalendarViewMode === 'grid') {
+        renderAdminCalendar();
+      } else {
+        renderAdminCalendars();
+      }
     } catch (err) {
       console.error('Error generating calendar:', err);
       showToast(`Error al generar calendario: ${err.message}`);
@@ -6829,7 +7016,7 @@ async function handleProposeCalendarSubmit(event) {
   }
 }
 
-async function viewCalendarDetail(id_detalle, viewName) {
+async function viewCalendarDetail(id, viewName) {
   currentSelectedCalItem = null;
   
   if (!supabaseClient) {
@@ -6840,15 +7027,53 @@ async function viewCalendarDetail(id_detalle, viewName) {
   showToast('Cargando detalle...');
 
   try {
-    const { data: detData, error: detErr } = await supabaseClient
+    let detData = null;
+
+    // 1. Intentar buscar en la tabla de detalles generados
+    const { data: detailData, error: detErr } = await supabaseClient
       .from('calendario_mantenimiento_detalle')
-      .select('*, cat_tecnicos(nombre_tecnico)')
-      .eq('id_detalle', id_detalle)
+      .select('*')
+      .eq('id_detalle', id)
       .maybeSingle();
 
-    if (detErr || !detData) throw new Error('No se pudo encontrar el detalle.');
+    if (!detErr && detailData) {
+      detData = detailData;
+    } else {
+      // 2. Buscar en la vista de sugerencias
+      let queryField = 'id_sugerencia';
+      if (viewName === 'vw_preventivo_anual') {
+        queryField = 'id_referencia'; // id_plan
+      }
+      
+      const { data: viewData, error: viewErr } = await supabaseClient
+        .from(viewName)
+        .select('*')
+        .eq(queryField, id)
+        .maybeSingle();
+
+      if (viewErr || !viewData) {
+        throw new Error('No se pudo encontrar el detalle ni la sugerencia.');
+      }
+      
+      detData = {
+        maquina_id: viewData.maquina_id,
+        tipo_mantenimiento: viewData.tipo_mantenimiento,
+        fecha_programada: viewData.fecha_sugerida,
+        prioridad: viewData.prioridad,
+        responsable_sugerido: viewData.responsable || viewData.componente_sugerido || null,
+        score_riesgo: viewData.total_fallas_mes || viewData.total_defectos || viewData.fallas_acumuladas_anio || 0,
+        nivel_riesgo_calidad: viewData.prioridad || 'Baja',
+        actividad_sugerida: viewData.actividad || 'Mantenimiento',
+        estatus_detalle: 'SUGERIDO'
+      };
+    }
 
     currentSelectedCalItem = detData;
+
+    // Buscar técnico localmente de forma offline-resiliente
+    const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+    const techObj = techs.find(t => t.id === detData.responsable_sugerido || t.cve_tecnico === detData.responsable_sugerido);
+    const techName = techObj ? techObj.name || techObj.nombre_completo : (detData.responsable_sugerido || 'Sin asignar');
 
     document.getElementById('cal-det-title').innerText = `Detalle de Telar/Máquina: ${detData.maquina_id}`;
     document.getElementById('cal-det-subtitle').innerText = `Estatus: ${detData.estatus_detalle}`;
@@ -6856,14 +7081,17 @@ async function viewCalendarDetail(id_detalle, viewName) {
     document.getElementById('cal-det-type').innerText = detData.tipo_mantenimiento;
     document.getElementById('cal-det-date').innerText = detData.fecha_programada ? new Date(detData.fecha_programada).toLocaleDateString() : '—';
     document.getElementById('cal-det-priority').innerText = detData.prioridad || 'Media';
-    document.getElementById('cal-det-tech').innerText = detData.cat_tecnicos?.nombre_tecnico || 'Sin asignar';
+    document.getElementById('cal-det-tech').innerText = techName;
     document.getElementById('cal-det-score').innerText = `${detData.score_riesgo || 0} (${detData.nivel_riesgo_calidad || 'Bajo'})`;
     document.getElementById('cal-det-activity').innerText = detData.actividad_sugerida || '—';
 
     const btnApprove = document.getElementById('btn-approve-cal-item');
     const btnOT = document.getElementById('btn-generate-ot-cal-item');
     
-    if (detData.estatus_detalle === 'PROPUESTO') {
+    if (detData.estatus_detalle === 'SUGERIDO') {
+      btnApprove.style.display = 'none';
+      btnOT.disabled = true;
+    } else if (detData.estatus_detalle === 'PROPUESTO') {
       btnApprove.style.display = 'block';
       btnOT.disabled = true;
     } else if (detData.estatus_detalle === 'APROBADO') {
@@ -6961,7 +7189,11 @@ async function handleApproveCalItem() {
       
       showToast('Recomendación aprobada con éxito.');
       closeModal('modal-admin-calendar-detail');
-      renderAdminCalendars();
+      if (currentCalendarViewMode === 'grid') {
+        renderAdminCalendar();
+      } else {
+        renderAdminCalendars();
+      }
     }
   } catch (err) {
     console.error('Error approving calendar item:', err);
@@ -7033,7 +7265,11 @@ async function handleGenerateOTCalItem() {
 
       showToast(`Orden de Trabajo ${newId} generada y programada correctamente.`);
       closeModal('modal-admin-calendar-detail');
-      renderAdminCalendars();
+      if (currentCalendarViewMode === 'grid') {
+        renderAdminCalendar();
+      } else {
+        renderAdminCalendars();
+      }
     }
   } catch (err) {
     console.error('Error generating OT from calendar item:', err);

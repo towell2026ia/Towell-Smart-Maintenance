@@ -1457,6 +1457,55 @@ body {
 .calendar-event-mc { background-color: var(--color-critical-light); color: var(--color-critical); }
 .calendar-event-mp { background-color: var(--color-preventive-light); color: var(--color-preventive); }
 
+/* Nuevos Estilos Unificados para Calendario de Mantenimiento */
+.calendar-event.correctivo {
+  background-color: var(--color-critical-light);
+  color: var(--color-critical);
+  border-left: 3px solid var(--color-critical);
+  transition: all 0.2s ease;
+}
+.calendar-event.correctivo:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.95);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.calendar-event.preventivo {
+  background-color: var(--color-preventive-light);
+  color: var(--color-preventive);
+  border-left: 3px solid var(--color-preventive);
+  transition: all 0.2s ease;
+}
+.calendar-event.preventivo:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.95);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.calendar-event.predictivo {
+  background-color: #ffedd5;
+  color: #c2410c;
+  border-left: 3px solid #f97316;
+  transition: all 0.2s ease;
+}
+.calendar-event.predictivo:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.95);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.calendar-event.autonomo {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border-left: 3px solid #0284c7;
+  transition: all 0.2s ease;
+}
+.calendar-event.autonomo:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.95);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 /* Excel Carga Simulación */
 .excel-upload-container {
   display: flex;

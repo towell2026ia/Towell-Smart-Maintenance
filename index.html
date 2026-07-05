@@ -308,7 +308,7 @@
           <a>🔧 Subtareas Pendientes <span id="badge-count-subtasks" style="background: var(--accent-cyan); color: black; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem; font-weight: bold; margin-left: auto; display: none;">0</span></a>
         </li>
         <li class="menu-item" id="menu-admin-calendar" onclick="switchAdminPanel('calendar')">
-          <a>📅 Calendario</a>
+          <a>📅 Calendario de Mantenimiento</a>
         </li>
         <!-- Grupo de Bases de Datos (Collapsible Submenu) -->
         <li class="menu-item-group" id="menu-admin-database-group" style="list-style: none; padding: 0; margin: 0;">
@@ -355,7 +355,7 @@
         <li class="menu-item" id="menu-admin-forms" onclick="switchAdminPanel('forms')">
           <a>🛠️ Formularios Dinámicos</a>
         </li>
-        <li class="menu-item" id="menu-admin-calendars" onclick="switchAdminPanel('calendars')">
+        <li class="menu-item" id="menu-admin-calendars" onclick="switchAdminPanel('calendars')" style="display: none;">
           <a>📅 Calendarios de Mant.</a>
         </li>
         <li class="menu-item" id="menu-admin-excel" onclick="switchAdminPanel('excel')">
@@ -652,19 +652,82 @@
           </div>
         </div>
 
-        <!-- Panel Admin 4: Calendario de Mantenimiento (Simulado) -->
+        <!-- Panel Admin 4: Calendario de Mantenimiento Unificado -->
         <div id="panel-admin-calendar" class="admin-panel-content" style="display: none;">
-          <div style="background-color: white; padding: 20px; border-radius: var(--border-radius); border: 1px solid #cbd5e1;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <h3 style="font-weight: 700;">Junio 2026</h3>
-              <div style="display: flex; gap: 8px; font-size: 0.8rem;">
-                <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-critical);"></span> Correctivos</span>
-                <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-preventive);"></span> Preventivos</span>
+          <div style="background-color: white; padding: 24px; border-radius: var(--border-radius); border: 1px solid #cbd5e1; display: flex; flex-direction: column; gap: 20px;">
+            
+            <!-- Header section -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h3 style="font-weight: 700; margin: 0; font-size: 1.4rem;">📅 Calendario de Mantenimiento Unificado</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin: 4px 0 0;">Gestión visual, sugerencias predictivas, calidad y órdenes de trabajo activas.</p>
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <button class="btn-nav" id="btn-toggle-view-grid" onclick="switchCalendarViewMode('grid')" style="width: auto; padding: 8px 16px; background-color: var(--primary-color); color: white; border: 1px solid var(--primary-color); border-radius: var(--border-radius); cursor: pointer; font-weight: 600;">📅 Vista Calendario</button>
+                <button class="btn-nav" id="btn-toggle-view-table" onclick="switchCalendarViewMode('table')" style="width: auto; padding: 8px 16px; background-color: #f1f5f9; color: var(--text-color); border: 1px solid #cbd5e1; border-radius: var(--border-radius); cursor: pointer; font-weight: 600;">📋 Lista de Propuestas</button>
+                <button class="btn-nav btn-nav-primary" onclick="generateCalendarProposalModal()" style="width: auto; padding: 8px 16px;">⚡ Proponer Calendario</button>
               </div>
             </div>
-            <div class="calendar-grid" id="calendar-grid-container">
-              <!-- Creado en app.js -->
+
+            <!-- Filters & Legend (Grid Mode Only) -->
+            <div id="calendar-grid-filters" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                <span style="font-weight: 600; font-size: 0.85rem; color: #475569;">Filtros:</span>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
+                  <input type="checkbox" id="filter-cal-correctivo" checked onchange="renderAdminCalendar()" style="accent-color: var(--color-critical); cursor: pointer;">
+                  <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-critical); display: inline-block;"></span> Correctivos (OT)
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
+                  <input type="checkbox" id="filter-cal-preventivo" checked onchange="renderAdminCalendar()" style="accent-color: var(--color-preventive); cursor: pointer;">
+                  <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-preventive); display: inline-block;"></span> Preventivos
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
+                  <input type="checkbox" id="filter-cal-predictivo" checked onchange="renderAdminCalendar()" style="accent-color: #f97316; cursor: pointer;">
+                  <span style="width: 10px; height: 10px; border-radius: 50%; background: #f97316; display: inline-block;"></span> Predictivos (IA)
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
+                  <input type="checkbox" id="filter-cal-autonomo" checked onchange="renderAdminCalendar()" style="accent-color: var(--accent-blue); cursor: pointer;">
+                  <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--accent-blue); display: inline-block;"></span> Autónomos (Calidad)
+                </label>
+              </div>
+              
+              <!-- Month/Year Navigation -->
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <button class="btn-table-action" onclick="changeCalendarMonth(-1)" style="padding: 6px 12px; font-weight: bold; border-radius: var(--border-radius); border: 1px solid #cbd5e1; background: white; cursor: pointer;">◀ Ant</button>
+                <span id="calendar-month-label" style="font-weight: 700; font-size: 1.1rem; min-width: 140px; text-align: center; display: inline-block;">Junio 2026</span>
+                <button class="btn-table-action" onclick="changeCalendarMonth(1)" style="padding: 6px 12px; font-weight: bold; border-radius: var(--border-radius); border: 1px solid #cbd5e1; background: white; cursor: pointer;">Sig ▶</button>
+              </div>
             </div>
+
+            <!-- CONTAINER A: Calendar Grid -->
+            <div id="calendar-view-grid-mode" style="display: block;">
+              <div class="calendar-grid" id="calendar-grid-container">
+                <!-- Creado en app.js -->
+              </div>
+            </div>
+
+            <!-- CONTAINER B: Calendar Proposals (Table View) -->
+            <div id="calendar-view-table-mode" style="display: none; flex-direction: column; gap: 16px;">
+              <!-- Pestañas de la tabla -->
+              <div style="display: flex; border-bottom: 1px solid #cbd5e1; gap: 4px; padding-bottom: 1px;">
+                <button class="tab-btn active" id="tab-btn-preventivo-sub" onclick="switchCalendarTab('preventivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid var(--primary-color); background: none; font-weight: 600; cursor: pointer; color: var(--primary-color);">📆 Preventivo Anual</button>
+                <button class="tab-btn" id="tab-btn-predictivo-sub" onclick="switchCalendarTab('predictivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🔬 Predictivo Mensual</button>
+                <button class="tab-btn" id="tab-btn-autonomo-sub" onclick="switchCalendarTab('autonomo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🛠️ Autónomo Semanal</button>
+              </div>
+
+              <!-- Tabla de datos -->
+              <div class="responsive-table-wrapper">
+                <table class="custom-table" id="table-calendar-general">
+                  <thead id="table-calendar-thead">
+                    <!-- Dinámico -->
+                  </thead>
+                  <tbody id="table-calendar-tbody">
+                    <!-- Dinámico -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
         </div>
 

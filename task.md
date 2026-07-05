@@ -1,0 +1,8 @@
+- `[x]` 1. Unificar Calendarios (2 en 1) en HTML
+  - `[x]` 1.1 Ocultar botón de menú lateral `menu-admin-calendars`
+  - `[x]` 1.2 Rediseñar `panel-admin-calendar` para albergar filtros y vistas duales (Grid/Tabla)
+- `[x]` 2. Corregir y ampliar lógica en JS (`app.js`)
+  - `[x]` 2.1 Actualizar nombres de vistas y campos a `fecha_sugerida` en `renderAdminCalendars()`
+  - `[x]` 2.2 Integrar cuadrícula de calendario dinámica con filtros en `renderAdminCalendar()`
+  - `[x]` 2.3 Manejar los botones de navegación mes anterior/mes siguiente
+- `[x]` 3. Validar y subir cambios a GitHub
