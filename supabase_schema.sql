@@ -318,10 +318,12 @@ CREATE TABLE IF NOT EXISTS public.stg_telegram_ordenes_telares (
 -- Excel Faults Staging Table
 CREATE TABLE IF NOT EXISTS public.stg_fallas_por_maquina_excel (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    maquina_id VARCHAR(50),
+    area VARCHAR(50),
+    maquina_id VARCHAR(255),
     descripcion VARCHAR(255),
-    creada TIMESTAMP,
+    creada VARCHAR(255),
     archivo_origen VARCHAR(150),
+    id_carga UUID,
     fecha_carga TIMESTAMP DEFAULT NOW()
 );
 
@@ -442,6 +444,7 @@ CREATE TABLE IF NOT EXISTS public.cierres_orden_trabajo (
 -- Normalised Machine Fault Log Table
 CREATE TABLE IF NOT EXISTS public.fallas_por_maquina (
     id_falla UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    area VARCHAR(50),
     maquina_id VARCHAR(50) REFERENCES public.cat_maquinas(equipo_towell) ON UPDATE CASCADE ON DELETE CASCADE,
     descripcion_falla VARCHAR(255),
     fecha_hora_creada TIMESTAMP,
@@ -1456,10 +1459,12 @@ FROM public.stg_empleados_excel;
 CREATE OR REPLACE VIEW public.vw_validacion_fallas_por_maquina AS
 SELECT
     id,
+    area,
     maquina_id,
     descripcion,
     creada,
     archivo_origen,
+    id_carga,
     fecha_carga,
     CASE 
         WHEN maquina_id IS NULL OR maquina_id = '' THEN FALSE
