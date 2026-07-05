@@ -691,11 +691,25 @@
                 </label>
               </div>
               
-              <!-- Month/Year Navigation -->
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <button class="btn-table-action" onclick="changeCalendarMonth(-1)" style="padding: 6px 12px; font-weight: bold; border-radius: var(--border-radius); border: 1px solid #cbd5e1; background: white; cursor: pointer;">◀ Ant</button>
-                <span id="calendar-month-label" style="font-weight: 700; font-size: 1.1rem; min-width: 140px; text-align: center; display: inline-block;">Junio 2026</span>
-                <button class="btn-table-action" onclick="changeCalendarMonth(1)" style="padding: 6px 12px; font-weight: bold; border-radius: var(--border-radius); border: 1px solid #cbd5e1; background: white; cursor: pointer;">Sig ▶</button>
+              <!-- Scale Toggles & Navigation -->
+              <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                <!-- Toggles de Escala -->
+                <div style="display: flex; background: #e2e8f0; border-radius: var(--border-radius); padding: 2px;">
+                  <button id="btn-scale-year" onclick="setCalendarScale('year')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: transparent; color: var(--text-color); cursor: pointer;">Año</button>
+                  <button id="btn-scale-month" onclick="setCalendarScale('month')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: white; color: var(--primary-color); cursor: pointer; box-shadow: var(--box-shadow-sm);">Mes</button>
+                  <button id="btn-scale-week" onclick="setCalendarScale('week')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: transparent; color: var(--text-color); cursor: pointer;">Semana</button>
+                  <button id="btn-scale-day" onclick="setCalendarScale('day')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: transparent; color: var(--text-color); cursor: pointer;">Día</button>
+                </div>
+                
+                <!-- Botón Hoy -->
+                <button class="btn-table-action" onclick="jumpToToday()" style="padding: 6px 12px; font-weight: bold; border-radius: var(--border-radius); border: 1px solid #cbd5e1; background: white; cursor: pointer;">Hoy</button>
+
+                <!-- Navegación -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button class="btn-table-action" onclick="changeCalendarPeriod(-1)" style="padding: 6px 12px; font-weight: bold; border-radius: var(--border-radius); border: 1px solid #cbd5e1; background: white; cursor: pointer;">◀ Ant</button>
+                  <span id="calendar-month-label" style="font-weight: 700; font-size: 1rem; min-width: 140px; text-align: center; display: inline-block;">Junio 2026</span>
+                  <button class="btn-table-action" onclick="changeCalendarPeriod(1)" style="padding: 6px 12px; font-weight: bold; border-radius: var(--border-radius); border: 1px solid #cbd5e1; background: white; cursor: pointer;">Sig ▶</button>
+                </div>
               </div>
             </div>
 

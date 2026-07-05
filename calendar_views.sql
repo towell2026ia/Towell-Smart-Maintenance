@@ -10,58 +10,42 @@ DROP VIEW IF EXISTS public.vw_predictivo_mensual CASCADE;
 DROP VIEW IF EXISTS public.vw_autonomo_semanal CASCADE;
 
 -- ============================================================
--- VISTA 1: PREVENTIVO ANUAL
+-- ============================================================
+-- VISTA 1: PREVENTIVO ANUAL (Dinamizado por Historial de Fallas)
 -- ============================================================
 CREATE OR REPLACE VIEW public.vw_preventivo_anual AS
-WITH conteo_fallas AS (
+WITH last_fallas AS (
     SELECT
         maquina_id,
-        COUNT(*) AS total_fallas_anio,
-        CASE
-            WHEN COUNT(*) > 50 THEN 'CRITICA'
-            WHEN COUNT(*) > 20 THEN 'ALTA'
-            WHEN COUNT(*) > 5  THEN 'MEDIA'
-            ELSE 'BAJA'
-        END AS prioridad_ia
+        categoria_falla,
+        COUNT(*) AS total_fallas,
+        MAX(fecha_creada) AS ultima_fecha_falla,
+        MAX(id_falla) AS id_referencia
     FROM public.fallas_por_maquina
-    WHERE EXTRACT(YEAR FROM fecha_creada) = EXTRACT(YEAR FROM CURRENT_DATE)
-    GROUP BY maquina_id
-),
-planes AS (
-    SELECT
-        p.id_plan,
-        p.maquina_id,
-        p.nombre_plan,
-        p.descripcion,
-        p.frecuencia,
-        p.unidad_frecuencia,
-        p.ultima_ejecucion,
-        CASE p.unidad_frecuencia
-            WHEN 'DIAS'   THEN p.ultima_ejecucion + (p.frecuencia || ' days')::INTERVAL
-            WHEN 'MESES'  THEN p.ultima_ejecucion + (p.frecuencia || ' months')::INTERVAL
-            WHEN 'ANIOS'  THEN p.ultima_ejecucion + (p.frecuencia || ' years')::INTERVAL
-            ELSE p.ultima_ejecucion + INTERVAL '1 year'
-        END AS proxima_ejecucion_calculada,
-        p.responsable,
-        p.activo
-    FROM public.planes_mantenimiento_preventivo p
-    WHERE p.activo = TRUE
+    WHERE maquina_id IS NOT NULL AND categoria_falla IS NOT NULL
+    GROUP BY maquina_id, categoria_falla
 )
 SELECT
     gen_random_uuid()                         AS id_sugerencia,
     'PREVENTIVO'                              AS tipo_mantenimiento,
-    pl.id_plan                                AS id_referencia,
-    pl.maquina_id,
-    pl.nombre_plan                            AS actividad,
-    pl.descripcion,
-    pl.proxima_ejecucion_calculada::DATE      AS fecha_sugerida,
-    COALESCE(cf.prioridad_ia, 'BAJA')         AS prioridad,
-    COALESCE(cf.total_fallas_anio, 0)::INT    AS fallas_acumuladas_anio,
-    pl.responsable,
+    lf.id_referencia                          AS id_referencia,
+    lf.maquina_id,
+    ('Preventivo: ' || lf.categoria_falla)::VARCHAR(255) AS actividad,
+    ('Mantenimiento preventivo sugerido por historial de ' || lf.total_fallas || ' fallas de tipo ' || lf.categoria_falla)::TEXT AS descripcion,
+    CASE 
+        WHEN (lf.ultima_fecha_falla + INTERVAL '3 months')::DATE < CURRENT_DATE 
+        THEN (CURRENT_DATE + INTERVAL '10 days')::DATE
+        ELSE (lf.ultima_fecha_falla + INTERVAL '3 months')::DATE
+    END AS fecha_sugerida,
+    CASE
+        WHEN lf.total_fallas >= 10 THEN 'ALTA'
+        WHEN lf.total_fallas >= 5  THEN 'MEDIA'
+        ELSE 'BAJA'
+    END::VARCHAR(50)                          AS prioridad,
+    lf.total_fallas::INT                      AS fallas_acumuladas_anio,
+    NULL::VARCHAR(150)                        AS responsable,
     EXTRACT(YEAR FROM CURRENT_DATE)::INT      AS anio_plan
-FROM planes pl
-LEFT JOIN conteo_fallas cf ON cf.maquina_id = pl.maquina_id
-WHERE EXTRACT(YEAR FROM pl.proxima_ejecucion_calculada) = EXTRACT(YEAR FROM CURRENT_DATE);
+FROM last_fallas lf;
 
 
 -- ============================================================

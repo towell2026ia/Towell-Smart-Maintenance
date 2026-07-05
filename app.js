@@ -3105,29 +3105,44 @@ async function renderAdminCalendar() {
   const monthLabel = document.getElementById('calendar-month-label');
   if (!container) return;
 
-  // Actualizar label de mes
   const monthsNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ];
+
+  // 1. Actualizar etiqueta superior según la escala
   if (monthLabel) {
-    monthLabel.innerText = `${monthsNames[currentCalendarMonth]} ${currentCalendarYear}`;
+    if (currentCalendarScale === 'year') {
+      monthLabel.innerText = `Año ${currentCalendarYear}`;
+    } else if (currentCalendarScale === 'month') {
+      monthLabel.innerText = `${monthsNames[currentCalendarMonth]} ${currentCalendarYear}`;
+    } else if (currentCalendarScale === 'week') {
+      const baseDate = new Date(currentCalendarYear, currentCalendarMonth, currentCalendarDayNum);
+      const startOfWeek = new Date(baseDate);
+      startOfWeek.setDate(baseDate.getDate() - baseDate.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      
+      monthLabel.innerText = `Sem. ${startOfWeek.getDate()} ${monthsNames[startOfWeek.getMonth()].substring(0,3)} - ${endOfWeek.getDate()} ${monthsNames[endOfWeek.getMonth()].substring(0,3)} ${endOfWeek.getFullYear()}`;
+    } else if (currentCalendarScale === 'day') {
+      monthLabel.innerText = `${currentCalendarDayNum} ${monthsNames[currentCalendarMonth].substring(0,3)} ${currentCalendarYear}`;
+    }
   }
 
-  // Leer checkboxes de filtros
+  // 2. Leer checkboxes de filtros
   const showCorrectivos = document.getElementById('filter-cal-correctivo')?.checked !== false;
   const showPreventivos = document.getElementById('filter-cal-preventivo')?.checked !== false;
   const showPredictivos = document.getElementById('filter-cal-predictivo')?.checked !== false;
   const showAutonomos = document.getElementById('filter-cal-autonomo')?.checked !== false;
 
-  // Obtener órdenes de trabajo (correctivos) locales
+  // 3. Obtener correctivos locales
   let localOrders = [];
   if (showCorrectivos) {
     const allLocalOrders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
     localOrders = allLocalOrders.filter(o => o.type !== 'MP' && o.type !== 'PREVENTIVO' && o.type !== 'PREDICTIVO' && o.type !== 'AUTONOMO');
   }
 
-  // Obtener sugerencias de la base de datos (Supabase)
+  // 4. Obtener sugerencias de base de datos
   let suggestions = [];
   if (supabaseClient && (showPreventivos || showPredictivos || showAutonomos)) {
     try {
@@ -3138,18 +3153,9 @@ async function renderAdminCalendar() {
         
       if (!error && data) {
         suggestions = data.filter(item => {
-          // Filtrar por mes
-          if (item.mes && item.mes !== (currentCalendarMonth + 1)) return false;
-          
-          if (!item.mes && item.fecha_sugerida) {
-            const sugMonth = new Date(item.fecha_sugerida).getMonth();
-            if (sugMonth !== currentCalendarMonth) return false;
-          }
-
           if (item.tipo_mantenimiento === 'PREVENTIVO' && !showPreventivos) return false;
           if (item.tipo_mantenimiento === 'PREDICTIVO' && !showPredictivos) return false;
           if (item.tipo_mantenimiento === 'AUTONOMO' && !showAutonomos) return false;
-          
           return true;
         });
       }
@@ -3158,7 +3164,7 @@ async function renderAdminCalendar() {
     }
   }
 
-  // Combinar eventos
+  // 5. Combinar eventos
   const correctiveEvents = localOrders.map(o => ({
     id: o.id,
     type: 'CORRECTIVO',
@@ -3176,74 +3182,237 @@ async function renderAdminCalendar() {
 
   const allEvents = [...correctiveEvents, ...suggestionEvents];
 
-  // Generar grid de días
-  const firstDayObj = new Date(currentCalendarYear, currentCalendarMonth, 1);
-  const startDayOfWeek = firstDayObj.getDay();
-  const totalDays = new Date(currentCalendarYear, currentCalendarMonth + 1, 0).getDate();
-  const prevMonthTotalDays = new Date(currentCalendarYear, currentCalendarMonth, 0).getDate();
+  // 6. Renderizar según la escala seleccionada
+  if (currentCalendarScale === 'year') {
+    // Escala AÑO: 12 tarjetas de meses
+    container.style.display = 'grid';
+    container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
+    container.style.gap = '16px';
 
-  const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-  let html = '';
-  
-  daysOfWeek.forEach(d => {
-    html += `<div class="calendar-day-header">${d}</div>`;
-  });
+    let html = '';
+    for (let m = 0; m < 12; m++) {
+      const monthEvents = allEvents.filter(e => {
+        if (!e.date) return false;
+        const d = new Date(e.date);
+        return d.getFullYear() === currentCalendarYear && d.getMonth() === m;
+      });
 
-  for (let i = startDayOfWeek - 1; i >= 0; i--) {
-    const prevDay = prevMonthTotalDays - i;
-    html += `<div class="calendar-cell" style="opacity: 0.4;"><span class="calendar-date">${prevDay}</span></div>`;
-  }
+      const counts = { CORRECTIVO: 0, PREVENTIVO: 0, PREDICTIVO: 0, AUTONOMO: 0 };
+      monthEvents.forEach(e => {
+        if (counts[e.type] !== undefined) counts[e.type]++;
+      });
 
-  const today = new Date();
-  const isCurrentYear = today.getFullYear() === currentCalendarYear;
-  const isCurrentMonth = today.getMonth() === currentCalendarMonth;
-  const todayDate = today.getDate();
+      html += `
+        <div class="calendar-cell" onclick="selectMonthAndSwitch(${m})" style="cursor: pointer; min-height: 120px; transition: all 0.2s ease; border: 1px solid #cbd5e1; background: #ffffff; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="font-weight: 700; font-size: 1.1rem; color: var(--primary-color); border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 8px;">
+            ${monthsNames[m]}
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600;">
+            ${counts.CORRECTIVO > 0 ? `<span style="color: var(--color-critical);"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--color-critical); margin-right:4px;"></span> ${counts.CORRECTIVO} Correctivos</span>` : ''}
+            ${counts.PREVENTIVO > 0 ? `<span style="color: var(--color-preventive);"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--color-preventive); margin-right:4px;"></span> ${counts.PREVENTIVO} Preventivos</span>` : ''}
+            ${counts.PREDICTIVO > 0 ? `<span style="color: #c2410c;"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#f97316; margin-right:4px;"></span> ${counts.PREDICTIVO} Predictivos</span>` : ''}
+            ${counts.AUTONOMO > 0 ? `<span style="color: #0369a1;"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--accent-blue); margin-right:4px;"></span> ${counts.AUTONOMO} Autónomos</span>` : ''}
+            ${(counts.CORRECTIVO + counts.PREVENTIVO + counts.PREDICTIVO + counts.AUTONOMO) === 0 ? '<span style="color: var(--text-muted); font-style: italic;">Sin eventos</span>' : ''}
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = html;
 
-  for (let day = 1; day <= totalDays; day++) {
-    const dateStr = `${currentCalendarYear}-${String(currentCalendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const dailyEvents = allEvents.filter(e => e.date && e.date.startsWith(dateStr));
-    const isToday = isCurrentYear && isCurrentMonth && day === todayDate;
+  } else if (currentCalendarScale === 'month') {
+    // Escala MES: Cuadrícula estándar de 42 celdas
+    container.style.display = 'grid';
+    container.style.gridTemplateColumns = 'repeat(7, 1fr)';
+    container.style.gap = '6px';
 
-    html += `
-      <div class="calendar-cell ${isToday ? 'today' : ''}">
-        <span class="calendar-date">${day} ${isToday ? '(Hoy)' : ''}</span>
-        <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 4px; overflow-y: auto; max-height: 80px;">
-    `;
+    const firstDayObj = new Date(currentCalendarYear, currentCalendarMonth, 1);
+    const startDayOfWeek = firstDayObj.getDay();
+    const totalDays = new Date(currentCalendarYear, currentCalendarMonth + 1, 0).getDate();
+    const prevMonthTotalDays = new Date(currentCalendarYear, currentCalendarMonth, 0).getDate();
 
-    dailyEvents.forEach(e => {
-      let cls = 'preventivo';
-      let clickHandler = '';
-      
-      if (e.type === 'CORRECTIVO') {
-        cls = 'correctivo';
-        clickHandler = `onclick="viewOrderHistoryLogs('${e.id}')"`;
-      } else {
-        if (e.type === 'PREDICTIVO') cls = 'predictivo';
-        if (e.type === 'AUTONOMO') cls = 'autonomo';
-        
-        let viewName = 'vw_preventivo_anual';
-        if (e.type === 'PREDICTIVO') viewName = 'vw_predictivo_mensual';
-        if (e.type === 'AUTONOMO') viewName = 'vw_autonomo_semanal';
-        
-        clickHandler = `onclick="viewCalendarDetail('${e.id_ref}', '${viewName}')"`;
-      }
-
-      html += `<span class="calendar-event ${cls}" style="cursor: pointer;" ${clickHandler} title="${e.title}">${e.id}</span>`;
+    const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    let html = '';
+    
+    daysOfWeek.forEach(d => {
+      html += `<div class="calendar-day-header">${d}</div>`;
     });
 
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+      const prevDay = prevMonthTotalDays - i;
+      html += `<div class="calendar-cell" style="opacity: 0.4;"><span class="calendar-date">${prevDay}</span></div>`;
+    }
+
+    const today = new Date();
+    const isCurrentYear = today.getFullYear() === currentCalendarYear;
+    const isCurrentMonth = today.getMonth() === currentCalendarMonth;
+    const todayDate = today.getDate();
+
+    for (let day = 1; day <= totalDays; day++) {
+      const dateStr = `${currentCalendarYear}-${String(currentCalendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dailyEvents = allEvents.filter(e => e.date && e.date.startsWith(dateStr));
+      const isToday = isCurrentYear && isCurrentMonth && day === todayDate;
+
+      html += `
+        <div class="calendar-cell ${isToday ? 'today' : ''}">
+          <span class="calendar-date">${day} ${isToday ? '(Hoy)' : ''}</span>
+          <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 4px; overflow-y: auto; max-height: 80px;">
+      `;
+
+      dailyEvents.forEach(e => {
+        let cls = 'preventivo';
+        let clickHandler = '';
+        if (e.type === 'CORRECTIVO') {
+          cls = 'correctivo';
+          clickHandler = `onclick="viewOrderHistoryLogs('${e.id}')"`;
+        } else {
+          if (e.type === 'PREDICTIVO') cls = 'predictivo';
+          if (e.type === 'AUTONOMO') cls = 'autonomo';
+          
+          let viewName = 'vw_preventivo_anual';
+          if (e.type === 'PREDICTIVO') viewName = 'vw_predictivo_mensual';
+          if (e.type === 'AUTONOMO') viewName = 'vw_autonomo_semanal';
+          
+          clickHandler = `onclick="viewCalendarDetail('${e.id_ref}', '${viewName}')"`;
+        }
+
+        html += `<span class="calendar-event ${cls}" style="cursor: pointer;" ${clickHandler} title="${e.title}">${e.id}</span>`;
+      });
+
+      html += `
+          </div>
+        </div>
+      `;
+    }
+
+    const totalCellsUsed = startDayOfWeek + totalDays;
+    const cellsToFill = 42 - totalCellsUsed;
+    for (let day = 1; day <= cellsToFill; day++) {
+      html += `<div class="calendar-cell" style="opacity: 0.4;"><span class="calendar-date">${day}</span></div>`;
+    }
+
+    container.innerHTML = html;
+
+  } else if (currentCalendarScale === 'week') {
+    // Escala SEMANA: 7 columnas
+    container.style.display = 'grid';
+    container.style.gridTemplateColumns = 'repeat(7, 1fr)';
+    container.style.gap = '10px';
+
+    const baseDate = new Date(currentCalendarYear, currentCalendarMonth, currentCalendarDayNum);
+    const startOfWeek = new Date(baseDate);
+    startOfWeek.setDate(baseDate.getDate() - baseDate.getDay());
+
+    const daysOfWeekFull = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    let html = '';
+
+    for (let i = 0; i < 7; i++) {
+      const currentDay = new Date(startOfWeek);
+      currentDay.setDate(startOfWeek.getDate() + i);
+      
+      const dateStr = `${currentDay.getFullYear()}-${String(currentDay.getMonth() + 1).padStart(2, '0')}-${String(currentDay.getDate()).padStart(2, '0')}`;
+      const dailyEvents = allEvents.filter(e => e.date && e.date.startsWith(dateStr));
+      
+      const isToday = currentDay.toDateString() === new Date().toDateString();
+      
+      html += `
+        <div class="calendar-cell ${isToday ? 'today' : ''}" style="min-height: 250px; flex: 1; display: flex; flex-direction: column; justify-content: flex-start; padding: 10px;">
+          <span class="calendar-date" style="font-size: 0.9rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px; display: block; text-align: center;">
+            <strong>${daysOfWeekFull[i].substring(0,3)}</strong> ${currentDay.getDate()}
+          </span>
+          <div style="display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 200px;">
+      `;
+      
+      dailyEvents.forEach(e => {
+        let cls = 'preventivo';
+        let clickHandler = '';
+        if (e.type === 'CORRECTIVO') {
+          cls = 'correctivo';
+          clickHandler = `onclick="viewOrderHistoryLogs('${e.id}')"`;
+        } else {
+          if (e.type === 'PREDICTIVO') cls = 'predictivo';
+          if (e.type === 'AUTONOMO') cls = 'autonomo';
+          
+          let viewName = 'vw_preventivo_anual';
+          if (e.type === 'PREDICTIVO') viewName = 'vw_predictivo_mensual';
+          if (e.type === 'AUTONOMO') viewName = 'vw_autonomo_semanal';
+          
+          clickHandler = `onclick="viewCalendarDetail('${e.id_ref}', '${viewName}')"`;
+        }
+        
+        html += `
+          <div class="calendar-event ${cls}" ${clickHandler} style="padding: 4px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; white-space: normal;" title="${e.title}">
+            <strong>${e.id}</strong><br/>
+            <span style="font-size: 0.6rem; opacity: 0.85;">${e.title.split(' - ')[1] || e.title}</span>
+          </div>
+        `;
+      });
+      
+      html += `
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = html;
+
+  } else if (currentCalendarScale === 'day') {
+    // Escala DÍA: Vista de detalles completa del día
+    container.style.display = 'block';
+
+    const selectedDateStr = `${currentCalendarYear}-${String(currentCalendarMonth + 1).padStart(2, '0')}-${String(currentCalendarDayNum).padStart(2, '0')}`;
+    const dailyEvents = allEvents.filter(e => e.date && e.date.startsWith(selectedDateStr));
+    
+    let html = `
+      <div style="width: 100%; background: #f8fafc; border-radius: 8px; border: 1px solid #cbd5e1; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+        <h4 style="font-weight: 700; margin: 0; font-size: 1.2rem; color: var(--primary-color);">
+          📋 Eventos de: ${new Date(currentCalendarYear, currentCalendarMonth, currentCalendarDayNum).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        </h4>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+    `;
+    
+    if (dailyEvents.length === 0) {
+      html += `<p style="color: var(--text-muted); text-align: center; padding: 30px; font-style: italic;">No hay eventos programados para este día.</p>`;
+    } else {
+      dailyEvents.forEach(e => {
+        let cls = 'preventivo';
+        let clickHandler = '';
+        if (e.type === 'CORRECTIVO') {
+          cls = 'correctivo';
+          clickHandler = `onclick="viewOrderHistoryLogs('${e.id}')"`;
+        } else {
+          if (e.type === 'PREDICTIVO') cls = 'predictivo';
+          if (e.type === 'AUTONOMO') cls = 'autonomo';
+          
+          let viewName = 'vw_preventivo_anual';
+          if (e.type === 'PREDICTIVO') viewName = 'vw_predictivo_mensual';
+          if (e.type === 'AUTONOMO') viewName = 'vw_autonomo_semanal';
+          
+          clickHandler = `onclick="viewCalendarDetail('${e.id_ref}', '${viewName}')"`;
+        }
+        
+        html += `
+          <div class="calendar-event ${cls}" ${clickHandler} style="padding: 12px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--box-shadow-sm); border-left: 5px solid;" title="Ver detalle">
+            <div>
+              <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; opacity: 0.8;">${e.type}</span>
+              <h5 style="margin: 4px 0; font-size: 1.1rem; font-weight: 700;">Máquina: ${e.id}</h5>
+              <p style="margin: 0; font-weight: 500; font-size: 0.85rem; opacity: 0.9;">${e.title}</p>
+            </div>
+            <button class="btn-table btn-table-view" style="pointer-events: none; border-radius: 4px; font-size: 0.8rem; padding: 6px 12px;">🔍 Ver Detalle</button>
+          </div>
+        `;
+      });
+    }
+    
     html += `
         </div>
       </div>
     `;
+    container.innerHTML = html;
   }
+}
 
-  const totalCellsUsed = startDayOfWeek + totalDays;
-  const cellsToFill = 42 - totalCellsUsed;
-  for (let day = 1; day <= cellsToFill; day++) {
-    html += `<div class="calendar-cell" style="opacity: 0.4;"><span class="calendar-date">${day}</span></div>`;
-  }
-
-  container.innerHTML = html;
+function selectMonthAndSwitch(monthIndex) {
+  currentCalendarMonth = monthIndex;
+  setCalendarScale('month');
 }
 
 // --- BITÁCORAS GENERALES (ADMIN) ---
@@ -6392,6 +6561,8 @@ let currentSelectedCalItem = null;
 let currentCalendarViewMode = 'grid'; // 'grid' o 'table'
 let currentCalendarYear = 2026;
 let currentCalendarMonth = 5; // Junio (0-indexed)
+let currentCalendarDayNum = 3; // 3 de Junio (default mock date)
+let currentCalendarScale = 'month'; // 'year', 'month', 'week', 'day'
 
 function switchCalendarViewMode(mode) {
   currentCalendarViewMode = mode;
@@ -6430,14 +6601,60 @@ function switchCalendarViewMode(mode) {
   }
 }
 
-function changeCalendarMonth(delta) {
-  currentCalendarMonth += delta;
-  if (currentCalendarMonth < 0) {
-    currentCalendarMonth = 11;
-    currentCalendarYear--;
-  } else if (currentCalendarMonth > 11) {
-    currentCalendarMonth = 0;
-    currentCalendarYear++;
+function setCalendarScale(scale) {
+  currentCalendarScale = scale;
+  
+  const scales = ['year', 'month', 'week', 'day'];
+  scales.forEach(s => {
+    const btn = document.getElementById(`btn-scale-${s}`);
+    if (btn) {
+      if (s === scale) {
+        btn.style.background = 'white';
+        btn.style.color = 'var(--primary-color)';
+        btn.style.boxShadow = 'var(--box-shadow-sm)';
+      } else {
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--text-color)';
+        btn.style.boxShadow = 'none';
+      }
+    }
+  });
+
+  renderAdminCalendar();
+}
+
+function jumpToToday() {
+  const today = new Date();
+  currentCalendarYear = today.getFullYear();
+  currentCalendarMonth = today.getMonth();
+  currentCalendarDayNum = today.getDate();
+  renderAdminCalendar();
+}
+
+function changeCalendarPeriod(delta) {
+  if (currentCalendarScale === 'year') {
+    currentCalendarYear += delta;
+  } else if (currentCalendarScale === 'month') {
+    currentCalendarMonth += delta;
+    if (currentCalendarMonth < 0) {
+      currentCalendarMonth = 11;
+      currentCalendarYear--;
+    } else if (currentCalendarMonth > 11) {
+      currentCalendarMonth = 0;
+      currentCalendarYear++;
+    }
+  } else if (currentCalendarScale === 'week') {
+    const currentSelectedDate = new Date(currentCalendarYear, currentCalendarMonth, currentCalendarDayNum);
+    currentSelectedDate.setDate(currentSelectedDate.getDate() + (delta * 7));
+    currentCalendarYear = currentSelectedDate.getFullYear();
+    currentCalendarMonth = currentSelectedDate.getMonth();
+    currentCalendarDayNum = currentSelectedDate.getDate();
+  } else if (currentCalendarScale === 'day') {
+    const currentSelectedDate = new Date(currentCalendarYear, currentCalendarMonth, currentCalendarDayNum);
+    currentSelectedDate.setDate(currentSelectedDate.getDate() + delta);
+    currentCalendarYear = currentSelectedDate.getFullYear();
+    currentCalendarMonth = currentSelectedDate.getMonth();
+    currentCalendarDayNum = currentSelectedDate.getDate();
   }
   renderAdminCalendar();
 }
