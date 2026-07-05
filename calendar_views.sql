@@ -20,7 +20,7 @@ WITH last_fallas AS (
         categoria_falla,
         COUNT(*) AS total_fallas,
         MAX(fecha_creada) AS ultima_fecha_falla,
-        MAX(id_falla) AS id_referencia
+        MAX(id_falla::TEXT)::UUID AS id_referencia
     FROM public.fallas_por_maquina
     WHERE maquina_id IS NOT NULL AND categoria_falla IS NOT NULL
     GROUP BY maquina_id, categoria_falla
