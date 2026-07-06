@@ -2493,20 +2493,44 @@ async function renderAdminRespChk() {
   const tbody = document.getElementById('tbody-respchk');
   if (!tbody) return;
   tbody.innerHTML = emptyRow(6, 'Cargando respuestas de checklist…');
-  if (!supabaseClient) { tbody.innerHTML = emptyRow(6, '⚠️ Sin conexión a Supabase.'); return; }
-  try {
-    const { data, error } = await supabaseClient.from('respuestas_checklist_orden').select('*').order('fecha_respuesta', { ascending: false }).limit(300);
-    if (error) throw error;
-    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(6, 'No hay respuestas de checklist registradas.'); return; }
-    tbody.innerHTML = data.map(r => `<tr>
-      <td><code style="font-size:0.7rem;">${r.id_orden}</code></td>
-      <td><code style="font-size:0.7rem;">${r.id_checklist}</code></td>
-      <td>${r.respuesta || '—'}</td>
-      <td>${r.comentario || '—'}</td>
-      <td>${r.usuario_responde || '—'}</td>
-      <td>${fmtTs(r.fecha_respuesta)}</td>
-    </tr>`).join('');
-  } catch (err) { tbody.innerHTML = emptyRow(6, `❌ Error: ${err.message}`); }
+  
+  let dbResponses = [];
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient.from('respuestas_checklist_orden').select('*').order('fecha_respuesta', { ascending: false }).limit(300);
+      if (!error && data) {
+        dbResponses = data;
+      }
+    } catch (err) {
+      console.error('Error fetching checklist responses:', err);
+    }
+  }
+
+  const dynamicResponses = JSON.parse(localStorage.getItem('TSMAI_dynamic_responses') || '[]');
+  const mappedDynamic = dynamicResponses.map(r => ({
+    id_orden: r.id,
+    id_checklist: r.formName,
+    respuesta: r.answers.map(a => `${a.label}: ${a.val}`).join(' | '),
+    comentario: `Área: ${r.area}`,
+    usuario_responde: r.submittedBy,
+    fecha_respuesta: r.date
+  }));
+
+  const allResponses = [...mappedDynamic, ...dbResponses];
+
+  if (allResponses.length === 0) {
+    tbody.innerHTML = emptyRow(6, 'No hay respuestas de checklist registradas.');
+    return;
+  }
+
+  tbody.innerHTML = allResponses.map(r => `<tr>
+    <td><code style="font-size:0.7rem;">${r.id_orden}</code></td>
+    <td><code style="font-size:0.7rem;">${r.id_checklist}</code></td>
+    <td style="max-width:320px;white-space:normal;font-size:0.8rem;">${r.respuesta || '—'}</td>
+    <td>${r.comentario || '—'}</td>
+    <td>${r.usuario_responde || '—'}</td>
+    <td>${fmtTs(r.fecha_respuesta)}</td>
+  </tr>`).join('');
 }
 
 // ============================================================================
@@ -5908,9 +5932,52 @@ function openTechChecklistRunModal(formId) {
 }
 
 function submitChecklistResponse() {
-  // Simular validación y guardado
+  const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  const form = forms.find(f => f.id === activeRunningFormId);
+  if (!form) return;
+
+  const responses = [];
+  let isValid = true;
+
+  form.fields.forEach((f, idx) => {
+    let val = '';
+    if (f.type === 'checkbox') {
+      const radios = document.getElementsByName(`chk-field-${idx}`);
+      let checkedRadio = Array.from(radios).find(r => r.checked);
+      val = checkedRadio ? checkedRadio.value : 'N/A';
+    } else {
+      const input = document.getElementById(`chk-field-${idx}`);
+      if (input) {
+        val = input.value.trim();
+        if (f.required && !val) {
+          isValid = false;
+        }
+      }
+    }
+    responses.push({ label: f.label, val: val });
+  });
+
+  if (!isValid) {
+    alert('Por favor, llena todos los campos obligatorios.');
+    return;
+  }
+
+  const savedResponses = JSON.parse(localStorage.getItem('TSMAI_dynamic_responses') || '[]');
+  const newResponse = {
+    id: 'RSP-' + Date.now().toString().slice(-6),
+    formId: form.id,
+    formName: form.name,
+    area: form.area,
+    answers: responses,
+    submittedBy: currentUser ? currentUser.name : 'Técnico Demo',
+    date: new Date().toISOString()
+  };
+
+  savedResponses.push(newResponse);
+  localStorage.setItem('TSMAI_dynamic_responses', JSON.stringify(savedResponses));
+
   closeModal('modal-tech-checklist-run');
-  showToast('Formato completado y cargado en el historial de la planta.');
+  showToast('Formato completado y guardado con éxito.');
 }
 
 // --- HISTORIAL DE MÁQUINA (TÉCNICO) ---
