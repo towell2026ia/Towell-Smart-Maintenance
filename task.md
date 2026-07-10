@@ -10,3 +10,7 @@
   - `[x]` 4.1 Crear y ejecutar load_criticidad.js para procesar Criticidad_maquina.xlsb
   - `[x]` 4.2 Mapear prioridades numéricas a niveles textuales con colores en UI
   - `[x]` 4.3 Asignar por defecto 'Muy Baja' a máquinas ausentes en la matriz
+- `[x]` 5. Alta del Equipo Técnico
+  - `[x]` 5.1 Crear modal `modal-admin-new-technician` en HTML para capturar datos
+  - `[x]` 5.2 Implementar `submitNewTechnician()` para insertar en `cat_tecnicos` y `cat_usuarios_roles`
+  - `[x]` 5.3 Sincronizar con el almacenamiento local y refrescar dinámicamente la UI
