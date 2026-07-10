@@ -2187,25 +2187,32 @@ async function renderAdminCategFalla() {
 async function renderAdminCriticidad() {
   const tbody = document.getElementById('tbody-criticidad');
   if (!tbody) return;
-  tbody.innerHTML = emptyRow(6, 'Cargando criticidad…');
-  if (!supabaseClient) { tbody.innerHTML = emptyRow(6, '⚠️ Sin conexión a Supabase.'); return; }
+  tbody.innerHTML = emptyRow(4, 'Cargando criticidad…');
+  if (!supabaseClient) { tbody.innerHTML = emptyRow(4, '⚠️ Sin conexión a Supabase.'); return; }
   try {
-    const { data, error } = await supabaseClient.from('cat_criticidad_maquina').select('*').order('maquina_id').limit(200);
+    const { data, error } = await supabaseClient.from('cat_criticidad_maquina').select('*').order('nivel_criticidad').order('maquina_id').limit(200);
     if (error) throw error;
-    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(6, 'No hay registros de criticidad.'); return; }
-    const nivelColor = { A: '#ef4444', B: '#f59e0b', C: '#22c55e' };
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(4, 'No hay registros de criticidad.'); return; }
+    
+    const nivelColor = {
+      'Muy Alta': '#ef4444',   // Rojo
+      'Alta': '#f97316',       // Naranja
+      'Media-Alta': '#eab308',  // Amarillo oscuro
+      'Media': '#3b82f6',      // Azul
+      'Baja': '#22c55e',       // Verde
+      'Muy Baja': '#64748b'    // Gris
+    };
+
     tbody.innerHTML = data.map(r => {
       const c = nivelColor[r.nivel_criticidad] || '#94a3b8';
       return `<tr>
-        <td>${r.maquina_id}</td>
-        <td><span style="padding:3px 10px;border-radius:8px;font-weight:700;background:${c};color:#fff;">${r.nivel_criticidad}</span></td>
-        <td>${r.impacto_produccion || '—'}</td>
-        <td>${r.impacto_calidad || '—'}</td>
-        <td>${r.impacto_seguridad || '—'}</td>
+        <td><strong>${r.maquina_id}</strong></td>
+        <td><span style="padding:4px 10px;border-radius:12px;font-weight:700;background:${c};color:#fff;font-size:0.75rem;">${r.nivel_criticidad}</span></td>
+        <td>${r.descripcion_criticidad || '—'}</td>
         <td>${badgeActive(r.activo)}</td>
       </tr>`;
     }).join('');
-  } catch (err) { tbody.innerHTML = emptyRow(6, `❌ Error: ${err.message}`); }
+  } catch (err) { tbody.innerHTML = emptyRow(4, `❌ Error: ${err.message}`); }
 }
 
 // ── COMPONENTES DE MÁQUINA ─────────────────────────────────────────────────
