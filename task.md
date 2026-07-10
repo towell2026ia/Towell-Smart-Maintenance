@@ -14,3 +14,4 @@
   - `[x]` 5.1 Crear modal `modal-admin-new-technician` en HTML para capturar datos
   - `[x]` 5.2 Implementar `submitNewTechnician()` para insertar en `cat_tecnicos` y `cat_usuarios_roles`
   - `[x]` 5.3 Sincronizar con el almacenamiento local y refrescar dinámicamente la UI
+  - `[x]` 5.4 Importar base de datos masiva desde TECNICOS_DE_MANTENIMIENTO.xlsx y sembrar cat_turnos
