@@ -2062,6 +2062,98 @@ async function renderAdminTecnicos() {
   } catch (err) { tbody.innerHTML = emptyRow(8, `❌ Error: ${err.message}`); }
 }
 
+async function submitNewTechnician() {
+  const cve_tecnico = document.getElementById('tech-reg-cve').value.trim();
+  const nombre_tecnico = document.getElementById('tech-reg-nombre').value.trim();
+  const correo = document.getElementById('tech-reg-correo').value.trim().toLowerCase();
+  const especialidad = document.getElementById('tech-reg-especialidad').value;
+  const puesto = document.getElementById('tech-reg-puesto').value.trim();
+  const turno_id = parseInt(document.getElementById('tech-reg-turno').value) || 1;
+  const departamento_codigo = document.getElementById('tech-reg-depto').value;
+  const telefono = document.getElementById('tech-reg-telefono').value.trim() || null;
+
+  if (!cve_tecnico || !nombre_tecnico || !correo) {
+    alert('Por favor, ingresa los campos obligatorios: Clave, Nombre y Correo.');
+    return;
+  }
+
+  showToast('Registrando técnico...');
+
+  try {
+    if (supabaseClient) {
+      // 1. Insert into cat_tecnicos
+      const { error: techErr } = await supabaseClient
+        .from('cat_tecnicos')
+        .insert([{
+          cve_tecnico,
+          nombre_tecnico,
+          correo,
+          especialidad,
+          puesto,
+          turno_id,
+          departamento_codigo,
+          telefono,
+          activo: true
+        }]);
+
+      if (techErr) throw techErr;
+
+      // 2. Insert into cat_usuarios_roles
+      const { error: userErr } = await supabaseClient
+        .from('cat_usuarios_roles')
+        .insert([{
+          cve_tecnico,
+          cve_empleado: cve_tecnico,
+          nombre_completo: nombre_tecnico,
+          correo,
+          telefono,
+          rol: 'MANTENIMIENTO',
+          observaciones: especialidad,
+          puede_crear_solicitud: false,
+          puede_ver_ordenes_asignadas: true,
+          puede_ver_todas_ordenes: false,
+          puede_atender_orden: true,
+          puede_cerrar_orden: true,
+          puede_validar_cierre: false,
+          activo: true,
+          debe_cambiar_contrasenia: true
+        }]);
+
+      if (userErr) throw userErr;
+    }
+
+    // 3. Update localStorage cache
+    const localTechs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+    const exists = localTechs.some(t => t.id === cve_tecnico);
+    if (!exists) {
+      localTechs.push({
+        id: cve_tecnico,
+        name: nombre_tecnico,
+        specialty: especialidad,
+        avatar: '👨‍🔧',
+        email: correo
+      });
+      localStorage.setItem('TSMAI_technicians', JSON.stringify(localTechs));
+    }
+
+    showToast('Técnico registrado exitosamente.');
+    closeModal('modal-admin-new-technician');
+
+    // 4. Reset inputs
+    document.getElementById('tech-reg-cve').value = '';
+    document.getElementById('tech-reg-nombre').value = '';
+    document.getElementById('tech-reg-correo').value = '';
+    document.getElementById('tech-reg-telefono').value = '';
+
+    // 5. Refresh table
+    renderAdminTecnicos();
+    populateTectSelects();
+  } catch (err) {
+    console.error('Error registering technician:', err);
+    showToast(`Error: ${err.message}`);
+  }
+}
+
 // ── EMPLEADOS ─────────────────────────────────────────────────────────────────
 async function renderAdminEmpleados() {
   const tbody = document.getElementById('tbody-empleados');

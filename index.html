@@ -1167,7 +1167,7 @@
         <div id="panel-admin-tecnicos" class="admin-panel-content" style="display: none;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">🛠️ Catálogo de Técnicos</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Personal técnico de mantenimiento registrado en el sistema.</p></div>
-            <button class="btn-nav btn-nav-primary" onclick="alert('Módulo próximamente.')">+ Nuevo Técnico</button>
+            <button class="btn-nav btn-nav-primary" onclick="openModal('modal-admin-new-technician')">+ Nuevo Técnico</button>
           </div>
           <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Clave</th><th>Nombre</th><th>Depto.</th><th>Turno</th><th>Especialidad</th><th>Puesto</th><th>Correo</th><th>Estado</th></tr></thead><tbody id="tbody-tecnicos"><tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando técnicos...</td></tr></tbody></table></div>
         </div>
@@ -2153,6 +2153,71 @@
       <div class="modal-footer">
         <button class="btn-action-secondary" onclick="closeModal('modal-admin-part-detail')">Cancelar</button>
         <button class="btn-action-primary" onclick="saveAdminPart()">💾 Guardar Refacción</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== MODAL: NUEVO TÉCNICO ====== -->
+  <div class="modal-overlay" id="modal-admin-new-technician">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 style="margin:0;font-weight:700;">➕ Registrar Nuevo Técnico</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-admin-new-technician')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid" style="grid-template-columns: 1fr;">
+          <div class="form-group">
+            <label for="tech-reg-cve">Clave de Técnico *</label>
+            <input type="text" id="tech-reg-cve" class="form-control" placeholder="Ej. T-05">
+          </div>
+          <div class="form-group">
+            <label for="tech-reg-nombre">Nombre Completo *</label>
+            <input type="text" id="tech-reg-nombre" class="form-control" placeholder="Ej. Juan Pérez">
+          </div>
+          <div class="form-group">
+            <label for="tech-reg-correo">Correo Electrónico *</label>
+            <input type="email" id="tech-reg-correo" class="form-control" placeholder="Ej. juan@tsm-ai.com">
+          </div>
+          <div class="form-group">
+            <label for="tech-reg-especialidad">Especialidad</label>
+            <select id="tech-reg-especialidad" class="form-control">
+              <option value="Ajuste General">Ajuste General</option>
+              <option value="Eléctrica/Electrónica">Eléctrica/Electrónica</option>
+              <option value="Mecánica/Neumática">Mecánica/Neumática</option>
+              <option value="Limpieza/Lubricación">Limpieza/Lubricación</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tech-reg-puesto">Puesto</label>
+            <input type="text" id="tech-reg-puesto" class="form-control" value="Técnico" placeholder="Ej. Técnico de Planta">
+          </div>
+          <div class="form-group">
+            <label for="tech-reg-turno">Turno</label>
+            <select id="tech-reg-turno" class="form-control">
+              <option value="1">Turno 1 (Matutino)</option>
+              <option value="2">Turno 2 (Vespertino)</option>
+              <option value="3">Turno 3 (Nocturno)</option>
+              <option value="4">Turno 4 (Especial)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tech-reg-depto">Departamento</label>
+            <select id="tech-reg-depto" class="form-control">
+              <option value="PF">PF - Producción</option>
+              <option value="CF">CF - Costura</option>
+              <option value="TF">TF - Tintorería</option>
+              <option value="AF">AF - Planta General</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tech-reg-telefono">Teléfono (Opcional)</label>
+            <input type="text" id="tech-reg-telefono" class="form-control" placeholder="Ej. 555-1234">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action-secondary" onclick="closeModal('modal-admin-new-technician')">Cancelar</button>
+        <button class="btn-action-primary" onclick="submitNewTechnician()">💾 Registrar Técnico</button>
       </div>
     </div>
   </div>
