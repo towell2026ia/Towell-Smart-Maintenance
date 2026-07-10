@@ -6,3 +6,7 @@
   - `[x]` 2.2 Integrar cuadrícula de calendario dinámica con filtros en `renderAdminCalendar()`
   - `[x]` 2.3 Manejar los botones de navegación mes anterior/mes siguiente
 - `[x]` 3. Validar y subir cambios a GitHub
+- `[x]` 4. Matriz de Criticidad de Maquinaria
+  - `[x]` 4.1 Crear y ejecutar load_criticidad.js para procesar Criticidad_maquina.xlsb
+  - `[x]` 4.2 Mapear prioridades numéricas a niveles textuales con colores en UI
+  - `[x]` 4.3 Asignar por defecto 'Muy Baja' a máquinas ausentes en la matriz
