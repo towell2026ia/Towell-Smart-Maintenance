@@ -23,3 +23,8 @@
   - `[x]` 7.2 Integrar el guardado de plantillas de formularios con cat_servicios_mantenimiento y checklists_mantenimiento
   - `[x]` 7.3 Sincronizar respuestas locales pendientes (db_synced = false) con respuestas_checklist_orden en Supabase
   - `[x]` 7.4 Mejorar renderAdminRespChk con JOIN relacional para mostrar nombres y preguntas legibles
+- `[x]` 8. Formulario de Bitácora de Mantenimiento (F-BITACORA)
+  - `[x]` 8.1 Sembrar plantilla de Bitácora (8 preguntas) en Supabase con seed_bitacora_template.js
+  - `[x]` 8.2 Añadir opción 'Bitácora de Actividades' al menú lateral del técnico y su panel correspondiente
+  - `[x]` 8.3 Implementar modal con lógica de pre-rellenado (por OT), filtros de máquina por área, y descontado de stock de refacciones
+  - `[x]` 8.4 Habilitar agrupado correlativo por envío en la bandeja del administrador
