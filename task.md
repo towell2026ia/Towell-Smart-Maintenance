@@ -18,3 +18,8 @@
 - `[x]` 6. Carga de Super Administradores
   - `[x]` 6.1 Crear y ejecutar load_super_admins.js para procesar Base_Super_Administrador.xlsx
   - `[x]` 6.2 Registrar al Director y Gerente de Calidad en cat_usuarios_roles con privilegios de administrador
+- `[x]` 7. Sincronización en la Nube de Formularios y Respuestas
+  - `[x]` 7.1 Registrar la orden de trabajo comodín para levantamientos autónomos
+  - `[x]` 7.2 Integrar el guardado de plantillas de formularios con cat_servicios_mantenimiento y checklists_mantenimiento
+  - `[x]` 7.3 Sincronizar respuestas locales pendientes (db_synced = false) con respuestas_checklist_orden en Supabase
+  - `[x]` 7.4 Mejorar renderAdminRespChk con JOIN relacional para mostrar nombres y preguntas legibles
