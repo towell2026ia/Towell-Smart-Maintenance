@@ -28,3 +28,8 @@
   - `[x]` 8.2 Añadir opción 'Bitácora de Actividades' al menú lateral del técnico y su panel correspondiente
   - `[x]` 8.3 Implementar modal con lógica de pre-rellenado (por OT), filtros de máquina por área, y descontado de stock de refacciones
   - `[x]` 8.4 Habilitar agrupado correlativo por envío en la bandeja del administrador
+- `[x]` 9. Tabla Dedicada para Bitácora de Mantenimiento (bitacora_mantenimiento)
+  - `[x]` 9.1 Crear archivo de migración SQL create_bitacora_mantenimiento.sql para la tabla y sus índices
+  - `[x]` 9.2 Modificar flujo de guardado y carga técnica para usar el almacén dedicado TSMAI_maintenance_logs
+  - `[x]` 9.3 Implementar lógica de resolución de UUIDs de OT y sincronización bidireccional en syncDatabases
+  - `[x]` 9.4 Integrar las bitácoras autónomas con el panel histórico del administrador renderAdminLogsTable
