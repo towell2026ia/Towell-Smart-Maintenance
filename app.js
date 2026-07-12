@@ -1075,7 +1075,7 @@ async function syncDatabases() {
                 id_orden: '00000000-0000-0000-0000-000000000000',
                 id_checklist: id_checklist,
                 respuesta: ans.val,
-                comentario: `Formato: ${pr.formName} | Área: ${pr.area}`,
+                comentario: `[${pr.id}] Formato: ${pr.formName} | Área: ${pr.area}`,
                 usuario_responde: pr.submittedBy,
                 fecha_respuesta: pr.date,
                 activo: true
@@ -1096,6 +1096,75 @@ async function syncDatabases() {
       }
     } catch (err) {
       console.error('Error syncing checklists and responses:', err);
+    }
+
+    // 9. Sync Dedicated Maintenance Logs (bitacora_mantenimiento)
+    try {
+      const localLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
+      const pendingLogs = localLogs.filter(l => !l.db_synced);
+
+      if (pendingLogs.length > 0) {
+        console.log(`Found ${pendingLogs.length} pending maintenance log entries. Uploading to Supabase...`);
+        for (let pl of pendingLogs) {
+          const { error: insErr } = await supabaseClient
+            .from('bitacora_mantenimiento')
+            .insert({
+              id_orden: pl.otUUID || null,
+              cve_tecnico: pl.cve_tecnico,
+              nombre_tecnico: pl.nombre_tecnico,
+              area: pl.area,
+              maquina_id: pl.maquina_id,
+              fecha_hora_inicio: pl.fecha_hora_inicio,
+              fecha_hora_fin: pl.fecha_hora_fin,
+              descripcion_actividad: pl.descripcion_actividad,
+              refacciones_usadas: pl.refacciones_usadas,
+              observaciones: pl.observaciones,
+              activo: true
+            });
+          
+          if (!insErr) {
+            pl.db_synced = true;
+          } else {
+            console.error('Error inserting maintenance log entry:', insErr);
+          }
+        }
+        localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(localLogs));
+      }
+
+      const { data: dbLogs, error: fetchErr } = await supabaseClient
+        .from('bitacora_mantenimiento')
+        .select('*')
+        .order('fecha_hora_inicio', { ascending: false });
+
+      if (!fetchErr && dbLogs) {
+        const currentLocal = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
+        const unsynced = currentLocal.filter(l => !l.db_synced);
+
+        const mappedDb = dbLogs.map(l => {
+          const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+          const foundOrder = orders.find(o => o.uuid === l.id_orden);
+          return {
+            id: l.id_bitacora,
+            otFolio: foundOrder ? foundOrder.id : 'NO_APLICA',
+            otUUID: l.id_orden,
+            cve_tecnico: l.cve_tecnico,
+            nombre_tecnico: l.nombre_tecnico,
+            area: l.area,
+            maquina_id: l.maquina_id,
+            fecha_hora_inicio: l.fecha_hora_inicio,
+            fecha_hora_fin: l.fecha_hora_fin,
+            descripcion_actividad: l.descripcion_actividad,
+            refacciones_usadas: l.refacciones_usadas,
+            observaciones: l.observaciones,
+            date: l.fecha_alta,
+            db_synced: true
+          };
+        });
+
+        localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify([...unsynced, ...mappedDb]));
+      }
+    } catch (err) {
+      console.error('Error syncing maintenance logs:', err);
     }
 
     console.log('Supabase synchronization finished successfully.');
@@ -3718,41 +3787,68 @@ function renderAdminLogsTable() {
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
   const tbody = document.getElementById('table-admin-logs-body');
+  if (!tbody) return;
 
   const executedOrders = orders.filter(o => o.status === 'Cerrada' || o.status === 'Ejecutada');
+  const maintenanceLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
 
-  if (executedOrders.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No hay bitácoras de trabajo guardadas aún.</td></tr>`;
-    return;
-  }
-
-  let html = '';
-  executedOrders.forEach(o => {
+  // Map executedOrders to common log structure
+  const logsFromOrders = executedOrders.map(o => {
     const tech = techs.find(t => t.id === o.assignedTech);
     const techName = tech ? tech.name : 'Técnico';
-    const interventionStr = (o.interventionType || []).join(', ') || 'General';
-    
-    // Formatear refacciones
+    const interventionStr = (o.interventionType || []).join(', ') || 'Mantenimiento';
     let partsStr = 'Ninguna';
     if (o.usedParts && o.usedParts.length > 0) {
       partsStr = o.usedParts.map(p => `${p.name || p.partId} (x${p.quantity})`).join(', ');
     }
+    return {
+      id: o.id,
+      tipo: interventionStr,
+      refacciones: partsStr,
+      diagnostico: o.diagnosis || 'N/A',
+      actividad: o.activity || 'N/A',
+      tecnico: techName,
+      fecha: o.dueDate ? new Date(o.dueDate) : new Date()
+    };
+  });
 
-    const formattedDate = new Date(o.dueDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+  // Map maintenanceLogs to common log structure
+  const logsFromMaint = maintenanceLogs.map(l => {
+    return {
+      id: l.otFolio !== 'NO_APLICA' ? l.otFolio : 'Autónomo',
+      tipo: `Actividad: ${l.area}`,
+      refacciones: l.refacciones_usadas || 'Ninguna',
+      diagnostico: `Horario: ${l.fecha_hora_inicio ? new Date(l.fecha_hora_inicio).toLocaleString() : '—'} - ${l.fecha_hora_fin ? new Date(l.fecha_hora_fin).toLocaleString() : '—'}`,
+      actividad: l.descripcion_actividad,
+      tecnico: l.nombre_tecnico,
+      fecha: l.date ? new Date(l.date) : new Date()
+    };
+  });
 
-    html += `
+  const allLogs = [...logsFromOrders, ...logsFromMaint];
+
+  if (allLogs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No hay bitácoras de trabajo guardadas aún.</td></tr>`;
+    return;
+  }
+
+  // Sort by date descending
+  allLogs.sort((a, b) => b.fecha - a.fecha);
+
+  tbody.innerHTML = allLogs.map(l => {
+    const formattedDate = l.fecha.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return `
       <tr>
-        <td><strong>${o.id}</strong></td>
-        <td>${interventionStr}</td>
-        <td>${partsStr}</td>
-        <td>${o.diagnosis || 'N/A'}</td>
-        <td>${o.activity || 'N/A'}</td>
-        <td>${techName}</td>
+        <td><strong>${l.id}</strong></td>
+        <td>${l.tipo}</td>
+        <td>${l.refacciones}</td>
+        <td style="max-width:200px;white-space:normal;font-size:0.85rem;">${l.diagnostico}</td>
+        <td style="max-width:250px;white-space:normal;font-size:0.85rem;">${l.actividad}</td>
+        <td>${l.tecnico}</td>
         <td>${formattedDate}</td>
       </tr>
     `;
-  });
-  tbody.innerHTML = html;
+  }).join('');
 }
 
 // --- CATÁLOGOS ADMIN (MÁQUINAS Y REFACCIONES) ---
@@ -6419,33 +6515,37 @@ async function submitNewBitacoraLog() {
     return;
   }
 
+  let otUUID = null;
+  if (otId !== 'NO_APLICA') {
+    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const order = orders.find(o => o.id === otId);
+    if (order) {
+      otUUID = order.uuid || null;
+    }
+  }
+
   const partsStr = tempBitacoraSelectedParts.map(p => `${p.name} x${p.quantity}`).join(', ') || 'Ninguna';
 
-  const answers = [
-    { label: 'Orden de Trabajo (si aplica)', val: otId },
-    { label: 'Área', val: area },
-    { label: 'Máquina (si aplica)', val: machine },
-    { label: 'Tiempo Inicio', val: timeStart },
-    { label: 'Tiempo Fin', val: timeEnd },
-    { label: 'Descripción de la Actividad', val: description },
-    { label: 'Refacciones Usadas (si aplica)', val: partsStr },
-    { label: 'Observaciones', val: observations || 'Ninguna' }
-  ];
-
-  const savedResponses = JSON.parse(localStorage.getItem('TSMAI_dynamic_responses') || '[]');
-  const newResponse = {
-    id: 'RSP-' + Date.now().toString().slice(-6),
-    formId: 'F-BITACORA',
-    formName: 'Bitácora de Mantenimiento',
+  const localLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
+  const newLog = {
+    id: 'LOG-' + Date.now().toString().slice(-6),
+    otFolio: otId,
+    otUUID: otUUID,
+    cve_tecnico: currentUser ? currentUser.id : 'T-DEMO',
+    nombre_tecnico: currentUser ? currentUser.name : 'Técnico Demo',
     area: area,
-    answers: answers,
-    submittedBy: currentUser ? currentUser.name : 'Técnico Demo',
+    maquina_id: machine === 'NO_APLICA' ? null : machine,
+    fecha_hora_inicio: timeStart,
+    fecha_hora_fin: timeEnd,
+    descripcion_actividad: description,
+    refacciones_usadas: partsStr,
+    observaciones: observations || 'Ninguna',
     date: new Date().toISOString(),
     db_synced: false
   };
 
-  savedResponses.push(newResponse);
-  localStorage.setItem('TSMAI_dynamic_responses', JSON.stringify(savedResponses));
+  localLogs.push(newLog);
+  localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(localLogs));
 
   // Subtract spare parts from local stock
   if (tempBitacoraSelectedParts.length > 0) {
@@ -6468,7 +6568,7 @@ async function submitNewBitacoraLog() {
   // Sync in background
   syncDatabases().then(() => {
     renderTechBitacora();
-    renderAdminRespChk();
+    renderAdminLogsTable();
   }).catch(err => console.error('Error synchronizing bitacora:', err));
 }
 
@@ -6476,51 +6576,37 @@ function renderTechBitacora() {
   const tbody = document.getElementById('table-tech-bitacora-body');
   if (!tbody) return;
 
-  const responses = JSON.parse(localStorage.getItem('TSMAI_dynamic_responses') || '[]');
-  const bitacoraResponses = responses.filter(r => r.formId === 'F-BITACORA');
+  const logs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
+  const myLogs = logs.filter(l => !currentUser || l.cve_tecnico === currentUser.id);
 
-  if (bitacoraResponses.length === 0) {
+  if (myLogs.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No tienes actividades registradas en la bitácora.</td></tr>`;
     return;
   }
 
-  bitacoraResponses.sort((a, b) => new Date(b.date) - new Date(a.date));
+  myLogs.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  tbody.innerHTML = bitacoraResponses.map(r => {
-    const getVal = (label) => {
-      const found = r.answers.find(a => a.label === label);
-      return found ? found.val : '—';
-    };
-
-    const ot = getVal('Orden de Trabajo (si aplica)');
-    const area = getVal('Área');
-    const machine = getVal('Máquina (si aplica)');
-    const start = getVal('Tiempo Inicio');
-    const end = getVal('Tiempo Fin');
-    const desc = getVal('Descripción de la Actividad');
-    const parts = getVal('Refacciones Usadas (si aplica)');
-    const obs = getVal('Observaciones');
-
-    const formattedStart = start ? new Date(start).toLocaleString() : '—';
-    const formattedEnd = end ? new Date(end).toLocaleString() : '—';
+  tbody.innerHTML = myLogs.map(l => {
+    const formattedStart = l.fecha_hora_inicio ? new Date(l.fecha_hora_inicio).toLocaleString() : '—';
+    const formattedEnd = l.fecha_hora_fin ? new Date(l.fecha_hora_fin).toLocaleString() : '—';
 
     return `
       <tr>
-        <td><strong>${new Date(r.date).toLocaleDateString()}</strong></td>
+        <td><strong>${new Date(l.date).toLocaleDateString()}</strong></td>
         <td>
-          <div style="font-weight:700;color:var(--primary-dark);">${ot !== 'NO_APLICA' ? 'OT: ' + ot : 'Levantamiento Autónomo'}</div>
-          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">${desc}</div>
+          <div style="font-weight:700;color:var(--primary-dark);">${l.otFolio !== 'NO_APLICA' ? 'OT: ' + l.otFolio : 'Levantamiento Autónomo'}</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">${l.descripcion_actividad}</div>
         </td>
         <td>
-          <div>Área: <strong>${area}</strong></div>
-          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Máquina: ${machine !== 'NO_APLICA' ? machine : 'N/A'}</div>
+          <div>Área: <strong>${l.area}</strong></div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Máquina: ${l.maquina_id || 'N/A'}</div>
         </td>
         <td style="font-size:0.8rem;">
           <div>Inicio: ${formattedStart}</div>
           <div>Fin: ${formattedEnd}</div>
         </td>
-        <td style="font-size:0.8rem;max-width:150px;white-space:normal;">${parts}</td>
-        <td style="font-size:0.8rem;max-width:150px;white-space:normal;color:var(--text-muted);">${obs}</td>
+        <td style="font-size:0.8rem;max-width:150px;white-space:normal;">${l.refacciones_usadas}</td>
+        <td style="font-size:0.8rem;max-width:150px;white-space:normal;color:var(--text-muted);">${l.observaciones}</td>
       </tr>
     `;
   }).join('');
