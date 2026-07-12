@@ -955,6 +955,149 @@ async function syncDatabases() {
       }
     }
 
+    // 7. Sync Dynamic Checklists (Form definitions & Questions)
+    try {
+      const { data: dbChecklists, error: chkErr } = await supabaseClient
+        .from('checklists_mantenimiento')
+        .select('*')
+        .order('codigo_servicio')
+        .order('orden');
+      
+      if (chkErr) throw chkErr;
+
+      const { data: dbServices, error: srvErr } = await supabaseClient
+        .from('cat_servicios_mantenimiento')
+        .select('codigo_servicio, nombre_servicio');
+      
+      if (srvErr) throw srvErr;
+
+      const serviceMap = {};
+      dbServices.forEach(s => {
+        serviceMap[s.codigo_servicio] = s.nombre_servicio;
+      });
+
+      const groupedForms = {};
+      dbChecklists.forEach(c => {
+        const sId = c.codigo_servicio;
+        if (!groupedForms[sId]) {
+          groupedForms[sId] = {
+            id: sId,
+            name: serviceMap[sId] || `Checklist ${sId}`,
+            area: sId.startsWith('F-') ? 'Planta' : 'General',
+            fields: []
+          };
+        }
+        groupedForms[sId].fields.push({
+          id: c.id_checklist,
+          label: c.pregunta,
+          type: c.tipo_respuesta === 'si_no' ? 'checkbox' : (c.tipo_respuesta === 'numerico' ? 'number' : 'text'),
+          required: c.obligatorio || false
+        });
+      });
+
+      const localForms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+      const dbFormList = Object.values(groupedForms);
+      const dbDynamicForms = dbFormList.filter(f => f.id.startsWith('F-'));
+      const dbDynamicFormIds = new Set(dbDynamicForms.map(f => f.id));
+
+      for (let lf of localForms) {
+        if (!dbDynamicFormIds.has(lf.id)) {
+          console.log(`Uploading local dynamic form ${lf.id} to Supabase...`);
+          await supabaseClient.from('cat_servicios_mantenimiento').upsert([{
+            codigo_servicio: lf.id,
+            nombre_servicio: lf.name,
+            tipo_servicio: 'Autónomo',
+            activo: true
+          }], { onConflict: 'codigo_servicio' });
+
+          const questions = lf.fields.map((f, idx) => ({
+            codigo_servicio: lf.id,
+            codigo_pregunta: `Q-${idx + 1}`,
+            pregunta: f.label,
+            tipo_respuesta: f.type === 'checkbox' ? 'si_no' : (f.type === 'number' ? 'numerico' : 'texto'),
+            obligatorio: f.required || false,
+            orden: idx + 1,
+            activo: true
+          }));
+          await supabaseClient.from('checklists_mantenimiento').insert(questions);
+        }
+      }
+
+      // Re-fetch to update local cache with database generated question UUIDs
+      const { data: finalChecklists } = await supabaseClient
+        .from('checklists_mantenimiento')
+        .select('*')
+        .order('codigo_servicio')
+        .order('orden');
+
+      const finalGrouped = {};
+      (finalChecklists || []).forEach(c => {
+        const sId = c.codigo_servicio;
+        if (sId.startsWith('F-')) {
+          if (!finalGrouped[sId]) {
+            finalGrouped[sId] = {
+              id: sId,
+              name: serviceMap[sId] || `Checklist ${sId}`,
+              area: 'Planta',
+              fields: []
+            };
+          }
+          finalGrouped[sId].fields.push({
+            id: c.id_checklist,
+            label: c.pregunta,
+            type: c.tipo_respuesta === 'si_no' ? 'checkbox' : (c.tipo_respuesta === 'numerico' ? 'number' : 'text'),
+            required: c.obligatorio || false
+          });
+        }
+      });
+
+      const syncedForms = Object.values(finalGrouped);
+      if (syncedForms.length > 0) {
+        localStorage.setItem('TSMAI_dynamic_forms', JSON.stringify(syncedForms));
+      }
+
+      // 8. Sync Dynamic Checklist Responses
+      const localResponses = JSON.parse(localStorage.getItem('TSMAI_dynamic_responses') || '[]');
+      const pendingResponses = localResponses.filter(r => !r.db_synced);
+
+      if (pendingResponses.length > 0) {
+        console.log(`Found ${pendingResponses.length} pending checklist responses. Uploading to Supabase...`);
+        for (let pr of pendingResponses) {
+          const answersToInsert = [];
+          for (let idx = 0; idx < pr.answers.length; idx++) {
+            const ans = pr.answers[idx];
+            const formTemplate = syncedForms.find(sf => sf.id === pr.formId);
+            const questionField = formTemplate ? formTemplate.fields.find(qf => qf.label === ans.label) : null;
+            const id_checklist = questionField ? questionField.id : null;
+
+            if (id_checklist) {
+              answersToInsert.push({
+                id_orden: '00000000-0000-0000-0000-000000000000',
+                id_checklist: id_checklist,
+                respuesta: ans.val,
+                comentario: `Formato: ${pr.formName} | Área: ${pr.area}`,
+                usuario_responde: pr.submittedBy,
+                fecha_respuesta: pr.date,
+                activo: true
+              });
+            }
+          }
+
+          if (answersToInsert.length > 0) {
+            const { error: insErr } = await supabaseClient.from('respuestas_checklist_orden').insert(answersToInsert);
+            if (!insErr) {
+              pr.db_synced = true;
+            } else {
+              console.error('Error inserting checklist response chunk:', insErr);
+            }
+          }
+        }
+        localStorage.setItem('TSMAI_dynamic_responses', JSON.stringify(localResponses));
+      }
+    } catch (err) {
+      console.error('Error syncing checklists and responses:', err);
+    }
+
     console.log('Supabase synchronization finished successfully.');
   } catch (err) {
     console.error('Error during Supabase synchronization:', err);
@@ -2596,9 +2739,40 @@ async function renderAdminRespChk() {
   let dbResponses = [];
   if (supabaseClient) {
     try {
-      const { data, error } = await supabaseClient.from('respuestas_checklist_orden').select('*').order('fecha_respuesta', { ascending: false }).limit(300);
+      const { data, error } = await supabaseClient
+        .from('respuestas_checklist_orden')
+        .select(`
+          id_respuesta,
+          id_orden,
+          respuesta,
+          comentario,
+          usuario_responde,
+          fecha_respuesta,
+          id_checklist,
+          checklists_mantenimiento (
+            pregunta,
+            codigo_servicio,
+            cat_servicios_mantenimiento (
+              nombre_servicio
+            )
+          )
+        `)
+        .order('fecha_respuesta', { ascending: false })
+        .limit(300);
+      
       if (!error && data) {
-        dbResponses = data;
+        dbResponses = data.map(r => {
+          const srvName = r.checklists_mantenimiento?.cat_servicios_mantenimiento?.nombre_servicio || r.checklists_mantenimiento?.codigo_servicio || 'Checklist';
+          const qText = r.checklists_mantenimiento?.pregunta || 'Pregunta';
+          return {
+            id_orden: r.id_orden === '00000000-0000-0000-0000-000000000000' ? 'Levantamiento Autónomo' : r.id_orden,
+            id_checklist: srvName,
+            respuesta: `${qText}: ${r.respuesta}`,
+            comentario: r.comentario || '—',
+            usuario_responde: r.usuario_responde,
+            fecha_respuesta: r.fecha_respuesta
+          };
+        });
       }
     } catch (err) {
       console.error('Error fetching checklist responses:', err);
@@ -2606,8 +2780,9 @@ async function renderAdminRespChk() {
   }
 
   const dynamicResponses = JSON.parse(localStorage.getItem('TSMAI_dynamic_responses') || '[]');
-  const mappedDynamic = dynamicResponses.map(r => ({
-    id_orden: r.id,
+  const pendingDynamic = dynamicResponses.filter(r => !r.db_synced);
+  const mappedDynamic = pendingDynamic.map(r => ({
+    id_orden: 'Levantamiento Local',
     id_checklist: r.formName,
     respuesta: r.answers.map(a => `${a.label}: ${a.val}`).join(' | '),
     comentario: `Área: ${r.area}`,
@@ -6077,6 +6252,11 @@ function submitChecklistResponse() {
 
   closeModal('modal-tech-checklist-run');
   showToast('Formato completado y guardado con éxito.');
+
+  // Trigger background sync to upload to Supabase immediately
+  syncDatabases().then(() => {
+    renderAdminRespChk();
+  }).catch(err => console.error('Error in background sync after checklist response:', err));
 }
 
 // --- HISTORIAL DE MÁQUINA (TÉCNICO) ---
