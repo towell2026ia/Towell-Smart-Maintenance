@@ -15,3 +15,6 @@
   - `[x]` 5.2 Implementar `submitNewTechnician()` para insertar en `cat_tecnicos` y `cat_usuarios_roles`
   - `[x]` 5.3 Sincronizar con el almacenamiento local y refrescar dinámicamente la UI
   - `[x]` 5.4 Importar base de datos masiva desde TECNICOS_DE_MANTENIMIENTO.xlsx y sembrar cat_turnos
+- `[x]` 6. Carga de Super Administradores
+  - `[x]` 6.1 Crear y ejecutar load_super_admins.js para procesar Base_Super_Administrador.xlsx
+  - `[x]` 6.2 Registrar al Director y Gerente de Calidad en cat_usuarios_roles con privilegios de administrador
