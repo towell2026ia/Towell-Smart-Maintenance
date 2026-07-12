@@ -5222,7 +5222,8 @@ function switchTechPanel(panelId) {
 
   const titleLabels = {
     dashboard: '📋 Mi Tablero Técnico',
-    checklists: '📝 Checklists y Formatos de Trabajo',
+    checklists: '📋 Checklists y Formatos de Trabajo',
+    bitacora: '📝 Bitácora de Actividades',
     history: '⚙️ Historial de Máquinas en Planta',
     profile: '👤 Mi Perfil de Técnico'
   };
@@ -5233,6 +5234,8 @@ function switchTechPanel(panelId) {
     renderTechOrdersTable();
   } else if (panelId === 'checklists') {
     renderTechChecklistsTable();
+  } else if (panelId === 'bitacora') {
+    renderTechBitacora();
   } else if (panelId === 'history') {
     populateTechMachineHistorySelect();
   }
@@ -6257,6 +6260,270 @@ function submitChecklistResponse() {
   syncDatabases().then(() => {
     renderAdminRespChk();
   }).catch(err => console.error('Error in background sync after checklist response:', err));
+}
+
+// --- BITÁCORA DE MANTENIMIENTO (LEVANTAMIENTO AUTÓNOMO) ---
+let tempBitacoraSelectedParts = [];
+
+function openNewBitacoraLogModal() {
+  tempBitacoraSelectedParts = [];
+  const form = document.getElementById('form-tech-bitacora-new');
+  if (form) form.reset();
+  
+  // Set current local datetime
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
+  document.getElementById('bitacora-time-start').value = localISOTime;
+  document.getElementById('bitacora-time-end').value = localISOTime;
+
+  renderBitacoraSelectedPartsList();
+
+  // Populate OTs select list
+  const otSelect = document.getElementById('bitacora-ot');
+  if (otSelect) {
+    otSelect.innerHTML = '<option value="NO_APLICA">No aplica (Actividad Autónoma)</option>';
+    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    if (currentUser) {
+      const myActiveOrders = orders.filter(o => o.assignedTech === currentUser.id && o.status !== 'Cerrada' && o.status !== 'Cancelada');
+      myActiveOrders.forEach(o => {
+        otSelect.innerHTML += `<option value="${o.id}">${o.id} - ${o.description.substring(0, 40)}...</option>`;
+      });
+    }
+  }
+
+  // Populate spare parts select dropdown
+  const partSelect = document.getElementById('bitacora-part-select');
+  if (partSelect) {
+    partSelect.innerHTML = '<option value="">Selecciona repuesto...</option>';
+    const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+    parts.forEach(p => {
+      partSelect.innerHTML += `<option value="${p.id}">${p.name} (Stock: ${p.stock})</option>`;
+    });
+  }
+
+  // Reset machines dropdown
+  const machSelect = document.getElementById('bitacora-machine');
+  if (machSelect) {
+    machSelect.innerHTML = '<option value="NO_APLICA">No aplica</option>';
+  }
+
+  openModal('modal-tech-new-bitacora');
+}
+
+function onBitacoraOTChange() {
+  const otId = document.getElementById('bitacora-ot').value;
+  if (otId !== 'NO_APLICA') {
+    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const order = orders.find(o => o.id === otId);
+    if (order) {
+      const areaSelect = document.getElementById('bitacora-area');
+      if (areaSelect) {
+        areaSelect.value = order.area;
+      }
+      onBitacoraAreaChange(order.machine);
+    }
+  } else {
+    document.getElementById('bitacora-area').value = '';
+    const machSelect = document.getElementById('bitacora-machine');
+    if (machSelect) machSelect.innerHTML = '<option value="NO_APLICA">No aplica</option>';
+  }
+}
+
+function onBitacoraAreaChange(preselectMachineId = null) {
+  const area = document.getElementById('bitacora-area').value;
+  const selectMach = document.getElementById('bitacora-machine');
+  if (!selectMach) return;
+  selectMach.innerHTML = '<option value="NO_APLICA">No aplica</option>';
+
+  if (area) {
+    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const filtered = machines.filter(m => m.area === area);
+    filtered.forEach(m => {
+      const isSelected = preselectMachineId === m.id ? 'selected' : '';
+      selectMach.innerHTML += `<option value="${m.id}" ${isSelected}>${m.name} (${m.id})</option>`;
+    });
+  }
+}
+
+function addPartToBitacoraList() {
+  const select = document.getElementById('bitacora-part-select');
+  const partId = select.value;
+  const qty = parseInt(document.getElementById('bitacora-part-qty').value) || 1;
+
+  if (!partId || qty <= 0) {
+    alert('Selecciona una refacción y define una cantidad válida.');
+    return;
+  }
+
+  const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+  const part = parts.find(p => p.id === partId);
+  if (!part) return;
+
+  if (qty > part.stock) {
+    alert(`Stock insuficiente. Solo quedan ${part.stock} unidades.`);
+    return;
+  }
+
+  const existIndex = tempBitacoraSelectedParts.findIndex(p => p.partId === partId);
+  if (existIndex !== -1) {
+    if (tempBitacoraSelectedParts[existIndex].quantity + qty > part.stock) {
+      alert(`Stock insuficiente. No puedes agregar más de ${part.stock} unidades in total.`);
+      return;
+    }
+    tempBitacoraSelectedParts[existIndex].quantity += qty;
+  } else {
+    tempBitacoraSelectedParts.push({
+      partId: partId,
+      name: part.name,
+      quantity: qty
+    });
+  }
+
+  renderBitacoraSelectedPartsList();
+  select.value = '';
+  document.getElementById('bitacora-part-qty').value = '1';
+}
+
+function removePartFromBitacoraList(index) {
+  tempBitacoraSelectedParts.splice(index, 1);
+  renderBitacoraSelectedPartsList();
+}
+
+function renderBitacoraSelectedPartsList() {
+  const list = document.getElementById('bitacora-used-parts-list');
+  if (!list) return;
+  let html = '';
+  tempBitacoraSelectedParts.forEach((p, idx) => {
+    html += `
+      <li style="display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-light); padding: 6px 10px; border-radius: 4px; border: 1px solid #e2e8f0; margin-bottom: 4px; border-top: none;">
+        <span>🔧 <strong>${p.name || p.partId}</strong> x${p.quantity}</span>
+        <button type="button" class="btn-logout" onclick="removePartFromBitacoraList(${idx})" style="padding: 4px 8px; font-size: 0.75rem; width: auto; margin-top: 0; background: #ef4444; border-color: #ef4444;">Quitar</button>
+      </li>
+    `;
+  });
+  list.innerHTML = html;
+}
+
+async function submitNewBitacoraLog() {
+  const otId = document.getElementById('bitacora-ot').value;
+  const area = document.getElementById('bitacora-area').value;
+  const machine = document.getElementById('bitacora-machine').value;
+  const timeStart = document.getElementById('bitacora-time-start').value;
+  const timeEnd = document.getElementById('bitacora-time-end').value;
+  const description = document.getElementById('bitacora-description').value.trim();
+  const observations = document.getElementById('bitacora-observations').value.trim();
+
+  if (!area || !timeStart || !timeEnd || !description) {
+    alert('Por favor completa todos los campos obligatorios.');
+    return;
+  }
+
+  const partsStr = tempBitacoraSelectedParts.map(p => `${p.name} x${p.quantity}`).join(', ') || 'Ninguna';
+
+  const answers = [
+    { label: 'Orden de Trabajo (si aplica)', val: otId },
+    { label: 'Área', val: area },
+    { label: 'Máquina (si aplica)', val: machine },
+    { label: 'Tiempo Inicio', val: timeStart },
+    { label: 'Tiempo Fin', val: timeEnd },
+    { label: 'Descripción de la Actividad', val: description },
+    { label: 'Refacciones Usadas (si aplica)', val: partsStr },
+    { label: 'Observaciones', val: observations || 'Ninguna' }
+  ];
+
+  const savedResponses = JSON.parse(localStorage.getItem('TSMAI_dynamic_responses') || '[]');
+  const newResponse = {
+    id: 'RSP-' + Date.now().toString().slice(-6),
+    formId: 'F-BITACORA',
+    formName: 'Bitácora de Mantenimiento',
+    area: area,
+    answers: answers,
+    submittedBy: currentUser ? currentUser.name : 'Técnico Demo',
+    date: new Date().toISOString(),
+    db_synced: false
+  };
+
+  savedResponses.push(newResponse);
+  localStorage.setItem('TSMAI_dynamic_responses', JSON.stringify(savedResponses));
+
+  // Subtract spare parts from local stock
+  if (tempBitacoraSelectedParts.length > 0) {
+    const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+    tempBitacoraSelectedParts.forEach(selected => {
+      const idx = parts.findIndex(p => p.id === selected.partId);
+      if (idx !== -1) {
+        parts[idx].stock = Math.max(0, parts[idx].stock - selected.quantity);
+      }
+    });
+    localStorage.setItem('TSMAI_parts', JSON.stringify(parts));
+  }
+
+  closeModal('modal-tech-new-bitacora');
+  showToast('Actividad registrada en bitácora.');
+
+  // Refresh view immediately
+  renderTechBitacora();
+
+  // Sync in background
+  syncDatabases().then(() => {
+    renderTechBitacora();
+    renderAdminRespChk();
+  }).catch(err => console.error('Error synchronizing bitacora:', err));
+}
+
+function renderTechBitacora() {
+  const tbody = document.getElementById('table-tech-bitacora-body');
+  if (!tbody) return;
+
+  const responses = JSON.parse(localStorage.getItem('TSMAI_dynamic_responses') || '[]');
+  const bitacoraResponses = responses.filter(r => r.formId === 'F-BITACORA');
+
+  if (bitacoraResponses.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No tienes actividades registradas en la bitácora.</td></tr>`;
+    return;
+  }
+
+  bitacoraResponses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  tbody.innerHTML = bitacoraResponses.map(r => {
+    const getVal = (label) => {
+      const found = r.answers.find(a => a.label === label);
+      return found ? found.val : '—';
+    };
+
+    const ot = getVal('Orden de Trabajo (si aplica)');
+    const area = getVal('Área');
+    const machine = getVal('Máquina (si aplica)');
+    const start = getVal('Tiempo Inicio');
+    const end = getVal('Tiempo Fin');
+    const desc = getVal('Descripción de la Actividad');
+    const parts = getVal('Refacciones Usadas (si aplica)');
+    const obs = getVal('Observaciones');
+
+    const formattedStart = start ? new Date(start).toLocaleString() : '—';
+    const formattedEnd = end ? new Date(end).toLocaleString() : '—';
+
+    return `
+      <tr>
+        <td><strong>${new Date(r.date).toLocaleDateString()}</strong></td>
+        <td>
+          <div style="font-weight:700;color:var(--primary-dark);">${ot !== 'NO_APLICA' ? 'OT: ' + ot : 'Levantamiento Autónomo'}</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">${desc}</div>
+        </td>
+        <td>
+          <div>Área: <strong>${area}</strong></div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Máquina: ${machine !== 'NO_APLICA' ? machine : 'N/A'}</div>
+        </td>
+        <td style="font-size:0.8rem;">
+          <div>Inicio: ${formattedStart}</div>
+          <div>Fin: ${formattedEnd}</div>
+        </td>
+        <td style="font-size:0.8rem;max-width:150px;white-space:normal;">${parts}</td>
+        <td style="font-size:0.8rem;max-width:150px;white-space:normal;color:var(--text-muted);">${obs}</td>
+      </tr>
+    `;
+  }).join('');
 }
 
 // --- HISTORIAL DE MÁQUINA (TÉCNICO) ---

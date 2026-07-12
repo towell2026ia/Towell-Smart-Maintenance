@@ -1354,7 +1354,10 @@
           <a>📋 Mi Tablero Técnico</a>
         </li>
         <li class="menu-item" id="menu-tech-checklists" onclick="switchTechPanel('checklists')">
-          <a>📝 Checklists / Formatos</a>
+          <a>📋 Checklists / Formatos</a>
+        </li>
+        <li class="menu-item" id="menu-tech-bitacora" onclick="switchTechPanel('bitacora')">
+          <a>📝 Bitácora de Actividades</a>
         </li>
         <li class="menu-item" id="menu-tech-history" onclick="switchTechPanel('history')">
           <a>⚙️ Historial de Máquinas</a>
@@ -1474,6 +1477,39 @@
                 </thead>
                 <tbody id="table-tech-checklists-body">
                   <!-- Creado dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel Técnico: Bitácora de Actividades (Levantamiento Autónomo) -->
+        <div id="panel-tech-bitacora" class="tech-panel-content" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 class="section-title" style="margin: 0; font-weight: 700;">📝 Bitácora de Actividades de Mantenimiento</h2>
+            <button class="btn-nav btn-nav-primary" onclick="openNewBitacoraLogModal()" style="display: flex; align-items: center; gap: 8px;">
+              <span>➕ Registrar Actividad</span>
+            </button>
+          </div>
+          
+          <div class="table-container">
+            <div class="table-header-row">
+              <span class="table-title">Mis Registros de Bitácora</span>
+            </div>
+            <div class="responsive-table-wrapper">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Orden/Actividad</th>
+                    <th>Área / Máquina</th>
+                    <th>Horario (Inicio - Fin)</th>
+                    <th>Refacciones</th>
+                    <th>Observaciones</th>
+                  </tr>
+                </thead>
+                <tbody id="table-tech-bitacora-body">
+                  <tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Cargando bitácora...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -1954,6 +1990,92 @@
       <div class="modal-footer">
         <button class="btn-action-secondary" onclick="closeModal('modal-tech-checklist-run')">Cancelar</button>
         <button class="btn-action-primary" onclick="submitChecklistResponse()">Guardar Formato</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Registrar Nueva Bitácora de Actividades (Levantamiento Autónomo) -->
+  <div class="modal-overlay" id="modal-tech-new-bitacora">
+    <div class="modal-card" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 style="font-weight: 700; color: var(--primary-dark);">Registrar Actividad en Bitácora</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-tech-new-bitacora')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-tech-bitacora-new" onsubmit="event.preventDefault(); submitNewBitacoraLog();" style="display: flex; flex-direction: column; gap: 16px;">
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label for="bitacora-ot">Orden de Trabajo (si aplica)</label>
+              <select id="bitacora-ot" class="form-control" onchange="onBitacoraOTChange()">
+                <option value="NO_APLICA">No aplica (Actividad Autónoma)</option>
+                <!-- OTs del técnico -->
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="bitacora-area">Área / Departamento</label>
+              <select id="bitacora-area" class="form-control" onchange="onBitacoraAreaChange()" required>
+                <option value="">Selecciona área...</option>
+                <option value="PF">PF - Tejido (Producción)</option>
+                <option value="CF">CF - Costura</option>
+                <option value="TF">TF - Tintorería</option>
+                <option value="AF">AF - Planta (Planta física / Auxiliares)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="bitacora-machine">Máquina (si aplica)</label>
+            <select id="bitacora-machine" class="form-control">
+              <option value="NO_APLICA">No aplica</option>
+              <!-- Máquinas filtradas por área -->
+            </select>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label for="bitacora-time-start">Tiempo Inicio</label>
+              <input type="datetime-local" id="bitacora-time-start" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="bitacora-time-end">Tiempo Fin</label>
+              <input type="datetime-local" id="bitacora-time-end" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="bitacora-description">Descripción de la Actividad</label>
+            <textarea id="bitacora-description" class="form-control" placeholder="Escribe la descripción de la actividad o servicio realizado..." rows="3" required></textarea>
+          </div>
+
+          <!-- Selector de Refacciones Usadas (Bitácora) -->
+          <div class="form-group" style="border-top: 1px solid #cbd5e1; padding-top: 16px; margin-top: 8px;">
+            <label style="margin-bottom: 8px; font-weight: 600;">Refacciones Utilizadas (si aplica)</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+              <select id="bitacora-part-select" class="form-control">
+                <option value="">Selecciona repuesto...</option>
+                <!-- Rellenado dinámicamente -->
+              </select>
+              <input type="number" id="bitacora-part-qty" class="form-control" value="1" min="1" style="width: 80px;">
+              <button type="button" class="btn-nav btn-nav-primary" onclick="addPartToBitacoraList()" style="padding: 10px 16px;">+</button>
+            </div>
+            <ul id="bitacora-used-parts-list" style="list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; padding: 0; margin: 0;">
+              <!-- Elementos agregados -->
+            </ul>
+          </div>
+
+          <div class="form-group" style="border-top: 1px solid #cbd5e1; padding-top: 16px;">
+            <label for="bitacora-observations">Observaciones</label>
+            <textarea id="bitacora-observations" class="form-control" placeholder="Notas u observaciones adicionales..." rows="2"></textarea>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
+            <button type="button" class="btn-action-secondary" onclick="closeModal('modal-tech-new-bitacora')">Cancelar</button>
+            <button type="submit" class="btn-action-primary">Registrar en Bitácora</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
