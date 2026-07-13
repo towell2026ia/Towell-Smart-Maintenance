@@ -1194,6 +1194,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Cargar datos en los selects dinámicos
   populateTectSelects();
+
+  // --- INTERCEPTOR DE MAGIC LINK / PASSWORD RECOVERY ---
+  if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        showView('public-portal');
+        showPublicPanel('home');
+
+        document.getElementById('change-pass-user-id').value = 'RECOVERY_MODE';
+        document.getElementById('change-pass-target-view').value = session?.user?.user_metadata?.rol === 'SUPER_ADMINISTRADOR' ? 'admin' : 'tech';
+        
+        // Asignar títulos dinámicos
+        const titleEl = document.getElementById('modal-change-pass-title');
+        const subEl = document.getElementById('modal-change-pass-subtitle');
+        if (titleEl) titleEl.innerText = '🔐 Establece tu Nueva Contraseña';
+        if (subEl) subEl.innerText = 'Ingresa y confirma la contraseña que usarás para acceder al sistema.';
+        
+        openModal('modal-change-password');
+      }
+    });
+  }
   
   // Renderizar vistas según estado inicial (público)
   showView('public-portal');
@@ -1250,6 +1271,7 @@ function showView(viewId) {
     renderTechDashboard();
     renderTechOrdersTable();
     renderTechChecklistsTable();
+    renderTechBitacora();
     populateTechMachineHistorySelect();
 
     // Sincronización en segundo plano para actualizar datos en tiempo real sin bloquear la interfaz
@@ -1261,6 +1283,7 @@ function showView(viewId) {
           renderTechDashboard();
           renderTechOrdersTable();
           renderTechChecklistsTable();
+          renderTechBitacora();
           populateTechMachineHistorySelect();
         }
       }).catch(err => console.error('Error in background sync for tech view:', err));
@@ -3783,16 +3806,41 @@ function selectMonthAndSwitch(monthIndex) {
 }
 
 // --- BITÁCORAS GENERALES (ADMIN) ---
-function renderAdminLogsTable() {
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+async function renderAdminLogsTable() {
   const tbody = document.getElementById('table-admin-logs-body');
   if (!tbody) return;
 
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
   const executedOrders = orders.filter(o => o.status === 'Cerrada' || o.status === 'Ejecutada');
-  const maintenanceLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
+  let maintenanceLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
 
-  // Map executedOrders to common log structure
+  // Pull fresh bitacoras from Supabase
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('bitacora_mantenimiento')
+        .select('*')
+        .order('fecha_hora_inicio', { ascending: false })
+        .limit(200);
+      if (!error && data) {
+        maintenanceLogs = data.map(l => ({
+          otFolio: l.id_orden ? 'OT-DB' : 'NO_APLICA',
+          area: l.area,
+          refacciones_usadas: l.refacciones_usadas || 'Ninguna',
+          fecha_hora_inicio: l.fecha_hora_inicio,
+          fecha_hora_fin: l.fecha_hora_fin,
+          descripcion_actividad: l.descripcion_actividad,
+          nombre_tecnico: l.nombre_tecnico,
+          date: l.fecha_alta,
+          db_synced: true
+        }));
+      }
+    } catch (err) {
+      console.warn('Supabase bitacora fetch failed, using cache:', err);
+    }
+  }
+
   const logsFromOrders = executedOrders.map(o => {
     const tech = techs.find(t => t.id === o.assignedTech);
     const techName = tech ? tech.name : 'Técnico';
@@ -3812,7 +3860,7 @@ function renderAdminLogsTable() {
     };
   });
 
-  // Map maintenanceLogs to common log structure
+  // Map maintenanceLogs (Supabase o caché) a estructura común de log
   const logsFromMaint = maintenanceLogs.map(l => {
     return {
       id: l.otFolio !== 'NO_APLICA' ? l.otFolio : 'Autónomo',
@@ -3852,24 +3900,68 @@ function renderAdminLogsTable() {
 }
 
 // --- CATÁLOGOS ADMIN (MÁQUINAS Y REFACCIONES) ---
-function renderAdminMachinesTable() {
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+async function renderAdminMachinesTable() {
   const tbody = document.getElementById('table-admin-machines-body');
   if (!tbody) return;
+
+  let machines = [];
+  // Fuente primaria: Supabase
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('cat_maquinas')
+        .select('equipo_towell, clave, ax, criticidad, activo')
+        .order('equipo_towell');
+      if (!error && data && data.length > 0) {
+        const existingLocal = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+        machines = data.map(m => {
+          const local = existingLocal.find(l => l.id === m.equipo_towell) || {};
+          const area = m.equipo_towell.includes('COS') ? 'CF' : (m.equipo_towell.includes('TIN') || m.equipo_towell.includes('JET') ? 'TF' : 'PF');
+          return {
+            id: m.equipo_towell,
+            name: m.clave || m.equipo_towell,
+            area: area,
+            mtbf: local.mtbf || 120,
+            mttr: local.mttr || 2.5,
+            failures: local.failures || 0,
+            cost: local.cost || 0,
+            status: m.activo ? 'Operativa' : 'En Paro',
+            criticidad: m.criticidad || 'Baja'
+          };
+        });
+        localStorage.setItem('TSMAI_machines', JSON.stringify(machines));
+      }
+    } catch (err) {
+      console.warn('Error fetching machines from Supabase:', err);
+    }
+  }
+
+  // Fallback
+  if (machines.length === 0) {
+    machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  }
 
   let html = '';
   machines.forEach(m => {
     const isOperative = m.status === 'Operativa';
     const statusColor = isOperative ? 'var(--color-preventive)' : 'var(--color-critical)';
+    const criticidadBadge = {
+      'Alta': '<span class="badge badge-priority-alta">Alta</span>',
+      'Media': '<span class="badge badge-priority-media">Media</span>',
+      'Baja': '<span class="badge badge-priority-baja">Baja</span>',
+      'Muy Baja': '<span class="badge badge-priority-baja" style="opacity:0.6">Muy Baja</span>',
+      'Crítica': '<span class="badge badge-priority-crítica">🔴 Crítica</span>'
+    }[m.criticidad] || '<span class="badge badge-priority-baja">N/D</span>';
+
     html += `
       <tr style="opacity: ${isOperative ? 1 : 0.65}">
         <td><strong>${m.id}</strong></td>
         <td>${m.name || m.id}</td>
         <td>${m.area}</td>
+        <td>${criticidadBadge}</td>
         <td>${m.mtbf || 0} hrs</td>
         <td>${m.mttr || 0} hrs</td>
         <td>${m.failures || 0}</td>
-        <td>$${m.cost || 0} USD</td>
         <td><span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: ${statusColor};"><span style="width: 8px; height: 8px; border-radius:50%; background: ${statusColor}"></span>${m.status}</span></td>
         <td>
           <button class="btn-table-action" onclick="openAdminMachineModal('${m.id}')">✏️ Editar</button>
@@ -3883,24 +3975,56 @@ function renderAdminMachinesTable() {
   tbody.innerHTML = html;
 }
 
-function renderAdminPartsTable() {
-  const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+async function renderAdminPartsTable() {
   const tbody = document.getElementById('table-admin-parts-body');
   if (!tbody) return;
+
+  let parts = [];
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('cat_refacciones')
+        .select('*')
+        .order('nombre_articulo');
+      if (!error && data && data.length > 0) {
+        parts = data.map(p => ({
+          id: p.codigo_articulo || p.id_refaccion,
+          name: p.nombre_articulo,
+          category: p.familia || 'General',
+          cost: p.precio_unitario || p.precio_costo_unitario || 0,
+          stock: p.cantidad_existencia || p.stock_actual || 0,
+          minStock: p.stock_minimo || p.cantidad_minima || 3,
+          activo: p.activo !== false,
+          unit: p.unidad_medida || 'PZA'
+        }));
+        localStorage.setItem('TSMAI_parts', JSON.stringify(parts));
+      }
+    } catch (err) {
+      console.warn('Error fetching parts from Supabase:', err);
+    }
+  }
+
+  if (parts.length === 0) {
+    parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+  }
 
   let html = '';
   parts.forEach(p => {
     const isActive = p.activo !== false;
     const lowStock = p.stock <= p.minStock;
-    const stockBadge = !isActive ? '<span class="badge badge-priority-alta">Inactivo</span>' : (lowStock ? '<span class="badge badge-priority-crítica">Reordenar / Bajo</span>' : '<span class="badge badge-status-ejecutada">Óptimo</span>');
+    const stockBadge = !isActive
+      ? '<span class="badge badge-priority-alta">Inactivo</span>'
+      : (lowStock
+        ? '<span class="badge badge-priority-crítica">🚨 Bajo Stock</span>'
+        : '<span class="badge badge-status-ejecutada">✅ Óptimo</span>');
     
     html += `
       <tr style="opacity: ${isActive ? 1 : 0.65}">
         <td><strong>${p.id}</strong></td>
         <td>${p.name}</td>
         <td>${p.category}</td>
-        <td>$${p.cost} USD</td>
-        <td style="font-weight: 700; color: ${isActive && lowStock ? 'var(--color-critical)' : 'inherit'};">${p.stock}</td>
+        <td>$${Number(p.cost).toFixed(2)} MXN</td>
+        <td style="font-weight: 700; color: ${isActive && lowStock ? 'var(--color-critical)' : 'inherit'}; font-size:1.1em;">${p.stock} <small style="font-weight:400;color:var(--text-muted);">${p.unit || 'PZA'}</small></td>
         <td>${p.minStock}</td>
         <td>${stockBadge}</td>
         <td>
@@ -6572,11 +6696,49 @@ async function submitNewBitacoraLog() {
   }).catch(err => console.error('Error synchronizing bitacora:', err));
 }
 
-function renderTechBitacora() {
+async function renderTechBitacora() {
   const tbody = document.getElementById('table-tech-bitacora-body');
   if (!tbody) return;
 
-  const logs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
+  let logs = [];
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('bitacora_mantenimiento')
+        .select('*')
+        .order('fecha_hora_inicio', { ascending: false });
+      if (!error && data) {
+        const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+        logs = data.map(l => {
+          const foundOrder = orders.find(o => o.uuid === l.id_orden);
+          return {
+            id: l.id_bitacora,
+            otFolio: foundOrder ? foundOrder.id : 'NO_APLICA',
+            otUUID: l.id_orden,
+            cve_tecnico: l.cve_tecnico,
+            nombre_tecnico: l.nombre_tecnico,
+            area: l.area,
+            maquina_id: l.maquina_id,
+            fecha_hora_inicio: l.fecha_hora_inicio,
+            fecha_hora_fin: l.fecha_hora_fin,
+            descripcion_actividad: l.descripcion_actividad,
+            refacciones_usadas: l.refacciones_usadas || 'Ninguna',
+            observaciones: l.observaciones || 'Ninguna',
+            date: l.fecha_alta || new Date().toISOString(),
+            db_synced: true
+          };
+        });
+        localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(logs));
+      }
+    } catch (err) {
+      console.warn('Error fetching tech bitacora from Supabase:', err);
+    }
+  }
+
+  if (logs.length === 0) {
+    logs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
+  }
+
   const myLogs = logs.filter(l => !currentUser || l.cve_tecnico === currentUser.id);
 
   if (myLogs.length === 0) {
@@ -7093,23 +7255,37 @@ async function submitChangedPassword() {
     return;
   }
 
-  // Actualizar contraseña en Supabase o LocalStorage
+  // Actualizar contraseña en Supabase Auth (módulo de autenticación nativo)
   if (supabaseClient) {
     try {
-      const { error } = await supabaseClient
-        .from('cat_usuarios_roles')
-        .update({ 
-          contrasenia: newPass, 
-          debe_cambiar_contrasenia: false,
-          fecha_actualizacion: new Date().toISOString()
-        })
-        .eq('id_usuario', userId);
-      
-      if (error) throw error;
-      showToast('Contraseña actualizada con éxito.');
+      // Primero actualizar en Supabase Auth para que el login funcione con la nueva clave
+      const { error: authError } = await supabaseClient.auth.updateUser({ password: newPass });
+      if (authError) throw authError;
+
+      // Si no es modo recovery (tiene userId), también actualizar en cat_usuarios_roles
+      if (userId && userId !== 'RECOVERY_MODE') {
+        await supabaseClient
+          .from('cat_usuarios_roles')
+          .update({ 
+            debe_cambiar_contrasenia: false,
+            fecha_actualizacion: new Date().toISOString()
+          })
+          .eq('id_usuario', userId);
+      } else {
+        // Modo recovery: buscar por correo del usuario autenticado
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user?.email) {
+          await supabaseClient
+            .from('cat_usuarios_roles')
+            .update({ debe_cambiar_contrasenia: false, fecha_actualizacion: new Date().toISOString() })
+            .eq('correo', user.email);
+        }
+      }
+
+      showToast('✅ Contraseña actualizada con éxito.');
     } catch (err) {
       console.error('Error al actualizar la contraseña en Supabase:', err);
-      alert('Error al guardar en Supabase: ' + err.message);
+      alert('Error al guardar: ' + err.message);
       return;
     }
   }
