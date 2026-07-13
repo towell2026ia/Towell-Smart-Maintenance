@@ -9,13 +9,46 @@ const TSM_ENV = {
 
 // --- INITIALIZE SUPABASE CLIENT ---
 let supabaseClient = null;
+let pendingRecovery = false;
+let recoverySession = null;
+
 if (typeof supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 'undefined') {
   try {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     console.log('Supabase client initialized successfully!');
+    
+    // Registrar el listener de inmediato al inicio para capturar el hash de la URL
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state event received:', event);
+      if (event === 'PASSWORD_RECOVERY') {
+        pendingRecovery = true;
+        recoverySession = session;
+        triggerRecoveryUI();
+      }
+    });
   } catch (err) {
     console.error('Failed to initialize Supabase client:', err);
   }
+}
+
+function triggerRecoveryUI() {
+  if (!pendingRecovery) return;
+  const modal = document.getElementById('modal-change-password');
+  if (!modal) return; // Se reintentará en DOMContentLoaded
+
+  showView('public-portal');
+  showPublicPanel('home');
+
+  document.getElementById('change-pass-user-id').value = 'RECOVERY_MODE';
+  document.getElementById('change-pass-target-view').value = recoverySession?.user?.user_metadata?.rol === 'SUPER_ADMINISTRADOR' ? 'admin' : 'tech';
+  
+  const titleEl = document.getElementById('modal-change-pass-title');
+  const subEl = document.getElementById('modal-change-pass-subtitle');
+  if (titleEl) titleEl.innerText = '🔐 Establece tu Nueva Contraseña';
+  if (subEl) subEl.innerText = 'Ingresa y confirma la contraseña que usarás para acceder al sistema.';
+  
+  openModal('modal-change-password');
+  pendingRecovery = false;
 }
 
 // --- VARIABLES GLOBALES Y CONTROL DE ESTADO ---
@@ -1196,25 +1229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   populateTectSelects();
 
   // --- INTERCEPTOR DE MAGIC LINK / PASSWORD RECOVERY ---
-  if (supabaseClient) {
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        showView('public-portal');
-        showPublicPanel('home');
-
-        document.getElementById('change-pass-user-id').value = 'RECOVERY_MODE';
-        document.getElementById('change-pass-target-view').value = session?.user?.user_metadata?.rol === 'SUPER_ADMINISTRADOR' ? 'admin' : 'tech';
-        
-        // Asignar títulos dinámicos
-        const titleEl = document.getElementById('modal-change-pass-title');
-        const subEl = document.getElementById('modal-change-pass-subtitle');
-        if (titleEl) titleEl.innerText = '🔐 Establece tu Nueva Contraseña';
-        if (subEl) subEl.innerText = 'Ingresa y confirma la contraseña que usarás para acceder al sistema.';
-        
-        openModal('modal-change-password');
-      }
-    });
-  }
+  triggerRecoveryUI();
   
   // Renderizar vistas según estado inicial (público)
   showView('public-portal');
