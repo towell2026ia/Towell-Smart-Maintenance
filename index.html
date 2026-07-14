@@ -43,8 +43,8 @@
             Acceso Interno ▾
           </button>
           <div class="dropdown-menu" id="menu-acceso-interno">
-            <a class="dropdown-item" onclick="openLogin('tech')">🛠️ Equipo de Mantenimiento</a>
-            <a class="dropdown-item" onclick="openLogin('admin')">👑 Super Administrador</a>
+            <a class="dropdown-item" onclick="openLogin('users')">🔐 Acceso de Usuarios</a>
+            <a class="dropdown-item" onclick="openLogin('demo')">🚀 Demo de Prueba</a>
           </div>
         </div>
       </nav>
@@ -246,7 +246,7 @@
       </div>
 
       <!-- Selector Rápido para Prueba (WOW factor, facilita testeo al usuario) -->
-      <div class="demo-selector-box">
+      <div class="demo-selector-box" id="login-demo-box">
         <p>Acceso rápido de prueba:</p>
         <div class="demo-buttons-grid">
           <button class="btn-demo-role" onclick="quickLogin('admin')">👑 Super Admin</button>

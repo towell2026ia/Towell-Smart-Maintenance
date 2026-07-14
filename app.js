@@ -12,6 +12,12 @@ let supabaseClient = null;
 let pendingRecovery = false;
 let recoverySession = null;
 
+// Detectar directamente si la URL tiene type=recovery (Fallback infalible para evitar race conditions)
+if (window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('recovery'))) {
+  pendingRecovery = true;
+  console.log('[Auth Fallback] Recovery flag set immediately from URL Hash!');
+}
+
 if (typeof supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 'undefined') {
   try {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -40,7 +46,8 @@ function triggerRecoveryUI() {
   showPublicPanel('home');
 
   document.getElementById('change-pass-user-id').value = 'RECOVERY_MODE';
-  document.getElementById('change-pass-target-view').value = recoverySession?.user?.user_metadata?.rol === 'SUPER_ADMINISTRADOR' ? 'admin' : 'tech';
+  const targetRol = (recoverySession?.user?.user_metadata?.rol === 'SUPER_ADMINISTRADOR') ? 'admin' : 'tech';
+  document.getElementById('change-pass-target-view').value = targetRol;
   
   const titleEl = document.getElementById('modal-change-pass-title');
   const subEl = document.getElementById('modal-change-pass-subtitle');
@@ -1566,20 +1573,44 @@ function handleSearchFolio() {
 }
 
 // --- CONTROL DE LOGIN ---
-function openLogin(role) {
+function openLogin(mode) {
   document.getElementById('form-login').reset();
-  document.getElementById('login-role-target').value = role;
   
-  const label = role === 'admin' ? 'Acceso Super Administrador' : 'Acceso Equipo de Mantenimiento';
-  document.querySelector('.login-logo h2').innerText = label;
+  const demoBox = document.getElementById('login-demo-box');
+  const loginForm = document.getElementById('form-login');
   
-  // Rellenar credenciales por defecto según rol
-  if (role === 'admin') {
-    document.getElementById('login-email').value = 'admin@tsm-ai.com';
-    document.getElementById('login-password').value = 'admin123';
+  if (mode === 'users') {
+    // Acceso de usuarios con correo/contraseña
+    document.querySelector('.login-logo h2').innerText = '🔐 Acceso de Usuarios';
+    document.querySelector('.login-logo p').innerText = 'Ingresa tus credenciales oficiales';
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-role-target').value = 'users';
+    
+    if (demoBox) demoBox.style.display = 'none';
+    if (loginForm) loginForm.style.display = 'block';
+  } else if (mode === 'demo') {
+    // Acceso rápido para demostración
+    document.querySelector('.login-logo h2').innerText = '🚀 Demo de Prueba / Roles';
+    document.querySelector('.login-logo p').innerText = 'Selecciona un rol para interactuar';
+    document.getElementById('login-role-target').value = 'demo';
+    
+    if (demoBox) demoBox.style.display = 'block';
+    if (loginForm) loginForm.style.display = 'none';
   } else {
-    document.getElementById('login-email').value = 'carlos@tsm-ai.com';
-    document.getElementById('login-password').value = 'tech123';
+    // Fallback retrocompatible
+    document.getElementById('login-role-target').value = mode;
+    const label = mode === 'admin' ? 'Acceso Super Administrador' : 'Acceso Equipo de Mantenimiento';
+    document.querySelector('.login-logo h2').innerText = label;
+    if (mode === 'admin') {
+      document.getElementById('login-email').value = 'admin@tsm-ai.com';
+      document.getElementById('login-password').value = 'admin123';
+    } else {
+      document.getElementById('login-email').value = 'carlos@tsm-ai.com';
+      document.getElementById('login-password').value = 'tech123';
+    }
+    if (demoBox) demoBox.style.display = 'block';
+    if (loginForm) loginForm.style.display = 'block';
   }
 
   showView('login');
