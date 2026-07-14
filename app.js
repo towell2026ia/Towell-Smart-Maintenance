@@ -7336,16 +7336,36 @@ async function submitChangedPassword() {
     }
   }
 
-  // Actualizar en localStorage
+  // Actualizar en localStorage y realizar el inicio de sesión
   let users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-  const userIdx = users.findIndex(u => u.id_usuario === userId);
-  if (userIdx !== -1) {
-    users[userIdx].contrasenia = newPass;
-    users[userIdx].debe_cambiar_contrasenia = false;
-    localStorage.setItem('TSMAI_users', JSON.stringify(users));
+  let targetUser = null;
+
+  if (userId === 'RECOVERY_MODE') {
+    // Modo de recuperación: buscar por correo del usuario autenticado en Supabase
+    if (supabaseClient) {
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user?.email) {
+          targetUser = users.find(u => u.correo && u.correo.toLowerCase() === user.email.toLowerCase());
+        }
+      } catch (err) {
+        console.warn('No se pudo recuperar el usuario de la sesión de Supabase Auth:', err);
+      }
+    }
+  } else {
+    targetUser = users.find(u => u.id_usuario === userId);
+  }
+
+  if (targetUser) {
+    const userIdx = users.findIndex(u => u.id_usuario === targetUser.id_usuario);
+    if (userIdx !== -1) {
+      users[userIdx].contrasenia = newPass;
+      users[userIdx].debe_cambiar_contrasenia = false;
+      localStorage.setItem('TSMAI_users', JSON.stringify(users));
+    }
 
     // Iniciar sesión del usuario
-    const dbUser = users[userIdx];
+    const dbUser = targetUser;
     if (dbUser.rol === 'SUPER_ADMINISTRADOR') {
       currentUser = { 
         role: 'admin', 
@@ -7371,17 +7391,30 @@ async function submitChangedPassword() {
       closeModal('modal-change-password');
       showToast(`Sesión iniciada como Técnico: ${dbUser.nombre_completo}`);
       
-      document.getElementById('tech-profile-name').innerText = dbUser.nombre_completo;
-      document.getElementById('tech-profile-specialty').innerText = dbUser.observaciones || 'General';
-      document.getElementById('tech-profile-avatar').innerText = '👨‍🔧';
+      const pName = document.getElementById('tech-profile-name');
+      const pSpec = document.getElementById('tech-profile-specialty');
+      const pAvat = document.getElementById('tech-profile-avatar');
+      if (pName) pName.innerText = dbUser.nombre_completo;
+      if (pSpec) pSpec.innerText = dbUser.observaciones || 'General';
+      if (pAvat) pAvat.innerText = '👨‍🔧';
       
       showView('tech');
       switchTechPanel('dashboard');
     }
+  } else {
+    // Si no se encuentra en caché local, de todas formas cerrar el modal
+    closeModal('modal-change-password');
+    showToast('Contraseña actualizada. Por favor inicia sesión normalmente.');
+    showView('public-portal');
+    showPublicPanel('home');
   }
 
   if (supabaseClient) {
-    await syncDatabases();
+    try {
+      await syncDatabases();
+    } catch (e) {
+      console.warn('Sync failed after password change:', e);
+    }
   }
 }
 
