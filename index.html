@@ -263,7 +263,10 @@
           <input type="email" id="login-email" class="form-control" placeholder="usuario@tsm-ai.com" required>
         </div>
         <div class="form-group" style="margin-bottom: 24px;">
-          <label for="login-password">Contraseña</label>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label for="login-password" style="margin-bottom: 0;">Contraseña</label>
+            <a href="#" onclick="openPasswordRecoveryRequest()" style="font-size: 0.8rem; color: var(--accent-cyan); text-decoration: none; font-weight: 600;">¿Olvidaste tu contraseña?</a>
+          </div>
           <input type="password" id="login-password" class="form-control" placeholder="••••••••" required>
         </div>
         
@@ -2618,6 +2621,107 @@
         <button class="btn-nav btn-nav-primary" id="btn-generate-ot-cal-item" onclick="handleGenerateOTCalItem()" style="width: auto; border-radius: 6px; padding: 6px 12px;" disabled>Generar OT</button>
       </div>
     </div>
+
+  <!-- Modal: Recuperación de Contraseña con Doble Verificación (2FA) -->
+  <div class="modal-overlay" id="modal-password-recovery" style="z-index: 1100;">
+    <div class="modal-card" style="max-width: 420px; border: 2px solid var(--accent-cyan);">
+      <div class="modal-header" style="background: var(--dark-bg); color: white; border-bottom: 2px solid var(--accent-cyan);">
+        <h3 style="margin:0; display:flex; align-items:center; gap:8px;">🔐 Doble Verificación (2FA)</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-password-recovery')" style="color: white; border: none; background: transparent; font-size: 1.5rem; cursor: pointer;">×</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        
+        <!-- Paso 1: Solicitar Email y Teléfono -->
+        <div id="recovery-step-1">
+          <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 16px;">
+            Para restablecer tu contraseña, ingresa el correo electrónico oficial y el número de teléfono registrado en tu perfil de usuario.
+          </p>
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="recovery-email">Correo Electrónico *</label>
+            <input type="email" id="recovery-email" class="form-control" placeholder="ejemplo@tsm-ai.com" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label for="recovery-phone">Número de Teléfono *</label>
+            <input type="tel" id="recovery-phone" class="form-control" placeholder="Ej. 5512345678" required>
+          </div>
+          <button class="btn-action-primary" onclick="submitRecoveryRequest2FA()" style="width: 100%; background: var(--accent-cyan); color: black; font-weight: 700; border-radius: 6px; padding: 12px;">
+            📲 Enviar Código de Verificación
+          </button>
+        </div>
+
+        <!-- Paso 2: Introducir Código SMS OTP -->
+        <div id="recovery-step-2" style="display: none;">
+          <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 16px;">
+            Hemos enviado un código SMS de 6 dígitos al teléfono finalizado en <strong id="recovery-masked-phone">****</strong>.
+          </p>
+          <div class="form-group" style="margin-bottom: 20px; text-align: center;">
+            <label for="recovery-otp" style="text-align: left; display: block; margin-bottom: 8px;">Código de Verificación OTP *</label>
+            <input type="text" id="recovery-otp" class="form-control" placeholder="######" maxlength="6" style="font-family: monospace; font-size: 1.8rem; text-align: center; letter-spacing: 6px; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: white;" required>
+          </div>
+          <button class="btn-action-primary" onclick="verifyRecoveryOTP()" style="width: 100%; background: var(--color-preventive); color: white; font-weight: 700; border-radius: 6px; padding: 12px;">
+            ✅ Verificar Código y Enviar Correo
+          </button>
+          <button class="btn-action-secondary" onclick="goBackToStep1()" style="width: 100%; margin-top: 10px; font-size: 0.8rem; border: none; background: transparent; color: var(--text-muted); cursor: pointer;">
+            ← Cambiar Correo o Teléfono
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Simulador de Teléfono SMS (WOW factor) -->
+  <div class="modal-overlay" id="modal-sms-simulator" style="z-index: 1300; background: rgba(0,0,0,0.85);">
+    <div style="width: 290px; height: 520px; background: #000; border-radius: 40px; padding: 12px; box-shadow: 0 0 30px rgba(6, 182, 212, 0.4); position: relative; border: 4px solid #334155; margin: auto; display: flex; flex-direction: column;">
+      <!-- Speaker & Camera notch -->
+      <div style="width: 110px; height: 20px; background: #000; border-radius: 0 0 12px 12px; position: absolute; top: 12px; left: 90px; z-index: 10; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <div style="width: 40px; height: 3px; background: #334155; border-radius: 2px;"></div>
+        <div style="width: 6px; height: 6px; background: #1e293b; border-radius: 50%;"></div>
+      </div>
+      
+      <!-- Phone Screen Area -->
+      <div style="flex: 1; background: #0b0f19; border-radius: 30px; overflow: hidden; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; position: relative;">
+        <!-- Status Bar -->
+        <div style="height: 32px; padding: 0 16px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.75rem; color: #fff; font-weight: 500; opacity: 0.9;">
+          <span>10:56</span>
+          <div style="display: flex; gap: 4px; font-size: 0.65rem;">
+            <span>📶</span>
+            <span>🔋</span>
+          </div>
+        </div>
+        
+        <!-- App Header (Messages) -->
+        <div style="background: #111827; padding: 16px 12px 10px 12px; border-bottom: 1px solid #1f2937; text-align: center;">
+          <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px;">Mensaje de Texto</div>
+          <div style="font-weight: bold; color: #fff; font-size: 0.85rem;">💬 TSM-AI Auth</div>
+        </div>
+        
+        <!-- Message Bubbles Area -->
+        <div style="flex: 1; padding: 16px 10px; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; overflow-y: auto; text-align: left;">
+          <div style="align-self: flex-start; background: #1f2937; color: #f1f5f9; padding: 10px 14px; border-radius: 16px 16px 16px 4px; max-width: 90%; font-size: 0.8rem; line-height: 1.4; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+            <div style="font-weight: 700; font-size: 0.7rem; color: var(--accent-cyan); margin-bottom: 2px;">TSM-AI Notificación</div>
+            Tu código de doble factor para restablecer tu contraseña es:
+            <div style="font-size: 1.4rem; font-family: monospace; font-weight: 800; text-align: center; margin: 8px 0; color: #22c55e; letter-spacing: 2px;" id="sms-simulated-code">843920</div>
+            Este código expirará en 5 minutos. No lo compartas.
+            <div style="font-size: 0.6rem; color: #94a3b8; text-align: right; margin-top: 4px;">Justo ahora</div>
+          </div>
+        </div>
+
+        <!-- Fake keyboard input at bottom -->
+        <div style="background: #111827; padding: 8px 10px; border-top: 1px solid #1f2937; display: flex; align-items: center; gap: 8px;">
+          <div style="flex: 1; background: #1f2937; border-radius: 20px; height: 28px; padding: 0 12px; display: flex; align-items: center; font-size: 0.75rem; color: #64748b;">
+            iMessage
+          </div>
+          <button style="border: none; background: transparent; font-size: 1rem; cursor: pointer; color: #fff;">⬆️</button>
+        </div>
+      </div>
+      
+      <!-- Close simulator button -->
+      <button onclick="closeModal('modal-sms-simulator')" style="position: absolute; bottom: -45px; left: 50%; transform: translateX(-50%); background: #ef4444; color: white; border: none; padding: 6px 16px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 0.8rem; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); width: 140px;">
+        Cerrar Teléfono 📱
+      </button>
+    </div>
+  </div>
 
   <!-- ==========================================================================
        7. MENSAJES FLOTANTES (Toasts)

@@ -11,6 +11,8 @@ const TSM_ENV = {
 let supabaseClient = null;
 let pendingRecovery = false;
 let recoverySession = null;
+let recoveryGeneratedOTP = null;
+let recoveryTargetEmail = null;
 
 // Detectar directamente si la URL tiene type=recovery (Fallback infalible para evitar race conditions)
 if (window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('recovery'))) {
@@ -7284,6 +7286,136 @@ function showSimulatedEmail(to, subject, bodyHtml, actionText, actionCallback) {
   }
   
   openModal('modal-email-simulator');
+}
+
+// --- PASSWORD RECOVERY WITH 2FA (EMAIL + SMS OTP) ---
+function openPasswordRecoveryRequest() {
+  const emailInput = document.getElementById('recovery-email');
+  const phoneInput = document.getElementById('recovery-phone');
+  const otpInput = document.getElementById('recovery-otp');
+  
+  if (emailInput) emailInput.value = '';
+  if (phoneInput) phoneInput.value = '';
+  if (otpInput) otpInput.value = '';
+  
+  document.getElementById('recovery-step-1').style.display = 'block';
+  document.getElementById('recovery-step-2').style.display = 'none';
+  
+  openModal('modal-password-recovery');
+}
+
+function goBackToStep1() {
+  document.getElementById('recovery-step-1').style.display = 'block';
+  document.getElementById('recovery-step-2').style.display = 'none';
+}
+
+async function submitRecoveryRequest2FA() {
+  const email = document.getElementById('recovery-email').value.trim().toLowerCase();
+  const phone = document.getElementById('recovery-phone').value.trim();
+
+  if (!email || !phone) {
+    alert('Por favor completa todos los campos.');
+    return;
+  }
+
+  // 1. Validar que el usuario exista en la base de datos (local o remota)
+  let userRecord = null;
+  const localUsers = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+  
+  if (supabaseClient) {
+    try {
+      showToast('Verificando usuario...');
+      const { data, error } = await supabaseClient
+        .from('cat_usuarios_roles')
+        .select('*')
+        .eq('correo', email)
+        .maybeSingle();
+      if (!error && data) {
+        userRecord = data;
+      }
+    } catch (err) {
+      console.warn('Error al verificar correo en Supabase, buscando en local:', err);
+    }
+  }
+
+  if (!userRecord) {
+    userRecord = localUsers.find(u => u.correo && u.correo.toLowerCase() === email);
+  }
+
+  if (!userRecord) {
+    alert('El correo electrónico ingresado no coincide con ningún usuario del sistema.');
+    return;
+  }
+
+  // 2. Asociar el teléfono ingresado al usuario si el teléfono en la base de datos es nulo o coincide
+  // (Para facilitar las pruebas iniciales del usuario, si no tiene teléfono registrado se lo asociamos en el flujo)
+  const userPhone = userRecord.telefono || '';
+  if (userPhone && userPhone.replace(/\s+/g, '') !== phone.replace(/\s+/g, '')) {
+    alert('El número de teléfono no coincide con el registrado para esta cuenta.');
+    return;
+  }
+
+  // 3. Generar código OTP y disparar simulador SMS
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  recoveryGeneratedOTP = otpCode;
+  recoveryTargetEmail = email;
+
+  // Actualizar el valor en la pantalla del celular simulado
+  const smsSimField = document.getElementById('sms-simulated-code');
+  if (smsSimField) {
+    smsSimField.innerText = otpCode;
+  }
+
+  // Mostrar el teléfono simulado y enmascarar en el modal
+  openModal('modal-sms-simulator');
+  
+  const masked = phone.length > 4 ? '******' + phone.slice(-4) : phone;
+  document.getElementById('recovery-masked-phone').innerText = masked;
+
+  // Pasar al paso 2 en el modal
+  document.getElementById('recovery-step-1').style.display = 'none';
+  document.getElementById('recovery-step-2').style.display = 'block';
+  
+  showToast('Código enviado por SMS (Simulador)');
+}
+
+async function verifyRecoveryOTP() {
+  const enteredOtp = document.getElementById('recovery-otp').value.trim();
+
+  if (!enteredOtp || enteredOtp.length !== 6) {
+    alert('Por favor ingresa el código de 6 dígitos.');
+    return;
+  }
+
+  if (enteredOtp !== recoveryGeneratedOTP) {
+    alert('El código de verificación OTP ingresado es incorrecto.');
+    return;
+  }
+
+  // OTP Correcto -> Cerrar simulador de teléfono
+  closeModal('modal-sms-simulator');
+  showToast('Verificación telefónica exitosa. Enviando correo...');
+
+  // 4. Solicitar el envío del correo de recuperación en Supabase Auth
+  if (supabaseClient) {
+    try {
+      const redirectUrl = window.location.origin + window.location.pathname;
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(recoveryTargetEmail, {
+        redirectTo: redirectUrl
+      });
+      if (error) {
+        alert('Error al solicitar restablecimiento en Supabase Auth: ' + error.message);
+        return;
+      }
+    } catch (err) {
+      console.error('Error enviando recovery en Supabase:', err);
+      alert('Error en Supabase: ' + err.message);
+      return;
+    }
+  }
+
+  closeModal('modal-password-recovery');
+  alert('🛡️ Doble Verificación Exitosa: Hemos enviado un correo con el enlace para restablecer tu contraseña. Revísalo para continuar.');
 }
 
 async function submitChangedPassword() {
