@@ -676,16 +676,7 @@ async function syncDatabases() {
       });
       localStorage.setItem('TSMAI_machines', JSON.stringify(localMachines));
     } else {
-      const localMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
-      if (localMachines.length > 0) {
-        const insertData = localMachines.map(m => ({
-          equipo_towell: m.id,
-          clave: m.id.split('-')[1] || m.id,
-          ax: null,
-          origen: 'Seed'
-        }));
-        await supabaseClient.from('cat_maquinas').insert(insertData);
-      }
+      localStorage.setItem('TSMAI_machines', '[]');
     }
 
     // 2. Sync Technicians
@@ -703,43 +694,8 @@ async function syncDatabases() {
       }));
       localStorage.setItem('TSMAI_technicians', JSON.stringify(localTechs));
     } else {
-      const localTechs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
-      if (localTechs.length > 0) {
-        const insertData = localTechs.map(t => ({
-          nombre_completo: t.name,
-          correo: t.email,
-          rol: 'MANTENIMIENTO',
-          cve_tecnico: t.id,
-          cve_empleado: t.id,
-          puede_crear_solicitud: false,
-          puede_ver_ordenes_asignadas: true,
-          puede_ver_todas_ordenes: false,
-          puede_atender_orden: true,
-          puede_cerrar_orden: true,
-          puede_validar_cierre: false,
-          activo: true,
-          observaciones: t.specialty
-        }));
-        insertData.push({
-          nombre_completo: 'Super Administrador',
-          correo: 'admin@tsm-ai.com',
-          rol: 'SUPER_ADMINISTRADOR',
-          cve_empleado: 'ADM001',
-          puede_crear_solicitud: true,
-          puede_ver_ordenes_asignadas: true,
-          puede_ver_todas_ordenes: true,
-          puede_atender_orden: true,
-          puede_cerrar_orden: true,
-          puede_validar_cierre: true,
-          puede_editar_catalogos: true,
-          puede_ver_dashboards: true,
-          puede_configurar_sistema: true,
-          recibe_alertas: true,
-          activo: true,
-          observaciones: 'Acceso Completo'
-        });
-        await supabaseClient.from('cat_usuarios_roles').insert(insertData);
-      }
+      localStorage.setItem('TSMAI_users', '[]');
+      localStorage.setItem('TSMAI_technicians', '[]');
     }
 
     // 3. Sync Spare Parts
@@ -761,17 +717,7 @@ async function syncDatabases() {
       });
       localStorage.setItem('TSMAI_parts', JSON.stringify(localParts));
     } else {
-      const localParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
-      if (localParts.length > 0) {
-        const insertData = localParts.map(p => ({
-          codigo_articulo: p.id,
-          nombre_articulo: p.name,
-          unidad_medida: 'PZ',
-          familia: p.category,
-          activo: true
-        }));
-        await supabaseClient.from('cat_refacciones').insert(insertData);
-      }
+      localStorage.setItem('TSMAI_parts', '[]');
     }
 
     // 4. Sync Orders & Requests
@@ -813,55 +759,8 @@ async function syncDatabases() {
       localStorage.setItem('TSMAI_requests', JSON.stringify(localRequests));
       localStorage.setItem('TSMAI_orders', JSON.stringify(localOrders));
     } else {
-      const localRequests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-      const localOrders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-      const combined = new Map();
-      
-      localRequests.forEach(r => {
-        combined.set(r.id, {
-          folio: r.id,
-          orden_trabajo: r.type,
-          origen: 'App',
-          estatus: r.status,
-          fecha_inicio: r.date.split('T')[0],
-          hora_inicio: r.date.split('T')[1]?.split('.')[0] || '12:00:00',
-          fecha_hora_inicio: r.date,
-          departamento: r.area,
-          maquina_id: r.machine,
-          falla: r.type,
-          descripcion: r.description,
-          nombre_solicitante: r.applicant,
-          turno_solicitante: r.shift.includes('Mañana') ? 1 : r.shift.includes('Tarde') ? 2 : 3,
-          prioridad: r.urgency
-        });
-      });
-      
-      localOrders.forEach(o => {
-        combined.set(o.id, {
-          folio: o.id,
-          orden_trabajo: o.type,
-          origen: 'App',
-          estatus: o.status,
-          fecha_inicio: o.date.split('T')[0],
-          hora_inicio: o.date.split('T')[1]?.split('.')[0] || '12:00:00',
-          fecha_hora_inicio: o.date,
-          departamento: o.area,
-          maquina_id: o.machine,
-          falla: o.type,
-          descripcion: o.description,
-          nombre_solicitante: o.applicant,
-          turno_solicitante: o.shift.includes('Mañana') ? 1 : o.shift.includes('Tarde') ? 2 : 3,
-          prioridad: o.urgency,
-          cve_atendio: o.assignedTech,
-          fecha_fin: o.dueDate ? o.dueDate.split('T')[0] : null,
-          hora_fin: o.dueDate ? o.dueDate.split('T')[1]?.slice(0,8) : null,
-          fecha_hora_fin: o.dueDate || null
-        });
-      });
-      
-      if (combined.size > 0) {
-        await supabaseClient.from('ordenes_trabajo').insert(Array.from(combined.values()));
-      }
+      localStorage.setItem('TSMAI_requests', '[]');
+      localStorage.setItem('TSMAI_orders', '[]');
     }
 
     // 5. Sync Subtasks
@@ -896,34 +795,7 @@ async function syncDatabases() {
       }));
       localStorage.setItem('TSMAI_subtasks', JSON.stringify(localSubtasks));
     } else {
-      const localSubtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
-      if (localSubtasks.length > 0) {
-        const insertData = localSubtasks.map(s => ({
-          id_subtarea: s.id,
-          folio_ot: s.otId,
-          id_orden: s.otUUID,
-          numero_subtarea: s.number,
-          titulo_subtarea: s.title || 'Apoyo',
-          area_requerida: s.area,
-          descripcion_subtarea: s.description,
-          motivo_solicitud: s.reason,
-          fecha_deseada: s.dueDate,
-          prioridad: s.priority,
-          requiere_paro: s.requiresParo,
-          requiere_refaccion: s.requiresPart,
-          estatus_subtarea: s.status,
-          solicitado_por: s.requestedBy,
-          asignado_por: s.assignedBy,
-          responsable_asignado: s.assignedTech,
-          fecha_solicitud: s.requestDate,
-          fecha_asignacion: s.assignDate,
-          fecha_inicio: s.startDate,
-          fecha_cierre: s.closeDate,
-          observaciones: s.observations,
-          activo: s.activo !== undefined ? s.activo : true
-        }));
-        await supabaseClient.from('subtareas_orden_trabajo').insert(insertData);
-      }
+      localStorage.setItem('TSMAI_subtasks', '[]');
     }
 
     // 5.5. Sync Subtask Evidences
@@ -947,25 +819,7 @@ async function syncDatabases() {
       }));
       localStorage.setItem('TSMAI_subtask_evidences', JSON.stringify(localEvidences));
     } else {
-      const localEvidences = JSON.parse(localStorage.getItem('TSMAI_subtask_evidences') || '[]');
-      if (localEvidences.length > 0) {
-        const insertData = localEvidences.map(e => ({
-          id_evidencia: e.id,
-          id_subtarea: e.subtaskId,
-          id_orden: e.otUUID,
-          tipo_archivo: e.fileType,
-          origen_evidencia: e.origin,
-          nombre_archivo: e.fileName,
-          url_archivo: e.fileUrl,
-          storage_bucket: e.bucket,
-          storage_path: e.path,
-          descripcion: e.description,
-          subido_por: e.uploadedBy,
-          fecha_subida: e.uploadDate,
-          activo: e.active !== undefined ? e.active : true
-        }));
-        await supabaseClient.from('evidencias_subtareas').insert(insertData);
-      }
+      localStorage.setItem('TSMAI_subtask_evidences', '[]');
     }
 
     // 6. Sync Movements
@@ -985,21 +839,7 @@ async function syncDatabases() {
       }));
       localStorage.setItem('TSMAI_movements', JSON.stringify(localMovements));
     } else {
-      const localMovements = JSON.parse(localStorage.getItem('TSMAI_movements') || '[]');
-      if (localMovements.length > 0) {
-        const insertData = localMovements.map(m => ({
-          id_movimiento: m.id,
-          id_orden: m.otUUID,
-          id_subtarea: m.subtaskId,
-          tipo_movimiento: m.type,
-          estado_anterior: m.oldState,
-          estado_nuevo: m.newState,
-          realizado_por: m.by,
-          comentario: m.comment,
-          fecha_movimiento: m.date
-        }));
-        await supabaseClient.from('bitacora_subtareas').insert(insertData);
-      }
+      localStorage.setItem('TSMAI_movements', '[]');
     }
 
     // 7. Sync Dynamic Checklists (Form definitions & Questions)
@@ -2193,7 +2033,118 @@ async function renderAdminChecklists() {
     </tr>`).join('');
   } catch (err) { tbody.innerHTML = emptyRow(6, `❌ Error: ${err.message}`); }
 }
-function openChecklistModal() { alert('Modal de nueva pregunta de checklist — próximamente.'); }
+async function openChecklistModal() {
+  const selectServ = document.getElementById('chk-new-service');
+  if (!selectServ) return;
+
+  selectServ.innerHTML = '<option value="">Cargando servicios...</option>';
+  
+  let services = [];
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient.from('cat_servicios_mantenimiento').select('*').eq('activo', true);
+      if (!error && data) {
+        services = data.map(s => ({ code: s.codigo_servicio, name: s.nombre_servicio }));
+      }
+    } catch (e) {
+      console.warn('Failed to load services from Supabase:', e);
+    }
+  }
+
+  if (services.length === 0) {
+    const servicesLocal = JSON.parse(localStorage.getItem('TSMAI_services') || '[]');
+    services = servicesLocal.map(s => ({ code: s.id, name: s.name }));
+  }
+
+  if (services.length === 0) {
+    services = [
+      { code: 'SERV-01', name: 'Mantenimiento Preventivo Mecánico' },
+      { code: 'SERV-02', name: 'Inspección Eléctrica Semanal' },
+      { code: 'SERV-03', name: 'Ajuste de Tensión de Bandas' }
+    ];
+  }
+
+  selectServ.innerHTML = '<option value="">Selecciona servicio...</option>' + 
+    services.map(s => `<option value="${s.code}">${s.name} (${s.code})</option>`).join('');
+
+  // Reset inputs
+  document.getElementById('chk-new-code').value = '';
+  document.getElementById('chk-new-question').value = '';
+  document.getElementById('chk-new-type').value = 'si_no';
+  document.getElementById('chk-new-required').checked = false;
+  document.getElementById('chk-new-order').value = '1';
+  document.getElementById('chk-new-obs').value = '';
+
+  openModal('modal-admin-new-checklist-question');
+}
+
+async function submitNewChecklistQuestion() {
+  const service = document.getElementById('chk-new-service').value;
+  const code = document.getElementById('chk-new-code').value.trim();
+  const question = document.getElementById('chk-new-question').value.trim();
+  const type = document.getElementById('chk-new-type').value;
+  const required = document.getElementById('chk-new-required').checked;
+  const order = parseInt(document.getElementById('chk-new-order').value) || 1;
+  const obs = document.getElementById('chk-new-obs').value.trim();
+
+  if (!service || !code || !question || !type) {
+    alert('Por favor completa todos los campos obligatorios.');
+    return;
+  }
+
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      showToast('Guardando en base de datos...');
+      const record = {
+        codigo_servicio: service,
+        codigo_pregunta: code,
+        pregunta: question,
+        tipo_respuesta: type,
+        obligatorio: required,
+        orden: order,
+        observaciones: obs || null,
+        activo: true
+      };
+      const { error } = await supabaseClient.from('checklists_mantenimiento').insert([record]);
+      if (error) throw error;
+      showToast('Pregunta de checklist guardada en Supabase.');
+    } catch (err) {
+      console.error('Error inserting checklist question in Supabase:', err);
+      alert('Error al guardar en Supabase: ' + err.message);
+      return;
+    }
+  }
+
+  // Guardar localmente
+  const localForms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  let existingForm = localForms.find(f => f.id === service);
+  if (!existingForm) {
+    existingForm = {
+      id: service,
+      name: 'Checklist: ' + service,
+      area: service.includes('COS') ? 'Costura' : 'General',
+      fields: []
+    };
+    localForms.push(existingForm);
+  }
+
+  existingForm.fields.push({
+    name: code,
+    label: question,
+    type: type === 'si_no' ? 'radio' : type === 'numerico' ? 'number' : 'text',
+    required: required
+  });
+
+  localStorage.setItem('TSMAI_dynamic_forms', JSON.stringify(localForms));
+
+  closeModal('modal-admin-new-checklist-question');
+  showToast('Pregunta guardada.');
+  renderAdminChecklists();
+  
+  if (useLiveDatabase) {
+    syncDatabases().catch(e => console.warn(e));
+  }
+}
 
 // ── COSTOS MANO DE OBRA ──────────────────────────────────────────────────────
 async function renderAdminLaborCosts() {
@@ -2986,7 +2937,7 @@ async function renderAdminRespChk() {
   tbody.innerHTML = emptyRow(6, 'Cargando respuestas de checklist…');
   
   let dbResponses = [];
-  if (supabaseClient) {
+  if (useLiveDatabase && supabaseClient) {
     try {
       const { data, error } = await supabaseClient
         .from('respuestas_checklist_orden')
@@ -6520,35 +6471,74 @@ async function saveTechnicalLog() {
 }
 
 // --- DYNAMIC CHECKLISTS EN VISTA TÉCNICO ---
-function renderTechChecklistsTable() {
-  const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+async function renderTechChecklistsTable() {
   const tbody = document.getElementById('table-tech-checklists-body');
   if (!tbody) return;
 
-  if (forms.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No hay formatos cargados.</td></tr>`;
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Cargando formatos...</td></tr>';
+
+  let checklistGroups = [];
+
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('checklists_mantenimiento')
+        .select('*')
+        .eq('activo', true)
+        .order('codigo_servicio')
+        .order('orden');
+        
+      if (!error && data && data.length > 0) {
+        const grouped = {};
+        data.forEach(q => {
+          if (!grouped[q.codigo_servicio]) {
+            grouped[q.codigo_servicio] = {
+              id: q.codigo_servicio,
+              name: 'Formato: ' + (q.codigo_pregunta ? q.codigo_pregunta.slice(0, 3) : 'Q') + ' - ' + q.codigo_servicio,
+              area: 'General',
+              fields: []
+            };
+          }
+          grouped[q.codigo_servicio].fields.push({
+            id_pregunta: q.id_checklist,
+            name: q.codigo_pregunta,
+            label: q.pregunta,
+            type: q.tipo_respuesta === 'si_no' ? 'radio' : q.tipo_respuesta === 'numerico' ? 'number' : 'text',
+            required: q.obligatorio
+          });
+        });
+        checklistGroups = Object.values(grouped);
+        localStorage.setItem('TSMAI_dynamic_forms', JSON.stringify(checklistGroups));
+      }
+    } catch (err) {
+      console.warn('Failed to load live checklists from Supabase, falling back to local cache:', err);
+    }
+  }
+
+  if (checklistGroups.length === 0) {
+    checklistGroups = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  }
+
+  if (checklistGroups.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No hay formatos cargados en el sistema.</td></tr>`;
     return;
   }
 
-  let html = '';
-  forms.forEach(f => {
-    html += `
-      <tr>
-        <td><strong>${f.id}</strong></td>
-        <td>${f.name}</td>
-        <td>${f.area}</td>
-        <td>
-          <button class="btn-table-action" onclick="openTechChecklistRunModal('${f.id}')">📋 Llenar Formato</button>
-        </td>
-      </tr>
-    `;
-  });
-  tbody.innerHTML = html;
+  tbody.innerHTML = checklistGroups.map(f => `
+    <tr>
+      <td><strong>${f.id}</strong></td>
+      <td>${f.name}</td>
+      <td>${f.area || 'General'}</td>
+      <td>
+        <button class="btn-table-action" onclick="openTechChecklistRunModal('${f.id}')">📋 Llenar Formato</button>
+      </td>
+    </tr>
+  `).join('');
 }
 
 let activeRunningFormId = null;
 
-function openTechChecklistRunModal(formId) {
+async function openTechChecklistRunModal(formId) {
   const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
   const form = forms.find(f => f.id === formId);
   if (!form) return;
@@ -6556,46 +6546,111 @@ function openTechChecklistRunModal(formId) {
   activeRunningFormId = formId;
   document.getElementById('tech-chk-title').innerText = form.name;
 
+  // Populate active OTs for this technician
+  const otSelect = document.getElementById('tech-chk-ot-select');
+  if (otSelect) {
+    otSelect.innerHTML = '<option value="">Selecciona una OT activa...</option>';
+    let orders = [];
+    if (useLiveDatabase && supabaseClient) {
+      try {
+        const { data } = await supabaseClient.from('ordenes_trabajo').select('*');
+        if (data) {
+          orders = data.map(o => ({
+            id: o.folio,
+            uuid: o.id_orden,
+            assignedTech: o.cve_atendio,
+            status: o.estatus,
+            description: o.description
+          }));
+        }
+      } catch (err) {
+        console.warn('Error loading active OTs for checklist run:', err);
+      }
+    }
+    if (orders.length === 0) {
+      orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    }
+    if (currentUser) {
+      const myActiveOrders = orders.filter(o => o.assignedTech === currentUser.id && o.status !== 'Cerrada' && o.status !== 'Cancelada');
+      myActiveOrders.forEach(o => {
+        otSelect.innerHTML += `<option value="${o.id}" data-uuid="${o.uuid || ''}">${o.id} - ${o.description.substring(0, 45)}...</option>`;
+      });
+    }
+  }
+
   const body = document.getElementById('tech-chk-body');
   let html = '';
   form.fields.forEach((f, idx) => {
     html += `
-      <div class="form-group" style="margin-bottom: 16px;">
-        <label>${f.label}</label>
+      <div class="form-group" style="margin-bottom: 16px;" data-pregunta-id="${f.id_pregunta || ''}" data-pregunta-code="${f.name || ''}" data-pregunta-text="${f.label}">
+        <label style="font-weight:600;margin-bottom:6px;display:block;">${f.label} ${f.required ? '*' : ''}</label>
     `;
     
-    if (f.type === 'checkbox') {
+    if (f.type === 'radio') {
       html += `
-        <div class="radio-group">
-          <label class="radio-label"><input type="radio" name="chk-field-${idx}" value="Sí" class="radio-input" required> Sí</label>
+        <div class="radio-group" style="display:flex;gap:12px;">
+          <label class="radio-label"><input type="radio" name="chk-field-${idx}" value="Sí" class="radio-input"> Sí</label>
           <label class="radio-label"><input type="radio" name="chk-field-${idx}" value="No" class="radio-input"> No</label>
           <label class="radio-label"><input type="radio" name="chk-field-${idx}" value="N/A" class="radio-input" checked> N/A</label>
         </div>
       `;
-    } else if (f.type === 'text') {
-      html += `<input type="text" id="chk-field-${idx}" class="form-control" placeholder="${f.placeholder || 'Escribe aquí...'}" required>`;
     } else if (f.type === 'number') {
-      html += `<input type="number" id="chk-field-${idx}" class="form-control" placeholder="0" required>`;
+      html += `<input type="number" id="chk-field-${idx}" class="form-control" placeholder="0" ${f.required ? 'required' : ''}>`;
+    } else {
+      html += `<input type="text" id="chk-field-${idx}" class="form-control" placeholder="Escribe aquí..." ${f.required ? 'required' : ''}>`;
     }
 
-    html += `</div>`;
+    // Comentario adicional
+    html += `
+      <input type="text" id="chk-field-comment-${idx}" class="form-control" placeholder="Comentario adicional (opcional)" style="margin-top: 6px; font-size: 0.8rem;">
+    </div>`;
   });
 
   body.innerHTML = html;
   openModal('modal-tech-checklist-run');
 }
 
-function submitChecklistResponse() {
+async function submitChecklistResponse() {
   const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
   const form = forms.find(f => f.id === activeRunningFormId);
   if (!form) return;
+
+  const otSelect = document.getElementById('tech-chk-ot-select');
+  const selectedOtId = otSelect ? otSelect.value : '';
+  
+  if (!selectedOtId) {
+    alert('Por favor selecciona la Orden de Trabajo (OT) vinculada.');
+    return;
+  }
+
+  // Obtener UUID de la OT
+  let otUUID = null;
+  const selectedOption = otSelect.options[otSelect.selectedIndex];
+  if (selectedOption) {
+    otUUID = selectedOption.getAttribute('data-uuid') || null;
+  }
+
+  if (useLiveDatabase && !otUUID && supabaseClient) {
+    try {
+      const { data } = await supabaseClient
+        .from('ordenes_trabajo')
+        .select('id_orden')
+        .eq('folio', selectedOtId)
+        .maybeSingle();
+      if (data) {
+        otUUID = data.id_orden;
+      }
+    } catch(err) {
+      console.warn('Error fetching OT UUID:', err);
+    }
+  }
 
   const responses = [];
   let isValid = true;
 
   form.fields.forEach((f, idx) => {
     let val = '';
-    if (f.type === 'checkbox') {
+    if (f.type === 'radio') {
       const radios = document.getElementsByName(`chk-field-${idx}`);
       let checkedRadio = Array.from(radios).find(r => r.checked);
       val = checkedRadio ? checkedRadio.value : 'N/A';
@@ -6608,7 +6663,9 @@ function submitChecklistResponse() {
         }
       }
     }
-    responses.push({ label: f.label, val: val });
+    const commentInput = document.getElementById(`chk-field-comment-${idx}`);
+    const comment = commentInput ? commentInput.value.trim() : '';
+    responses.push({ label: f.label, val: val, comment: comment });
   });
 
   if (!isValid) {
@@ -6616,15 +6673,63 @@ function submitChecklistResponse() {
     return;
   }
 
+  // 1. Guardar en Supabase si es base real
+  if (useLiveDatabase && supabaseClient && otUUID) {
+    try {
+      showToast('Guardando respuestas del formato...');
+      const records = [];
+      
+      form.fields.forEach((f, idx) => {
+        let val = '';
+        if (f.type === 'radio') {
+          const radios = document.getElementsByName(`chk-field-${idx}`);
+          let checkedRadio = Array.from(radios).find(r => r.checked);
+          val = checkedRadio ? checkedRadio.value : 'N/A';
+        } else {
+          const input = document.getElementById(`chk-field-${idx}`);
+          if (input) val = input.value.trim();
+        }
+        
+        const commentInput = document.getElementById(`chk-field-comment-${idx}`);
+        const comment = commentInput ? commentInput.value.trim() : '';
+
+        if (f.id_pregunta) {
+          records.push({
+            id_orden: otUUID,
+            id_checklist: f.id_pregunta,
+            respuesta: val,
+            comentario: comment || null,
+            usuario_responde: currentUser ? currentUser.name : 'Técnico Real',
+            activo: true
+          });
+        }
+      });
+
+      if (records.length > 0) {
+        const { error } = await supabaseClient.from('respuestas_checklist_orden').insert(records);
+        if (error) throw error;
+        showToast('Respuestas guardadas en Supabase.');
+      }
+    } catch (err) {
+      console.error('Error saving checklist answers to Supabase:', err);
+      alert('Error al guardar respuestas en Supabase: ' + err.message);
+      return;
+    }
+  }
+
+  // 2. Guardar localmente
   const savedResponses = JSON.parse(localStorage.getItem('TSMAI_dynamic_responses') || '[]');
   const newResponse = {
     id: 'RSP-' + Date.now().toString().slice(-6),
     formId: form.id,
     formName: form.name,
     area: form.area,
+    otFolio: selectedOtId,
+    otUUID: otUUID,
     answers: responses,
     submittedBy: currentUser ? currentUser.name : 'Técnico Demo',
-    date: new Date().toISOString()
+    date: new Date().toISOString(),
+    db_synced: useLiveDatabase
   };
 
   savedResponses.push(newResponse);
@@ -6633,16 +6738,17 @@ function submitChecklistResponse() {
   closeModal('modal-tech-checklist-run');
   showToast('Formato completado y guardado con éxito.');
 
-  // Trigger background sync to upload to Supabase immediately
-  syncDatabases().then(() => {
-    renderAdminRespChk();
-  }).catch(err => console.error('Error in background sync after checklist response:', err));
+  if (useLiveDatabase) {
+    syncDatabases().then(() => {
+      renderAdminRespChk();
+    }).catch(err => console.error('Error in background sync after checklist response:', err));
+  }
 }
 
 // --- BITÁCORA DE MANTENIMIENTO (LEVANTAMIENTO AUTÓNOMO) ---
 let tempBitacoraSelectedParts = [];
 
-function openNewBitacoraLogModal() {
+async function openNewBitacoraLogModal() {
   tempBitacoraSelectedParts = [];
   const form = document.getElementById('form-tech-bitacora-new');
   if (form) form.reset();
@@ -6656,11 +6762,64 @@ function openNewBitacoraLogModal() {
 
   renderBitacoraSelectedPartsList();
 
-  // Populate OTs select list
   const otSelect = document.getElementById('bitacora-ot');
+  const partSelect = document.getElementById('bitacora-part-select');
+  const machSelect = document.getElementById('bitacora-machine');
+
+  if (otSelect) otSelect.innerHTML = '<option value="NO_APLICA">No aplica (Actividad Autónoma)</option>';
+  if (partSelect) partSelect.innerHTML = '<option value="">Cargando repuestos...</option>';
+  if (machSelect) machSelect.innerHTML = '<option value="NO_APLICA">No aplica</option>';
+
+  let orders = [];
+  let parts = [];
+  let machines = [];
+
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      showToast('Obteniendo datos actualizados...');
+      const [ordRes, partRes, machRes] = await Promise.all([
+        supabaseClient.from('ordenes_trabajo').select('*'),
+        supabaseClient.from('cat_refacciones').select('*'),
+        supabaseClient.from('cat_maquinas').select('*')
+      ]);
+      
+      if (!ordRes.error && ordRes.data) {
+        orders = ordRes.data.map(o => ({
+          id: o.folio,
+          uuid: o.id_orden,
+          assignedTech: o.cve_atendio,
+          status: o.estatus,
+          description: o.descripcion,
+          area: o.departamento,
+          machine: o.maquina_id
+        }));
+      }
+      if (!partRes.error && partRes.data) {
+        parts = partRes.data.map(p => ({
+          id: p.codigo_articulo,
+          name: p.nombre_articulo,
+          stock: p.stock_actual ?? 50
+        }));
+      }
+      if (!machRes.error && machRes.data) {
+        machines = machRes.data.map(m => ({
+          id: m.equipo_towell,
+          name: m.equipo_towell
+        }));
+      }
+    } catch (err) {
+      console.warn('Failed to load dynamic lists from Supabase, fallback to local storage:', err);
+    }
+  }
+
+  // Fallback if local or if query failed
+  if (orders.length === 0) orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  if (parts.length === 0) parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+  if (machines.length === 0) machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+
+  // Populate OTs select list
   if (otSelect) {
     otSelect.innerHTML = '<option value="NO_APLICA">No aplica (Actividad Autónoma)</option>';
-    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
     if (currentUser) {
       const myActiveOrders = orders.filter(o => o.assignedTech === currentUser.id && o.status !== 'Cerrada' && o.status !== 'Cancelada');
       myActiveOrders.forEach(o => {
@@ -6670,19 +6829,19 @@ function openNewBitacoraLogModal() {
   }
 
   // Populate spare parts select dropdown
-  const partSelect = document.getElementById('bitacora-part-select');
   if (partSelect) {
     partSelect.innerHTML = '<option value="">Selecciona repuesto...</option>';
-    const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
     parts.forEach(p => {
       partSelect.innerHTML += `<option value="${p.id}">${p.name} (Stock: ${p.stock})</option>`;
     });
   }
 
-  // Reset machines dropdown
-  const machSelect = document.getElementById('bitacora-machine');
+  // Populate machines list
   if (machSelect) {
     machSelect.innerHTML = '<option value="NO_APLICA">No aplica</option>';
+    machines.forEach(m => {
+      machSelect.innerHTML += `<option value="${m.id}">${m.id}</option>`;
+    });
   }
 
   openModal('modal-tech-new-bitacora');
@@ -6798,15 +6957,81 @@ async function submitNewBitacoraLog() {
 
   let otUUID = null;
   if (otId !== 'NO_APLICA') {
-    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-    const order = orders.find(o => o.id === otId);
-    if (order) {
-      otUUID = order.uuid || null;
+    // Buscar el UUID real de la OT
+    if (useLiveDatabase && supabaseClient) {
+      try {
+        const { data } = await supabaseClient
+          .from('ordenes_trabajo')
+          .select('id_orden')
+          .eq('folio', otId)
+          .maybeSingle();
+        if (data) {
+          otUUID = data.id_orden;
+        }
+      } catch (err) {
+        console.warn('Error fetching OT UUID:', err);
+      }
+    }
+    if (!otUUID) {
+      const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+      const order = orders.find(o => o.id === otId);
+      if (order) {
+        otUUID = order.uuid || null;
+      }
     }
   }
 
   const partsStr = tempBitacoraSelectedParts.map(p => `${p.name} x${p.quantity}`).join(', ') || 'Ninguna';
 
+  // 1. Guardar en base de datos real si corresponde
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      showToast('Guardando en base de datos real...');
+      const record = {
+        id_orden: otUUID,
+        cve_tecnico: currentUser ? currentUser.id : 'T-01',
+        nombre_tecnico: currentUser ? currentUser.name : 'Técnico Real',
+        area: area,
+        maquina_id: machine === 'NO_APLICA' ? null : machine,
+        fecha_hora_inicio: timeStart,
+        fecha_hora_fin: timeEnd,
+        descripcion_actividad: description,
+        refacciones_usadas: partsStr,
+        observaciones: observations || 'Ninguna'
+      };
+      
+      const { error: insErr } = await supabaseClient.from('bitacora_mantenimiento').insert([record]);
+      if (insErr) throw insErr;
+      
+      // 2. Restar stock en Supabase
+      if (tempBitacoraSelectedParts.length > 0) {
+        for (const selected of tempBitacoraSelectedParts) {
+          try {
+            const { data: partData } = await supabaseClient
+              .from('cat_refacciones')
+              .select('stock_actual')
+              .eq('codigo_articulo', selected.partId)
+              .maybeSingle();
+            if (partData) {
+              const newStock = Math.max(0, (partData.stock_actual || 50) - selected.quantity);
+              await supabaseClient
+                .from('cat_refacciones')
+                .update({ stock_actual: newStock })
+                .eq('codigo_articulo', selected.partId);
+            }
+          } catch (stkErr) {
+            console.warn('Error updating live stock:', stkErr);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error saving bitacora to Supabase:', err);
+      alert('Error al guardar en Supabase: ' + err.message);
+      return;
+    }
+  }
+
+  // 3. Guardar en cache local para retrocompatibilidad/offline
   const localLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
   const newLog = {
     id: 'LOG-' + Date.now().toString().slice(-6),
@@ -6822,13 +7047,13 @@ async function submitNewBitacoraLog() {
     refacciones_usadas: partsStr,
     observaciones: observations || 'Ninguna',
     date: new Date().toISOString(),
-    db_synced: false
+    db_synced: useLiveDatabase
   };
 
   localLogs.push(newLog);
   localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(localLogs));
 
-  // Subtract spare parts from local stock
+  // Restar stock local
   if (tempBitacoraSelectedParts.length > 0) {
     const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
     tempBitacoraSelectedParts.forEach(selected => {
@@ -6841,16 +7066,17 @@ async function submitNewBitacoraLog() {
   }
 
   closeModal('modal-tech-new-bitacora');
-  showToast('Actividad registrada en bitácora.');
+  showToast('Actividad registrada con éxito.');
 
-  // Refresh view immediately
+  // Refrescar vistas
   renderTechBitacora();
-
-  // Sync in background
-  syncDatabases().then(() => {
-    renderTechBitacora();
-    renderAdminLogsTable();
-  }).catch(err => console.error('Error synchronizing bitacora:', err));
+  
+  if (useLiveDatabase) {
+    syncDatabases().then(() => {
+      renderTechBitacora();
+      renderAdminLogsTable();
+    }).catch(err => console.error('Error synchronizing bitacora:', err));
+  }
 }
 
 async function renderTechBitacora() {
@@ -6858,7 +7084,7 @@ async function renderTechBitacora() {
   if (!tbody) return;
 
   let logs = [];
-  if (supabaseClient) {
+  if (useLiveDatabase && supabaseClient) {
     try {
       const { data, error } = await supabaseClient
         .from('bitacora_mantenimiento')
