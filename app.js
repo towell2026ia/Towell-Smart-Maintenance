@@ -3073,21 +3073,75 @@ function renderAdminDashboard() {
       alertHTML += `
         <div class="alert-item">
           <span>⚠️</span>
-          <div><strong>Máquina Parada:</strong> El equipo ${m.name} (${m.id}) en área ${m.area} requiere atención inmediata.</div>
+          <div><strong>Máquina Parada:</strong> El equipo ${m.name || m.id} (${m.id}) en área ${m.area} requiere atención inmediata.</div>
         </div>
       `;
     });
 
-    // Alertas estáticas de la pizarra
-    whiteboardData.alertas.forEach(a => {
-      const isCritical = a.message.includes('fuera de servicio') || a.message.includes('fallas');
-      alertHTML += `
-        <div class="alert-item ${isCritical ? '' : 'alert-warning'}">
-          <span>${isCritical ? '🚨' : '⚠️'}</span>
-          <div><strong>${a.type}:</strong> ${a.message}</div>
-        </div>
-      `;
-    });
+    if (useLiveDatabase) {
+      // 1. Alertas de OTs Críticas Abiertas
+      const criticalOrders = orders.filter(o => o.urgency === 'Crítica' && o.status !== 'Cerrada' && o.status !== 'Cancelada');
+      criticalOrders.forEach(o => {
+        alertHTML += `
+          <div class="alert-item">
+            <span>🚨</span>
+            <div><strong>Prioridad Crítica:</strong> La OT ${o.id} (${o.description.substring(0, 50)}...) en máquina ${o.machine || 'N/A'} requiere atención.</div>
+          </div>
+        `;
+      });
+
+      // 2. Alertas de OTs Vencidas Abiertas
+      const now = new Date();
+      const overdueOrders = orders.filter(o => o.dueDate && new Date(o.dueDate) < now && o.status !== 'Cerrada' && o.status !== 'Cancelada');
+      overdueOrders.forEach(o => {
+        const formattedDate = new Date(o.dueDate).toLocaleDateString();
+        alertHTML += `
+          <div class="alert-item alert-warning">
+            <span>⚠️</span>
+            <div><strong>OT Vencida:</strong> La OT ${o.id} de la máquina ${o.machine || 'N/A'} tenía fecha límite ${formattedDate}.</div>
+          </div>
+        `;
+      });
+
+      // 3. Fallas recurrentes por máquina (si tiene más de 2 fallas en la base)
+      const machineFailCounts = {};
+      orders.forEach(o => {
+        if (o.machine && o.machine !== 'NO_APLICA' && o.status !== 'Cancelada') {
+          machineFailCounts[o.machine] = (machineFailCounts[o.machine] || 0) + 1;
+        }
+      });
+      Object.entries(machineFailCounts).forEach(([machId, count]) => {
+        if (count >= 3) {
+          alertHTML += `
+            <div class="alert-item alert-warning">
+              <span>🔥</span>
+              <div><strong>Fallas Recurrentes:</strong> El equipo ${machId} registra ${count} fallas acumuladas.</div>
+            </div>
+          `;
+        }
+      });
+
+      if (alertHTML === '') {
+        alertHTML = `
+          <div style="text-align: center; color: var(--text-muted); padding: 20px;">
+            ✅ No hay alertas activas en el sistema. Todo marcha en orden.
+          </div>
+        `;
+      }
+    } else {
+      // Alertas estáticas de la pizarra (Demo Mode)
+      if (whiteboardData.alertas) {
+        whiteboardData.alertas.forEach(a => {
+          const isCritical = a.message.includes('fuera de servicio') || a.message.includes('fallas');
+          alertHTML += `
+            <div class="alert-item ${isCritical ? '' : 'alert-warning'}">
+              <span>${isCritical ? '🚨' : '⚠️'}</span>
+              <div><strong>${a.type}:</strong> ${a.message}</div>
+            </div>
+          `;
+        });
+      }
+    }
     alertList.innerHTML = alertHTML;
   }
 

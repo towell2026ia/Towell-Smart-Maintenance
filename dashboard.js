@@ -801,6 +801,178 @@ async function loadCriticalInventory() {
 }
 
 // ============================================================
+// 9B. CHECKLIST & ANOMALIES ANALYSIS
+// ============================================================
+
+async function loadChecklistAnalysis() {
+  const wrapId = 'checklist-chart-wrap';
+  const containerId = 'checklist-chart-container';
+  const anomaliesWrap = 'anomalies-wrap';
+
+  try {
+    let answers = [];
+
+    // 1. Try querying Supabase
+    try {
+      const { data, error } = await db
+        .from('respuestas_checklist_orden')
+        .select(`
+          id_respuesta,
+          id_orden,
+          respuesta,
+          comentario,
+          usuario_responde,
+          fecha_respuesta,
+          checklists_mantenimiento (
+            pregunta
+          )
+        `)
+        .order('fecha_respuesta', { ascending: false })
+        .limit(500);
+
+      if (!error && data) {
+        answers = data.map(r => ({
+          id: r.id_respuesta,
+          pregunta: r.checklists_mantenimiento?.pregunta || 'Pregunta de inspección',
+          respuesta: r.respuesta || '',
+          comentario: r.comentario || '',
+          usuario: r.usuario_responde || 'Técnico Real',
+          fecha: r.fecha_respuesta
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to query Supabase checklists, using local storage fallback:', e);
+    }
+
+    // 2. Local storage fallback if database returned nothing
+    if (answers.length === 0) {
+      const localResponses = JSON.parse(localStorage.getItem('TSMAI_dynamic_responses') || '[]');
+      localResponses.forEach(r => {
+        if (r.answers) {
+          r.answers.forEach(ans => {
+            answers.push({
+              id: r.id,
+              pregunta: ans.label || 'Inspección',
+              respuesta: ans.val || '',
+              comentario: ans.comment || '',
+              usuario: r.submittedBy || 'Técnico Demo',
+              fecha: r.date
+            });
+          });
+        }
+      });
+    }
+
+    if (answers.length === 0) {
+      showEmpty(wrapId, 'Sin respuestas de checklist registradas');
+      showEmpty(anomaliesWrap, 'Sin anomalías registradas');
+      return;
+    }
+
+    // 3. Count distribution
+    let compliant = 0;
+    let nonCompliant = 0;
+    let notApplicable = 0;
+    const anomalies = [];
+
+    answers.forEach(a => {
+      const respClean = (a.respuesta || '').trim().toLowerCase();
+      if (respClean === 'sí' || respClean === 'si' || respClean === 'yes' || respClean === 'conforme') {
+        compliant++;
+      } else if (respClean === 'no' || respClean === 'no conforme' || respClean === 'incorrecto') {
+        nonCompliant++;
+        anomalies.push(a);
+      } else {
+        notApplicable++;
+      }
+    });
+
+    // 4. Render Doughnut Chart
+    const chartWrapEl = document.getElementById(wrapId);
+    const chartContEl = document.getElementById(containerId);
+    if (chartWrapEl && chartContEl) {
+      chartWrapEl.style.display = 'none';
+      chartContEl.style.display = 'block';
+
+      destroyChart('chart-checklist-answers');
+      const ctx = document.getElementById('chart-checklist-answers').getContext('2d');
+
+      _charts['chart-checklist-answers'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Conforme (Sí)', 'No Conforme (No)', 'No Aplica (N/A)'],
+          datasets: [{
+            data: [compliant, nonCompliant, notApplicable],
+            backgroundColor: ['#10b981', '#ef4444', '#64748b'],
+            borderColor: '#0f172a',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '65%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#e2e8f0', boxWidth: 12, font: { size: 11 } }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.95)',
+              borderWidth: 1,
+              titleColor: '#f1f5f9',
+              bodyColor: '#94a3b8'
+            }
+          }
+        }
+      });
+    }
+
+    // 5. Render Anomalies Table
+    const anomaliesWrapEl = document.getElementById(anomaliesWrap);
+    if (anomaliesWrapEl) {
+      if (anomalies.length === 0) {
+        anomaliesWrapEl.innerHTML = `
+          <div class="empty-state" style="padding: 3rem 1rem;">
+            <div class="empty-state-icon" style="color: #10b981; opacity: 0.8;">✅</div>
+            <div class="empty-state-text" style="color: #10b981; font-weight: 600;">Excelente: 0 anomalías activas encontradas.</div>
+          </div>`;
+      } else {
+        const anomalyRows = anomalies.map(a => `
+          <tr style="border-left: 3px solid #ef4444;">
+            <td style="font-weight: 600; color: #f87171;">${a.pregunta}</td>
+            <td>
+              <div style="color: #e2e8f0;">${a.comentario || '<span style="color: var(--text-muted); font-style: italic;">Sin comentario</span>'}</div>
+              <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Detectado por: ${a.usuario}</div>
+            </td>
+            <td style="font-size: 0.75rem; color: var(--text-muted); white-space: nowrap;">${new Date(a.fecha).toLocaleDateString('es-MX')}</td>
+          </tr>
+        `).join('');
+
+        anomaliesWrapEl.innerHTML = `
+          <div class="data-table-wrapper">
+            <table class="data-table" aria-label="Tabla de anomalías detectadas en checklists">
+              <thead>
+                <tr>
+                  <th>Punto Fallido</th>
+                  <th>Detalle / Técnico</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody>${anomalyRows}</tbody>
+            </table>
+          </div>`;
+      }
+    }
+
+  } catch (err) {
+    console.error('[loadChecklistAnalysis] Error:', err);
+    showEmpty(wrapId, 'Sin datos de checklist disponibles');
+    showEmpty(anomaliesWrap, 'Sin datos de anomalías disponibles');
+  }
+}
+
+// ============================================================
 // 10. MAIN ORCHESTRATOR
 // ============================================================
 
@@ -812,6 +984,7 @@ async function loadDashboard() {
     loadTechChart(),
     loadDeptChart(),
     loadBottlenecks(),
+    loadChecklistAnalysis(),
     loadMonthlyTrend(),
     loadCriticalInventory(),
   ]);

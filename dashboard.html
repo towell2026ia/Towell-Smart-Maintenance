@@ -785,6 +785,46 @@
       </div>
     </section>
 
+    <!-- === SECTION 4B: ANÁLISIS DE CHECKLISTS E INSPECCIONES === -->
+    <div class="charts-row" style="margin-top: 1.25rem;">
+      
+      <!-- Estado de Inspección -->
+      <section aria-labelledby="section-checklist-chart-title" style="flex: 1;">
+        <div class="section-header">
+          <div class="section-icon green" aria-hidden="true">📋</div>
+          <h2 class="section-label" id="section-checklist-chart-title">Estado de Puntos Inspeccionados</h2>
+          <span class="section-desc">Por respuestas de checklist</span>
+        </div>
+        <div class="glass-card">
+          <div id="checklist-chart-wrap" class="loading-overlay">
+            <div class="spinner"></div>
+            <span class="loading-text">Cargando inspecciones…</span>
+          </div>
+          <div class="chart-container" id="checklist-chart-container" style="display:none; height: 300px;">
+            <canvas id="chart-checklist-answers" aria-label="Gráfica de respuestas de checklist"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Anomalías Detectadas -->
+      <section aria-labelledby="section-anomalies-title" style="flex: 1;">
+        <div class="section-header">
+          <div class="section-icon rose" aria-hidden="true">🚨</div>
+          <h2 class="section-label" id="section-anomalies-title">Anomalías Detectadas en Checklists</h2>
+          <span class="section-desc">Respuestas "No Conforme"</span>
+        </div>
+        <div class="glass-card" style="height: 366px; overflow-y: auto;">
+          <div id="anomalies-wrap">
+            <div class="loading-overlay">
+              <div class="spinner"></div>
+              <span class="loading-text">Buscando anomalías…</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+    </div>
+
     <!-- === SECTION 5: TENDENCIA MENSUAL === -->
     <section class="section-full" aria-labelledby="section-trend-title">
       <div class="section-header">
