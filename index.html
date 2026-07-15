@@ -346,6 +346,7 @@
             <li style="padding: 12px 8px 6px; font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 8px;">Tablas Operacionales</li>
             <li class="menu-item" id="menu-admin-notificaciones" onclick="switchAdminPanel('notificaciones')"><a>📨 Notificaciones Internas</a></li>
             <li class="menu-item" id="menu-admin-fallas" onclick="switchAdminPanel('fallas')"><a>💥 Fallas por Máquina</a></li>
+            <li class="menu-item" id="menu-admin-telegram" onclick="switchAdminPanel('telegram')"><a>📨 Histórico Telegram</a></li>
             <li class="menu-item" id="menu-admin-costosot" onclick="switchAdminPanel('costosot')"><a>💵 Costos por OT</a></li>
             <li class="menu-item" id="menu-admin-evidencias" onclick="switchAdminPanel('evidencias')"><a>📎 Evidencias de OT</a></li>
             <li class="menu-item" id="menu-admin-refmaquina" onclick="switchAdminPanel('refmaquina')"><a>🔧 Refacc. por Máquina</a></li>
@@ -1277,6 +1278,32 @@
             <button class="btn-nav btn-nav-primary" onclick="renderAdminFallas()">↻ Recargar</button>
           </div>
           <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Máquina</th><th>Descripción</th><th>Categoría</th><th>Fecha/Hora</th><th>Origen</th><th>Recurrente</th></tr></thead><tbody id="tbody-fallas"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando fallas...</td></tr></tbody></table></div>
+        </div>
+
+        <!-- ====== PANEL: HISTÓRICO TELEGRAM ====== -->
+        <div id="panel-admin-telegram" class="admin-panel-content" style="display: none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">📨 Órdenes Históricas Telegram</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Visualización de datos cargados en public.stg_telegram_ordenes_telares.</p></div>
+            <button class="btn-nav btn-nav-primary" onclick="renderAdminTelegramTable()">↻ Recargar</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Fecha/Hora</th>
+                  <th>Máquina</th>
+                  <th>Falla</th>
+                  <th>Técnico</th>
+                  <th>Estatus</th>
+                  <th>Observaciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-telegram">
+                <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando órdenes de Telegram...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- ====== PANEL: COSTOS POR OT ====== -->

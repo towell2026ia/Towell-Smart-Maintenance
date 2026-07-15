@@ -13,6 +13,7 @@ let pendingRecovery = false;
 let recoverySession = null;
 let recoveryGeneratedOTP = null;
 let recoveryTargetEmail = null;
+let useLiveDatabase = false;
 
 // Detectar directamente si la URL tiene type=recovery (Fallback infalible para evitar race conditions)
 if (window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('recovery'))) {
@@ -642,6 +643,10 @@ async function dbInsertRequest(newRequest) {
 }
 
 async function syncDatabases() {
+  if (!useLiveDatabase) {
+    console.log('[TSMAI] Demo Mode: Bypassing Supabase synchronization.');
+    return;
+  }
   if (!supabaseClient) return;
   console.log('Starting Supabase synchronization...');
   
@@ -1222,8 +1227,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     initLocalStorage();
   }
   
-  // Sincronizar bases de datos con Supabase
-  await syncDatabases();
+  // Sincronizar bases de datos con Supabase si hay sesión activa
+  if (supabaseClient) {
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session) {
+        useLiveDatabase = true;
+        const email = session.user.email;
+        const { data: dbUser } = await supabaseClient
+          .from('cat_usuarios_roles')
+          .select('*')
+          .eq('correo', email)
+          .maybeSingle();
+        
+        if (dbUser) {
+          if (dbUser.rol === 'SUPER_ADMINISTRADOR') {
+            currentUser = { role: 'admin', name: dbUser.nombre_completo, email: dbUser.correo, uuid: dbUser.id_usuario };
+            showView('admin');
+            switchAdminPanel('dashboard');
+          } else if (dbUser.rol === 'MANTENIMIENTO') {
+            const techId = dbUser.cve_tecnico || dbUser.id_usuario;
+            currentUser = { role: 'tech', id: techId, uuid: dbUser.id_usuario, name: dbUser.nombre_completo, email: dbUser.correo, specialty: dbUser.observaciones || 'General', avatar: '👨‍🔧' };
+            showView('tech');
+            switchTechPanel('dashboard');
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('No active Supabase session recovered:', e);
+    }
+  }
+  
+  if (useLiveDatabase) {
+    await syncDatabases();
+  }
   
   // Registrar listeners de eventos de click fuera del dropdown de navbar
   window.addEventListener('click', (e) => {
@@ -1619,13 +1656,8 @@ function openLogin(mode) {
 }
 
 async function quickLogin(role, techId) {
-  if (supabaseClient) {
-    try {
-      await syncDatabases();
-    } catch (err) {
-      console.error('Error syncing databases on quick login:', err);
-    }
-  }
+  useLiveDatabase = false;
+  console.log('[TSMAI] Demo Mode activated via Quick Login.');
 
   if (role === 'admin') {
     const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
@@ -1734,6 +1766,16 @@ async function handleLoginSubmit(event) {
     dbUser = users.find(u => u.correo && u.correo.toLowerCase() === email);
   }
 
+  const loggedInViaSupabase = (supabaseClient && dbUser && dbUser.id_usuario);
+  if (loggedInViaSupabase) {
+    useLiveDatabase = true;
+    showToast('Bases de datos reales conectadas.');
+    await syncDatabases();
+  } else {
+    useLiveDatabase = false;
+    showToast('Acceso simulación local activo.');
+  }
+
   if (dbUser) {
     // Si el usuario viene de la simulación local, hacer comprobación básica de contraseña
     if (!supabaseClient || !dbUser.id_usuario) {
@@ -1823,6 +1865,10 @@ async function handleLoginSubmit(event) {
 
 function logout() {
   currentUser = null;
+  useLiveDatabase = false;
+  if (supabaseClient) {
+    supabaseClient.auth.signOut().catch(err => console.warn('Supabase signOut error:', err));
+  }
   showView('public-portal');
   showPublicPanel('home');
   showToast('Sesión cerrada correctamente.');
@@ -1863,7 +1909,7 @@ function switchAdminPanel(panelId) {
     'machines', 'parts', 'inventory', 'suppliers', 'tecnicos', 'empleados',
     'departamentos', 'turnos', 'servicios', 'tiposfalla', 'categfalla', 'criticidad',
     'componentes', 'estatusot', 'users', 'logs', 'laborcosts', 'alertrules',
-    'notificaciones', 'fallas', 'costosot', 'evidencias', 'refmaquina', 'histprecios', 'cierres', 'respchk',
+    'notificaciones', 'fallas', 'telegram', 'costosot', 'evidencias', 'refmaquina', 'histprecios', 'cierres', 'respchk',
     'preventive', 'checklists', 'downtime'
   ];
   if (dbPanels.includes(panelId)) {
@@ -1921,6 +1967,7 @@ function switchAdminPanel(panelId) {
     notificaciones: '📨 Notificaciones Internas',
     alertas: '🔔 Alertas del Sistema',
     fallas: '💥 Fallas por Máquina',
+    telegram: '📨 Órdenes Históricas Telegram',
     costosot: '💵 Costos por Orden de Trabajo',
     evidencias: '📎 Evidencias de OT',
     refmaquina: '🔧 Consumo de Refacciones por Máquina',
@@ -1999,6 +2046,8 @@ function switchAdminPanel(panelId) {
     renderAdminAlertas();
   } else if (panelId === 'fallas') {
     renderAdminFallas();
+  } else if (panelId === 'telegram') {
+    renderAdminTelegramTable();
   } else if (panelId === 'costosot') {
     renderAdminCostosOT();
   } else if (panelId === 'evidencias') {
@@ -2761,6 +2810,66 @@ async function renderAdminFallas() {
       <td>${r.es_recurrente ? '<span style="color:#ef4444;font-weight:600;">Sí ⚠️</span>' : 'No'}</td>
     </tr>`).join('');
   } catch (err) { tbody.innerHTML = emptyRow(6, `❌ Error: ${err.message}`); }
+}
+
+// ── HISTÓRICO TELEGRAM ────────────────────────────────────────────────────────
+async function renderAdminTelegramTable() {
+  const tbody = document.getElementById('tbody-telegram');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando órdenes de Telegram...</td></tr>';
+
+  let telegramLogs = [];
+
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('stg_telegram_ordenes_telares')
+        .select('*')
+        .order('fecha', { ascending: false })
+        .order('hora', { ascending: false })
+        .limit(100);
+      if (!error && data) {
+        telegramLogs = data.map(l => ({
+          folio: l.folio || l.id,
+          fecha: l.fecha,
+          hora: l.hora,
+          maquina: l.maquina_id,
+          falla: l.falla || l.descripcion,
+          tecnico: l.nom_atendio || l.cve_atendio || '—',
+          estatus: l.estatus || 'Cerrada',
+          obs: l.obs || l.obs_cierre || '—'
+        }));
+      }
+    } catch (err) {
+      console.warn('Error fetching Telegram orders from Supabase:', err);
+    }
+  }
+
+  // Fallback / Demo Mode: seed simulated Telegram orders
+  if (telegramLogs.length === 0) {
+    telegramLogs = JSON.parse(localStorage.getItem('TSMAI_simulated_telegram_logs') || '[]');
+    if (telegramLogs.length === 0) {
+      telegramLogs = [
+        { folio: 'TEL-COS-001', fecha: '2026-07-14', hora: '08:30:00', maquina: 'COS-01', falla: 'Rotura de aguja constante', tecnico: 'Carlos Gómez', estatus: 'Cerrada', obs: 'Ajuste de sincronización realizado' },
+        { folio: 'TEL-TIN-002', fecha: '2026-07-14', hora: '10:15:00', maquina: 'JET-02', falla: 'Fuga de vapor en válvula', tecnico: 'Sofía Ruiz', estatus: 'Cerrada', obs: 'Empaque reemplazado con éxito' },
+        { folio: 'TEL-TEJ-003', fecha: '2026-07-13', hora: '14:45:00', maquina: 'PF-03', falla: 'Paro por hilo roto defectuoso', tecnico: 'Alejandro Sanz', estatus: 'Cerrada', obs: 'Limpieza de guías de alimentación' }
+      ];
+      localStorage.setItem('TSMAI_simulated_telegram_logs', JSON.stringify(telegramLogs));
+    }
+  }
+
+  tbody.innerHTML = telegramLogs.map(l => `
+    <tr>
+      <td><strong>${l.folio}</strong></td>
+      <td>${l.fecha} ${l.hora || ''}</td>
+      <td>${l.maquina}</td>
+      <td>${l.falla}</td>
+      <td>${l.tecnico}</td>
+      <td><span class="badge badge-status-${l.estatus.toLowerCase().replace('ó','o')}">${l.estatus}</span></td>
+      <td style="max-width:200px;white-space:normal;font-size:0.85rem;">${l.obs}</td>
+    </tr>
+  `).join('');
 }
 
 // ── COSTOS POR OT ─────────────────────────────────────────────────────────────
