@@ -265,7 +265,7 @@
         <div class="form-group" style="margin-bottom: 24px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <label for="login-password" style="margin-bottom: 0;">Contraseña</label>
-            <a href="#" onclick="openPasswordRecoveryRequest()" style="font-size: 0.8rem; color: var(--accent-cyan); text-decoration: none; font-weight: 600;">¿Olvidaste tu contraseña?</a>
+            <a href="javascript:void(0)" onclick="openPasswordRecoveryRequest()" style="font-size: 0.8rem; color: var(--accent-cyan); text-decoration: none; font-weight: 600;">¿Olvidaste tu contraseña?</a>
           </div>
           <input type="password" id="login-password" class="form-control" placeholder="••••••••" required>
         </div>
@@ -2648,6 +2648,7 @@
         <button class="btn-nav btn-nav-primary" id="btn-generate-ot-cal-item" onclick="handleGenerateOTCalItem()" style="width: auto; border-radius: 6px; padding: 6px 12px;" disabled>Generar OT</button>
       </div>
     </div>
+  </div>
 
   <!-- Modal: Recuperación de Contraseña con Doble Verificación (2FA) -->
   <div class="modal-overlay" id="modal-password-recovery" style="z-index: 1100;">
