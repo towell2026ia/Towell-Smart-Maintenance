@@ -2876,17 +2876,22 @@ async function renderAdminRefMaquina() {
   tbody.innerHTML = emptyRow(7, 'Cargando consumo de refacciones…');
   if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
   try {
-    const { data, error } = await supabaseClient.from('refacciones_por_maquina').select('*').order('fecha', { ascending: false }).limit(300);
+    const { data, error } = await supabaseClient
+      .from('cat_refacciones')
+      .select('*')
+      .neq('maquina_id', 'NO_APLICA')
+      .order('codigo_articulo')
+      .limit(300);
     if (error) throw error;
-    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay consumo de refacciones registrado.'); return; }
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay refacciones asignadas a máquinas.'); return; }
     tbody.innerHTML = data.map(r => `<tr>
-      <td>${fmtDate(r.fecha)}</td>
+      <td>${fmtDate(r.fecha_carga)}</td>
       <td>${r.maquina_id}</td>
       <td>${r.nombre_articulo || r.codigo_articulo}</td>
       <td>${parseFloat(r.cantidad_estandar || 0).toFixed(2)}</td>
-      <td>${fmtCurrency(r.precio_costo_unitario)}</td>
-      <td><strong>${fmtCurrency(r.importe_costo_calculado)}</strong></td>
-      <td>${r.origen || '—'}</td>
+      <td>${fmtCurrency(r.costo_unitario)}</td>
+      <td><strong>${fmtCurrency((parseFloat(r.cantidad_estandar) || 1) * (parseFloat(r.costo_unitario) || 0))}</strong></td>
+      <td>Catálogo</td>
     </tr>`).join('');
   } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
 }
@@ -5016,7 +5021,7 @@ const EXCEL_TEMPLATE_MAP = {
   refmaquina: {
     stagingTable: 'stg_refacciones_por_maquina_excel',
     validationView: 'vw_validacion_refacciones_por_maquina',
-    cleanTable: 'refacciones_por_maquina',
+    cleanTable: 'cat_refacciones',
     label: 'Refacciones por Máquina'
   },
   prices: {
@@ -6442,11 +6447,8 @@ async function saveTechnicalLog() {
             diferencia_importe: 0,
             origen: 'App'
           };
-        });
-        
-        await supabaseClient
-          .from('refacciones_por_maquina')
-          .insert(consumptions);
+        // El consumo se guarda en la bitácora de mantenimiento y el stock se decrementa directamente.
+        // Ya no se requiere escribir en la tabla intermedia redundante.
       }
       
       if (orders[orderIndex].status === 'Ejecutada' || orders[orderIndex].status === 'Cerrada') {
@@ -8379,10 +8381,10 @@ async function commitExcelUpload() {
           nombre_articulo: r.nombre_articulo,
           unidad_medida: r.unidad_medida || 'PZ',
           familia: r.familia || 'General',
-          activo: r.activo !== undefined ? (r.activo === 'true' || r.activo === true) : true,
-          id_carga: idCarga
+          activo: r.activo !== undefined ? (r.activo === 'true' || r.activo === true) : true
         }));
-        await executeChunkedUpsert('cat_refacciones', toInsert, { onConflict: 'codigo_articulo' });
+        const { error } = await supabaseClient.rpc('bulk_upsert_catalog_parts', { p_rows: toInsert });
+        if (error) throw error;
       } else if (templateType === 'tecnicos') {
         const toInsert = validRows.map(r => ({
           cve_tecnico: r.cve_tecnico,
@@ -8482,20 +8484,14 @@ async function commitExcelUpload() {
       await executeChunkedUpsert('ordenes_trabajo', toInsert, { onConflict: 'folio' });
       } else if (templateType === 'refmaquina') {
         const toInsert = validRows.map(r => ({
-          fecha: r.fecha,
           maquina_id: r.maquina_id || r.destino,
-          destino: r.destino || r.maquina_id,
           codigo_articulo: r.codigo_articulo,
           nombre_articulo: r.nombre_articulo,
           cantidad_estandar: parseFloat(r.cantidad_estandar) || 1,
-          precio_costo_unitario: parseFloat(r.precio_costo_unitario) || 0,
-          importe_costo_origen: parseFloat(r.importe_costo_origen) || 0,
-          importe_costo_calculado: (parseFloat(r.cantidad_estandar) || 1) * (parseFloat(r.precio_costo_unitario) || 0),
-          diferencia_importe: ((parseFloat(r.cantidad_estandar) || 1) * (parseFloat(r.precio_costo_unitario) || 0)) - (parseFloat(r.importe_costo_origen) || 0),
-          origen: 'Excel Ingestion',
-          id_carga: idCarga
+          costo_unitario: parseFloat(r.precio_costo_unitario) || 0
         }));
-        await executeChunkedInsert('refacciones_por_maquina', toInsert);
+        const { error } = await supabaseClient.rpc('bulk_upsert_machine_parts', { p_rows: toInsert });
+        if (error) throw error;
       } else if (templateType === 'prices') {
         const toInsert = validRows.map(r => ({
           codigo_articulo: r.codigo_articulo,
@@ -8517,10 +8513,10 @@ async function commitExcelUpload() {
           ubicacion: r.ubicacion || 'ALMACEN',
           costo_unitario: parseFloat(r.costo_unitario) || 0,
           moneda: r.moneda || 'MXN',
-          activo: true,
           observaciones: r.observaciones || null
         }));
-        await executeChunkedUpsert('cat_refacciones', toInsert, { onConflict: 'codigo_articulo' });
+        const { error } = await supabaseClient.rpc('bulk_update_refacciones_inventory', { p_rows: toInsert });
+        if (error) throw error;
       } else if (templateType === 'laborcosts') {
         const toInsert = validRows.map(r => ({
           cve_tecnico: r.cve_tecnico,
