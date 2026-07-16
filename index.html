@@ -769,6 +769,7 @@
                     <th>Actividades Realizadas</th>
                     <th>Técnico</th>
                     <th>Fecha</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="table-admin-logs-body">
@@ -2031,6 +2032,86 @@
       <div class="modal-footer">
         <button class="btn-action-secondary" onclick="closeModal('modal-tech-checklist-run')">Cancelar</button>
         <button class="btn-action-primary" onclick="submitChecklistResponse()">Guardar Formato</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editar Bitácora por Super Admin -->
+  <div class="modal-overlay" id="modal-admin-edit-bitacora">
+    <div class="modal-card" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 style="font-weight: 700; color: var(--primary-dark);">Editar Registro de Bitácora (Super Admin)</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-admin-edit-bitacora')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-admin-edit-bitacora" onsubmit="event.preventDefault(); submitAdminEditBitacora();" style="display: flex; flex-direction: column; gap: 16px;">
+          <input type="hidden" id="edit-bitacora-id">
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label for="edit-bitacora-ot">Folio Orden (Sólo lectura)</label>
+              <input type="text" id="edit-bitacora-ot" class="form-control" readonly>
+            </div>
+            
+            <div class="form-group">
+              <label for="edit-bitacora-area">Área / Departamento</label>
+              <select id="edit-bitacora-area" class="form-control" onchange="onAdminEditBitacoraAreaChange()" required>
+                <option value="PF">PF - Tejido (Producción)</option>
+                <option value="CF">CF - Costura</option>
+                <option value="TF">TF - Tintorería</option>
+                <option value="AF">AF - Planta / Auxiliares</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label for="edit-bitacora-machine">Máquina</label>
+              <select id="edit-bitacora-machine" class="form-control" required>
+                <!-- populated dynamically -->
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="edit-bitacora-tech">Técnico Asignado</label>
+              <select id="edit-bitacora-tech" class="form-control" required>
+                <!-- populated dynamically -->
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label for="edit-bitacora-time-start">Tiempo Inicio</label>
+              <input type="datetime-local" id="edit-bitacora-time-start" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="edit-bitacora-time-end">Tiempo Fin</label>
+              <input type="datetime-local" id="edit-bitacora-time-end" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-bitacora-description">Descripción de la Actividad</label>
+            <textarea id="edit-bitacora-description" class="form-control" rows="3" required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-bitacora-parts">Refacciones Utilizadas (Texto descriptivo)</label>
+            <textarea id="edit-bitacora-parts" class="form-control" rows="2" placeholder="Ej: Banda Gates x2, Rodamiento SKF x1"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-bitacora-observations">Observaciones / Comentarios</label>
+            <textarea id="edit-bitacora-observations" class="form-control" rows="2"></textarea>
+          </div>
+
+          <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px;">
+            <button type="button" class="btn-action-secondary" onclick="closeModal('modal-admin-edit-bitacora')">Cancelar</button>
+            <button type="submit" class="btn-action-primary">Guardar Cambios</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

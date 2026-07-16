@@ -3995,6 +3995,9 @@ async function renderAdminLogsTable() {
         .limit(200);
       if (!error && data) {
         maintenanceLogs = data.map(l => ({
+          id_bitacora: l.id_bitacora,
+          id_orden: l.id_orden,
+          cve_tecnico: l.cve_tecnico,
           otFolio: l.id_orden ? 'OT-DB' : 'NO_APLICA',
           area: l.area,
           refacciones_usadas: l.refacciones_usadas || 'Ninguna',
@@ -4002,6 +4005,8 @@ async function renderAdminLogsTable() {
           fecha_hora_fin: l.fecha_hora_fin,
           descripcion_actividad: l.descripcion_actividad,
           nombre_tecnico: l.nombre_tecnico,
+          observaciones: l.observaciones,
+          maquina_id: l.maquina_id,
           date: l.fecha_alta,
           db_synced: true
         }));
@@ -4026,7 +4031,8 @@ async function renderAdminLogsTable() {
       diagnostico: o.diagnosis || 'N/A',
       actividad: o.activity || 'N/A',
       tecnico: techName,
-      fecha: o.dueDate ? new Date(o.dueDate) : new Date()
+      fecha: o.dueDate ? new Date(o.dueDate) : new Date(),
+      id_bitacora: null
     };
   });
 
@@ -4039,14 +4045,15 @@ async function renderAdminLogsTable() {
       diagnostico: `Horario: ${l.fecha_hora_inicio ? new Date(l.fecha_hora_inicio).toLocaleString() : '—'} - ${l.fecha_hora_fin ? new Date(l.fecha_hora_fin).toLocaleString() : '—'}`,
       actividad: l.descripcion_actividad,
       tecnico: l.nombre_tecnico,
-      fecha: l.date ? new Date(l.date) : new Date()
+      fecha: l.date ? new Date(l.date) : new Date(),
+      id_bitacora: l.id_bitacora
     };
   });
 
   const allLogs = [...logsFromOrders, ...logsFromMaint];
 
   if (allLogs.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No hay bitácoras de trabajo guardadas aún.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No hay bitácoras de trabajo guardadas aún.</td></tr>`;
     return;
   }
 
@@ -4055,6 +4062,10 @@ async function renderAdminLogsTable() {
 
   tbody.innerHTML = allLogs.map(l => {
     const formattedDate = l.fecha.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const actionsCell = l.id_bitacora
+      ? `<button class="btn-table-action" onclick="openAdminEditBitacoraModal('${l.id_bitacora}')" style="background-color: var(--accent-cyan); border-color: var(--accent-cyan);">Editar</button>`
+      : `<button class="btn-table-action" disabled style="opacity: 0.5; cursor: not-allowed;">—</button>`;
+    
     return `
       <tr>
         <td><strong>${l.id}</strong></td>
@@ -4064,9 +4075,126 @@ async function renderAdminLogsTable() {
         <td style="max-width:250px;white-space:normal;font-size:0.85rem;">${l.actividad}</td>
         <td>${l.tecnico}</td>
         <td>${formattedDate}</td>
+        <td>${actionsCell}</td>
       </tr>
     `;
   }).join('');
+}
+
+// --- ADMIN EDIT BITÁCORA FUNCTIONS ---
+async function openAdminEditBitacoraModal(id_bitacora) {
+  if (!supabaseClient) {
+    alert('Se requiere conexión a la base de datos real para editar registros.');
+    return;
+  }
+
+  try {
+    showToast('Cargando datos del registro...');
+    const { data: log, error } = await supabaseClient
+      .from('bitacora_mantenimiento')
+      .select('*')
+      .eq('id_bitacora', id_bitacora)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!log) {
+      alert('No se encontró el registro en la base de datos.');
+      return;
+    }
+
+    // Llenar datos en el formulario del modal
+    document.getElementById('edit-bitacora-id').value = log.id_bitacora;
+    document.getElementById('edit-bitacora-ot').value = log.id_orden || 'Actividad Autónoma (Sin orden)';
+    document.getElementById('edit-bitacora-area').value = log.area;
+    document.getElementById('edit-bitacora-time-start').value = log.fecha_hora_inicio ? log.fecha_hora_inicio.slice(0, 16) : '';
+    document.getElementById('edit-bitacora-time-end').value = log.fecha_hora_fin ? log.fecha_hora_fin.slice(0, 16) : '';
+    document.getElementById('edit-bitacora-description').value = log.descripcion_actividad || '';
+    document.getElementById('edit-bitacora-parts').value = log.refacciones_usadas || '';
+    document.getElementById('edit-bitacora-observations').value = log.observaciones || '';
+
+    // Cargar técnicos en el select
+    const techSelect = document.getElementById('edit-bitacora-tech');
+    if (techSelect) {
+      const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+      techSelect.innerHTML = '';
+      techs.forEach(t => {
+        const isSelected = t.id === log.cve_tecnico ? 'selected' : '';
+        techSelect.innerHTML += `<option value="${t.id}" ${isSelected}>${t.name} (${t.id})</option>`;
+      });
+    }
+
+    // Configurar máquinas según el área y pre-seleccionar la correspondiente
+    await onAdminEditBitacoraAreaChange(log.maquina_id);
+
+    openModal('modal-admin-edit-bitacora');
+  } catch (err) {
+    console.error('Error loading bitacora details:', err);
+    alert('Error al obtener datos: ' + err.message);
+  }
+}
+
+async function onAdminEditBitacoraAreaChange(preselectMachineId = null) {
+  const area = document.getElementById('edit-bitacora-area').value;
+  const selectMach = document.getElementById('edit-bitacora-machine');
+  if (!selectMach) return;
+  selectMach.innerHTML = '<option value="">— Ninguna —</option>';
+
+  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const filtered = area ? machines.filter(m => m.area === area) : machines;
+  
+  filtered.forEach(m => {
+    const isSelected = preselectMachineId === m.id ? 'selected' : '';
+    selectMach.innerHTML += `<option value="${m.id}" ${isSelected}>${m.name || m.id} (${m.id})</option>`;
+  });
+}
+
+async function submitAdminEditBitacora() {
+  const id_bitacora = document.getElementById('edit-bitacora-id').value;
+  const area = document.getElementById('edit-bitacora-area').value;
+  const maquina_id = document.getElementById('edit-bitacora-machine').value || null;
+  const cve_tecnico = document.getElementById('edit-bitacora-tech').value;
+  const timeStart = document.getElementById('edit-bitacora-time-start').value;
+  const timeEnd = document.getElementById('edit-bitacora-time-end').value;
+  const description = document.getElementById('edit-bitacora-description').value.trim();
+  const parts = document.getElementById('edit-bitacora-parts').value.trim();
+  const observations = document.getElementById('edit-bitacora-observations').value.trim();
+
+  const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+  const tech = techs.find(t => t.id === cve_tecnico);
+  const nombre_tecnico = tech ? tech.name : 'Técnico';
+
+  if (!area || !timeStart || !timeEnd || !description || !cve_tecnico) {
+    alert('Por favor completa todos los campos obligatorios.');
+    return;
+  }
+
+  showToast('Guardando cambios en Supabase...');
+  try {
+    const { error } = await supabaseClient
+      .from('bitacora_mantenimiento')
+      .update({
+        area,
+        maquina_id: maquina_id === '' ? null : maquina_id,
+        cve_tecnico,
+        nombre_tecnico,
+        fecha_hora_inicio: timeStart,
+        fecha_hora_fin: timeEnd,
+        descripcion_actividad: description,
+        refacciones_usadas: parts || null,
+        observaciones: observations || null,
+        fecha_actualizacion: new Date().toISOString()
+      })
+      .eq('id_bitacora', id_bitacora);
+
+    if (error) throw error;
+
+    showToast('Registro de bitácora actualizado con éxito.');
+    closeModal('modal-admin-edit-bitacora');
+    renderAdminLogsTable();
+  } catch (err) {
+    console.error('Error updating bitacora:', err);
+    alert('Error al guardar: ' + err.message);
+  }
 }
 
 // --- CATÁLOGOS ADMIN (MÁQUINAS Y REFACCIONES) ---
