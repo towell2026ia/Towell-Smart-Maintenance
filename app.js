@@ -573,15 +573,16 @@ async function dbGetParts() {
     try {
       const { data, error } = await supabaseClient
         .from('cat_refacciones')
-        .select('*');
+        .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, costo_unitario, activo');
       if (error) throw error;
       return (data || []).map(p => ({
         id: p.codigo_articulo,
         name: p.nombre_articulo,
         category: p.familia,
-        stock: 50,
-        minStock: 5,
-        cost: 100
+        stock: parseFloat(p.stock_actual) || 0,
+        minStock: parseFloat(p.stock_minimo) || 0,
+        cost: parseFloat(p.costo_unitario) || 0,
+        activo: p.activo !== false
       }));
     } catch (err) {
       console.error('Error fetching parts from Supabase:', err);
@@ -699,22 +700,20 @@ async function syncDatabases() {
     }
 
     // 3. Sync Spare Parts
-    const { data: dbParts, error: pErr } = await supabaseClient.from('cat_refacciones').select('*');
+    const { data: dbParts, error: pErr } = await supabaseClient
+      .from('cat_refacciones')
+      .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, costo_unitario, activo');
     if (pErr) throw pErr;
     if (dbParts && dbParts.length > 0) {
-      const existingLocalParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
-      const localParts = dbParts.map(p => {
-        const localP = existingLocalParts.find(lp => lp.id === p.codigo_articulo);
-        return {
-          id: p.codigo_articulo,
-          name: p.nombre_articulo,
-          category: p.familia,
-          stock: localP ? localP.stock : 50,
-          minStock: localP ? localP.minStock : 5,
-          cost: localP ? localP.cost : 100,
-          activo: p.activo !== false
-        };
-      });
+      const localParts = dbParts.map(p => ({
+        id: p.codigo_articulo,
+        name: p.nombre_articulo,
+        category: p.familia,
+        stock: parseFloat(p.stock_actual) || 0,
+        minStock: parseFloat(p.stock_minimo) || 0,
+        cost: parseFloat(p.costo_unitario) || 0,
+        activo: p.activo !== false
+      }));
       localStorage.setItem('TSMAI_parts', JSON.stringify(localParts));
     } else {
       localStorage.setItem('TSMAI_parts', '[]');
@@ -1945,13 +1944,17 @@ async function renderAdminInventoryTable() {
   tbody.innerHTML = emptyRow(7, 'Cargando inventario…');
   if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
   try {
-    const { data, error } = await supabaseClient.from('inventario_refacciones').select('*, cat_refacciones(nombre_articulo), cat_proveedores(nombre_proveedor)').order('fecha_alta', { ascending: false }).limit(200);
+    const { data, error } = await supabaseClient
+      .from('cat_refacciones')
+      .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, ubicacion, costo_unitario, moneda, activo, cat_proveedores(nombre_proveedor)')
+      .order('nombre_articulo')
+      .limit(200);
     if (error) throw error;
-    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay registros de inventario.'); return; }
+    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay refacciones registradas.'); return; }
     tbody.innerHTML = data.map(r => `<tr>
-      <td>${r.cat_refacciones?.nombre_articulo || r.codigo_articulo}</td>
+      <td><strong>${r.nombre_articulo || r.codigo_articulo}</strong><br><code style="font-size:0.75rem;color:var(--text-muted)">${r.codigo_articulo}</code></td>
       <td>${r.cat_proveedores?.nombre_proveedor || '—'}</td>
-      <td>${parseFloat(r.stock_actual || 0).toFixed(2)}</td>
+      <td>${parseFloat(r.stock_actual || 0).toFixed(2)} ${r.unidad_medida || ''}</td>
       <td>${parseFloat(r.stock_minimo || 0).toFixed(2)} ${parseFloat(r.stock_actual) < parseFloat(r.stock_minimo) ? '⚠️' : ''}</td>
       <td>${r.ubicacion || '—'}</td>
       <td>${fmtCurrency(r.costo_unitario, r.moneda)}</td>
@@ -5023,10 +5026,10 @@ const EXCEL_TEMPLATE_MAP = {
     label: 'Historial de Precios'
   },
   inventory: {
-    stagingTable: 'stg_inventario_refacciones_excel',
-    validationView: 'vw_validacion_inventario_refacciones',
-    cleanTable: 'inventario_refacciones',
-    label: 'Inventario de Refacciones'
+    stagingTable: 'stg_refacciones_excel',
+    validationView: 'vw_validacion_refacciones_excel',
+    cleanTable: 'cat_refacciones',
+    label: 'Inventario de Refacciones (Stock)'
   },
   laborcosts: {
     stagingTable: 'stg_costos_mano_obra_excel',
@@ -6801,9 +6804,11 @@ async function submitChecklistResponse() {
 
 // --- BITÁCORA DE MANTENIMIENTO (LEVANTAMIENTO AUTÓNOMO) ---
 let tempBitacoraSelectedParts = [];
+let tempBitacoraMachineParts = []; // Parts specific to currently selected machine
 
 async function openNewBitacoraLogModal() {
   tempBitacoraSelectedParts = [];
+  tempBitacoraMachineParts = [];
   const form = document.getElementById('form-tech-bitacora-new');
   if (form) form.reset();
   
@@ -6816,78 +6821,50 @@ async function openNewBitacoraLogModal() {
 
   renderBitacoraSelectedPartsList();
 
-  const otSelect = document.getElementById('bitacora-ot');
+  const otSelect   = document.getElementById('bitacora-ot');
   const partSelect = document.getElementById('bitacora-part-select');
   const machSelect = document.getElementById('bitacora-machine');
 
-  if (otSelect) otSelect.innerHTML = '<option value="NO_APLICA">No aplica (Actividad Autónoma)</option>';
-  if (partSelect) partSelect.innerHTML = '<option value="">Cargando repuestos...</option>';
-  if (machSelect) machSelect.innerHTML = '<option value="NO_APLICA">No aplica</option>';
+  if (partSelect) partSelect.innerHTML = '<option value="">— Selecciona máquina primero —</option>';
 
-  let orders = [];
-  let parts = [];
+  let orders   = [];
   let machines = [];
 
   if (useLiveDatabase && supabaseClient) {
     try {
       showToast('Obteniendo datos actualizados...');
-      const [ordRes, partRes, machRes] = await Promise.all([
-        supabaseClient.from('ordenes_trabajo').select('*'),
-        supabaseClient.from('cat_refacciones').select('*'),
-        supabaseClient.from('cat_maquinas').select('*')
+      const [ordRes, machRes] = await Promise.all([
+        supabaseClient.from('ordenes_trabajo').select('folio, id_orden, cve_atendio, estatus, descripcion, departamento, maquina_id'),
+        supabaseClient.from('cat_maquinas').select('equipo_towell, departamento_codigo')
       ]);
-      
       if (!ordRes.error && ordRes.data) {
         orders = ordRes.data.map(o => ({
-          id: o.folio,
-          uuid: o.id_orden,
-          assignedTech: o.cve_atendio,
-          status: o.estatus,
-          description: o.descripcion,
-          area: o.departamento,
+          id: o.folio, uuid: o.id_orden,
+          assignedTech: o.cve_atendio, status: o.estatus,
+          description: o.descripcion, area: o.departamento_codigo,
           machine: o.maquina_id
         }));
       }
-      if (!partRes.error && partRes.data) {
-        parts = partRes.data.map(p => ({
-          id: p.codigo_articulo,
-          name: p.nombre_articulo,
-          stock: p.stock_actual ?? 50
-        }));
-      }
       if (!machRes.error && machRes.data) {
-        machines = machRes.data.map(m => ({
-          id: m.equipo_towell,
-          name: m.equipo_towell
-        }));
+        machines = machRes.data.map(m => ({ id: m.equipo_towell, name: m.equipo_towell, area: m.departamento_codigo }));
       }
     } catch (err) {
-      console.warn('Failed to load dynamic lists from Supabase, fallback to local storage:', err);
+      console.warn('Supabase load failed, using localStorage:', err);
     }
   }
 
-  // Fallback if local or if query failed
-  if (orders.length === 0) orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  if (parts.length === 0) parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+  if (orders.length === 0)   orders   = JSON.parse(localStorage.getItem('TSMAI_orders')   || '[]');
   if (machines.length === 0) machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
 
-  // Populate OTs select list
+  // Populate OTs select — only my active orders
   if (otSelect) {
     otSelect.innerHTML = '<option value="NO_APLICA">No aplica (Actividad Autónoma)</option>';
     if (currentUser) {
-      const myActiveOrders = orders.filter(o => o.assignedTech === currentUser.id && o.status !== 'Cerrada' && o.status !== 'Cancelada');
-      myActiveOrders.forEach(o => {
-        otSelect.innerHTML += `<option value="${o.id}">${o.id} - ${o.description.substring(0, 40)}...</option>`;
+      const myActive = orders.filter(o => o.assignedTech === currentUser.id && o.status !== 'Cerrada' && o.status !== 'Cancelada');
+      myActive.forEach(o => {
+        otSelect.innerHTML += `<option value="${o.id}" data-machine="${o.machine || ''}" data-area="${o.area || ''}">${o.id} — ${(o.description || '').substring(0, 45)}</option>`;
       });
     }
-  }
-
-  // Populate spare parts select dropdown
-  if (partSelect) {
-    partSelect.innerHTML = '<option value="">Selecciona repuesto...</option>';
-    parts.forEach(p => {
-      partSelect.innerHTML += `<option value="${p.id}">${p.name} (Stock: ${p.stock})</option>`;
-    });
   }
 
   // Populate machines list
@@ -6901,22 +6878,109 @@ async function openNewBitacoraLogModal() {
   openModal('modal-tech-new-bitacora');
 }
 
-function onBitacoraOTChange() {
-  const otId = document.getElementById('bitacora-ot').value;
-  if (otId !== 'NO_APLICA') {
-    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-    const order = orders.find(o => o.id === otId);
-    if (order) {
-      const areaSelect = document.getElementById('bitacora-area');
-      if (areaSelect) {
-        areaSelect.value = order.area;
+// Cargar refacciones específicas de la máquina seleccionada
+async function loadPartsForMachine(machineId) {
+  const partSelect = document.getElementById('bitacora-part-select');
+  if (!partSelect) return;
+
+  if (!machineId || machineId === 'NO_APLICA') {
+    tempBitacoraMachineParts = [];
+    partSelect.innerHTML = '<option value="">— Selecciona máquina primero —</option>';
+    return;
+  }
+
+  partSelect.innerHTML = '<option value="">⏳ Cargando refacciones de la máquina...</option>';
+
+  let machineParts = [];
+
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      // Query refacciones_por_maquina filtered by this specific machine
+      const { data, error } = await supabaseClient
+        .from('refacciones_por_maquina')
+        .select('codigo_articulo, nombre_articulo, cantidad_estandar, precio_costo_unitario')
+        .eq('maquina_id', machineId)
+        .order('nombre_articulo');
+
+      if (!error && data && data.length > 0) {
+        // Enrich with stock from cat_refacciones
+        const codes = [...new Set(data.map(r => r.codigo_articulo))];
+        const { data: stockData } = await supabaseClient
+          .from('cat_refacciones')
+          .select('codigo_articulo, stock_actual, stock_minimo')
+          .in('codigo_articulo', codes);
+
+        const stockMap = {};
+        (stockData || []).forEach(s => { stockMap[s.codigo_articulo] = s; });
+
+        machineParts = data.map(r => ({
+          id: r.codigo_articulo,
+          name: r.nombre_articulo || r.codigo_articulo,
+          cantidadEstandar: parseFloat(r.cantidad_estandar) || 1,
+          costo: parseFloat(r.precio_costo_unitario) || 0,
+          stock: parseFloat(stockMap[r.codigo_articulo]?.stock_actual) || 0,
+          stockMinimo: parseFloat(stockMap[r.codigo_articulo]?.stock_minimo) || 0
+        }));
       }
-      onBitacoraAreaChange(order.machine);
+    } catch (err) {
+      console.warn('Error loading machine parts:', err);
+    }
+  }
+
+  // Fallback: use full catalog from localStorage
+  if (machineParts.length === 0) {
+    const allParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+    machineParts = allParts.map(p => ({ id: p.id, name: p.name, cantidadEstandar: 1, costo: p.cost || 0, stock: p.stock || 0, stockMinimo: p.minStock || 0 }));
+  }
+
+  tempBitacoraMachineParts = machineParts;
+
+  partSelect.innerHTML = machineParts.length > 0
+    ? `<option value="">Selecciona refacción (${machineParts.length} asignadas a ${machineId})...</option>`
+    : `<option value="">⚠️ Sin refacciones asignadas a esta máquina</option>`;
+
+  machineParts.forEach(p => {
+    const stockBadge = p.stock <= p.stockMinimo ? ' ⚠️ Stock bajo' : '';
+    partSelect.innerHTML += `<option value="${p.id}" data-qty="${p.cantidadEstandar}" data-costo="${p.costo}">${p.name} — Std: ${p.cantidadEstandar} | Stock: ${p.stock}${stockBadge}</option>`;
+  });
+}
+
+function onBitacoraOTChange() {
+  const otSelect = document.getElementById('bitacora-ot');
+  const otId = otSelect ? otSelect.value : 'NO_APLICA';
+
+  if (otId !== 'NO_APLICA') {
+    // Try to get machine from the option's data attribute first (live data)
+    const selectedOption = otSelect.options[otSelect.selectedIndex];
+    const machineId = selectedOption?.dataset?.machine || '';
+    const area      = selectedOption?.dataset?.area || '';
+
+    // Fallback to localStorage
+    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const order  = orders.find(o => o.id === otId);
+    const resolvedMachine = machineId || order?.machine || '';
+    const resolvedArea    = area || order?.area || '';
+
+    const areaSelect = document.getElementById('bitacora-area');
+    if (areaSelect && resolvedArea) areaSelect.value = resolvedArea;
+
+    // Update machine select and load parts
+    onBitacoraAreaChange(resolvedMachine);
+
+    if (resolvedMachine) {
+      loadPartsForMachine(resolvedMachine);
     }
   } else {
     document.getElementById('bitacora-area').value = '';
     const machSelect = document.getElementById('bitacora-machine');
-    if (machSelect) machSelect.innerHTML = '<option value="NO_APLICA">No aplica</option>';
+    if (machSelect) {
+      machSelect.innerHTML = '<option value="NO_APLICA">No aplica</option>';
+      const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+      machines.forEach(m => {
+        machSelect.innerHTML += `<option value="${m.id}">${m.id}</option>`;
+      });
+    }
+    loadPartsForMachine(null);
   }
 }
 
@@ -6926,53 +6990,86 @@ function onBitacoraAreaChange(preselectMachineId = null) {
   if (!selectMach) return;
   selectMach.innerHTML = '<option value="NO_APLICA">No aplica</option>';
 
-  if (area) {
-    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
-    const filtered = machines.filter(m => m.area === area);
-    filtered.forEach(m => {
-      const isSelected = preselectMachineId === m.id ? 'selected' : '';
-      selectMach.innerHTML += `<option value="${m.id}" ${isSelected}>${m.name} (${m.id})</option>`;
-    });
+  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const filtered = area ? machines.filter(m => m.area === area) : machines;
+  filtered.forEach(m => {
+    const isSelected = preselectMachineId === m.id ? 'selected' : '';
+    selectMach.innerHTML += `<option value="${m.id}" ${isSelected}>${m.name || m.id} (${m.id})</option>`;
+  });
+
+  // Auto-load parts for the pre-selected machine
+  if (preselectMachineId) {
+    selectMach.value = preselectMachineId;
+    loadPartsForMachine(preselectMachineId);
   }
+}
+
+// Called when machine dropdown changes manually
+function onBitacoraMachineChange() {
+  const machSelect = document.getElementById('bitacora-machine');
+  const machineId = machSelect ? machSelect.value : null;
+  loadPartsForMachine(machineId);
+}
+
+function onBitacoraPartChange() {
+  const select = document.getElementById('bitacora-part-select');
+  const qtyInput = document.getElementById('bitacora-part-qty');
+  if (!select || !qtyInput) return;
+  const selectedOption = select.options[select.selectedIndex];
+  const stdQty = selectedOption?.dataset?.qty;
+  if (stdQty) qtyInput.value = stdQty;
 }
 
 function addPartToBitacoraList() {
   const select = document.getElementById('bitacora-part-select');
   const partId = select.value;
-  const qty = parseInt(document.getElementById('bitacora-part-qty').value) || 1;
+  const qty = parseFloat(document.getElementById('bitacora-part-qty').value) || 1;
 
   if (!partId || qty <= 0) {
     alert('Selecciona una refacción y define una cantidad válida.');
     return;
   }
 
-  const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
-  const part = parts.find(p => p.id === partId);
-  if (!part) return;
+  // Look up from machine-specific list first, then localStorage fallback
+  let part = tempBitacoraMachineParts.find(p => p.id === partId);
+  if (!part) {
+    const localParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+    const lp = localParts.find(p => p.id === partId);
+    if (lp) part = { id: lp.id, name: lp.name, cantidadEstandar: 1, costo: lp.cost || 0, stock: lp.stock || 0, stockMinimo: lp.minStock || 0 };
+  }
 
-  if (qty > part.stock) {
-    alert(`Stock insuficiente. Solo quedan ${part.stock} unidades.`);
+  if (!part) {
+    // Build minimal part from the option text
+    const selectedOption = select.options[select.selectedIndex];
+    part = { id: partId, name: selectedOption?.text || partId, cantidadEstandar: qty, costo: 0, stock: 999, stockMinimo: 0 };
+  }
+
+  if (part.stock > 0 && qty > part.stock) {
+    alert(`Stock insuficiente. Solo quedan ${part.stock} unidades disponibles.`);
     return;
   }
 
   const existIndex = tempBitacoraSelectedParts.findIndex(p => p.partId === partId);
   if (existIndex !== -1) {
-    if (tempBitacoraSelectedParts[existIndex].quantity + qty > part.stock) {
-      alert(`Stock insuficiente. No puedes agregar más de ${part.stock} unidades in total.`);
+    const newTotal = tempBitacoraSelectedParts[existIndex].quantity + qty;
+    if (part.stock > 0 && newTotal > part.stock) {
+      alert(`Stock insuficiente. No puedes agregar más de ${part.stock} unidades en total.`);
       return;
     }
-    tempBitacoraSelectedParts[existIndex].quantity += qty;
+    tempBitacoraSelectedParts[existIndex].quantity = newTotal;
   } else {
     tempBitacoraSelectedParts.push({
       partId: partId,
       name: part.name,
-      quantity: qty
+      quantity: qty,
+      costoUnitario: part.costo || 0
     });
   }
 
   renderBitacoraSelectedPartsList();
   select.value = '';
   document.getElementById('bitacora-part-qty').value = '1';
+
 }
 
 function removePartFromBitacoraList(index) {
@@ -8412,19 +8509,18 @@ async function commitExcelUpload() {
       } else if (templateType === 'inventory') {
         const toInsert = validRows.map(r => ({
           codigo_articulo: r.codigo_articulo,
-          codigo_proveedor: r.codigo_proveedor,
+          codigo_proveedor: r.codigo_proveedor || null,
           stock_actual: parseFloat(r.stock_actual) || 0,
           stock_minimo: parseFloat(r.stock_minimo) || 0,
-          stock_maximo: parseFloat(r.stock_maximo) || 0,
+          stock_maximo: parseFloat(r.stock_maximo) || null,
           unidad_medida: r.unidad_medida || 'PZ',
           ubicacion: r.ubicacion || 'ALMACEN',
           costo_unitario: parseFloat(r.costo_unitario) || 0,
           moneda: r.moneda || 'MXN',
           activo: true,
-          observaciones: r.observaciones,
-          id_carga: idCarga
+          observaciones: r.observaciones || null
         }));
-        await executeChunkedUpsert('inventario_refacciones', toInsert, { onConflict: 'codigo_articulo' });
+        await executeChunkedUpsert('cat_refacciones', toInsert, { onConflict: 'codigo_articulo' });
       } else if (templateType === 'laborcosts') {
         const toInsert = validRows.map(r => ({
           cve_tecnico: r.cve_tecnico,
@@ -8880,7 +8976,7 @@ async function viewCalendarDetail(id, viewName) {
       let html = '';
       for (let sp of spares) {
         const { data: stockData } = await supabaseClient
-          .from('inventario_refacciones')
+          .from('cat_refacciones')
           .select('stock_actual, stock_minimo')
           .eq('codigo_articulo', sp.codigo_articulo)
           .maybeSingle();

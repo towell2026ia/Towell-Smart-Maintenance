@@ -2068,7 +2068,7 @@
 
           <div class="form-group">
             <label for="bitacora-machine">Máquina (si aplica)</label>
-            <select id="bitacora-machine" class="form-control">
+            <select id="bitacora-machine" class="form-control" onchange="onBitacoraMachineChange()">
               <option value="NO_APLICA">No aplica</option>
               <!-- Máquinas filtradas por área -->
             </select>
@@ -2095,9 +2095,9 @@
           <div class="form-group" style="border-top: 1px solid #cbd5e1; padding-top: 16px; margin-top: 8px;">
             <label style="margin-bottom: 8px; font-weight: 600;">Refacciones Utilizadas (si aplica)</label>
             <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-              <select id="bitacora-part-select" class="form-control">
-                <option value="">Selecciona repuesto...</option>
-                <!-- Rellenado dinámicamente -->
+              <select id="bitacora-part-select" class="form-control" onchange="onBitacoraPartChange()">
+                <option value="">— Selecciona máquina primero —</option>
+                <!-- Rellenado dinámicamente por máquina -->
               </select>
               <input type="number" id="bitacora-part-qty" class="form-control" value="1" min="1" style="width: 80px;">
               <button type="button" class="btn-nav btn-nav-primary" onclick="addPartToBitacoraList()" style="padding: 10px 16px;">+</button>
