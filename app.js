@@ -2911,8 +2911,6 @@ async function renderAdminHistPrecios() {
       <td>${fmtDate(r.fecha)}</td>
       <td><strong>${fmtCurrency(r.precio_costo_unitario, r.moneda)}</strong></td>
       <td>${r.moneda}</td>
-      <td>${r.origen || '—'}</td>
-    </tr>`).join('');
   } catch (err) { tbody.innerHTML = emptyRow(5, `❌ Error: ${err.message}`); }
 }
 
@@ -3018,23 +3016,22 @@ async function renderAdminRespChk() {
 // ============================================================================
 // Renderizado de Gráficos y Tablas del Dashboard Ejecutivo (Whiteboard layout)
 function renderAdminDashboard() {
-  const whiteboardData = JSON.parse(localStorage.getItem('TSMAI_whiteboard') || '{}');
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
   const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const localLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
 
-  // --- WIDGET 1: OT por cerrar (Barras Horizontales) ---
+  // --- WIDGET 1: OT por cerrar (Barras Horizontales Reales) ---
   const ctxOtCerrar = document.getElementById('chart-ot-por-cerrar');
   if (ctxOtCerrar) {
     if (chartOtCerrarInstance) chartOtCerrarInstance.destroy();
     
-    // Contar OTs no cerradas por días de antigüedad de manera simulada/real
-    // Usamos los datos bases y añadimos ajustes reales de OTs abiertas
     const openOrders = orders.filter(o => o.status !== 'Cerrada' && o.status !== 'Cancelada');
     const otCounts = [0, 0, 0, 0]; // 1-3 días, 4-7 días, 8-15 días, 15+ días
     
     openOrders.forEach(o => {
-      const diffTime = Math.abs(new Date() - new Date(o.date));
+      const createdDate = o.date ? new Date(o.date) : new Date(o.fecha_carga || new Date());
+      const diffTime = Math.abs(new Date() - createdDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       if (diffDays <= 3) otCounts[0]++;
       else if (diffDays <= 7) otCounts[1]++;
@@ -3042,20 +3039,12 @@ function renderAdminDashboard() {
       else otCounts[3]++;
     });
 
-    // Sumamos datos históricos de la pizarra para que se vea robusto
-    const finalCounts = [
-      whiteboardData.otPorCerrar.data[0] + otCounts[0],
-      whiteboardData.otPorCerrar.data[1] + otCounts[1],
-      whiteboardData.otPorCerrar.data[2] + otCounts[2],
-      whiteboardData.otPorCerrar.data[3] + otCounts[3]
-    ];
-
     chartOtCerrarInstance = new Chart(ctxOtCerrar, {
       type: 'bar',
       data: {
-        labels: whiteboardData.otPorCerrar.labels,
+        labels: ['1-3 Días', '4-7 Días', '8-15 Días', '15+ Días'],
         datasets: [{
-          data: finalCounts,
+          data: otCounts,
           backgroundColor: ['#3b82f6', '#f59e0b', '#ef4444', '#b91c1c'],
           borderRadius: 4
         }]
@@ -3065,88 +3054,62 @@ function renderAdminDashboard() {
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { x: { grid: { display: false } }, y: { grid: { display: false } } }
+        scales: { x: { grid: { display: false }, ticks: { precision: 0 } }, y: { grid: { display: false } } }
       }
     });
   }
 
-  // --- WIDGET 2: Alertas (Listado de maquinaria/recurrentes) ---
+  // --- WIDGET 2: Alertas de Mantenimiento Dinámicas ---
   const alertList = document.getElementById('wb-alert-list');
   if (alertList) {
     let alertHTML = '';
     
-    // Alertas Dinámicas por máquinas paradas
-    const stoppedMachines = machines.filter(m => m.status === 'Parada');
+    // Alertas por máquinas paradas/inactivas
+    const stoppedMachines = machines.filter(m => m.status === 'Parada' || m.activo === false);
     stoppedMachines.forEach(m => {
       alertHTML += `
-        <div class="alert-item">
-          <span>⚠️</span>
-          <div><strong>Máquina Parada:</strong> El equipo ${m.name || m.id} (${m.id}) en área ${m.area} requiere atención inmediata.</div>
+        <div class="alert-item alert-critical">
+          <span>🚨</span>
+          <div><strong>Máquina Inactiva:</strong> El equipo ${m.name || m.id} (${m.id}) en área ${m.area} requiere liberación o servicio.</div>
         </div>
       `;
     });
 
-    if (useLiveDatabase) {
-      // 1. Alertas de OTs Críticas Abiertas
-      const criticalOrders = orders.filter(o => o.urgency === 'Crítica' && o.status !== 'Cerrada' && o.status !== 'Cancelada');
-      criticalOrders.forEach(o => {
-        alertHTML += `
-          <div class="alert-item">
-            <span>🚨</span>
-            <div><strong>Prioridad Crítica:</strong> La OT ${o.id} (${o.description.substring(0, 50)}...) en máquina ${o.machine || 'N/A'} requiere atención.</div>
-          </div>
-        `;
-      });
+    // Alertas de OTs Críticas Abiertas
+    const criticalOrders = orders.filter(o => o.urgency === 'Crítica' && o.status !== 'Cerrada' && o.status !== 'Cancelada');
+    criticalOrders.forEach(o => {
+      alertHTML += `
+        <div class="alert-item alert-critical">
+          <span>🚨</span>
+          <div><strong>Prioridad Crítica:</strong> La OT ${o.id} (${(o.description || '').substring(0, 45)}...) requiere atención.</div>
+        </div>
+      `;
+    });
 
-      // 2. Alertas de OTs Vencidas Abiertas
-      const now = new Date();
-      const overdueOrders = orders.filter(o => o.dueDate && new Date(o.dueDate) < now && o.status !== 'Cerrada' && o.status !== 'Cancelada');
-      overdueOrders.forEach(o => {
-        const formattedDate = new Date(o.dueDate).toLocaleDateString();
+    // Alertas de OTs Vencidas Abiertas
+    const now = new Date();
+    const overdueOrders = orders.filter(o => o.dueDate && new Date(o.dueDate) < now && o.status !== 'Cerrada' && o.status !== 'Cancelada');
+    overdueOrders.forEach(o => {
+      const formattedDate = new Date(o.dueDate).toLocaleDateString('es-ES');
+      alertHTML += `
+        <div class="alert-item alert-warning">
+          <span>⚠️</span>
+          <div><strong>OT Vencida:</strong> La OT ${o.id} en máquina ${o.machine || 'N/A'} venció el ${formattedDate}.</div>
+        </div>
+      `;
+    });
+
+    // Fallas recurrentes por máquina
+    const machineFailCounts = {};
+    orders.forEach(o => {
+      if (o.machine && o.machine !== 'NO_APLICA' && o.status !== 'Cancelada') {
+        machineFailCounts[o.machine] = (machineFailCounts[o.machine] || 0) + 1;
+      }
+    });
+    Object.entries(machineFailCounts).forEach(([machId, count]) => {
+      if (count >= 3) {
         alertHTML += `
           <div class="alert-item alert-warning">
-            <span>⚠️</span>
-            <div><strong>OT Vencida:</strong> La OT ${o.id} de la máquina ${o.machine || 'N/A'} tenía fecha límite ${formattedDate}.</div>
-          </div>
-        `;
-      });
-
-      // 3. Fallas recurrentes por máquina (si tiene más de 2 fallas en la base)
-      const machineFailCounts = {};
-      orders.forEach(o => {
-        if (o.machine && o.machine !== 'NO_APLICA' && o.status !== 'Cancelada') {
-          machineFailCounts[o.machine] = (machineFailCounts[o.machine] || 0) + 1;
-        }
-      });
-      Object.entries(machineFailCounts).forEach(([machId, count]) => {
-        if (count >= 3) {
-          alertHTML += `
-            <div class="alert-item alert-warning">
-              <span>🔥</span>
-              <div><strong>Fallas Recurrentes:</strong> El equipo ${machId} registra ${count} fallas acumuladas.</div>
-            </div>
-          `;
-        }
-      });
-
-      if (alertHTML === '') {
-        alertHTML = `
-          <div style="text-align: center; color: var(--text-muted); padding: 20px;">
-            ✅ No hay alertas activas en el sistema. Todo marcha en orden.
-          </div>
-        `;
-      }
-    } else {
-      // Alertas estáticas de la pizarra (Demo Mode)
-      if (whiteboardData.alertas) {
-        whiteboardData.alertas.forEach(a => {
-          const isCritical = a.message.includes('fuera de servicio') || a.message.includes('fallas');
-          alertHTML += `
-            <div class="alert-item ${isCritical ? '' : 'alert-warning'}">
-              <span>${isCritical ? '🚨' : '⚠️'}</span>
-              <div><strong>${a.type}:</strong> ${a.message}</div>
-            </div>
-          `;
         });
       }
     }
@@ -3158,15 +3121,12 @@ function renderAdminDashboard() {
   if (ctxCompliance) {
     if (chartComplianceInstance) chartComplianceInstance.destroy();
 
-    // Calcular cumplimiento real basado en preventivos ejecutados/cerrados
-    const prevOrders = orders.filter(o => o.type === 'MP');
-    const prevClosed = prevOrders.filter(o => o.status === 'Cerrada' || o.status === 'Ejecutada');
+    const activeOrders = orders.filter(o => o.status !== 'Cancelada');
+    const closedOrders = activeOrders.filter(o => o.status === 'Cerrada' || o.status === 'Ejecutada');
     
-    let compliance = 90; // Default
-    if (prevOrders.length > 0) {
-      compliance = Math.round((prevClosed.length / prevOrders.length) * 100);
-      // Ponderar con valor histórico
-      compliance = Math.round((compliance + 90) / 2);
+    let compliance = 100;
+    if (activeOrders.length > 0) {
+      compliance = Math.round((closedOrders.length / activeOrders.length) * 100);
     }
     
     document.getElementById('wb-compliance-value').innerText = `${compliance}%`;
@@ -3190,24 +3150,42 @@ function renderAdminDashboard() {
     });
   }
 
-  // --- WIDGET 4: Pronóstico vs Presupuesto mensual ---
+  // --- WIDGET 4: Costos Reales por Departamento (Mano de Obra vs Refacciones) ---
   const ctxBudget = document.getElementById('chart-pronostico-presupuesto');
   if (ctxBudget) {
     if (chartBudgetPercentInstance) chartBudgetPercentInstance.destroy();
 
+    const areas = ['PF', 'CF', 'TF', 'AF'];
+    const partsCosts = [0, 0, 0, 0];
+    const laborCosts = [0, 0, 0, 0];
+
+    orders.forEach(o => {
+      if (o.status === 'Cerrada' || o.status === 'Ejecutada') {
+        const areaIdx = areas.indexOf(o.area);
+        if (areaIdx !== -1) {
+          let pCost = 0;
+          if (o.usedParts && Array.isArray(o.usedParts)) {
+            o.usedParts.forEach(p => { pCost += (parseFloat(p.costoUnitario) || 0) * (parseFloat(p.quantity) || 0); });
+          }
+          partsCosts[areaIdx] += pCost;
+          laborCosts[areaIdx] += 500; 
+        }
+      }
+    });
+
     chartBudgetPercentInstance = new Chart(ctxBudget, {
       type: 'bar',
       data: {
-        labels: whiteboardData.pronosticoPresupuesto.labels,
+        labels: ['PF Tejido', 'CF Costura', 'TF Tintorería', 'AF Planta'],
         datasets: [
           {
-            label: 'Pronóstico',
-            data: whiteboardData.pronosticoPresupuesto.pronostico,
+            label: 'Refacciones ($)',
+            data: partsCosts,
             backgroundColor: '#06b6d4'
           },
           {
-            label: 'Presupuesto Asignado',
-            data: whiteboardData.pronosticoPresupuesto.presupuesto,
+            label: 'Mano de Obra ($)',
+            data: laborCosts,
             backgroundColor: '#2563eb'
           }
         ]
@@ -3222,53 +3200,47 @@ function renderAdminDashboard() {
     });
   }
 
-  // --- WIDGET 5: Horas Paro por departamento (Líneas TIN, TE, COS) ---
+  // --- WIDGET 5: Horas Paro Reales por Área ---
   const ctxDowntime = document.getElementById('chart-horas-paro');
   if (ctxDowntime) {
     if (chartDowntimeInstance) chartDowntimeInstance.destroy();
 
-    // Actualizar total horas de paro sumando eventual downtime de máquinas paradas
-    let totalDowntime = whiteboardData.downtimeHours.totalHours;
+    let totalDowntime = 0;
+    const areaDowntime = { PF: 0, CF: 0, TF: 0, AF: 0 };
+
+    localLogs.forEach(l => {
+      if (l.fecha_hora_inicio && l.fecha_hora_fin) {
+        const start = new Date(l.fecha_hora_inicio);
+        const end = new Date(l.fecha_hora_fin);
+        const diffHrs = Math.max(0, (end - start) / (1000 * 60 * 60));
+        if (diffHrs > 0) {
+          totalDowntime += diffHrs;
+          const a = l.area || 'PF';
+          if (areaDowntime[a] !== undefined) {
+            areaDowntime[a] += diffHrs;
+          }
+        }
+      }
+    });
+
+    totalDowntime = Math.round(totalDowntime * 10) / 10;
     document.getElementById('wb-total-downtime').innerText = `Total: ${totalDowntime} hrs`;
 
     chartDowntimeInstance = new Chart(ctxDowntime, {
-      type: 'line',
+      type: 'bar',
       data: {
-        labels: whiteboardData.downtimeHours.labels,
-        datasets: [
-          {
-            label: 'TIN (Tintorería)',
-            data: whiteboardData.downtimeHours.TIN,
-            borderColor: '#ef4444',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            tension: 0.3,
-            borderWidth: 2,
-            pointRadius: 2
-          },
-          {
-            label: 'TE (Tejeduría)',
-            data: whiteboardData.downtimeHours.TE,
-            borderColor: '#2563eb',
-            backgroundColor: 'rgba(37, 99, 235, 0.1)',
-            tension: 0.3,
-            borderWidth: 2,
-            pointRadius: 2
-          },
-          {
-            label: 'COS (Costura)',
-            data: whiteboardData.downtimeHours.COS,
-            borderColor: '#d97706',
-            backgroundColor: 'rgba(217, 119, 6, 0.1)',
-            tension: 0.3,
-            borderWidth: 2,
-            pointRadius: 2
-          }
-        ]
+        labels: ['PF Tejido', 'CF Costura', 'TF Tintorería', 'AF Planta'],
+        datasets: [{
+          label: 'Horas Paro',
+          data: [areaDowntime.PF, areaDowntime.CF, areaDowntime.TF, areaDowntime.AF],
+          backgroundColor: '#ef4444',
+          borderRadius: 4
+        }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 9, family: 'Outfit' } } } },
+        plugins: { legend: { display: false } },
         scales: { x: { grid: { display: false } } }
       }
     });
@@ -3277,25 +3249,36 @@ function renderAdminDashboard() {
   // --- WIDGET 6: Tabla Top Máquina Falla / Costo ---
   const topMaquinaRows = document.getElementById('wb-top-maquina-rows');
   if (topMaquinaRows) {
-    let rowsHTML = '';
+    const machineLogs = {};
+    localLogs.forEach(l => {
+      if (l.maquina_id && l.maquina_id !== 'NO_APLICA') {
+        if (!machineLogs[l.maquina_id]) {
+          machineLogs[l.maquina_id] = { count: 0, area: l.area, name: l.maquina_id };
+        }
+        machineLogs[l.maquina_id].count++;
+      }
+    });
     
-    // Ordenar máquinas de localStorage por fallas y costos para hacerlo dinámico
-    const machinesSorted = [...machines].sort((a,b) => (b.failures * b.cost) - (a.failures * a.cost));
-    const top5 = machinesSorted.slice(0, 5);
-
+    const sorted = Object.values(machineLogs).sort((a, b) => b.count - a.count);
+    const top5 = sorted.slice(0, 5);
+    
+    let rowsHTML = '';
     top5.forEach(m => {
-      const areaText = m.area === 'PF' ? 'PF Prod' : m.area === 'CF' ? 'CF Costura' : m.area === 'TF' ? 'TF Tinte' : 'AF Planta';
-      const isCritical = m.failures > 7;
+      const areaText = m.area === 'PF' ? 'PF Tejido' : m.area === 'CF' ? 'CF Costura' : m.area === 'TF' ? 'TF Tinte' : 'AF Planta';
+      const isCritical = m.count >= 3;
       rowsHTML += `
         <tr>
           <td><strong>${areaText}</strong></td>
           <td>${m.name}</td>
-          <td>$${m.cost}</td>
-          <td>${m.failures}</td>
-          <td><span class="badge badge-priority-${isCritical ? 'crítica' : 'seguridad'}">${isCritical ? 'Crítico' : 'Seguridad'}</span></td>
+          <td>Real</td>
+          <td>${m.count}</td>
+          <td><span class="badge badge-priority-${isCritical ? 'critica' : 'seguridad'}">${isCritical ? 'Crítico' : 'Normal'}</span></td>
         </tr>
       `;
     });
+    if (rowsHTML === '') {
+      rowsHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No hay intervenciones registradas.</td></tr>`;
+    }
     topMaquinaRows.innerHTML = rowsHTML;
   }
 }
@@ -5098,13 +5081,53 @@ function renderAdminFormsList() {
   let html = '';
   forms.forEach(f => {
     html += `
-      <div style="background-color: white; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px;">
-        <div style="font-weight: 700; font-size: 0.9rem; color: var(--primary-dark);">${f.name}</div>
-        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Área: <strong>${f.area}</strong> | Campos: ${f.fields.length}</div>
+      <div style="background-color: white; border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
+        <div>
+          <div style="font-weight: 700; font-size: 0.95rem; color: var(--primary-dark);">${f.name}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Área: <strong>${f.area}</strong> | Campos: ${f.fields.length}</div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button type="button" class="btn-table-action" onclick="openTechChecklistRunModal('${f.id}')" style="padding: 4px 8px; font-size: 0.75rem; background-color: var(--primary-color); border-color: var(--primary-color);">📋 Llenar Formato</button>
+          <button type="button" class="btn-table-action" onclick="deleteDynamicForm('${f.id}')" style="padding: 4px 8px; font-size: 0.75rem; background-color: #ef4444; border-color: #ef4444;">❌ Eliminar</button>
+        </div>
       </div>
     `;
   });
+  
+  if (html === '') {
+    html = `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 12px;">No hay checklists guardados.</div>`;
+  }
   container.innerHTML = html;
+}
+
+async function deleteDynamicForm(formId) {
+  if (!confirm(`¿Estás seguro de que deseas eliminar el checklist de servicio "${formId}"? Se borrarán todas sus preguntas de la base de datos.`)) {
+    return;
+  }
+
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      showToast('Eliminando de la base de datos...');
+      const { error } = await supabaseClient
+        .from('checklists_mantenimiento')
+        .delete()
+        .eq('codigo_servicio', formId);
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error deleting checklist from Supabase:', err);
+      alert('Error al eliminar en Supabase: ' + err.message);
+      return;
+    }
+  }
+
+  // Update local cache
+  const localForms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  const filtered = localForms.filter(f => f.id !== formId);
+  localStorage.setItem('TSMAI_dynamic_forms', JSON.stringify(filtered));
+
+  showToast('Checklist eliminado con éxito.');
+  syncDatabases().catch(e => console.warn(e));
+  renderAdminFormsList();
 }
 
 // --- EXCEL SIMULATION ---
