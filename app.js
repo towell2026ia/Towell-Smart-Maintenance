@@ -1145,6 +1145,7 @@ function showView(viewId) {
     renderAdminMachinesTable();
     renderAdminPartsTable();
     renderAdminFormsList();
+    renderAdminUsersTable();
     // Actualizar badge de solicitudes nuevas
     updateRequestsBadge();
 
@@ -1163,6 +1164,7 @@ function showView(viewId) {
           renderAdminMachinesTable();
           renderAdminPartsTable();
           renderAdminFormsList();
+          renderAdminUsersTable();
           updateRequestsBadge();
         }
       }).catch(err => console.error('Error in background sync for admin view:', err));
@@ -4394,6 +4396,22 @@ function renderAdminUsersTable() {
   tbody.innerHTML = html;
 }
 
+async function syncAdminUsersManual() {
+  if (!supabaseClient) {
+    showToast('⚠️ Sin conexión a Supabase.');
+    return;
+  }
+  try {
+    showToast('Sincronizando usuarios con Supabase...');
+    await syncDatabases();
+    renderAdminUsersTable();
+    showToast('🔄 Usuarios sincronizados con éxito.');
+  } catch (err) {
+    console.error('Error in manual users sync:', err);
+    alert('Error al sincronizar usuarios: ' + err.message);
+  }
+}
+
 // --- CRUD USUARIOS (ADMIN) ---
 function toggleAdminUserRoleFields() {
   const role = document.getElementById('admin-user-role').value;
@@ -4539,7 +4557,9 @@ async function saveAdminUser() {
     fecha_actualizacion: new Date().toISOString()
   };
 
-  if (!id) {
+  const isUUID = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+  if (!isUUID) {
     userObj.contrasenia = tempPass;
     userObj.debe_cambiar_contrasenia = true;
     userObj.fecha_alta = new Date().toISOString();
@@ -4553,7 +4573,7 @@ async function saveAdminUser() {
       const dbPayload = { ...userObj };
       delete dbPayload.contrasenia;
 
-      if (id) {
+      if (isUUID) {
         const { error } = await supabaseClient
           .from('cat_usuarios_roles')
           .update(dbPayload)
