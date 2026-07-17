@@ -2911,6 +2911,7 @@ async function renderAdminHistPrecios() {
       <td>${fmtDate(r.fecha)}</td>
       <td><strong>${fmtCurrency(r.precio_costo_unitario, r.moneda)}</strong></td>
       <td>${r.moneda}</td>
+    </tr>`).join('');
   } catch (err) { tbody.innerHTML = emptyRow(5, `❌ Error: ${err.message}`); }
 }
 
@@ -3110,8 +3111,19 @@ function renderAdminDashboard() {
       if (count >= 3) {
         alertHTML += `
           <div class="alert-item alert-warning">
-        });
+            <span>🔥</span>
+            <div><strong>Fallas Recurrentes:</strong> El equipo ${machId} registra ${count} fallas acumuladas.</div>
+          </div>
+        `;
       }
+    });
+    
+    if (alertHTML === '') {
+      alertHTML = `
+        <div style="text-align: center; color: var(--text-muted); padding: 20px;">
+          ✅ No hay alertas activas en el sistema. Todo marcha en orden.
+        </div>
+      `;
     }
     alertList.innerHTML = alertHTML;
   }
@@ -3129,7 +3141,7 @@ function renderAdminDashboard() {
       compliance = Math.round((closedOrders.length / activeOrders.length) * 100);
     }
     
-    document.getElementById('wb-compliance-value').innerText = `${compliance}%`;
+    document.getElementById('wb-compliance-value').innerText = compliance + '%';
 
     chartComplianceInstance = new Chart(ctxCompliance, {
       type: 'doughnut',
@@ -6598,6 +6610,7 @@ async function saveTechnicalLog() {
             diferencia_importe: 0,
             origen: 'App'
           };
+        });
         // El consumo se guarda en la bitácora de mantenimiento y el stock se decrementa directamente.
         // Ya no se requiere escribir en la tabla intermedia redundante.
       }
