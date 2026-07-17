@@ -4549,17 +4549,21 @@ async function saveAdminUser() {
 
   if (supabaseClient) {
     try {
+      // Exclude contrasenia from the payload sent to Supabase since it's not a column in cat_usuarios_roles
+      const dbPayload = { ...userObj };
+      delete dbPayload.contrasenia;
+
       if (id) {
         const { error } = await supabaseClient
           .from('cat_usuarios_roles')
-          .update(userObj)
+          .update(dbPayload)
           .eq('id_usuario', id);
         if (error) throw error;
         showToast('Usuario actualizado en base de datos.');
       } else {
         const { error } = await supabaseClient
           .from('cat_usuarios_roles')
-          .insert([userObj]);
+          .insert([dbPayload]);
         if (error) throw error;
         showToast('Usuario creado en base de datos.');
         shouldShowEmail = true;
@@ -8415,7 +8419,6 @@ async function resetAdminUserPassword(userId) {
       const { error } = await supabaseClient
         .from('cat_usuarios_roles')
         .update({ 
-          contrasenia: tempPass, 
           debe_cambiar_contrasenia: true,
           fecha_actualizacion: new Date().toISOString()
         })
