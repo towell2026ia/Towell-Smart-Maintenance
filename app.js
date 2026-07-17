@@ -5056,7 +5056,9 @@ function removeFieldFromBuilder(index) {
   renderFormFieldsBuilderPreview();
 }
 
-function saveDynamicForm() {
+let activeEditingFormId = null;
+
+async function saveDynamicForm() {
   const name = document.getElementById('fb-name').value.trim();
   const area = document.getElementById('fb-area').value;
 
@@ -5066,23 +5068,89 @@ function saveDynamicForm() {
   }
 
   const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
-  const consecutive = String(forms.length + 1).padStart(2, '0');
+  
+  let targetId = activeEditingFormId;
+  if (!targetId) {
+    // Generate new ID
+    let maxNum = 0;
+    forms.forEach(f => {
+      if (f.id && f.id.startsWith('F-')) {
+        const num = parseInt(f.id.split('-')[1]) || 0;
+        if (num > maxNum) maxNum = num;
+      }
+    });
+    const nextNum = maxNum + 1;
+    targetId = `F-${String(nextNum).padStart(2, '0')}`;
+  }
+
   const newForm = {
-    id: `F-${consecutive}`,
+    id: targetId,
     name,
     area,
     fields: tempFormFields
   };
 
-  forms.push(newForm);
+  // 1. Guardar en Supabase en tiempo real si está activo
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      showToast('Guardando checklist en base de datos...');
+      
+      // Upsert the service catalog record
+      const { error: srvErr } = await supabaseClient.from('cat_servicios_mantenimiento').upsert([{
+        codigo_servicio: targetId,
+        nombre_servicio: name,
+        tipo_servicio: 'Autónomo',
+        activo: true
+      }], { onConflict: 'codigo_servicio' });
+      if (srvErr) throw srvErr;
+
+      // Delete existing questions for this service code first (clean update)
+      await supabaseClient.from('checklists_mantenimiento').delete().eq('codigo_servicio', targetId);
+
+      // Insert new questions
+      const questions = tempFormFields.map((f, idx) => ({
+        codigo_servicio: targetId,
+        codigo_pregunta: f.name || `Q-${idx + 1}`,
+        pregunta: f.label,
+        tipo_respuesta: f.type === 'checkbox' ? 'si_no' : (f.type === 'radio' ? 'si_no' : (f.type === 'number' ? 'numerico' : 'texto')),
+        obligatorio: f.required || false,
+        orden: idx + 1,
+        activo: true
+      }));
+      
+      const { error: qErr } = await supabaseClient.from('checklists_mantenimiento').insert(questions);
+      if (qErr) throw qErr;
+
+    } catch (err) {
+      console.error('Error saving checklist to Supabase:', err);
+      alert('Error al guardar en Supabase: ' + err.message);
+      return;
+    }
+  }
+
+  // Update local storage cache
+  const idx = forms.findIndex(f => f.id === targetId);
+  if (idx !== -1) {
+    forms[idx] = newForm;
+  } else {
+    forms.push(newForm);
+  }
   localStorage.setItem('TSMAI_dynamic_forms', JSON.stringify(forms));
 
-  // Reset
+  // Reset Form Builder State
   document.getElementById('fb-name').value = '';
+  document.getElementById('fb-area').value = 'PF';
   tempFormFields = [];
+  activeEditingFormId = null;
+  
+  const builderTitle = document.querySelector('.form-builder-panel h3');
+  if (builderTitle) builderTitle.innerText = 'Crear Nuevo Checklist';
+
   renderFormFieldsBuilderPreview();
   renderAdminFormsList();
-  showToast('Checklist dinámico guardado.');
+  showToast('Checklist dinámico guardado con éxito.');
+  
+  syncDatabases().catch(e => console.warn(e));
 }
 
 function renderAdminFormsList() {
@@ -5096,10 +5164,11 @@ function renderAdminFormsList() {
       <div style="background-color: white; border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
         <div>
           <div style="font-weight: 700; font-size: 0.95rem; color: var(--primary-dark);">${f.name}</div>
-          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Área: <strong>${f.area}</strong> | Campos: ${f.fields.length}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Área: <strong>${f.area || 'General'}</strong> | Campos: ${f.fields.length}</div>
         </div>
         <div style="display: flex; gap: 8px; margin-top: 4px;">
-          <button type="button" class="btn-table-action" onclick="openTechChecklistRunModal('${f.id}')" style="padding: 4px 8px; font-size: 0.75rem; background-color: var(--primary-color); border-color: var(--primary-color);">📋 Llenar Formato</button>
+          <button type="button" class="btn-table-action" onclick="openTechChecklistRunModal('${f.id}')" style="padding: 4px 8px; font-size: 0.75rem; background-color: var(--primary-color); border-color: var(--primary-color);">📋 Llenar</button>
+          <button type="button" class="btn-table-action" onclick="editDynamicForm('${f.id}')" style="padding: 4px 8px; font-size: 0.75rem; background-color: #f59e0b; border-color: #f59e0b;">✏️ Editar</button>
           <button type="button" class="btn-table-action" onclick="deleteDynamicForm('${f.id}')" style="padding: 4px 8px; font-size: 0.75rem; background-color: #ef4444; border-color: #ef4444;">❌ Eliminar</button>
         </div>
       </div>
@@ -5110,6 +5179,33 @@ function renderAdminFormsList() {
     html = `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 12px;">No hay checklists guardados.</div>`;
   }
   container.innerHTML = html;
+}
+
+function editDynamicForm(formId) {
+  const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  const form = forms.find(f => f.id === formId);
+  if (!form) return;
+
+  activeEditingFormId = formId;
+  
+  document.getElementById('fb-name').value = form.name;
+  document.getElementById('fb-area').value = form.area || 'PF';
+
+  tempFormFields = form.fields.map(f => ({
+    name: f.name || 'field_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+    label: f.label || f.pregunta,
+    type: f.type === 'radio' ? 'checkbox' : (f.type === 'si_no' ? 'checkbox' : f.type),
+    required: f.required ?? true
+  }));
+
+  const builderTitle = document.querySelector('.form-builder-panel h3');
+  if (builderTitle) builderTitle.innerText = `Editar Checklist: ${formId}`;
+
+  const builderPanel = document.querySelector('.form-builder-panel');
+  if (builderPanel) builderPanel.scrollIntoView({ behavior: 'smooth' });
+
+  renderFormFieldsBuilderPreview();
+  showToast(`Cargado checklist ${formId} para edición.`);
 }
 
 async function deleteDynamicForm(formId) {
