@@ -7009,14 +7009,40 @@ async function openNewBitacoraLogModal() {
   if (orders.length === 0)   orders   = JSON.parse(localStorage.getItem('TSMAI_orders')   || '[]');
   if (machines.length === 0) machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
 
-  // Populate OTs select — only my active orders
+  // Populate OTs select — all active orders for admin, or only assigned active orders for tech
   if (otSelect) {
     otSelect.innerHTML = '<option value="NO_APLICA">No aplica (Actividad Autónoma)</option>';
     if (currentUser) {
-      const myActive = orders.filter(o => o.assignedTech === currentUser.id && o.status !== 'Cerrada' && o.status !== 'Cancelada');
+      const isAdmin = currentUser.role === 'admin';
+      const myActive = orders.filter(o => {
+        if (o.status === 'Cerrada' || o.status === 'Cancelada') return false;
+        return isAdmin ? true : (o.assignedTech === currentUser.id);
+      });
       myActive.forEach(o => {
         otSelect.innerHTML += `<option value="${o.id}" data-machine="${o.machine || ''}" data-area="${o.area || ''}">${o.id} — ${(o.description || '').substring(0, 45)}</option>`;
       });
+    }
+  }
+
+  // Populate technician selector if admin is logged in
+  const techGroup = document.getElementById('bitacora-tech-group');
+  const techSelect = document.getElementById('bitacora-tech');
+  const isAdminUser = currentUser && currentUser.role === 'admin';
+  
+  if (techGroup && techSelect) {
+    if (isAdminUser) {
+      techGroup.style.display = 'block';
+      const techs = JSON.parse(localStorage.getItem('TSMAI_users') || '[]').filter(u => u.rol === 'MANTENIMIENTO');
+      techSelect.innerHTML = '<option value="">Selecciona técnico...</option>';
+      techs.forEach(t => {
+        const idVal = t.cve_tecnico || t.id_usuario;
+        techSelect.innerHTML += `<option value="${idVal}">${t.nombre_completo} (${idVal})</option>`;
+      });
+      techSelect.required = true;
+    } else {
+      techGroup.style.display = 'none';
+      techSelect.required = false;
+      techSelect.innerHTML = '';
     }
   }
 
@@ -7259,9 +7285,30 @@ async function submitNewBitacoraLog() {
     return;
   }
 
+  // Determine technician code and name
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  const techSelect = document.getElementById('bitacora-tech');
+  let selectedTechId = currentUser ? currentUser.id : null;
+  let selectedTechName = currentUser ? currentUser.name : null;
+
+  if (isAdmin && techSelect) {
+    selectedTechId = techSelect.value;
+    if (!selectedTechId) {
+      alert('Por favor selecciona el técnico que realizó la actividad.');
+      return;
+    }
+    const techs = JSON.parse(localStorage.getItem('TSMAI_users') || '[]').filter(u => u.rol === 'MANTENIMIENTO');
+    const t = techs.find(x => (x.cve_tecnico || x.id_usuario) === selectedTechId);
+    selectedTechName = t ? t.nombre_completo : 'Técnico';
+  }
+
+  if (!selectedTechId) {
+    selectedTechId = 'T-DEMO';
+    selectedTechName = 'Técnico Demo';
+  }
+
   let otUUID = null;
   if (otId !== 'NO_APLICA') {
-    // Buscar el UUID real de la OT
     if (useLiveDatabase && supabaseClient) {
       try {
         const { data } = await supabaseClient
@@ -7293,8 +7340,8 @@ async function submitNewBitacoraLog() {
       showToast('Guardando en base de datos real...');
       const record = {
         id_orden: otUUID,
-        cve_tecnico: currentUser ? currentUser.id : 'T-01',
-        nombre_tecnico: currentUser ? currentUser.name : 'Técnico Real',
+        cve_tecnico: selectedTechId,
+        nombre_tecnico: selectedTechName,
         area: area,
         maquina_id: machine === 'NO_APLICA' ? null : machine,
         fecha_hora_inicio: timeStart,
@@ -7341,8 +7388,8 @@ async function submitNewBitacoraLog() {
     id: 'LOG-' + Date.now().toString().slice(-6),
     otFolio: otId,
     otUUID: otUUID,
-    cve_tecnico: currentUser ? currentUser.id : 'T-DEMO',
-    nombre_tecnico: currentUser ? currentUser.name : 'Técnico Demo',
+    cve_tecnico: selectedTechId,
+    nombre_tecnico: selectedTechName,
     area: area,
     maquina_id: machine === 'NO_APLICA' ? null : machine,
     fecha_hora_inicio: timeStart,

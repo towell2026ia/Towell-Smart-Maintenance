@@ -755,8 +755,9 @@
         <!-- Panel Admin 5: Bitácoras Generales -->
         <div id="panel-admin-logs" class="admin-panel-content" style="display: none;">
           <div class="table-container">
-            <div class="table-header-row">
+            <div class="table-header-row" style="display: flex; justify-content: space-between; align-items: center;">
               <span class="table-title">Bitácoras y Registro Histórico de Trabajos</span>
+              <button class="btn-nav btn-nav-primary" onclick="openNewBitacoraLogModal()" style="width: auto; padding: 8px 16px;">➕ Registrar Actividad</button>
             </div>
             <div class="responsive-table-wrapper">
               <table class="custom-table">
@@ -2145,6 +2146,13 @@
                 <option value="AF">AF - Planta (Planta física / Auxiliares)</option>
               </select>
             </div>
+          </div>
+
+          <div class="form-group" id="bitacora-tech-group" style="display: none;">
+            <label for="bitacora-tech">Técnico que realizó el trabajo *</label>
+            <select id="bitacora-tech" class="form-control">
+              <!-- Creado dinámicamente -->
+            </select>
           </div>
 
           <div class="form-group">
