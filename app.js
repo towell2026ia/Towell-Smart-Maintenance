@@ -4417,11 +4417,31 @@ function toggleAdminUserRoleFields() {
   const role = document.getElementById('admin-user-role').value;
   const techGroup = document.getElementById('admin-user-tech-code-group');
   if (techGroup) {
+    const empInput = document.getElementById('admin-user-emp-code');
+    const techInput = document.getElementById('admin-user-tech-code');
+    
     if (role === 'MANTENIMIENTO') {
       techGroup.style.display = 'block';
+      if (empInput && techInput) {
+        techInput.value = empInput.value;
+        techInput.disabled = true; // El código de empleado manda
+        
+        // Sincronizar en tiempo real cuando escriben
+        if (!empInput.dataset.hasSyncListener) {
+          empInput.dataset.hasSyncListener = 'true';
+          empInput.addEventListener('input', () => {
+            if (document.getElementById('admin-user-role').value === 'MANTENIMIENTO') {
+              document.getElementById('admin-user-tech-code').value = empInput.value;
+            }
+          });
+        }
+      }
     } else {
       techGroup.style.display = 'none';
-      document.getElementById('admin-user-tech-code').value = '';
+      if (techInput) {
+        techInput.value = '';
+        techInput.disabled = false;
+      }
     }
   }
 }
@@ -4526,10 +4546,13 @@ async function saveAdminUser() {
     alert('Por favor ingresa el correo electrónico.');
     return;
   }
-  if (rol === 'MANTENIMIENTO' && !cveTecnico) {
-    alert('Por favor ingresa la clave de técnico.');
+  if (rol === 'MANTENIMIENTO' && !cveEmpleado) {
+    alert('Por favor ingresa la clave de empleado.');
     return;
   }
+
+  const finalEmpCode = cveEmpleado || null;
+  const finalTechCode = rol === 'MANTENIMIENTO' ? finalEmpCode : null;
 
   const tempPass = 'TSM-' + Math.floor(1000 + Math.random() * 9000);
 
@@ -4538,8 +4561,8 @@ async function saveAdminUser() {
     correo: correo,
     telefono: telefono || null,
     rol: rol,
-    cve_empleado: cveEmpleado || null,
-    cve_tecnico: rol === 'MANTENIMIENTO' ? cveTecnico : null,
+    cve_empleado: finalEmpCode,
+    cve_tecnico: finalTechCode,
     departamento: departamento || null,
     turno: shift ? parseInt(shift) : null,
     puede_crear_solicitud: puedeCrear,
@@ -4569,7 +4592,39 @@ async function saveAdminUser() {
 
   if (supabaseClient) {
     try {
-      // Exclude contrasenia from the payload sent to Supabase since it's not a column in cat_usuarios_roles
+      // 1. Asegurar la clave de empleado y técnico en sus respectivos catálogos para evitar violaciones de clave foránea
+      if (finalEmpCode) {
+        showToast('Sincronizando catálogo de empleados...');
+        const { error: empErr } = await supabaseClient
+          .from('cat_empleados')
+          .upsert([{
+            cve_empleado: finalEmpCode,
+            nombre_empleado: nombre,
+            correo: correo,
+            telefono: telefono || null,
+            activo: activo,
+            fecha_actualizacion: new Date().toISOString()
+          }], { onConflict: 'cve_empleado' });
+        if (empErr) throw empErr;
+      }
+
+      if (rol === 'MANTENIMIENTO' && finalTechCode) {
+        showToast('Sincronizando catálogo de técnicos...');
+        const { error: techErr } = await supabaseClient
+          .from('cat_tecnicos')
+          .upsert([{
+            cve_tecnico: finalTechCode,
+            nombre_tecnico: nombre,
+            correo: correo,
+            telefono: telefono || null,
+            activo: activo,
+            especialidad: observaciones || 'General',
+            fecha_actualizacion: new Date().toISOString()
+          }], { onConflict: 'cve_tecnico' });
+        if (techErr) throw techErr;
+      }
+
+      // 2. Excluir contraseña en el envío a la tabla cat_usuarios_roles
       const dbPayload = { ...userObj };
       delete dbPayload.contrasenia;
 
