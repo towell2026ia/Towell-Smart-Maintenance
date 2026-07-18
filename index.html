@@ -861,14 +861,22 @@
               </div>
               <hr style="margin: 16px 0; border: none; border-top: 1px solid #cbd5e1;">
               <h4 style="margin-bottom: 8px; font-weight: 600; font-size: 0.9rem;">Agregar Preguntas / Campos</h4>
-              <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+              <div style="display: flex; gap: 8px; margin-bottom: 12px;">
                 <input type="text" id="fb-field-label" class="form-control" placeholder="Etiqueta o pregunta...">
-                <select id="fb-field-type" class="form-control" style="width: 140px;">
+                <select id="fb-field-type" class="form-control" style="width: 140px;" onchange="toggleFormBuilderOptionsField()">
                   <option value="checkbox">Sí/No</option>
                   <option value="text">Texto corto</option>
                   <option value="number">Numérico</option>
+                  <option value="select">Lista Desplegable</option>
+                  <option value="date">Fecha</option>
+                  <option value="time">Hora</option>
                 </select>
                 <button class="btn-nav btn-nav-primary" onclick="addFieldToBuilder()" style="padding: 10px 16px;">+</button>
+              </div>
+
+              <div id="fb-options-container" style="display: none; margin-bottom: 16px;">
+                <label for="fb-field-options" style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; display: block;">Opciones de la lista desplegable (separadas por comas)</label>
+                <input type="text" id="fb-field-options" class="form-control" placeholder="Ej. Operando, Parado, En Espera">
               </div>
 
               <div class="form-builder-fields-list" id="fb-fields-preview-list">

@@ -873,11 +873,24 @@ async function syncDatabases() {
             fields: []
           };
         }
+        
+        let options = [];
+        if (c.observaciones && c.observaciones.startsWith('[')) {
+          try {
+            options = JSON.parse(c.observaciones);
+          } catch (e) {}
+        }
+
         groupedForms[sId].fields.push({
           id: c.id_checklist,
           label: c.pregunta,
-          type: c.tipo_respuesta === 'si_no' ? 'checkbox' : (c.tipo_respuesta === 'numerico' ? 'number' : 'text'),
-          required: c.obligatorio || false
+          type: c.tipo_respuesta === 'si_no' ? 'checkbox' : 
+                (c.tipo_respuesta === 'numerico' ? 'number' : 
+                (c.tipo_respuesta === 'seleccion' || c.tipo_respuesta === 'select' ? 'select' :
+                (c.tipo_respuesta === 'fecha' ? 'date' : 
+                (c.tipo_respuesta === 'hora' ? 'time' : 'text')))),
+          required: c.obligatorio || false,
+          options: options
         });
       });
 
@@ -898,12 +911,17 @@ async function syncDatabases() {
 
           const questions = lf.fields.map((f, idx) => ({
             codigo_servicio: lf.id,
-            codigo_pregunta: `Q-${idx + 1}`,
+            codigo_pregunta: f.name || `Q-${idx + 1}`,
             pregunta: f.label,
-            tipo_respuesta: f.type === 'checkbox' ? 'si_no' : (f.type === 'number' ? 'numerico' : 'texto'),
+            tipo_respuesta: f.type === 'checkbox' ? 'si_no' :
+                            (f.type === 'number' ? 'numerico' :
+                            (f.type === 'select' ? 'seleccion' :
+                            (f.type === 'date' ? 'fecha' :
+                            (f.type === 'time' ? 'hora' : 'texto')))),
             obligatorio: f.required || false,
             orden: idx + 1,
-            activo: true
+            activo: true,
+            observaciones: f.type === 'select' && f.options ? JSON.stringify(f.options) : null
           }));
           await supabaseClient.from('checklists_mantenimiento').insert(questions);
         }
@@ -928,11 +946,22 @@ async function syncDatabases() {
               fields: []
             };
           }
+          let options = [];
+          if (c.observaciones && c.observaciones.startsWith('[')) {
+            try {
+              options = JSON.parse(c.observaciones);
+            } catch (e) {}
+          }
           finalGrouped[sId].fields.push({
             id: c.id_checklist,
             label: c.pregunta,
-            type: c.tipo_respuesta === 'si_no' ? 'checkbox' : (c.tipo_respuesta === 'numerico' ? 'number' : 'text'),
-            required: c.obligatorio || false
+            type: c.tipo_respuesta === 'si_no' ? 'checkbox' : 
+                  (c.tipo_respuesta === 'numerico' ? 'number' : 
+                  (c.tipo_respuesta === 'seleccion' || c.tipo_respuesta === 'select' ? 'select' :
+                  (c.tipo_respuesta === 'fecha' ? 'date' : 
+                  (c.tipo_respuesta === 'hora' ? 'time' : 'text')))),
+            required: c.obligatorio || false,
+            options: options
           });
         }
       });
@@ -5101,17 +5130,55 @@ async function deleteAdminPart(partId) {
 // --- FORMULARIOS DINÁMICOS (ADMIN) ---
 let tempFormFields = [];
 
+function toggleFormBuilderOptionsField() {
+  const type = document.getElementById('fb-field-type').value;
+  const container = document.getElementById('fb-options-container');
+  if (container) {
+    container.style.display = (type === 'select') ? 'block' : 'none';
+  }
+}
+
 function addFieldToBuilder() {
   const label = document.getElementById('fb-field-label').value.trim();
   const type = document.getElementById('fb-field-type').value;
 
   if (!label) {
-    alert('Ingresa una etiqueta.');
+    alert('Ingresa una etiqueta o pregunta.');
     return;
   }
 
-  tempFormFields.push({ label, type, required: true });
+  let options = [];
+  if (type === 'select') {
+    const optionsStr = document.getElementById('fb-field-options').value.trim();
+    if (!optionsStr) {
+      alert('Ingresa las opciones para la lista desplegable.');
+      return;
+    }
+    options = optionsStr.split(',').map(o => o.trim()).filter(Boolean);
+    if (options.length === 0) {
+      alert('Ingresa al menos una opción válida.');
+      return;
+    }
+  }
+
+  const name = 'field_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+
+  tempFormFields.push({
+    name,
+    label,
+    type,
+    required: true,
+    options: options
+  });
+
+  // Reset inputs
   document.getElementById('fb-field-label').value = '';
+  const optionsInput = document.getElementById('fb-field-options');
+  if (optionsInput) optionsInput.value = '';
+  
+  const optionsContainer = document.getElementById('fb-options-container');
+  if (optionsContainer) optionsContainer.style.display = 'none';
+  document.getElementById('fb-field-type').value = 'checkbox';
 
   renderFormFieldsBuilderPreview();
 }
@@ -5120,10 +5187,20 @@ function renderFormFieldsBuilderPreview() {
   const container = document.getElementById('fb-fields-preview-list');
   let html = '';
   tempFormFields.forEach((f, idx) => {
+    let typeName = f.type === 'checkbox' ? 'Sí/No' : 
+                   f.type === 'text' ? 'Texto corto' : 
+                   f.type === 'number' ? 'Número' : 
+                   f.type === 'select' ? 'Lista Desplegable' : 
+                   f.type === 'date' ? 'Fecha' : 
+                   f.type === 'time' ? 'Hora' : f.type;
+    let details = '';
+    if (f.type === 'select' && f.options) {
+      details = ` [${f.options.join(', ')}]`;
+    }
     html += `
-      <div class="form-builder-field-item">
-        <span>❓ <strong>${f.label}</strong> (${f.type === 'checkbox' ? 'Sí/No' : f.type === 'text' ? 'Texto' : 'Número'})</span>
-        <button class="btn-logout" onclick="removeFieldFromBuilder(${idx})" style="padding: 4px 8px; font-size: 0.75rem; width: auto; margin-top: 0;">Quitar</button>
+      <div class="form-builder-field-item" style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px;">
+        <span>❓ <strong>${f.label}</strong> (${typeName}${details})</span>
+        <button class="btn-logout" onclick="removeFieldFromBuilder(${idx})" style="padding: 4px 8px; font-size: 0.75rem; width: auto; margin-top: 0; background-color: #ef4444; border-color: #ef4444; color: white;">Quitar</button>
       </div>
     `;
   });
@@ -5191,10 +5268,16 @@ async function saveDynamicForm() {
         codigo_servicio: targetId,
         codigo_pregunta: f.name || `Q-${idx + 1}`,
         pregunta: f.label,
-        tipo_respuesta: f.type === 'checkbox' ? 'si_no' : (f.type === 'radio' ? 'si_no' : (f.type === 'number' ? 'numerico' : 'texto')),
+        tipo_respuesta: f.type === 'checkbox' ? 'si_no' : 
+                        (f.type === 'radio' ? 'si_no' : 
+                        (f.type === 'number' ? 'numerico' : 
+                        (f.type === 'select' ? 'seleccion' : 
+                        (f.type === 'date' ? 'fecha' : 
+                        (f.type === 'time' ? 'hora' : 'texto'))))),
         obligatorio: f.required || false,
         orden: idx + 1,
-        activo: true
+        activo: true,
+        observaciones: f.type === 'select' && f.options ? JSON.stringify(f.options) : null
       }));
       
       const { error: qErr } = await supabaseClient.from('checklists_mantenimiento').insert(questions);
@@ -5274,7 +5357,8 @@ function editDynamicForm(formId) {
     name: f.name || 'field_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
     label: f.label || f.pregunta,
     type: f.type === 'radio' ? 'checkbox' : (f.type === 'si_no' ? 'checkbox' : f.type),
-    required: f.required ?? true
+    required: f.required ?? true,
+    options: f.options || []
   }));
 
   const builderTitle = document.querySelector('.form-builder-panel h3');
@@ -6979,12 +7063,16 @@ async function openTechChecklistRunModal(formId) {
   const body = document.getElementById('tech-chk-body');
   let html = '';
   form.fields.forEach((f, idx) => {
+    const isRequiredAttr = f.required ? 'required' : '';
+    const qId = f.id_pregunta || f.id || '';
+    const qCode = f.name || `Q-${idx + 1}`;
+    
     html += `
-      <div class="form-group" style="margin-bottom: 16px;" data-pregunta-id="${f.id_pregunta || ''}" data-pregunta-code="${f.name || ''}" data-pregunta-text="${f.label}">
+      <div class="form-group" style="margin-bottom: 16px;" data-pregunta-id="${qId}" data-pregunta-code="${qCode}" data-pregunta-text="${f.label}">
         <label style="font-weight:600;margin-bottom:6px;display:block;">${f.label} ${f.required ? '*' : ''}</label>
     `;
     
-    if (f.type === 'radio') {
+    if (f.type === 'checkbox' || f.type === 'radio' || f.type === 'si_no') {
       html += `
         <div class="radio-group" style="display:flex;gap:12px;">
           <label class="radio-label"><input type="radio" name="chk-field-${idx}" value="Sí" class="radio-input"> Sí</label>
@@ -6993,9 +7081,21 @@ async function openTechChecklistRunModal(formId) {
         </div>
       `;
     } else if (f.type === 'number') {
-      html += `<input type="number" id="chk-field-${idx}" class="form-control" placeholder="0" ${f.required ? 'required' : ''}>`;
+      html += `<input type="number" id="chk-field-${idx}" class="form-control" placeholder="0" ${isRequiredAttr}>`;
+    } else if (f.type === 'date') {
+      html += `<input type="date" id="chk-field-${idx}" class="form-control" ${isRequiredAttr}>`;
+    } else if (f.type === 'time') {
+      html += `<input type="time" id="chk-field-${idx}" class="form-control" ${isRequiredAttr}>`;
+    } else if (f.type === 'select') {
+      let optionsHtml = '<option value="">Selecciona una opción...</option>';
+      if (f.options && Array.isArray(f.options)) {
+        f.options.forEach(opt => {
+          optionsHtml += `<option value="${opt}">${opt}</option>`;
+        });
+      }
+      html += `<select id="chk-field-${idx}" class="form-control" ${isRequiredAttr}>${optionsHtml}</select>`;
     } else {
-      html += `<input type="text" id="chk-field-${idx}" class="form-control" placeholder="Escribe aquí..." ${f.required ? 'required' : ''}>`;
+      html += `<input type="text" id="chk-field-${idx}" class="form-control" placeholder="Escribe aquí..." ${isRequiredAttr}>`;
     }
 
     // Comentario adicional
@@ -7048,7 +7148,7 @@ async function submitChecklistResponse() {
 
   form.fields.forEach((f, idx) => {
     let val = '';
-    if (f.type === 'radio') {
+    if (f.type === 'checkbox' || f.type === 'radio' || f.type === 'si_no') {
       const radios = document.getElementsByName(`chk-field-${idx}`);
       let checkedRadio = Array.from(radios).find(r => r.checked);
       val = checkedRadio ? checkedRadio.value : 'N/A';
@@ -7079,7 +7179,7 @@ async function submitChecklistResponse() {
       
       form.fields.forEach((f, idx) => {
         let val = '';
-        if (f.type === 'radio') {
+        if (f.type === 'checkbox' || f.type === 'radio' || f.type === 'si_no') {
           const radios = document.getElementsByName(`chk-field-${idx}`);
           let checkedRadio = Array.from(radios).find(r => r.checked);
           val = checkedRadio ? checkedRadio.value : 'N/A';
