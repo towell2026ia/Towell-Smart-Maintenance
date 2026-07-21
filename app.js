@@ -1095,6 +1095,92 @@ async function syncDatabases() {
   }
 }
 
+// --- ACTUALIZACIÓN REACTIVA EN TIEMPO REAL (REALTIME & POLLING) ---
+function refreshActiveViewSilently() {
+  const adminView = document.getElementById('view-admin');
+  const techView = document.getElementById('view-tech');
+  const publicView = document.getElementById('view-public-portal');
+
+  if (adminView && adminView.classList.contains('active')) {
+    if (activeAdminPanel === 'dashboard') {
+      renderAdminDashboard();
+      updateAdminKPIs();
+    } else if (activeAdminPanel === 'requests') {
+      renderAdminRequestsTable();
+    } else if (activeAdminPanel === 'orders') {
+      renderAdminOrdersTable();
+    } else if (activeAdminPanel === 'calendar') {
+      renderAdminCalendar();
+    } else if (activeAdminPanel === 'logs') {
+      renderAdminLogsTable();
+    } else if (activeAdminPanel === 'machines') {
+      renderAdminMachinesTable();
+    } else if (activeAdminPanel === 'parts') {
+      renderAdminPartsTable();
+    } else if (activeAdminPanel === 'forms') {
+      renderAdminFormsList();
+    } else if (activeAdminPanel === 'users') {
+      renderAdminUsersTable();
+    }
+    updateRequestsBadge();
+  } else if (techView && techView.classList.contains('active')) {
+    if (activeTechPanel === 'dashboard') {
+      renderTechDashboard();
+      renderTechOrdersTable();
+    } else if (activeTechPanel === 'checklists') {
+      renderTechChecklistsTable();
+    } else if (activeTechPanel === 'bitacora') {
+      renderTechBitacora();
+    } else if (activeTechPanel === 'history') {
+      populateTechMachineHistorySelect();
+    }
+  } else if (publicView && publicView.classList.contains('active')) {
+    const checkInput = document.getElementById('check-folio-input');
+    if (checkInput && checkInput.value.trim() && activePublicPanel === 'check') {
+      handleSearchFolio();
+    }
+  }
+}
+
+function setupRealtimeSubscriptions() {
+  if (supabaseClient) {
+    try {
+      const channel = supabaseClient.channel('tsmai-realtime-channel');
+      channel
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public' },
+          async (payload) => {
+            console.log('[Realtime] DB Change detected:', payload.table, payload.eventType);
+            await syncDatabases();
+            refreshActiveViewSilently();
+          }
+        )
+        .subscribe((status) => {
+          console.log('[Realtime] Subscription status:', status);
+        });
+    } catch (err) {
+      console.warn('[Realtime] Error subscribing to live changes:', err);
+    }
+  }
+
+  // Backup polling silencioso cada 6 segundos para garantizar actualización sin parpadeo ni recargas
+  if (!window._tsmaiRealtimeInterval) {
+    window._tsmaiRealtimeInterval = setInterval(async () => {
+      if (useLiveDatabase && supabaseClient) {
+        try {
+          await syncDatabases();
+          refreshActiveViewSilently();
+        } catch (e) {
+          // Silent polling error catch
+        }
+      } else {
+        refreshActiveViewSilently();
+      }
+    }, 6000);
+  }
+}
+
 // --- PERSISTENCIA DE SESIÓN Y ENRUTAMIENTO SPA ---
 function persistSessionUser(userObj) {
   currentUser = userObj;
@@ -1223,6 +1309,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Interceptor de recuperación de contraseña / magic link
   triggerRecoveryUI();
   
+  // Activar suscripciones Supabase Realtime y sincronización automática silenciosa
+  setupRealtimeSubscriptions();
+
   // Restaurar vista y panel exacto manteniendo la sesión del usuario
   restoreRouteFromHash();
 });
