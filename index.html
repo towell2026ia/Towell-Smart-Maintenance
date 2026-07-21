@@ -79,7 +79,8 @@
         <div class="form-grid">
           <div class="form-group">
             <label for="req-name">Nombre del Solicitante *</label>
-            <input type="text" id="req-name" class="form-control" placeholder="Ej. Juan Pérez" required>
+            <input type="text" id="req-name" class="form-control" placeholder="Ej. Juan Pérez" list="employees-list" required>
+            <datalist id="employees-list"></datalist>
           </div>
           
           <div class="form-group">
@@ -326,8 +327,6 @@
             <li style="padding: 6px 8px; font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em;">Catálogos Maestros</li>
             <li class="menu-item" id="menu-admin-machines" onclick="switchAdminPanel('machines')"><a>⚙️ Equipos y Máquinas</a></li>
             <li class="menu-item" id="menu-admin-parts" onclick="switchAdminPanel('parts')"><a>📦 Refacciones</a></li>
-            <li class="menu-item" id="menu-admin-inventory" onclick="switchAdminPanel('inventory')" style="display: none;"><a>🏭 Inventario</a></li>
-            <li class="menu-item" id="menu-admin-suppliers" onclick="switchAdminPanel('suppliers')" style="display: none;"><a>🤝 Proveedores</a></li>
             <li class="menu-item" id="menu-admin-tecnicos" onclick="switchAdminPanel('tecnicos')"><a>🛠️ Técnicos</a></li>
             <li class="menu-item" id="menu-admin-empleados" onclick="switchAdminPanel('empleados')"><a>👷 Empleados</a></li>
             <li class="menu-item" id="menu-admin-departamentos" onclick="switchAdminPanel('departamentos')"><a>🏢 Departamentos</a></li>
@@ -340,7 +339,6 @@
             <li class="menu-item" id="menu-admin-estatusot" onclick="switchAdminPanel('estatusot')"><a>🏷️ Estatus de OT</a></li>
             <li class="menu-item" id="menu-admin-users" onclick="switchAdminPanel('users')"><a>👥 Usuarios y Permisos</a></li>
             <li class="menu-item" id="menu-admin-logs" onclick="switchAdminPanel('logs')"><a>📝 Bitácoras OT</a></li>
-            <li class="menu-item" id="menu-admin-laborcosts" onclick="switchAdminPanel('laborcosts')" style="display: none;"><a>💰 Costos Mano de Obra</a></li>
             <li class="menu-item" id="menu-admin-alertrules" onclick="switchAdminPanel('alertrules')"><a>🔔 Reglas de Alertas</a></li>
             
             <li style="padding: 12px 8px 6px; font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 8px;">Tablas Operacionales</li>
@@ -350,7 +348,6 @@
             <li class="menu-item" id="menu-admin-costosot" onclick="switchAdminPanel('costosot')"><a>💵 Costos por OT</a></li>
             <li class="menu-item" id="menu-admin-evidencias" onclick="switchAdminPanel('evidencias')"><a>📎 Evidencias de OT</a></li>
             <li class="menu-item" id="menu-admin-refmaquina" onclick="switchAdminPanel('refmaquina')"><a>🔧 Refacc. por Máquina</a></li>
-            <li class="menu-item" id="menu-admin-histprecios" onclick="switchAdminPanel('histprecios')" style="display: none;"><a>📊 Historial de Precios</a></li>
             <li class="menu-item" id="menu-admin-cierres" onclick="switchAdminPanel('cierres')"><a>✅ Cierres de OT</a></li>
             <li class="menu-item" id="menu-admin-respchk" onclick="switchAdminPanel('respchk')"><a>📋 Resp. Checklist</a></li>
             <li class="menu-item" id="menu-admin-preventive" onclick="switchAdminPanel('preventive')"><a>📅 Mantenimiento Preventivo</a></li>
@@ -361,9 +358,6 @@
 
         <li class="menu-item" id="menu-admin-forms" onclick="switchAdminPanel('forms')">
           <a>🛠️ Formularios Dinámicos</a>
-        </li>
-        <li class="menu-item" id="menu-admin-calendars" onclick="switchAdminPanel('calendars')" style="display: none;">
-          <a>📅 Calendarios de Mant.</a>
         </li>
         <li class="menu-item" id="menu-admin-excel" onclick="switchAdminPanel('excel')">
           <a>📥 Centro de Carga Excel</a>
@@ -915,9 +909,7 @@
                   <option value="fallas">💥 Histórico de Fallas</option>
                   <option value="telegram">📨 Órdenes Históricas Telegram</option>
                   <option value="refmaquina">🔧 Consumo de Refacciones por Máquina</option>
-                  <option value="prices">📊 Historial de Precios de Refacciones</option>
                   <option value="inventory">🏭 Inventario de Refacciones</option>
-                  <option value="laborcosts">💰 Costos de Mano de Obra</option>
                   <option value="segundas">📈 Segundas por Rollo</option>
                 </select>
                 <div id="excel-guideline-text" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; line-height: 1.3;">
@@ -990,39 +982,7 @@
           </div>
         </div>
 
-        <!-- Panel Admin 12: Calendarios de Mantenimiento (PRD 18.2) -->
-        <div id="panel-admin-calendars" class="admin-panel-content" style="display: none;">
-          <div style="background-color: white; padding: 24px; border-radius: var(--border-radius); border: 1px solid #cbd5e1; display: flex; flex-direction: column; gap: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
-              <div>
-                <h3 style="font-weight: 700; margin: 0; font-size: 1.4rem;">📅 Central de Calendarios de Mantenimiento</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin: 4px 0 0;">Generación, aprobación y conversión de sugerencias preventivas, predictivas y autónomas en OTs.</p>
-              </div>
-              <button class="btn-nav btn-nav-primary" onclick="generateCalendarProposalModal()" style="width: auto; padding: 8px 16px;">⚡ Proponer Calendario</button>
-            </div>
 
-            <!-- Pestañas de Calendario -->
-            <div style="display: flex; border-bottom: 1px solid #cbd5e1; gap: 4px; padding-bottom: 1px;">
-              <button class="tab-btn active" id="tab-btn-preventivo" onclick="switchCalendarTab('preventivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid var(--primary-color); background: none; font-weight: 600; cursor: pointer; color: var(--primary-color);">📆 Preventivo Anual</button>
-              <button class="tab-btn" id="tab-btn-predictivo" onclick="switchCalendarTab('predictivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🔬 Predictivo Mensual</button>
-              <button class="tab-btn" id="tab-btn-autonomo" onclick="switchCalendarTab('autonomo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🛠️ Autónomo Semanal</button>
-            </div>
-
-            <!-- Contenido de las pestañas -->
-            <div id="calendar-tabs-content">
-              <div id="calendar-view-container" class="responsive-table-wrapper">
-                <table class="custom-table" id="table-calendar-general">
-                  <thead id="table-calendar-thead">
-                    <!-- Dinámico -->
-                  </thead>
-                  <tbody id="table-calendar-tbody">
-                    <!-- Dinámico -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <!-- Panel Admin 10: Usuarios y Permisos -->
         <div id="panel-admin-users" class="admin-panel-content" style="display: none;">
@@ -1084,33 +1044,7 @@
         </div>
         </div>
 
-        <!-- ====== PANEL: INVENTARIO ====== -->
-        <div id="panel-admin-inventory" class="admin-panel-content" style="display: none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-            <div>
-              <h3 style="font-weight:700;font-size:1.2rem;margin:0;">🏭 Inventario de Refacciones</h3>
-              <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Stock actual, mínimos y ubicaciones de piezas en almacén.</p>
-            </div>
-            <button class="btn-nav btn-nav-primary" onclick="openInventoryModal()">+ Nuevo Registro</button>
-          </div>
-          <div style="overflow-x:auto;">
-            <table class="custom-table" id="table-inventory"><thead><tr><th>Artículo</th><th>Proveedor</th><th>Stock Actual</th><th>Stock Mín.</th><th>Ubicación</th><th>Costo Unit.</th><th>Estado</th></tr></thead><tbody id="tbody-inventory"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando inventario...</td></tr></tbody></table>
-          </div>
-        </div>
 
-        <!-- ====== PANEL: PROVEEDORES ====== -->
-        <div id="panel-admin-suppliers" class="admin-panel-content" style="display: none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-            <div>
-              <h3 style="font-weight:700;font-size:1.2rem;margin:0;">🤝 Catálogo de Proveedores</h3>
-              <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Directorio de proveedores de refacciones y servicios.</p>
-            </div>
-            <button class="btn-nav btn-nav-primary" onclick="openSupplierModal()">+ Nuevo Proveedor</button>
-          </div>
-          <div style="overflow-x:auto;">
-            <table class="custom-table" id="table-suppliers"><thead><tr><th>Código</th><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Ciudad</th><th>Tipo</th><th>Estado</th></tr></thead><tbody id="tbody-suppliers"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando proveedores...</td></tr></tbody></table>
-          </div>
-        </div>
 
         <!-- ====== PANEL: MANTENIMIENTO PREVENTIVO ====== -->
         <div id="panel-admin-preventive" class="admin-panel-content" style="display: none;">
@@ -1140,19 +1074,7 @@
           </div>
         </div>
 
-        <!-- ====== PANEL: COSTOS MANO DE OBRA ====== -->
-        <div id="panel-admin-laborcosts" class="admin-panel-content" style="display: none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-            <div>
-              <h3 style="font-weight:700;font-size:1.2rem;margin:0;">💰 Costos de Mano de Obra</h3>
-              <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Tarifas horarias por técnico con periodos de vigencia.</p>
-            </div>
-            <button class="btn-nav btn-nav-primary" onclick="openLaborCostModal()">+ Nueva Tarifa</button>
-          </div>
-          <div style="overflow-x:auto;">
-            <table class="custom-table"><thead><tr><th>Técnico</th><th>Clave</th><th>Costo/Hora</th><th>Moneda</th><th>Vigencia Inicio</th><th>Vigencia Fin</th><th>Estado</th></tr></thead><tbody id="tbody-laborcosts"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando costos de mano de obra...</td></tr></tbody></table>
-          </div>
-        </div>
+
 
         <!-- ====== PANEL: PAROS DE MÁQUINA ====== -->
         <div id="panel-admin-downtime" class="admin-panel-content" style="display: none;">
@@ -1347,14 +1269,7 @@
           <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Fecha</th><th>Máquina</th><th>Artículo</th><th>Cantidad</th><th>Precio Unit.</th><th>Importe</th><th>Origen</th></tr></thead><tbody id="tbody-refmaquina"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando consumo de refacciones...</td></tr></tbody></table></div>
         </div>
 
-        <!-- ====== PANEL: HISTORIAL DE PRECIOS ====== -->
-        <div id="panel-admin-histprecios" class="admin-panel-content" style="display: none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-            <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">📊 Historial de Precios de Refacciones</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Evolución de precios unitarios por artículo a lo largo del tiempo.</p></div>
-            <button class="btn-nav btn-nav-primary" onclick="renderAdminHistPrecios()">↻ Recargar</button>
-          </div>
-          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>Artículo</th><th>Fecha</th><th>Precio Unitario</th><th>Moneda</th><th>Origen</th></tr></thead><tbody id="tbody-histprecios"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando historial de precios...</td></tr></tbody></table></div>
-        </div>
+
 
         <!-- ====== PANEL: CIERRES DE OT ====== -->
         <div id="panel-admin-cierres" class="admin-panel-content" style="display: none;">
@@ -2093,15 +2008,20 @@
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px;">
             <div class="form-group">
-              <label for="edit-bitacora-time-start">Tiempo Inicio</label>
-              <input type="datetime-local" id="edit-bitacora-time-start" class="form-control" required>
+              <label for="edit-bitacora-date">📅 Fecha *</label>
+              <input type="date" id="edit-bitacora-date" class="form-control" required>
             </div>
             
             <div class="form-group">
-              <label for="edit-bitacora-time-end">Tiempo Fin</label>
-              <input type="datetime-local" id="edit-bitacora-time-end" class="form-control" required>
+              <label for="edit-bitacora-time-start">⏰ Hora Inicio *</label>
+              <input type="time" id="edit-bitacora-time-start" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label for="edit-bitacora-time-end">⏰ Hora Fin *</label>
+              <input type="time" id="edit-bitacora-time-end" class="form-control" required>
             </div>
           </div>
 
@@ -2175,15 +2095,20 @@
             </select>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px;">
             <div class="form-group">
-              <label for="bitacora-time-start">Tiempo Inicio</label>
-              <input type="datetime-local" id="bitacora-time-start" class="form-control" required>
+              <label for="bitacora-date">📅 Fecha *</label>
+              <input type="date" id="bitacora-date" class="form-control" required>
             </div>
             
             <div class="form-group">
-              <label for="bitacora-time-end">Tiempo Fin</label>
-              <input type="datetime-local" id="bitacora-time-end" class="form-control" required>
+              <label for="bitacora-time-start">⏰ Hora Inicio *</label>
+              <input type="time" id="bitacora-time-start" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label for="bitacora-time-end">⏰ Hora Fin *</label>
+              <input type="time" id="bitacora-time-end" class="form-control" required>
             </div>
           </div>
 
@@ -2248,8 +2173,9 @@
             <label for="admin-user-role">Rol Principal *</label>
             <select id="admin-user-role" class="form-control" onchange="toggleAdminUserRoleFields()">
               <option value="SUPER_ADMINISTRADOR">Super Administrador</option>
+              <option value="SUPERVISOR">Supervisor / Responsable de Área</option>
               <option value="MANTENIMIENTO">Mantenimiento (Técnico)</option>
-              <option value="SOLICITANTE_PUBLICO">Solicitante Público</option>
+              <option value="SOLICITANTE">Solicitante (Producción / Operación)</option>
             </select>
           </div>
           <div class="form-group">
@@ -2261,20 +2187,33 @@
             <input type="text" id="admin-user-tech-code" class="form-control" placeholder="Ej. T-05">
           </div>
           <div class="form-group">
-            <label for="admin-user-dept">Departamento</label>
-            <input type="text" id="admin-user-dept" class="form-control" placeholder="Ej. Tejido, Tintorería...">
+            <label for="admin-user-dept">Departamento *</label>
+            <select id="admin-user-dept" class="form-control">
+              <option value="">Selecciona Departamento...</option>
+              <option value="PF">PF - Producción (Tejido / Telares)</option>
+              <option value="CF">CF - Confección (Costura)</option>
+              <option value="TF">TF - Tintorería (Acabados)</option>
+              <option value="AF">AF - Servicios Auxiliares (Planta General)</option>
+            </select>
           </div>
           <div class="form-group">
-            <label for="admin-user-shift">Turno</label>
+            <label for="admin-user-shift">Turno *</label>
             <select id="admin-user-shift" class="form-control">
-              <option value="1">1 (Mañana)</option>
-              <option value="2">2 (Tarde)</option>
-              <option value="3">3 (Noche)</option>
+              <option value="1">Turno 1 (Matutino 06:00 - 14:00)</option>
+              <option value="2">Turno 2 (Vespertino 14:00 - 22:00)</option>
+              <option value="3">Turno 3 (Nocturno 22:00 - 06:00)</option>
+              <option value="4">Mixto / Administrativo (08:00 - 17:00)</option>
+            </select>
+          </div>
+          <div class="form-group full-width" id="admin-user-supervisor-group">
+            <label for="admin-user-supervisor">Supervisor / Responsable Directo</label>
+            <select id="admin-user-supervisor" class="form-control">
+              <option value="">Sin supervisor asignado</option>
             </select>
           </div>
           <div class="form-group full-width">
             <label for="admin-user-obs">Observaciones / Especialidad</label>
-            <input type="text" id="admin-user-obs" class="form-control" placeholder="Ej. Especialidad en telares, etc.">
+            <input type="text" id="admin-user-obs" class="form-control" placeholder="Ej. Especialidad en telares, mecánica, etc.">
           </div>
           
           <div class="form-group full-width" style="border-top: 1px solid #cbd5e1; padding-top: 12px; margin-top: 8px;">
@@ -2326,40 +2265,54 @@
 
   <!-- Modal Crear/Editar Máquina -->
   <div class="modal-overlay" id="modal-admin-machine-detail">
-    <div class="modal-card" style="max-width: 480px;">
+    <div class="modal-card" style="max-width: 520px;">
       <div class="modal-header">
         <h3 id="admin-machine-detail-title">Crear Nuevo Equipo</h3>
         <button class="btn-close-modal" onclick="closeModal('modal-admin-machine-detail')">×</button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="admin-machine-id">
-        <div class="form-grid" style="grid-template-columns: 1fr;">
-          <div class="form-group">
+        <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="form-group full-width">
             <label for="admin-machine-code">ID / Código de Equipo *</label>
             <input type="text" id="admin-machine-code" class="form-control" placeholder="Ej. TOW-TEL201-TEJI">
           </div>
-          <div class="form-group">
+          <div class="form-group full-width">
             <label for="admin-machine-name">Nombre de Equipo *</label>
             <input type="text" id="admin-machine-name" class="form-control" placeholder="Ej. Tejedora Terrot 101">
           </div>
           <div class="form-group">
-            <label for="admin-machine-area">Área *</label>
+            <label for="admin-machine-area">Departamento / Área *</label>
             <select id="admin-machine-area" class="form-control">
-              <option value="PF">PF Producción</option>
-              <option value="CF">CF Costura</option>
-              <option value="TF">TF Tintorería</option>
-              <option value="AF">AF Planta</option>
+              <option value="PF">PF Producción (Tejido)</option>
+              <option value="CF">CF Confección (Costura)</option>
+              <option value="TF">TF Tintorería (Acabados)</option>
+              <option value="AF">AF Planta General / Auxiliares</option>
             </select>
           </div>
           <div class="form-group">
-            <label for="admin-machine-process">Proceso</label>
-            <input type="text" id="admin-machine-process" class="form-control" placeholder="Ej. Tejido, Costura, etc.">
+            <label for="admin-machine-type">Tipo de Equipo *</label>
+            <select id="admin-machine-type" class="form-control">
+              <option value="Telar">Telar</option>
+              <option value="Confección">Confección / Costura</option>
+              <option value="Tintorería">Tintorería / RAMA / Barca</option>
+              <option value="Servicios Auxiliares">Servicios Auxiliares (Caldera/Compresor/Subestación)</option>
+              <option value="General">General / Planta</option>
+            </select>
           </div>
           <div class="form-group">
-            <label for="admin-machine-type">Tipo de Equipo</label>
-            <input type="text" id="admin-machine-type" class="form-control" placeholder="Ej. Maquinaria, Auxiliar, etc.">
+            <label for="admin-machine-criticality">Nivel de Criticidad *</label>
+            <select id="admin-machine-criticality" class="form-control">
+              <option value="A">Nivel A (Crítica / Paro Total de Planta o Línea)</option>
+              <option value="B" selected>Nivel B (Media / Paro Parcial)</option>
+              <option value="C">Nivel C (Baja / Equipo Secundario)</option>
+            </select>
           </div>
           <div class="form-group">
+            <label for="admin-machine-process">Proceso / Ubicación</label>
+            <input type="text" id="admin-machine-process" class="form-control" placeholder="Ej. Tejido, Nave 2...">
+          </div>
+          <div class="form-group full-width">
             <label style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: normal; margin-top: 8px;">
               <input type="checkbox" id="admin-machine-active" checked> Equipo Operativo / Activo
             </label>

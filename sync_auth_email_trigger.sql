@@ -38,6 +38,7 @@ CREATE OR REPLACE FUNCTION public.auto_create_auth_user()
 RETURNS TRIGGER AS $$
 DECLARE
   default_pass VARCHAR;
+  user_uuid UUID;
 BEGIN
   -- Definir contraseña por defecto según el rol del usuario creado
   default_pass := CASE 
@@ -45,8 +46,11 @@ BEGIN
     ELSE 'tech123'
   END;
 
+  user_uuid := NEW.id_usuario;
+
   -- Si el correo no existe en auth.users, crear la cuenta de login
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = NEW.correo) THEN
+    -- 1. Crear el usuario en auth.users
     INSERT INTO auth.users (
       instance_id,
       id, -- Alineamos los IDs
@@ -58,11 +62,18 @@ BEGIN
       raw_app_meta_data,
       raw_user_meta_data,
       created_at,
-      updated_at
+      updated_at,
+      confirmation_token,
+      email_change,
+      email_change_token_new,
+      email_change_token_current,
+      recovery_token,
+      phone_change,
+      phone_change_token
     )
     VALUES (
       '00000000-0000-0000-0000-000000000000',
-      NEW.id_usuario, -- Usar el mismo UUID
+      user_uuid, -- Usar el mismo UUID
       'authenticated',
       'authenticated',
       NEW.correo,
@@ -70,6 +81,36 @@ BEGIN
       NOW(),
       '{"provider":"email","providers":["email"]}'::jsonb,
       json_build_object('nombre_completo', NEW.nombre_completo, 'rol', NEW.rol),
+      NOW(),
+      NOW(),
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      ''
+    );
+
+    -- 2. Crear la identidad en auth.identities
+    -- Esto es CRÍTICO para que funcionen los flujos de Supabase Auth (como el restablecimiento de contraseña)
+    INSERT INTO auth.identities (
+      id,
+      user_id,
+      identity_data,
+      provider,
+      provider_id,
+      last_sign_in_at,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      user_uuid, -- ID de la identidad
+      user_uuid, -- ID del usuario
+      json_build_object('sub', user_uuid::text, 'email', NEW.correo)::jsonb, -- Datos de identidad
+      'email', -- Proveedor
+      user_uuid::text, -- Provider ID (en login por email se usa el user_id)
+      NOW(),
       NOW(),
       NOW()
     );

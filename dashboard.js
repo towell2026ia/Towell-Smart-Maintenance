@@ -692,60 +692,34 @@ async function loadCriticalInventory() {
   const wrapId = 'inventory-wrap';
 
   try {
-    // Join inventario_refacciones (which has stock_actual/stock_minimo)
-    // with cat_refacciones for the name
+    // Single table query — stock columns now live directly on cat_refacciones
     const { data, error } = await db
-      .from('inventario_refacciones')
-      .select(`
-        codigo_articulo,
-        stock_actual,
-        stock_minimo,
-        unidad_medida,
-        ubicacion,
-        cat_refacciones (
-          nombre_articulo,
-          familia,
-          unidad_medida
-        )
-      `)
+      .from('cat_refacciones')
+      .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, ubicacion, costo_unitario')
       .lt('stock_actual', 5)
+      .eq('activo', true)
       .order('stock_actual', { ascending: true })
       .limit(30);
 
     if (error) throw error;
 
-    // Also try cat_refacciones directly if the join returns nothing
     let rows = data || [];
 
-    // Fallback: query cat_refacciones alone if inventario is empty
     if (rows.length === 0) {
-      const { data: refData, error: refError } = await db
-        .from('cat_refacciones')
-        .select('codigo_articulo, nombre_articulo, familia, unidad_medida')
-        .eq('activo', true)
-        .limit(30);
-
-      if (!refError && refData && refData.length > 0) {
-        // Show catalog without stock (no inventory records)
-        document.getElementById(wrapId).innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">📦</div>
-            <div class="empty-state-text">No hay registros de inventario con stock bajo (< 5 unidades).<br>
-            El catálogo tiene ${fmtInt(refData.length)}+ refacciones registradas.</div>
-          </div>`;
-        return;
-      }
-
-      showEmpty(wrapId, 'Sin datos de inventario disponibles');
+      document.getElementById(wrapId).innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">📦</div>
+          <div class="empty-state-text">Sin refacciones con stock bajo (&lt; 5 unidades).<br>El catálogo está en buen estado.</div>
+        </div>`;
       return;
     }
 
     const tableRows = rows.map(item => {
-      const stock = parseFloat(item.stock_actual) || 0;
-      const minimo = parseFloat(item.stock_minimo) || 0;
-      const name = item.cat_refacciones?.nombre_articulo || item.codigo_articulo;
-      const familia = item.cat_refacciones?.familia || '—';
-      const uom = item.unidad_medida || item.cat_refacciones?.unidad_medida || 'pza';
+      const stock    = parseFloat(item.stock_actual) || 0;
+      const minimo   = parseFloat(item.stock_minimo) || 0;
+      const name     = item.nombre_articulo || item.codigo_articulo;
+      const familia  = item.familia || '—';
+      const uom      = item.unidad_medida || 'pza';
       const ubicacion = item.ubicacion || '—';
       const pctFill = minimo > 0 ? Math.min((stock / minimo) * 100, 100) : (stock > 0 ? 50 : 0);
 

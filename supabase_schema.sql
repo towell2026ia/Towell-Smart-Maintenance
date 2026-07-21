@@ -71,14 +71,24 @@ CREATE TABLE IF NOT EXISTS public.cat_maquinas (
     fecha_carga TIMESTAMP DEFAULT NOW()
 );
 
--- Spare Parts Catalog
+-- Spare Parts Catalog (Consolidated — includes stock/inventory data)
 CREATE TABLE IF NOT EXISTS public.cat_refacciones (
-    codigo_articulo VARCHAR(50) PRIMARY KEY, -- e.g., 'R-05', 'REF-001'
-    nombre_articulo VARCHAR(150),
-    unidad_medida VARCHAR(30),
-    familia VARCHAR(100),
-    activo BOOLEAN DEFAULT TRUE,
-    fecha_carga TIMESTAMP DEFAULT NOW()
+    codigo_articulo   VARCHAR(50) PRIMARY KEY, -- e.g., 'R-05', 'REF-001'
+    nombre_articulo   VARCHAR(150),
+    unidad_medida     VARCHAR(30),
+    familia           VARCHAR(100),
+    -- Stock / Inventory columns (previously in inventario_refacciones)
+    stock_actual      NUMERIC(18,4) DEFAULT 0,
+    stock_minimo      NUMERIC(18,4) DEFAULT 0,
+    stock_maximo      NUMERIC(18,4),
+    ubicacion         VARCHAR(100),
+    costo_unitario    NUMERIC(18,4) DEFAULT 0,
+    moneda            VARCHAR(10) DEFAULT 'MXN',
+    codigo_proveedor  VARCHAR(50),
+    activo            BOOLEAN DEFAULT TRUE,
+    fecha_carga       TIMESTAMP DEFAULT NOW(),
+    fecha_actualizacion TIMESTAMP DEFAULT NOW(),
+    observaciones     VARCHAR(255)
 );
 
 -- Maintenance Services Catalog
@@ -95,42 +105,6 @@ CREATE TABLE IF NOT EXISTS public.cat_servicios_mantenimiento (
     observaciones VARCHAR(255)
 );
 
--- Suppliers Catalog
-CREATE TABLE IF NOT EXISTS public.cat_proveedores (
-    id_proveedor UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    codigo_proveedor VARCHAR(50) NOT NULL UNIQUE,
-    nombre_proveedor VARCHAR(150) NOT NULL,
-    contacto VARCHAR(150),
-    telefono VARCHAR(30),
-    correo VARCHAR(150),
-    direccion VARCHAR(255),
-    ciudad VARCHAR(100),
-    estado VARCHAR(100),
-    pais VARCHAR(100),
-    tipo_proveedor VARCHAR(50),
-    activo BOOLEAN DEFAULT TRUE,
-    fecha_alta TIMESTAMP DEFAULT NOW(),
-    fecha_actualizacion TIMESTAMP DEFAULT NOW(),
-    observaciones VARCHAR(255)
-);
-
--- Inventory of Spare Parts Table
-CREATE TABLE IF NOT EXISTS public.inventario_refacciones (
-    id_inventario UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    codigo_articulo VARCHAR(50) NOT NULL REFERENCES public.cat_refacciones(codigo_articulo) ON UPDATE CASCADE ON DELETE CASCADE,
-    codigo_proveedor VARCHAR(50) REFERENCES public.cat_proveedores(codigo_proveedor) ON UPDATE CASCADE ON DELETE SET NULL,
-    stock_actual NUMERIC(18,4) DEFAULT 0,
-    stock_minimo NUMERIC(18,4) DEFAULT 0,
-    stock_maximo NUMERIC(18,4),
-    unidad_medida VARCHAR(30),
-    ubicacion VARCHAR(100),
-    costo_unitario NUMERIC(18,4) DEFAULT 0,
-    moneda VARCHAR(10) DEFAULT 'MXN',
-    activo BOOLEAN DEFAULT TRUE,
-    fecha_alta TIMESTAMP DEFAULT NOW(),
-    fecha_actualizacion TIMESTAMP DEFAULT NOW(),
-    observaciones VARCHAR(255)
-);
 
 -- ============================================================================
 -- 2. DEPENDENT CATALOGS
@@ -474,16 +448,6 @@ CREATE TABLE IF NOT EXISTS public.refacciones_por_maquina (
     fecha_carga TIMESTAMP DEFAULT NOW()
 );
 
--- Historical Price Log Table
-CREATE TABLE IF NOT EXISTS public.historico_precios_refacciones (
-    id_precio UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    codigo_articulo VARCHAR(50) REFERENCES public.cat_refacciones(codigo_articulo) ON UPDATE CASCADE ON DELETE CASCADE,
-    fecha DATE,
-    precio_costo_unitario NUMERIC(18,4),
-    moneda VARCHAR(10) DEFAULT 'MXN',
-    origen VARCHAR(30),
-    fecha_carga TIMESTAMP DEFAULT NOW()
-);
 
 -- Work Order Costs Table
 CREATE TABLE IF NOT EXISTS public.costos_orden_trabajo (
@@ -749,21 +713,6 @@ CREATE TABLE IF NOT EXISTS public.costos_subtarea (
 -- 7. OPERATIONAL, ANALYTICAL AND AI TABLES
 -- ============================================================================
 
--- Labor Costs per Technician Table
-CREATE TABLE IF NOT EXISTS public.costos_mano_obra (
-    id_costo_mano_obra UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    cve_tecnico VARCHAR(30) NOT NULL REFERENCES public.cat_tecnicos(cve_tecnico) ON UPDATE CASCADE ON DELETE RESTRICT,
-    nombre_tecnico VARCHAR(150),
-    costo_hora NUMERIC(18,4) DEFAULT 0,
-    moneda VARCHAR(10) DEFAULT 'MXN',
-    fecha_inicio_vigencia DATE,
-    fecha_fin_vigencia DATE,
-    origen VARCHAR(30),
-    activo BOOLEAN DEFAULT TRUE,
-    fecha_alta TIMESTAMP DEFAULT NOW(),
-    fecha_actualizacion TIMESTAMP DEFAULT NOW(),
-    observaciones VARCHAR(255)
-);
 
 -- Work Order Evidence Files Table
 CREATE TABLE IF NOT EXISTS public.evidencias_orden (
@@ -977,8 +926,6 @@ CREATE INDEX IF NOT EXISTS idx_comp_proxima_insp ON public.cat_componentes_maqui
 CREATE INDEX IF NOT EXISTS idx_comp_tipo_falla ON public.cat_componentes_maquina(tipo_falla_frecuente);
 
 -- New Tables Indexes (T19-T29)
-CREATE INDEX IF NOT EXISTS idx_costo_mo_tecnico ON public.costos_mano_obra(cve_tecnico);
-CREATE INDEX IF NOT EXISTS idx_costo_mo_vigencia ON public.costos_mano_obra(fecha_inicio_vigencia, fecha_fin_vigencia);
 CREATE INDEX IF NOT EXISTS idx_evidencias_orden ON public.evidencias_orden(id_orden);
 CREATE INDEX IF NOT EXISTS idx_paros_maquina ON public.paros_maquina(maquina_id);
 CREATE INDEX IF NOT EXISTS idx_paros_orden ON public.paros_maquina(id_orden);
@@ -1036,8 +983,6 @@ ALTER TABLE public.cat_categorias_falla DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cat_maquinas DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cat_refacciones DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cat_servicios_mantenimiento DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.cat_proveedores DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.inventario_refacciones DISABLE ROW LEVEL SECURITY;
 
 -- Dependent Catalogs
 ALTER TABLE public.cat_tecnicos DISABLE ROW LEVEL SECURITY;
@@ -1061,7 +1006,6 @@ ALTER TABLE public.cierres_orden_trabajo DISABLE ROW LEVEL SECURITY;
 -- Parts, Costs & Alerts
 ALTER TABLE public.fallas_por_maquina DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.refacciones_por_maquina DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.historico_precios_refacciones DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.costos_orden_trabajo DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.alertas_sistema DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notificaciones_internas DISABLE ROW LEVEL SECURITY;
@@ -1075,7 +1019,6 @@ ALTER TABLE public.refacciones_usadas_subtarea DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.costos_subtarea DISABLE ROW LEVEL SECURITY;
 
 -- Operational, Analytical & AI (T19-T29)
-ALTER TABLE public.costos_mano_obra DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.evidencias_orden DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.paros_maquina DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.planes_mantenimiento_preventivo DISABLE ROW LEVEL SECURITY;
@@ -1158,47 +1101,6 @@ CREATE TABLE IF NOT EXISTS public.stg_refacciones_por_maquina_excel (
     fecha_carga TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.stg_historico_precios_refacciones_excel (
-    id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    codigo_articulo VARCHAR(255) NULL,
-    fecha VARCHAR(255) NULL,
-    precio_costo_unitario VARCHAR(255) NULL,
-    moneda VARCHAR(255) NULL,
-    archivo_origen VARCHAR(255) NULL,
-    id_carga UUID NULL,
-    fecha_carga TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.stg_inventario_refacciones_excel (
-    id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    codigo_articulo VARCHAR(255) NULL,
-    codigo_proveedor VARCHAR(255) NULL,
-    stock_actual VARCHAR(255) NULL,
-    stock_minimo VARCHAR(255) NULL,
-    stock_maximo VARCHAR(255) NULL,
-    unidad_medida VARCHAR(255) NULL,
-    ubicacion VARCHAR(255) NULL,
-    costo_unitario VARCHAR(255) NULL,
-    moneda VARCHAR(255) NULL,
-    observaciones TEXT NULL,
-    archivo_origen VARCHAR(255) NULL,
-    id_carga UUID NULL,
-    fecha_carga TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.stg_costos_mano_obra_excel (
-    id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    cve_tecnico VARCHAR(255) NULL,
-    nombre_tecnico VARCHAR(255) NULL,
-    costo_hora VARCHAR(255) NULL,
-    moneda VARCHAR(255) NULL,
-    fecha_inicio_vigencia VARCHAR(255) NULL,
-    fecha_fin_vigencia VARCHAR(255) NULL,
-    observaciones TEXT NULL,
-    archivo_origen VARCHAR(255) NULL,
-    id_carga UUID NULL,
-    fecha_carga TIMESTAMPTZ DEFAULT NOW()
-);
 
 CREATE TABLE IF NOT EXISTS public.stg_segundas_por_rollo_excel (
     id_stg UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1544,58 +1446,6 @@ SELECT
     END as detalles_error
 FROM public.stg_refacciones_por_maquina_excel;
 
-CREATE OR REPLACE VIEW public.vw_validacion_inventario_refacciones AS
-SELECT
-    id_stg,
-    codigo_articulo,
-    codigo_proveedor,
-    stock_actual,
-    stock_minimo,
-    stock_maximo,
-    unidad_medida,
-    ubicacion,
-    costo_unitario,
-    moneda,
-    observaciones,
-    archivo_origen,
-    fecha_carga,
-    id_carga,
-    CASE 
-        WHEN codigo_articulo IS NULL OR codigo_articulo = '' THEN FALSE
-        WHEN NOT EXISTS (SELECT 1 FROM public.cat_refacciones r WHERE r.codigo_articulo = codigo_articulo) THEN FALSE
-        ELSE TRUE 
-    END as es_valido,
-    CASE 
-        WHEN codigo_articulo IS NULL OR codigo_articulo = '' THEN 'Falta código de artículo.'
-        WHEN NOT EXISTS (SELECT 1 FROM public.cat_refacciones r WHERE r.codigo_articulo = codigo_articulo) THEN 'El artículo no existe en catálogo de refacciones.'
-        ELSE 'Registro correcto'
-    END as detalles_error
-FROM public.stg_inventario_refacciones_excel;
-
-CREATE OR REPLACE VIEW public.vw_validacion_costos_mano_obra AS
-SELECT
-    id_stg,
-    cve_tecnico,
-    nombre_tecnico,
-    costo_hora,
-    moneda,
-    fecha_inicio_vigencia,
-    fecha_fin_vigencia,
-    observaciones,
-    archivo_origen,
-    fecha_carga,
-    id_carga,
-    CASE 
-        WHEN cve_tecnico IS NULL OR cve_tecnico = '' THEN FALSE
-        WHEN NOT EXISTS (SELECT 1 FROM public.cat_tecnicos t WHERE t.cve_tecnico = cve_tecnico) THEN FALSE
-        ELSE TRUE 
-    END as es_valido,
-    CASE 
-        WHEN cve_tecnico IS NULL OR cve_tecnico = '' THEN 'Falta clave de técnico.'
-        WHEN NOT EXISTS (SELECT 1 FROM public.cat_tecnicos t WHERE t.cve_tecnico = cve_tecnico) THEN 'El técnico no existe en catálogo de mantenimiento.'
-        ELSE 'Registro correcto'
-    END as detalles_error
-FROM public.stg_costos_mano_obra_excel;
 
 -- Safe validation helper functions
 CREATE OR REPLACE FUNCTION public.safe_is_date(val TEXT)
@@ -1812,7 +1662,7 @@ SELECT
     END as riesgo_stock,
     COALESCE(i.costo_unitario, rm.precio_costo_unitario) as costo_estimado
 FROM public.refacciones_por_maquina rm
-LEFT JOIN public.inventario_refacciones i ON i.codigo_articulo = rm.codigo_articulo;
+LEFT JOIN public.cat_refacciones i ON i.codigo_articulo = rm.codigo_articulo;
 
 -- ============================================================================
 -- 15. CALENDAR VIEWS
@@ -1965,9 +1815,6 @@ ALTER TABLE public.stg_refacciones_excel DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stg_tecnicos_excel DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stg_empleados_excel DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stg_refacciones_por_maquina_excel DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.stg_historico_precios_refacciones_excel DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.stg_inventario_refacciones_excel DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.stg_costos_mano_obra_excel DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stg_segundas_por_rollo_excel DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stg_fallas_por_maquina_excel DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stg_telegram_ordenes_telares DISABLE ROW LEVEL SECURITY;
@@ -1977,9 +1824,6 @@ DROP POLICY IF EXISTS super_admin_staging ON public.stg_refacciones_excel;
 DROP POLICY IF EXISTS super_admin_staging ON public.stg_tecnicos_excel;
 DROP POLICY IF EXISTS super_admin_staging ON public.stg_empleados_excel;
 DROP POLICY IF EXISTS super_admin_staging ON public.stg_refacciones_por_maquina_excel;
-DROP POLICY IF EXISTS super_admin_staging ON public.stg_historico_precios_refacciones_excel;
-DROP POLICY IF EXISTS super_admin_staging ON public.stg_inventario_refacciones_excel;
-DROP POLICY IF EXISTS super_admin_staging ON public.stg_costos_mano_obra_excel;
 DROP POLICY IF EXISTS super_admin_staging ON public.stg_segundas_por_rollo_excel;
 DROP POLICY IF EXISTS super_admin_staging ON public.stg_fallas_por_maquina_excel;
 DROP POLICY IF EXISTS super_admin_staging ON public.stg_telegram_ordenes_telares;

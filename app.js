@@ -598,7 +598,7 @@ async function dbInsertRequest(newRequest) {
         folio: newRequest.id,
         orden_trabajo: newRequest.type,
         origen: 'App',
-        estatus: newRequest.status,
+        estatus: getDBStatus(newRequest.status),
         fecha_inicio: newRequest.date.split('T')[0],
         hora_inicio: newRequest.date.split('T')[1].split('.')[0],
         fecha_hora_inicio: newRequest.date,
@@ -607,6 +607,7 @@ async function dbInsertRequest(newRequest) {
         falla: newRequest.type,
         descripcion: newRequest.description,
         nombre_solicitante: newRequest.applicant,
+        cve_solicitante: newRequest.applicant_code || null,
         turno_solicitante: newRequest.shift.includes('Mañana') ? 1 : newRequest.shift.includes('Tarde') ? 2 : 3,
         prioridad: newRequest.urgency,
         fecha_carga: new Date().toISOString()
@@ -691,7 +692,8 @@ async function syncDatabases() {
         name: t.nombre_completo,
         email: t.correo,
         specialty: t.observaciones || 'General',
-        avatar: '👨‍🔧'
+        avatar: '👨‍🔧',
+        department: t.departamento
       }));
       localStorage.setItem('TSMAI_technicians', JSON.stringify(localTechs));
     } else {
@@ -853,13 +855,15 @@ async function syncDatabases() {
 
       const { data: dbServices, error: srvErr } = await supabaseClient
         .from('cat_servicios_mantenimiento')
-        .select('codigo_servicio, nombre_servicio');
+        .select('codigo_servicio, nombre_servicio, observaciones');
       
       if (srvErr) throw srvErr;
 
       const serviceMap = {};
+      const serviceAreaMap = {};
       dbServices.forEach(s => {
         serviceMap[s.codigo_servicio] = s.nombre_servicio;
+        serviceAreaMap[s.codigo_servicio] = s.observaciones || 'General';
       });
 
       const groupedForms = {};
@@ -869,7 +873,7 @@ async function syncDatabases() {
           groupedForms[sId] = {
             id: sId,
             name: serviceMap[sId] || `Checklist ${sId}`,
-            area: sId.startsWith('F-') ? 'Planta' : 'General',
+            area: serviceAreaMap[sId] || (sId.startsWith('F-') ? 'Planta' : 'General'),
             fields: []
           };
         }
@@ -883,6 +887,7 @@ async function syncDatabases() {
 
         groupedForms[sId].fields.push({
           id: c.id_checklist,
+          id_pregunta: c.id_checklist,
           label: c.pregunta,
           type: c.tipo_respuesta === 'si_no' ? 'checkbox' : 
                 (c.tipo_respuesta === 'numerico' ? 'number' : 
@@ -942,7 +947,7 @@ async function syncDatabases() {
             finalGrouped[sId] = {
               id: sId,
               name: serviceMap[sId] || `Checklist ${sId}`,
-              area: 'Planta',
+              area: serviceAreaMap[sId] || 'Planta',
               fields: []
             };
           }
@@ -954,6 +959,7 @@ async function syncDatabases() {
           }
           finalGrouped[sId].fields.push({
             id: c.id_checklist,
+            id_pregunta: c.id_checklist,
             label: c.pregunta,
             type: c.tipo_respuesta === 'si_no' ? 'checkbox' : 
                   (c.tipo_respuesta === 'numerico' ? 'number' : 
@@ -1083,9 +1089,73 @@ async function syncDatabases() {
     }
 
     console.log('Supabase synchronization finished successfully.');
+    populateTectSelects();
   } catch (err) {
     console.error('Error during Supabase synchronization:', err);
   }
+}
+
+// --- PERSISTENCIA DE SESIÓN Y ENRUTAMIENTO SPA ---
+function persistSessionUser(userObj) {
+  currentUser = userObj;
+  if (userObj) {
+    localStorage.setItem('TSMAI_current_user', JSON.stringify(userObj));
+  } else {
+    localStorage.removeItem('TSMAI_current_user');
+    localStorage.removeItem('TSMAI_current_route');
+  }
+}
+
+function restoreRouteFromHash() {
+  // 1. Intentar recuperar usuario si no está en memoria
+  if (!currentUser) {
+    const savedUser = localStorage.getItem('TSMAI_current_user');
+    if (savedUser) {
+      try { currentUser = JSON.parse(savedUser); } catch (e) {}
+    }
+  }
+
+  const hash = window.location.hash || localStorage.getItem('TSMAI_current_route') || '';
+  const cleanHash = hash.replace('#', '');
+  const parts = cleanHash.split('/');
+  const viewId = parts[0] || '';
+  const panelId = parts[1] || '';
+
+  // 2. Si hay usuario autenticado, PRIORIZAR su vista y panel correspondiente
+  if (currentUser) {
+    const isSuperAdmin = currentUser.role === 'admin' || currentUser.rol === 'SUPER_ADMINISTRADOR' || currentUser.role === 'SUPER_ADMINISTRADOR';
+    const isTech = currentUser.role === 'tech' || currentUser.rol === 'MANTENIMIENTO' || currentUser.role === 'MANTENIMIENTO';
+
+    if (isSuperAdmin) {
+      const targetPanel = (viewId === 'admin' && panelId) ? panelId : (activeAdminPanel || 'dashboard');
+      showView('admin');
+      switchAdminPanel(targetPanel);
+      return true;
+    } else if (isTech) {
+      const targetPanel = (viewId === 'tech' && panelId) ? panelId : (activeTechPanel || 'dashboard');
+      const pName = document.getElementById('tech-profile-name');
+      const pSpec = document.getElementById('tech-profile-specialty');
+      const pAvat = document.getElementById('tech-profile-avatar');
+      if (pName) pName.innerText = currentUser.name || currentUser.nombre_completo || 'Técnico';
+      if (pSpec) pSpec.innerText = currentUser.specialty || currentUser.observaciones || 'General';
+      if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
+
+      showView('tech');
+      switchTechPanel(targetPanel);
+      return true;
+    }
+  }
+
+  // 3. Si NO hay usuario autenticado, dirigir al portal público
+  if (viewId === 'public' && panelId) {
+    showView('public-portal');
+    showPublicPanel(panelId);
+    return true;
+  }
+
+  showView('public-portal');
+  showPublicPanel('home');
+  return true;
 }
 
 // --- INICIALIZACIÓN ---
@@ -1093,6 +1163,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Asegurar que el seed de datos esté cargado
   if (typeof initLocalStorage === 'function') {
     initLocalStorage();
+  }
+
+  // Restaurar usuario guardado localmente si existe
+  const savedUserStr = localStorage.getItem('TSMAI_current_user');
+  if (savedUserStr) {
+    try { currentUser = JSON.parse(savedUserStr); } catch (e) {}
   }
   
   // Sincronizar bases de datos con Supabase si hay sesión activa
@@ -1111,14 +1187,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (dbUser) {
           if (dbUser.rol === 'SUPER_ADMINISTRADOR') {
             currentUser = { role: 'admin', name: dbUser.nombre_completo, email: dbUser.correo, uuid: dbUser.id_usuario };
-            showView('admin');
-            switchAdminPanel('dashboard');
           } else if (dbUser.rol === 'MANTENIMIENTO') {
             const techId = dbUser.cve_tecnico || dbUser.id_usuario;
-            currentUser = { role: 'tech', id: techId, uuid: dbUser.id_usuario, name: dbUser.nombre_completo, email: dbUser.correo, specialty: dbUser.observaciones || 'General', avatar: '👨‍🔧' };
-            showView('tech');
-            switchTechPanel('dashboard');
+            currentUser = { role: 'tech', id: techId, uuid: dbUser.id_usuario, name: dbUser.nombre_completo, email: dbUser.correo, specialty: dbUser.observaciones || 'General', avatar: '👨‍🔧', department: dbUser.departamento };
           }
+          persistSessionUser(currentUser);
         }
       }
     } catch (e) {
@@ -1139,15 +1212,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Escuchar cambios de retroceso/avance en el navegador
+  window.addEventListener('hashchange', restoreRouteFromHash);
+  window.addEventListener('popstate', restoreRouteFromHash);
+
   // Cargar datos en los selects dinámicos
   populateTectSelects();
+  loadPublicEmployeesList();
 
-  // --- INTERCEPTOR DE MAGIC LINK / PASSWORD RECOVERY ---
+  // Interceptor de recuperación de contraseña / magic link
   triggerRecoveryUI();
   
-  // Renderizar vistas según estado inicial (público)
-  showView('public-portal');
-  showPublicPanel('home');
+  // Restaurar vista y panel exacto manteniendo la sesión del usuario
+  restoreRouteFromHash();
 });
 
 // --- ENRUTADOR DE VISTAS PRINCIPALES (SPA) ---
@@ -1162,6 +1239,21 @@ function showView(viewId) {
   if (targetView) {
     targetView.classList.add('active');
   }
+
+  // Actualizar hash según el panel activo de la vista
+  let route = `#${viewId}`;
+  if (viewId === 'admin') {
+    route = `#admin/${activeAdminPanel || 'dashboard'}`;
+  } else if (viewId === 'tech') {
+    route = `#tech/${activeTechPanel || 'dashboard'}`;
+  } else if (viewId === 'public-portal') {
+    route = `#public/${activePublicPanel || 'home'}`;
+  }
+
+  if (location.hash !== route) {
+    history.pushState(null, '', route);
+  }
+  localStorage.setItem('TSMAI_current_route', route);
 
   // Ejecutar inicializaciones de datos según la vista
   if (viewId === 'admin') {
@@ -1225,6 +1317,11 @@ function showView(viewId) {
 // --- PORTAL PÚBLICO: NAVEGACIÓN Y ACCIONES ---
 function showPublicPanel(panelName) {
   activePublicPanel = panelName;
+  const route = `#public/${panelName}`;
+  if (location.hash !== route) {
+    history.pushState(null, '', route);
+  }
+  localStorage.setItem('TSMAI_current_route', route);
   
   // Mostrar u ocultar botón de regresar en el portal público
   const backBtn = document.getElementById('btn-public-back');
@@ -1260,9 +1357,11 @@ function toggleAccesoInternoMenu() {
   }
 }
 
-// Carga máquinas correspondientes al área seleccionada
+// Carga máquinas correspondientes al área seleccionada y filtra por departamento
 function loadMachinesForArea(areaCode) {
   const machineSelect = document.getElementById('req-machine');
+  if (!machineSelect) return;
+  
   if (!areaCode) {
     machineSelect.innerHTML = '<option value="">Selecciona área primero</option>';
     machineSelect.disabled = true;
@@ -1270,15 +1369,33 @@ function loadMachinesForArea(areaCode) {
   }
 
   const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
-  const filtered = machines.filter(m => m.area === areaCode);
+  const filtered = machines.filter(m => (m.area === areaCode || m.departamento_codigo === areaCode || areaCode === 'General') && m.activo !== false);
 
   let html = '<option value="">Selecciona Máquina / Equipo</option>';
   filtered.forEach(m => {
-    html += `<option value="${m.id}">${m.name} (${m.id})</option>`;
+    const critBadge = m.criticality ? ` [Criticidad ${m.criticality}]` : '';
+    html += `<option value="${m.id}">${m.name} (${m.id})${critBadge}</option>`;
   });
 
   machineSelect.innerHTML = html;
   machineSelect.disabled = false;
+}
+
+// Auto-sugerir prioridad según la criticidad del equipo seleccionado
+function onMachineSelectChange(machineId) {
+  if (!machineId) return;
+  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const found = machines.find(m => m.id === machineId || m.equipo_towell === machineId);
+  const urgencySelect = document.getElementById('req-urgency');
+  if (urgencySelect && found) {
+    if (found.criticality === 'A' || found.tipo_equipo === 'Servicios Auxiliares') {
+      urgencySelect.value = 'Crítica';
+    } else if (found.criticality === 'B') {
+      urgencySelect.value = 'Alta';
+    } else {
+      urgencySelect.value = 'Media';
+    }
+  }
 }
 
 // Disparador de input file oculto
@@ -1346,9 +1463,15 @@ async function handleRequestSubmit(event) {
     reqId = `${prefix}${String(nextConsecutive).padStart(5, '0')}`;
   }
 
+  const matchedEmp = (window.publicEmployeesList || []).find(
+    e => e.nombre_empleado && e.nombre_empleado.trim().toLowerCase() === name.trim().toLowerCase()
+  );
+  const cveSolicitante = matchedEmp ? matchedEmp.cve_empleado : null;
+
   const newRequest = {
     id: reqId,
     applicant: name,
+    applicant_code: cveSolicitante,
     shift: shift,
     area: area,
     machine: machine,
@@ -1558,7 +1681,8 @@ async function quickLogin(role, techId) {
         name: dbUser.nombre_completo,
         email: dbUser.correo,
         specialty: dbUser.observaciones || 'General',
-        avatar: '👨‍🔧'
+        avatar: '👨‍🔧',
+        department: dbUser.departamento
       };
       showToast(`Sesión iniciada como Técnico: ${dbUser.nombre_completo}`);
       
@@ -1678,6 +1802,7 @@ async function handleLoginSubmit(event) {
         email: dbUser.correo,
         uuid: dbUser.id_usuario 
       };
+      persistSessionUser(currentUser);
       showToast(`Sesión iniciada como Super Admin: ${dbUser.nombre_completo}`);
       showView('admin');
       switchAdminPanel('dashboard');
@@ -1690,8 +1815,10 @@ async function handleLoginSubmit(event) {
         name: dbUser.nombre_completo, 
         email: dbUser.correo,
         specialty: dbUser.observaciones || 'General',
-        avatar: '👨‍🔧'
+        avatar: '👨‍🔧',
+        department: dbUser.departamento
       };
+      persistSessionUser(currentUser);
       showToast(`Sesión iniciada como Técnico: ${dbUser.nombre_completo}`);
       
       document.getElementById('tech-profile-name').innerText = dbUser.nombre_completo;
@@ -1714,6 +1841,7 @@ async function handleLoginSubmit(event) {
 
   if (role === 'admin') {
     currentUser = { role: 'admin', name: 'Super Administrador (Demo)' };
+    persistSessionUser(currentUser);
     showToast('Sesión iniciada correctamente (Demo).');
     showView('admin');
     switchAdminPanel('dashboard');
@@ -1722,6 +1850,7 @@ async function handleLoginSubmit(event) {
     const tech = techs.find(t => t.email.toLowerCase() === email) || techs[0];
     
     currentUser = { role: 'tech', ...tech };
+    persistSessionUser(currentUser);
     showToast(`Sesión iniciada como Técnico: ${tech.name} (Demo)`);
     
     document.getElementById('tech-profile-name').innerText = tech.name;
@@ -1734,7 +1863,7 @@ async function handleLoginSubmit(event) {
 }
 
 function logout() {
-  currentUser = null;
+  persistSessionUser(null);
   useLiveDatabase = false;
   if (supabaseClient) {
     supabaseClient.auth.signOut().catch(err => console.warn('Supabase signOut error:', err));
@@ -1762,6 +1891,11 @@ function toggleDatabaseSubmenu(event) {
 
 function switchAdminPanel(panelId) {
   activeAdminPanel = panelId;
+  const route = `#admin/${panelId}`;
+  if (location.hash !== route) {
+    history.pushState(null, '', route);
+  }
+  localStorage.setItem('TSMAI_current_route', route);
   
   // Cambiar pestaña activa de la barra lateral
   document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
@@ -1864,10 +1998,6 @@ function switchAdminPanel(panelId) {
     renderAdminMachinesTable();
   } else if (panelId === 'parts') {
     renderAdminPartsTable();
-  } else if (panelId === 'inventory') {
-    renderAdminInventoryTable();
-  } else if (panelId === 'suppliers') {
-    renderAdminSuppliersTable();
   } else if (panelId === 'tecnicos') {
     renderAdminTecnicos();
   } else if (panelId === 'empleados') {
@@ -1898,8 +2028,6 @@ function switchAdminPanel(panelId) {
     renderAdminPreventivePlans();
   } else if (panelId === 'checklists') {
     renderAdminChecklists();
-  } else if (panelId === 'laborcosts') {
-    renderAdminLaborCosts();
   } else if (panelId === 'downtime') {
     renderAdminDowntime();
   } else if (panelId === 'kpis') {
@@ -1924,16 +2052,12 @@ function switchAdminPanel(panelId) {
     renderAdminEvidencias();
   } else if (panelId === 'refmaquina') {
     renderAdminRefMaquina();
-  } else if (panelId === 'histprecios') {
-    renderAdminHistPrecios();
   } else if (panelId === 'cierres') {
     renderAdminCierres();
   } else if (panelId === 'respchk') {
     renderAdminRespChk();
   } else if (panelId === 'excel') {
     renderExcelHistoryTable();
-  } else if (panelId === 'calendars') {
-    renderAdminCalendars();
   }
 }
 
@@ -1967,56 +2091,6 @@ function fmtTs(d)   { return d ? new Date(d).toLocaleString('es-MX')     : '—'
 function emptyRow(cols, msg) {
   return `<tr><td colspan="${cols}" style="text-align:center;color:var(--text-muted);padding:40px;">${msg}</td></tr>`;
 }
-
-// ── INVENTARIO ───────────────────────────────────────────────────────────────
-async function renderAdminInventoryTable() {
-  const tbody = document.getElementById('tbody-inventory');
-  if (!tbody) return;
-  tbody.innerHTML = emptyRow(7, 'Cargando inventario…');
-  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
-  try {
-    const { data, error } = await supabaseClient
-      .from('cat_refacciones')
-      .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, ubicacion, costo_unitario, moneda, activo, cat_proveedores(nombre_proveedor)')
-      .order('nombre_articulo')
-      .limit(200);
-    if (error) throw error;
-    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay refacciones registradas.'); return; }
-    tbody.innerHTML = data.map(r => `<tr>
-      <td><strong>${r.nombre_articulo || r.codigo_articulo}</strong><br><code style="font-size:0.75rem;color:var(--text-muted)">${r.codigo_articulo}</code></td>
-      <td>${r.cat_proveedores?.nombre_proveedor || '—'}</td>
-      <td>${parseFloat(r.stock_actual || 0).toFixed(2)} ${r.unidad_medida || ''}</td>
-      <td>${parseFloat(r.stock_minimo || 0).toFixed(2)} ${parseFloat(r.stock_actual) < parseFloat(r.stock_minimo) ? '⚠️' : ''}</td>
-      <td>${r.ubicacion || '—'}</td>
-      <td>${fmtCurrency(r.costo_unitario, r.moneda)}</td>
-      <td>${badgeActive(r.activo)}</td>
-    </tr>`).join('');
-  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
-}
-function openInventoryModal() { alert('Modal de nuevo registro de inventario — próximamente.'); }
-
-// ── PROVEEDORES ──────────────────────────────────────────────────────────────
-async function renderAdminSuppliersTable() {
-  const tbody = document.getElementById('tbody-suppliers');
-  if (!tbody) return;
-  tbody.innerHTML = emptyRow(7, 'Cargando proveedores…');
-  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
-  try {
-    const { data, error } = await supabaseClient.from('cat_proveedores').select('*').order('nombre_proveedor').limit(200);
-    if (error) throw error;
-    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay proveedores registrados.'); return; }
-    tbody.innerHTML = data.map(r => `<tr>
-      <td><code>${r.codigo_proveedor}</code></td>
-      <td><strong>${r.nombre_proveedor}</strong></td>
-      <td>${r.contacto || '—'}</td>
-      <td>${r.telefono || '—'}</td>
-      <td>${[r.ciudad, r.estado, r.pais].filter(Boolean).join(', ') || '—'}</td>
-      <td>${r.tipo_proveedor || '—'}</td>
-      <td>${badgeActive(r.activo)}</td>
-    </tr>`).join('');
-  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
-}
-function openSupplierModal() { alert('Modal de nuevo proveedor — próximamente.'); }
 
 // ── PLANES MANTENIMIENTO PREVENTIVO ─────────────────────────────────────────
 async function renderAdminPreventivePlans() {
@@ -2179,29 +2253,6 @@ async function submitNewChecklistQuestion() {
     syncDatabases().catch(e => console.warn(e));
   }
 }
-
-// ── COSTOS MANO DE OBRA ──────────────────────────────────────────────────────
-async function renderAdminLaborCosts() {
-  const tbody = document.getElementById('tbody-laborcosts');
-  if (!tbody) return;
-  tbody.innerHTML = emptyRow(7, 'Cargando tarifas de mano de obra…');
-  if (!supabaseClient) { tbody.innerHTML = emptyRow(7, '⚠️ Sin conexión a Supabase.'); return; }
-  try {
-    const { data, error } = await supabaseClient.from('costos_mano_obra').select('*').order('cve_tecnico').limit(200);
-    if (error) throw error;
-    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(7, 'No hay tarifas de mano de obra registradas.'); return; }
-    tbody.innerHTML = data.map(r => `<tr>
-      <td>${r.nombre_tecnico || '—'}</td>
-      <td><code>${r.cve_tecnico}</code></td>
-      <td><strong>${fmtCurrency(r.costo_hora, r.moneda)}</strong></td>
-      <td>${r.moneda}</td>
-      <td>${fmtDate(r.fecha_inicio_vigencia)}</td>
-      <td>${fmtDate(r.fecha_fin_vigencia)}</td>
-      <td>${badgeActive(r.activo)}</td>
-    </tr>`).join('');
-  } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
-}
-function openLaborCostModal() { alert('Modal de nueva tarifa de mano de obra — próximamente.'); }
 
 // ── PAROS DE MÁQUINA ─────────────────────────────────────────────────────────
 async function renderAdminDowntime() {
@@ -2927,25 +2978,6 @@ async function renderAdminRefMaquina() {
   } catch (err) { tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); }
 }
 
-// ── HISTORIAL DE PRECIOS ──────────────────────────────────────────────────────
-async function renderAdminHistPrecios() {
-  const tbody = document.getElementById('tbody-histprecios');
-  if (!tbody) return;
-  tbody.innerHTML = emptyRow(5, 'Cargando historial de precios…');
-  if (!supabaseClient) { tbody.innerHTML = emptyRow(5, '⚠️ Sin conexión a Supabase.'); return; }
-  try {
-    const { data, error } = await supabaseClient.from('historico_precios_refacciones').select('*, cat_refacciones(nombre_articulo)').order('fecha', { ascending: false }).limit(300);
-    if (error) throw error;
-    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(5, 'No hay historial de precios.'); return; }
-    tbody.innerHTML = data.map(r => `<tr>
-      <td>${r.cat_refacciones?.nombre_articulo || r.codigo_articulo}</td>
-      <td>${fmtDate(r.fecha)}</td>
-      <td><strong>${fmtCurrency(r.precio_costo_unitario, r.moneda)}</strong></td>
-      <td>${r.moneda}</td>
-    </tr>`).join('');
-  } catch (err) { tbody.innerHTML = emptyRow(5, `❌ Error: ${err.message}`); }
-}
-
 // ── CIERRES DE OT ─────────────────────────────────────────────────────────────
 async function renderAdminCierres() {
   const tbody = document.getElementById('tbody-cierres');
@@ -3407,6 +3439,7 @@ function renderAdminRequestsTable() {
 
 // --- MODAL DE REVISIÓN (ADMIN) ---
 function openReviewModal(reqId) {
+  populateTectSelects();
   const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
   const req = requests.find(r => r.id === reqId);
   if (!req) return;
@@ -3510,7 +3543,7 @@ async function convertToWorkOrder() {
       await supabaseClient
         .from('ordenes_trabajo')
         .update({
-          estatus: 'Asignada',
+          estatus: getDBStatus('Asignada'),
           orden_trabajo: type,
           cve_atendio: techId,
           nombre_atendio: techName,
@@ -3546,7 +3579,7 @@ async function requestMoreInfoFromApplicant() {
     try {
       await supabaseClient
         .from('ordenes_trabajo')
-        .update({ estatus: 'En revisión' })
+        .update({ estatus: getDBStatus('En revisión') })
         .eq('folio', reqId);
     } catch (err) {
       console.error('Error updating request status in Supabase:', err);
@@ -3572,7 +3605,7 @@ async function cancelRequest() {
     try {
       await supabaseClient
         .from('ordenes_trabajo')
-        .update({ estatus: 'Rechazada' })
+        .update({ estatus: getDBStatus('Rechazada') })
         .eq('folio', reqId);
     } catch (err) {
       console.error('Error updating request status in Supabase:', err);
@@ -3588,12 +3621,13 @@ async function cancelRequest() {
 // --- TABLA DE ÓRDENES DE TRABAJO (ADMIN) ---
 function populateTechFilters() {
   const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+  const activeTechs = techs.filter(t => t.activo !== false);
   const filterSelect = document.getElementById('filter-ot-tech');
   if (!filterSelect) return;
 
   let html = '<option value="">Todos los Técnicos</option>';
-  techs.forEach(t => {
-    html += `<option value="${t.id}">${t.name}</option>`;
+  activeTechs.forEach(t => {
+    html += `<option value="${t.id}">${t.name} (${t.specialty || 'General'})</option>`;
   });
   filterSelect.innerHTML = html;
 }
@@ -4132,8 +4166,19 @@ async function openAdminEditBitacoraModal(id_bitacora) {
     document.getElementById('edit-bitacora-id').value = log.id_bitacora;
     document.getElementById('edit-bitacora-ot').value = log.id_orden || 'Actividad Autónoma (Sin orden)';
     document.getElementById('edit-bitacora-area').value = log.area;
-    document.getElementById('edit-bitacora-time-start').value = log.fecha_hora_inicio ? log.fecha_hora_inicio.slice(0, 16) : '';
-    document.getElementById('edit-bitacora-time-end').value = log.fecha_hora_fin ? log.fecha_hora_fin.slice(0, 16) : '';
+
+    const startDateStr = log.fecha_hora_inicio ? log.fecha_hora_inicio.slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const startTimeStr = log.fecha_hora_inicio ? log.fecha_hora_inicio.slice(11, 16) : '08:00';
+    const endTimeStr = log.fecha_hora_fin ? log.fecha_hora_fin.slice(11, 16) : '09:00';
+
+    const editDateInput = document.getElementById('edit-bitacora-date');
+    const editStartInput = document.getElementById('edit-bitacora-time-start');
+    const editEndInput = document.getElementById('edit-bitacora-time-end');
+
+    if (editDateInput) editDateInput.value = startDateStr;
+    if (editStartInput) editStartInput.value = startTimeStr;
+    if (editEndInput) editEndInput.value = endTimeStr;
+
     document.getElementById('edit-bitacora-description').value = log.descripcion_actividad || '';
     document.getElementById('edit-bitacora-parts').value = log.refacciones_usadas || '';
     document.getElementById('edit-bitacora-observations').value = log.observaciones || '';
@@ -4179,8 +4224,9 @@ async function submitAdminEditBitacora() {
   const area = document.getElementById('edit-bitacora-area').value;
   const maquina_id = document.getElementById('edit-bitacora-machine').value || null;
   const cve_tecnico = document.getElementById('edit-bitacora-tech').value;
-  const timeStart = document.getElementById('edit-bitacora-time-start').value;
-  const timeEnd = document.getElementById('edit-bitacora-time-end').value;
+  const dateVal = document.getElementById('edit-bitacora-date').value;
+  const startVal = document.getElementById('edit-bitacora-time-start').value;
+  const endVal = document.getElementById('edit-bitacora-time-end').value;
   const description = document.getElementById('edit-bitacora-description').value.trim();
   const parts = document.getElementById('edit-bitacora-parts').value.trim();
   const observations = document.getElementById('edit-bitacora-observations').value.trim();
@@ -4189,10 +4235,13 @@ async function submitAdminEditBitacora() {
   const tech = techs.find(t => t.id === cve_tecnico);
   const nombre_tecnico = tech ? tech.name : 'Técnico';
 
-  if (!area || !timeStart || !timeEnd || !description || !cve_tecnico) {
+  if (!area || !dateVal || !startVal || !endVal || !description || !cve_tecnico) {
     alert('Por favor completa todos los campos obligatorios.');
     return;
   }
+
+  const timeStart = `${dateVal}T${startVal}:00`;
+  const timeEnd = `${dateVal}T${endVal}:00`;
 
   showToast('Guardando cambios en Supabase...');
   try {
@@ -4580,10 +4629,10 @@ async function saveAdminUser() {
     return;
   }
 
-  const finalEmpCode = cveEmpleado || null;
-  const finalTechCode = rol === 'MANTENIMIENTO' ? finalEmpCode : null;
+  const supervisorId = document.getElementById('admin-user-supervisor')?.value || null;
 
-  const tempPass = 'TSM-' + Math.floor(1000 + Math.random() * 9000);
+  // Si es mantenimiento (técnico), forzar que NO pueda crear solicitudes
+  const finalCanCreate = rol === 'MANTENIMIENTO' ? false : puedeCrear;
 
   const userObj = {
     nombre_completo: nombre,
@@ -4593,8 +4642,12 @@ async function saveAdminUser() {
     cve_empleado: finalEmpCode,
     cve_tecnico: finalTechCode,
     departamento: departamento || null,
+    departamento_codigo: departamento || null,
+    id_supervisor: supervisorId,
     turno: shift ? parseInt(shift) : null,
-    puede_crear_solicitud: puedeCrear,
+    turno_id: shift ? parseInt(shift) : null,
+    especialidad: observaciones || null,
+    puede_crear_solicitud: finalCanCreate,
     puede_ver_ordenes_asignadas: puedeVerAsignadas,
     puede_ver_todas_ordenes: puedeVerTodas,
     puede_atender_orden: puedeAtender,
@@ -4818,20 +4871,14 @@ async function saveAdminMachine() {
   const area = document.getElementById('admin-machine-area').value;
   const process = document.getElementById('admin-machine-process').value.trim();
   const type = document.getElementById('admin-machine-type').value.trim();
-  const active = document.getElementById('admin-machine-active').checked;
-
-  if (!code) {
-    alert('Por favor ingresa el código del equipo.');
-    return;
-  }
-  if (!name) {
-    alert('Por favor ingresa el nombre del equipo.');
-    return;
-  }
+  const criticality = document.getElementById('admin-machine-criticality')?.value || 'B';
 
   const machineObj = {
     equipo_towell: code,
     clave: name,
+    departamento_codigo: area,
+    tipo_equipo: type,
+    activo: active,
     ax: null,
     origen: 'App'
   };
@@ -4861,6 +4908,14 @@ async function saveAdminMachine() {
         if (error) throw error;
         showToast('Equipo creado en base de datos.');
       }
+
+      // Upsert criticidad
+      await supabaseClient.from('cat_criticidad_maquina').upsert([{
+        maquina_id: code,
+        nivel_criticidad: criticality,
+        descripcion_criticidad: criticality === 'A' ? 'Equipo de alta criticidad (Paro Total)' : (criticality === 'B' ? 'Equipo de criticidad media (Paro Parcial)' : 'Equipo secundario'),
+        activo: active
+      }], { onConflict: 'maquina_id' });
     } catch (err) {
       console.error('Error guardando máquina en Supabase:', err);
       alert('Error guardando en Supabase: ' + err.message);
@@ -5256,7 +5311,8 @@ async function saveDynamicForm() {
         codigo_servicio: targetId,
         nombre_servicio: name,
         tipo_servicio: 'Autónomo',
-        activo: true
+        activo: true,
+        observaciones: area
       }], { onConflict: 'codigo_servicio' });
       if (srvErr) throw srvErr;
 
@@ -5446,23 +5502,11 @@ const EXCEL_TEMPLATE_MAP = {
     cleanTable: 'cat_refacciones',
     label: 'Refacciones por Máquina'
   },
-  prices: {
-    stagingTable: 'stg_historico_precios_refacciones_excel',
-    validationView: 'vw_validacion_refacciones_por_maquina',
-    cleanTable: 'historico_precios_refacciones',
-    label: 'Historial de Precios'
-  },
   inventory: {
     stagingTable: 'stg_refacciones_excel',
     validationView: 'vw_validacion_refacciones_excel',
     cleanTable: 'cat_refacciones',
     label: 'Inventario de Refacciones (Stock)'
-  },
-  laborcosts: {
-    stagingTable: 'stg_costos_mano_obra_excel',
-    validationView: 'vw_validacion_costos_mano_obra',
-    cleanTable: 'costos_mano_obra',
-    label: 'Costos de Mano de Obra'
   },
   segundas: {
     stagingTable: 'stg_segundas_por_rollo_excel',
@@ -5491,9 +5535,7 @@ function updateExcelUploadGuidelines() {
     fallas: 'maquina_id, descripcion, creada',
     telegram: 'id, folio, estatus, fecha, hora, depto, maquina_id, tipo_falla_id, falla, hora_fin, cve_empl, nom_empl, turno, cve_atendio, nom_atendio, turno_atendio, obs, orden_trabajo, descripcion, enviado, obs_cierre, calidad, fecha_fin',
     refmaquina: 'fecha, maquina_id, destino, codigo_articulo, nombre_articulo, cantidad_estandar, precio_costo_unitario, importe_costo_origen',
-    prices: 'codigo_articulo, fecha, precio_costo_unitario, moneda',
     inventory: 'codigo_articulo, codigo_proveedor, stock_actual, stock_minimo, stock_maximo, unidad_medida, ubicacion, costo_unitario, moneda, observaciones',
-    laborcosts: 'cve_tecnico, nombre_tecnico, costo_hora, moneda, fecha_inicio_vigencia, fecha_fin_vigencia, observaciones',
     segundas: 'produccion, fecha, codigo_bodega, codigo_articulo, nombre_articulo, configuracion, tamano, color, nombre, almacen, numero_lote, localidad, salon, numero_serie, id_flog, nombre_flog, calidad_flog, pzas_rollo, kg_rollo, mts_rollo, no_tiras, medida_1, medida_2, pzas_t1, pzas_t2, pzas_t3, pzas_t4, turno_tejido, codigo_defecto, cantidad, defecto, maquina_id_detectada, observaciones'
   };
 
@@ -5609,13 +5651,6 @@ function mapExcelRowToStaging(row, template) {
         precio_costo_unitario: getVal(['precio de costo', 'precio_costo_unitario', 'precio']),
         importe_costo_origen: getVal(['importe de costo', 'importe_costo_origen', 'importe'])
       };
-    case 'prices':
-      return {
-        codigo_articulo: getVal(['codigo de articulo', 'codigo_articulo', 'codigo']),
-        fecha: getVal(['fecha']),
-        precio_costo_unitario: getVal(['precio de costo', 'precio_costo_unitario', 'precio']),
-        moneda: getVal(['moneda'])
-      };
     case 'inventory':
       return {
         codigo_articulo: getVal(['codigo de articulo', 'codigo_articulo', 'codigo']),
@@ -5627,16 +5662,6 @@ function mapExcelRowToStaging(row, template) {
         ubicacion: getVal(['ubicacion']),
         costo_unitario: getVal(['costo unitario', 'costo_unitario', 'costo']),
         moneda: getVal(['moneda']),
-        observaciones: getVal(['observaciones', 'comentario'])
-      };
-    case 'laborcosts':
-      return {
-        cve_tecnico: getVal(['cve tecnico', 'cve_tecnico', 'tecnico']),
-        nombre_tecnico: getVal(['nombre tecnico', 'nombre_tecnico', 'nombre']),
-        costo_hora: getVal(['costo hora', 'costo_hora', 'costo']),
-        moneda: getVal(['moneda']),
-        fecha_inicio_vigencia: getVal(['fecha inicio vigencia', 'fecha_inicio_vigencia']),
-        fecha_fin_vigencia: getVal(['fecha fin vigencia', 'fecha_fin_vigencia']),
         observaciones: getVal(['observaciones', 'comentario'])
       };
     case 'segundas':
@@ -6019,6 +6044,11 @@ function parseExcelDate(value) {
 // --- PANEL DE EQUIPO TÉCNICO (MANTENIMIENTO) ---
 function switchTechPanel(panelId) {
   activeTechPanel = panelId;
+  const route = `#tech/${panelId}`;
+  if (location.hash !== route) {
+    history.pushState(null, '', route);
+  }
+  localStorage.setItem('TSMAI_current_route', route);
 
   document.querySelectorAll('#view-tech .sidebar-menu .menu-item').forEach(item => {
     item.classList.remove('active');
@@ -6523,7 +6553,7 @@ async function setWorkStatus(newStatus) {
     try {
       await supabaseClient
         .from('ordenes_trabajo')
-        .update({ estatus: newStatus })
+        .update({ estatus: getDBStatus(newStatus) })
         .eq('folio', otId);
         
       if (newStatus === 'Ejecutada' || newStatus === 'Cerrada') {
@@ -6957,65 +6987,86 @@ async function renderTechChecklistsTable() {
   const tbody = document.getElementById('table-tech-checklists-body');
   if (!tbody) return;
 
-  tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Cargando formatos...</td></tr>';
-
-  let checklistGroups = [];
-
-  if (useLiveDatabase && supabaseClient) {
-    try {
-      const { data, error } = await supabaseClient
-        .from('checklists_mantenimiento')
-        .select('*')
-        .eq('activo', true)
-        .order('codigo_servicio')
-        .order('orden');
-        
-      if (!error && data && data.length > 0) {
-        const grouped = {};
-        data.forEach(q => {
-          if (!grouped[q.codigo_servicio]) {
-            grouped[q.codigo_servicio] = {
-              id: q.codigo_servicio,
-              name: 'Formato: ' + (q.codigo_pregunta ? q.codigo_pregunta.slice(0, 3) : 'Q') + ' - ' + q.codigo_servicio,
-              area: 'General',
-              fields: []
-            };
-          }
-          grouped[q.codigo_servicio].fields.push({
-            id_pregunta: q.id_checklist,
-            name: q.codigo_pregunta,
-            label: q.pregunta,
-            type: q.tipo_respuesta === 'si_no' ? 'radio' : q.tipo_respuesta === 'numerico' ? 'number' : 'text',
-            required: q.obligatorio
-          });
-        });
-        checklistGroups = Object.values(grouped);
-        localStorage.setItem('TSMAI_dynamic_forms', JSON.stringify(checklistGroups));
-      }
-    } catch (err) {
-      console.warn('Failed to load live checklists from Supabase, falling back to local cache:', err);
-    }
-  }
-
-  if (checklistGroups.length === 0) {
-    checklistGroups = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
-  }
+  const checklistGroups = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
 
   if (checklistGroups.length === 0) {
     tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No hay formatos cargados en el sistema.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = checklistGroups.map(f => `
-    <tr>
-      <td><strong>${f.id}</strong></td>
-      <td>${f.name}</td>
-      <td>${f.area || 'General'}</td>
-      <td>
-        <button class="btn-table-action" onclick="openTechChecklistRunModal('${f.id}')">📋 Llenar Formato</button>
-      </td>
-    </tr>
-  `).join('');
+  const areaLabels = {
+    PF: 'PF Producción',
+    CF: 'CF Costura',
+    TF: 'TF Tintorería',
+    AF: 'AF Planta',
+    General: 'General / Todas las áreas'
+  };
+
+  const techDept = (currentUser && currentUser.department) || '';
+  const myAreaChecklists = [];
+  const generalChecklists = [];
+  const otherChecklists = [];
+
+  checklistGroups.forEach(f => {
+    const area = f.area || 'General';
+    if (area === techDept) {
+      myAreaChecklists.push(f);
+    } else if (area === 'General' || area === 'Todas las áreas (General)') {
+      generalChecklists.push(f);
+    } else {
+      otherChecklists.push(f);
+    }
+  });
+
+  function renderFormRow(f) {
+    return `
+      <tr>
+        <td><strong>${f.id}</strong></td>
+        <td>${f.name}</td>
+        <td>${areaLabels[f.area] || f.area || 'General'}</td>
+        <td>
+          <button class="btn-table-action" onclick="openTechChecklistRunModal('${f.id}')" style="background-color: var(--primary-color); border-color: var(--primary-color);">📋 Llenar Formato</button>
+        </td>
+      </tr>
+    `;
+  }
+
+  let html = '';
+
+  if (techDept && myAreaChecklists.length > 0) {
+    html += `
+      <tr class="table-section-header" style="background: rgba(99, 102, 241, 0.03);">
+        <td colspan="4" style="font-weight: 700; color: var(--primary-dark); padding: 10px 12px; border-bottom: 2px solid #cbd5e1;">⭐ Formatos de mi Área (${areaLabels[techDept] || techDept})</td>
+      </tr>
+    `;
+    myAreaChecklists.forEach(f => {
+      html += renderFormRow(f);
+    });
+  }
+
+  if (generalChecklists.length > 0) {
+    html += `
+      <tr class="table-section-header" style="background: #f8fafc;">
+        <td colspan="4" style="font-weight: 700; color: #475569; padding: 10px 12px; border-bottom: 2px solid #cbd5e1;">📋 Formatos Generales</td>
+      </tr>
+    `;
+    generalChecklists.forEach(f => {
+      html += renderFormRow(f);
+    });
+  }
+
+  if (otherChecklists.length > 0) {
+    html += `
+      <tr class="table-section-header" style="background: #f8fafc;">
+        <td colspan="4" style="font-weight: 700; color: #64748b; padding: 10px 12px; border-bottom: 2px solid #cbd5e1;">🔍 Formatos de Otras Áreas</td>
+      </tr>
+    `;
+    otherChecklists.forEach(f => {
+      html += renderFormRow(f);
+    });
+  }
+
+  tbody.innerHTML = html;
 }
 
 let activeRunningFormId = null;
@@ -7031,7 +7082,10 @@ async function openTechChecklistRunModal(formId) {
   // Populate active OTs for this technician
   const otSelect = document.getElementById('tech-chk-ot-select');
   if (otSelect) {
-    otSelect.innerHTML = '<option value="">Selecciona una OT activa...</option>';
+    otSelect.innerHTML = `
+      <option value="">Selecciona una OT activa...</option>
+      <option value="00000000-0000-0000-0000-000000000000" data-uuid="00000000-0000-0000-0000-000000000000">General / Levantamiento Autónomo (Sin OT)</option>
+    `;
     let orders = [];
     if (useLiveDatabase && supabaseClient) {
       try {
@@ -7191,10 +7245,11 @@ async function submitChecklistResponse() {
         const commentInput = document.getElementById(`chk-field-comment-${idx}`);
         const comment = commentInput ? commentInput.value.trim() : '';
 
-        if (f.id_pregunta) {
+        const qId = f.id_pregunta || f.id;
+        if (qId) {
           records.push({
             id_orden: otUUID,
-            id_checklist: f.id_pregunta,
+            id_checklist: qId,
             respuesta: val,
             comentario: comment || null,
             usuario_responde: currentUser ? currentUser.name : 'Técnico Real',
@@ -7253,12 +7308,24 @@ async function openNewBitacoraLogModal() {
   const form = document.getElementById('form-tech-bitacora-new');
   if (form) form.reset();
   
-  // Set current local datetime
+  // Set current local date and time
   const now = new Date();
-  const offset = now.getTimezoneOffset() * 60000;
-  const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
-  document.getElementById('bitacora-time-start').value = localISOTime;
-  document.getElementById('bitacora-time-end').value = localISOTime;
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+
+  const todayStr = `${year}-${month}-${day}`;
+  const timeStr = `${hours}:${minutes}`;
+
+  const bDate = document.getElementById('bitacora-date');
+  const bStart = document.getElementById('bitacora-time-start');
+  const bEnd = document.getElementById('bitacora-time-end');
+
+  if (bDate) bDate.value = todayStr;
+  if (bStart) bStart.value = timeStr;
+  if (bEnd) bEnd.value = timeStr;
 
   renderBitacoraSelectedPartsList();
 
@@ -7563,15 +7630,19 @@ async function submitNewBitacoraLog() {
   const otId = document.getElementById('bitacora-ot').value;
   const area = document.getElementById('bitacora-area').value;
   const machine = document.getElementById('bitacora-machine').value;
-  const timeStart = document.getElementById('bitacora-time-start').value;
-  const timeEnd = document.getElementById('bitacora-time-end').value;
+  const dateVal = document.getElementById('bitacora-date').value;
+  const startVal = document.getElementById('bitacora-time-start').value;
+  const endVal = document.getElementById('bitacora-time-end').value;
   const description = document.getElementById('bitacora-description').value.trim();
   const observations = document.getElementById('bitacora-observations').value.trim();
 
-  if (!area || !timeStart || !timeEnd || !description) {
+  if (!area || !dateVal || !startVal || !endVal || !description) {
     alert('Por favor completa todos los campos obligatorios.');
     return;
   }
+
+  const timeStart = `${dateVal}T${startVal}:00`;
+  const timeEnd = `${dateVal}T${endVal}:00`;
 
   // Determine technician code and name
   const isAdmin = currentUser && currentUser.role === 'admin';
@@ -7893,18 +7964,42 @@ function showToast(message) {
   }
 }
 
-// Función auxiliar para rellenar los técnicos en el modal de conversión del admin
+// Función auxiliar para rellenar los técnicos activos en el modal de conversión del admin
 function populateTectSelects() {
   const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+  const activeTechs = techs.filter(t => t.activo !== false);
   
   // Select en modal de revisión del admin
   const reviewTechSelect = document.getElementById('review-tech');
   if (reviewTechSelect) {
     let html = '<option value="">Selecciona técnico...</option>';
-    techs.forEach(t => {
-      html += `<option value="${t.id}">${t.name} (${t.specialty})</option>`;
+    activeTechs.forEach(t => {
+      const deptLbl = t.department ? ` [${t.department}]` : '';
+      html += `<option value="${t.id}">${t.name} (${t.specialty || 'General'})${deptLbl}</option>`;
     });
     reviewTechSelect.innerHTML = html;
+  }
+}
+
+// Cargar lista de empleados activos para autocomplete en el portal público
+async function loadPublicEmployeesList() {
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient
+      .from('cat_empleados')
+      .select('cve_empleado, nombre_empleado')
+      .eq('activo', true)
+      .order('nombre_empleado');
+    if (error) throw error;
+    if (data) {
+      window.publicEmployeesList = data;
+      const datalist = document.getElementById('employees-list');
+      if (datalist) {
+        datalist.innerHTML = data.map(e => `<option value="${e.nombre_empleado}"></option>`).join('');
+      }
+    }
+  } catch (err) {
+    console.error('Error loading employees for autocomplete:', err);
   }
 }
 
@@ -8030,13 +8125,15 @@ async function openSubtaskAssignModal(subtaskId) {
     evidBox.style.display = 'none';
   }
 
-  // Populate technician dropdown in assignment modal
+  // Populate active technician dropdown in assignment modal
   const techSelect = document.getElementById('subtask-assign-tech');
   if (techSelect) {
     const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+    const activeTechs = techs.filter(t => t.activo !== false);
     let html = '<option value="">Selecciona técnico...</option>';
-    techs.forEach(t => {
-      html += `<option value="${t.id}">${t.name} (${t.specialty})</option>`;
+    activeTechs.forEach(t => {
+      const deptLbl = t.department ? ` [${t.department}]` : '';
+      html += `<option value="${t.id}">${t.name} (${t.specialty || 'General'})${deptLbl}</option>`;
     });
     techSelect.innerHTML = html;
   }
@@ -8977,16 +9074,6 @@ async function commitExcelUpload() {
         }));
         const { error } = await supabaseClient.rpc('bulk_upsert_machine_parts', { p_rows: toInsert });
         if (error) throw error;
-      } else if (templateType === 'prices') {
-        const toInsert = validRows.map(r => ({
-          codigo_articulo: r.codigo_articulo,
-          fecha: r.fecha,
-          precio_costo_unitario: parseFloat(r.precio_costo_unitario) || 0,
-          moneda: r.moneda || 'MXN',
-          origen: 'Excel Ingestion',
-          id_carga: idCarga
-        }));
-        await executeChunkedInsert('historico_precios_refacciones', toInsert);
       } else if (templateType === 'inventory') {
         const toInsert = validRows.map(r => ({
           codigo_articulo: r.codigo_articulo,
@@ -9002,19 +9089,6 @@ async function commitExcelUpload() {
         }));
         const { error } = await supabaseClient.rpc('bulk_update_refacciones_inventory', { p_rows: toInsert });
         if (error) throw error;
-      } else if (templateType === 'laborcosts') {
-        const toInsert = validRows.map(r => ({
-          cve_tecnico: r.cve_tecnico,
-          nombre_tecnico: r.nombre_tecnico,
-          costo_hora: parseFloat(r.costo_hora) || 0,
-          moneda: r.moneda || 'MXN',
-          fecha_inicio_vigencia: r.fecha_inicio_vigencia,
-          fecha_fin_vigencia: r.fecha_fin_vigencia,
-          activo: true,
-          origen: 'Excel Ingestion',
-          id_carga: idCarga
-        }));
-        await executeChunkedInsert('costos_mano_obra', toInsert);
       } else if (templateType === 'segundas') {
         showToast('Procesando y guardando datos en el servidor...');
         const { data: rpcRes, error: rpcErr } = await supabaseClient
@@ -9095,630 +9169,3 @@ async function renderExcelHistoryTable() {
   tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted);">No disponible offline.</td></tr>';
 }
 
-async function renderAdminCalendars() {
-  const thead = document.getElementById('table-calendar-thead');
-  const tbody = document.getElementById('table-calendar-tbody');
-  if (!thead || !tbody) return;
-
-  document.querySelectorAll('#panel-admin-calendar .tab-btn').forEach(btn => {
-    btn.classList.remove('active');
-    btn.style.borderBottomColor = 'transparent';
-    btn.style.color = 'var(--text-muted)';
-  });
-  
-  const activeBtn = document.getElementById(`tab-btn-${currentCalendarTab}-sub`);
-  if (activeBtn) {
-    activeBtn.classList.add('active');
-    activeBtn.style.borderBottomColor = 'var(--primary-color)';
-    activeBtn.style.color = 'var(--primary-color)';
-  }
-
-  let viewName = 'vw_preventivo_anual';
-  let periodLabel = 'Mes';
-  if (currentCalendarTab === 'predictivo') {
-    viewName = 'vw_predictivo_mensual';
-    periodLabel = 'Mes';
-  } else if (currentCalendarTab === 'autonomo') {
-    viewName = 'vw_autonomo_semanal';
-    periodLabel = 'Semana';
-  }
-
-  thead.innerHTML = `
-    <tr>
-      <th>Telar/Máquina</th>
-      <th>Tipo</th>
-      <th>Año</th>
-      <th>${periodLabel}</th>
-      <th>Fecha Programada</th>
-      <th>Responsable / Sugerencia</th>
-      <th>Prioridad</th>
-      <th>Estatus</th>
-      <th>Acciones</th>
-    </tr>
-  `;
-
-  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;">Cargando calendario...</td></tr>';
-
-  if (supabaseClient) {
-    try {
-      const { data, error } = await supabaseClient
-        .from(viewName)
-        .select('*')
-        .order('fecha_sugerida', { ascending: true });
-
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">No hay propuestas ni programaciones en este calendario.</td></tr>';
-        return;
-      }
-
-      let html = '';
-      data.forEach(row => {
-        const riskLevel = row.prioridad || 'Baja';
-        const riskBadge = badgeRisk(riskLevel);
-        const dateStr = row.fecha_sugerida ? new Date(row.fecha_sugerida).toLocaleDateString() : '—';
-        const estatus = 'PROPUESTO';
-        const statusBadge = `<span style="padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;background-color:#f1f5f9;color:#475569;">${estatus}</span>`;
-
-        let anio = row.anio_plan;
-        if (!anio && row.fecha_sugerida) {
-          anio = new Date(row.fecha_sugerida).getFullYear();
-        }
-
-        let periodo = '—';
-        if (currentCalendarTab === 'preventivo') {
-          periodo = 'Anual';
-        } else if (currentCalendarTab === 'predictivo') {
-          periodo = row.mes_plan ? `Mes ${row.mes_plan}` : '—';
-        } else if (currentCalendarTab === 'autonomo' && row.fecha_sugerida) {
-          periodo = `Semana ${getWeekNumber(new Date(row.fecha_sugerida))}`;
-        }
-
-        const responsable = row.responsable || row.componente_sugerido || '—';
-        const score = row.total_fallas_mes || row.total_defectos || row.fallas_acumuladas_anio || 0;
-
-        html += `
-          <tr>
-            <td><strong>${row.maquina_id}</strong></td>
-            <td>${row.tipo_mantenimiento}</td>
-            <td>${anio || '—'}</td>
-            <td>${periodo}</td>
-            <td>${dateStr}</td>
-            <td>${responsable}</td>
-            <td>${score} ${riskBadge}</td>
-            <td>${statusBadge}</td>
-            <td>
-              <div style="display:flex;gap:6px;">
-                <button class="btn-table btn-table-view" onclick="viewCalendarDetail('${row.id_sugerencia}', '${viewName}')" style="padding:4px 8px;font-size:0.75rem;border-radius:4px;">🔍 Ver Detalle</button>
-              </div>
-            </td>
-          </tr>
-        `;
-      });
-      tbody.innerHTML = html;
-      return;
-    } catch (err) {
-      console.error('Error fetching calendar data from view:', err);
-    }
-  }
-
-  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">Calendario no disponible offline o error en base de datos.</td></tr>';
-}
-
-function switchCalendarTab(tab) {
-  currentCalendarTab = tab;
-  renderAdminCalendars();
-}
-
-function generateCalendarProposalModal() {
-  const typeSelect = document.getElementById('cal-prop-type');
-  if (typeSelect) typeSelect.value = '';
-  document.getElementById('cal-prop-year').value = new Date().getFullYear();
-  document.getElementById('cal-prop-period').value = currentCalendarTab === 'autonomo' ? 27 : new Date().getMonth() + 1;
-  document.getElementById('cal-prop-obs').value = '';
-  
-  const periodLabel = document.getElementById('cal-prop-period-label');
-  if (periodLabel) {
-    periodLabel.innerText = currentCalendarTab === 'autonomo' ? 'Semana del año (1-53) *' : 'Mes del año (1-12) *';
-  }
-
-  openModal('modal-admin-calendar-propose');
-}
-
-async function handleProposeCalendarSubmit(event) {
-  event.preventDefault();
-  const type = document.getElementById('cal-prop-type').value;
-  const year = parseInt(document.getElementById('cal-prop-year').value);
-  const period = parseInt(document.getElementById('cal-prop-period').value);
-  const obs = document.getElementById('cal-prop-obs').value;
-
-  if (!type) {
-    showToast('Por favor, selecciona el tipo de calendario.');
-    return;
-  }
-
-  showToast('Generando propuesta de calendario...');
-
-  if (supabaseClient) {
-    try {
-      const headerObj = {
-        tipo_calendario: type,
-        anio: year,
-        periodo: period,
-        estatus_calendario: 'PROPUESTO',
-        observaciones: obs,
-        creado_por: currentUser ? currentUser.name : 'Super Admin'
-      };
-
-      const { data: hData, error: hErr } = await supabaseClient
-        .from('calendarios_mantenimiento')
-        .insert([headerObj])
-        .select();
-
-      if (hErr) throw hErr;
-      const calId = hData[0].id_calendario;
-
-      // Use the new consolidated views defined in calendar_views.sql
-      let viewName = 'vw_preventivo_anual';
-      if (type === 'PREDICTIVO_MENSUAL') {
-        viewName = 'vw_predictivo_mensual';
-      } else if (type === 'AUTONOMO_SEMANAL') {
-        viewName = 'vw_autonomo_semanal';
-      }
-
-      const { data: viewData, error: vErr } = await supabaseClient
-        .from(viewName)
-        .select('*');
-
-      if (vErr) throw vErr;
-
-      let filtered = viewData || [];
-      // Preventivo: filter by anio_plan. Predictivo/Autonomo already return current period.
-      if (type === 'PREVENTIVO_ANUAL') {
-        filtered = filtered.filter(item => item.anio_plan === year);
-      }
-
-      if (filtered.length === 0) {
-        showToast('La vista no sugirió propuestas para este periodo/año. Se creó el calendario vacío.');
-        closeModal('modal-admin-calendar-propose');
-        if (currentCalendarViewMode === 'grid') {
-          renderAdminCalendar();
-        } else {
-          renderAdminCalendars();
-        }
-        return;
-      }
-
-      for (const item of filtered) {
-        const detailObj = {
-          id_calendario: calId,
-          maquina_id: item.maquina_id,
-          tipo_mantenimiento: type.replace('_ANUAL', '').replace('_MENSUAL', '').replace('_SEMANAL', ''),
-          fecha_programada: item.fecha_sugerida || new Date().toISOString().split('T')[0],
-          actividad_sugerida: item.actividad || 'Mantenimiento General',
-          responsable_sugerido: item.responsable || null,
-          prioridad: item.prioridad || 'BAJA',
-          score_riesgo: item.total_fallas_mes || item.fallas_acumuladas_anio || item.total_defectos || 0,
-          estatus_detalle: 'PROPUESTO'
-        };
-
-        const { data: dData, error: dErr } = await supabaseClient
-          .from('calendario_mantenimiento_detalle')
-          .insert([detailObj])
-          .select();
-
-        if (!dErr && dData && dData.length > 0) {
-          const detailId = dData[0].id_detalle;
-          
-          const sourceObj = {
-            id_detalle: detailId,
-            tipo_origen: type === 'PREVENTIVO_ANUAL' ? 'PLAN_PREVENTIVO' : type === 'PREDICTIVO_MENSUAL' ? 'FALLA_RECURRENTE' : 'DEFECTO_CALIDAD',
-            peso_riesgo: item.score_riesgo || 0,
-            comentario: item.actividad_sugerida || 'Sugerencia automática por algoritmo'
-          };
-          await supabaseClient.from('calendario_mantenimiento_fuentes').insert([sourceObj]);
-        }
-      }
-
-      showToast(`Propuesta generada con éxito con ${filtered.length} sugerencias.`);
-      closeModal('modal-admin-calendar-propose');
-      if (currentCalendarViewMode === 'grid') {
-        renderAdminCalendar();
-      } else {
-        renderAdminCalendars();
-      }
-    } catch (err) {
-      console.error('Error generating calendar:', err);
-      showToast(`Error al generar calendario: ${err.message}`);
-    }
-  } else {
-    showToast('Offline: no se puede generar propuesta.');
-  }
-}
-
-async function viewCalendarDetail(id, viewName) {
-  currentSelectedCalItem = null;
-  
-  if (!supabaseClient) {
-    showToast('Offline: No se puede ver el detalle.');
-    return;
-  }
-
-  showToast('Cargando detalle...');
-
-  try {
-    let detData = null;
-
-    // 1. Intentar buscar en la tabla de detalles generados
-    const { data: detailData, error: detErr } = await supabaseClient
-      .from('calendario_mantenimiento_detalle')
-      .select('*')
-      .eq('id_detalle', id)
-      .maybeSingle();
-
-    if (!detErr && detailData) {
-      detData = detailData;
-    } else {
-      // 2. Buscar en la vista de sugerencias
-      let queryField = 'id_sugerencia';
-      if (viewName === 'vw_preventivo_anual') {
-        queryField = 'id_referencia'; // id_plan
-      }
-      
-      const { data: viewData, error: viewErr } = await supabaseClient
-        .from(viewName)
-        .select('*')
-        .eq(queryField, id)
-        .maybeSingle();
-
-      if (viewErr || !viewData) {
-        throw new Error('No se pudo encontrar el detalle ni la sugerencia.');
-      }
-      
-      detData = {
-        maquina_id: viewData.maquina_id,
-        tipo_mantenimiento: viewData.tipo_mantenimiento,
-        fecha_programada: viewData.fecha_sugerida,
-        prioridad: viewData.prioridad,
-        responsable_sugerido: viewData.responsable || viewData.componente_sugerido || null,
-        score_riesgo: viewData.total_fallas_mes || viewData.total_defectos || viewData.fallas_acumuladas_anio || 0,
-        nivel_riesgo_calidad: viewData.prioridad || 'Baja',
-        actividad_sugerida: viewData.actividad || 'Mantenimiento',
-        estatus_detalle: 'SUGERIDO'
-      };
-    }
-
-    currentSelectedCalItem = detData;
-
-    // Buscar técnico localmente de forma offline-resiliente
-    const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
-    const techObj = techs.find(t => t.id === detData.responsable_sugerido || t.cve_tecnico === detData.responsable_sugerido);
-    const techName = techObj ? techObj.name || techObj.nombre_completo : (detData.responsable_sugerido || 'Sin asignar');
-
-    document.getElementById('cal-det-title').innerText = `Detalle de Telar/Máquina: ${detData.maquina_id}`;
-    document.getElementById('cal-det-subtitle').innerText = `Estatus: ${detData.estatus_detalle}`;
-    document.getElementById('cal-det-machine').innerText = detData.maquina_id;
-    document.getElementById('cal-det-type').innerText = detData.tipo_mantenimiento;
-    document.getElementById('cal-det-date').innerText = detData.fecha_programada ? new Date(detData.fecha_programada).toLocaleDateString() : '—';
-    document.getElementById('cal-det-priority').innerText = detData.prioridad || 'Media';
-    document.getElementById('cal-det-tech').innerText = techName;
-    document.getElementById('cal-det-score').innerText = `${detData.score_riesgo || 0} (${detData.nivel_riesgo_calidad || 'Bajo'})`;
-    document.getElementById('cal-det-activity').innerText = detData.actividad_sugerida || '—';
-
-    const btnApprove = document.getElementById('btn-approve-cal-item');
-    const btnOT = document.getElementById('btn-generate-ot-cal-item');
-    
-    if (detData.estatus_detalle === 'SUGERIDO') {
-      btnApprove.style.display = 'none';
-      btnOT.disabled = true;
-    } else if (detData.estatus_detalle === 'PROPUESTO') {
-      btnApprove.style.display = 'block';
-      btnOT.disabled = true;
-    } else if (detData.estatus_detalle === 'APROBADO') {
-      btnApprove.style.display = 'none';
-      btnOT.disabled = false;
-    } else {
-      btnApprove.style.display = 'none';
-      btnOT.disabled = true;
-    }
-
-    const { data: sources, error: sErr } = await supabaseClient
-      .from('calendario_mantenimiento_fuentes')
-      .select('*')
-      .eq('id_detalle', id_detalle);
-
-    const tbodySources = document.getElementById('tbody-calendar-sources');
-    if (!sErr && sources && sources.length > 0) {
-      let html = '';
-      sources.forEach(s => {
-        html += `
-          <tr>
-            <td><span style="font-weight:600;color:var(--primary-color);">${s.tipo_origen}</span></td>
-            <td>${s.creado_en ? new Date(s.creado_en).toLocaleDateString() : '—'}</td>
-            <td>${s.peso_riesgo || 0}</td>
-            <td>${s.comentario || 'Sin comentario'}</td>
-          </tr>
-        `;
-      });
-      tbodySources.innerHTML = html;
-    } else {
-      tbodySources.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 16px;">No hay fuentes registradas para esta propuesta.</td></tr>';
-    }
-
-    const { data: spares, error: spErr } = await supabaseClient
-      .from('refacciones_por_maquina')
-      .select('codigo_articulo, nombre_articulo, cantidad_estandar, precio_costo_unitario')
-      .eq('maquina_id', detData.maquina_id)
-      .limit(5);
-
-    const tbodySpares = document.getElementById('tbody-calendar-spares');
-    if (!spErr && spares && spares.length > 0) {
-      let html = '';
-      for (let sp of spares) {
-        const { data: stockData } = await supabaseClient
-          .from('cat_refacciones')
-          .select('stock_actual, stock_minimo')
-          .eq('codigo_articulo', sp.codigo_articulo)
-          .maybeSingle();
-
-        const stock = stockData?.stock_actual || 0;
-        const minStock = stockData?.stock_minimo || 2;
-        const isLow = stock <= minStock;
-        const stockBadge = isLow 
-          ? `<span style="padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;background-color:#fee2e2;color:#991b1b;">Crítico (Stock: ${stock})</span>`
-          : `<span style="padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;background-color:#dcfce7;color:#166534;">Suficiente (${stock})</span>`;
-
-        html += `
-          <tr>
-            <td>${sp.codigo_articulo}</td>
-            <td><strong>${sp.nombre_articulo}</strong></td>
-            <td>${sp.cantidad_estandar || 1}</td>
-            <td>${stock}</td>
-            <td>${stockBadge}</td>
-            <td>$${(sp.precio_costo_unitario || 0).toFixed(2)} MXN</td>
-          </tr>
-        `;
-      }
-      tbodySpares.innerHTML = html;
-    } else {
-      tbodySpares.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 16px;">No hay refacciones de uso frecuente registradas para este equipo.</td></tr>';
-    }
-
-    openModal('modal-admin-calendar-detail');
-
-  } catch (err) {
-    console.error('Error opening calendar detail:', err);
-    showToast(`Error al abrir detalle: ${err.message}`);
-  }
-}
-
-async function handleApproveCalItem() {
-  if (!currentSelectedCalItem) return;
-  const { id_detalle } = currentSelectedCalItem;
-
-  showToast('Aprobando recomendación...');
-
-  try {
-    if (supabaseClient) {
-      const { error } = await supabaseClient
-        .from('calendario_mantenimiento_detalle')
-        .update({ estatus_detalle: 'APROBADO' })
-        .eq('id_detalle', id_detalle);
-
-      if (error) throw error;
-      
-      showToast('Recomendación aprobada con éxito.');
-      closeModal('modal-admin-calendar-detail');
-      if (currentCalendarViewMode === 'grid') {
-        renderAdminCalendar();
-      } else {
-        renderAdminCalendars();
-      }
-    }
-  } catch (err) {
-    console.error('Error approving calendar item:', err);
-    showToast(`Error al aprobar: ${err.message}`);
-  }
-}
-
-async function getAICriticalPoints(maquinaId, tipoMantenimiento, actividad) {
-  let aiText = `\n\n🤖 PUNTOS CRÍTICOS RECOMENDADOS POR IA (Historial de Planta):`;
-  
-  if (!supabaseClient) {
-    if (tipoMantenimiento === 'PREVENTIVO') {
-      aiText += `
-• Inspección visual y limpieza profunda del telar.
-• Ajuste de tensión en el sistema de urdimbre.
-• Lubricación de los puntos de fricción principales.`;
-    } else if (tipoMantenimiento === 'PREDICTIVO') {
-      aiText += `
-• Medición de temperatura en el motor principal.
-• Análisis visual de vibraciones o ruidos inusuales.
-• Revisión del desgaste de bandas y engranes.`;
-    } else {
-      aiText += `
-• Limpieza general de pelusa y residuos de hilo.
-• Verificación visual del enhebrado de trama y urdimbre.
-• Reportar cualquier fuga de aceite detectada en tinas.`;
-    }
-    return aiText;
-  }
-
-  try {
-    if (tipoMantenimiento === 'PREVENTIVO') {
-      const cat = (actividad || '').replace('Preventivo: ', '').trim();
-      
-      const { data: fallas } = await supabaseClient
-        .from('fallas_por_maquina')
-        .select('descripcion_falla')
-        .eq('maquina_id', maquinaId)
-        .eq('categoria_falla', cat)
-        .limit(100);
-
-      if (fallas && fallas.length > 0) {
-        const counts = {};
-        fallas.forEach(f => {
-          const desc = f.descripcion_falla || 'Falla General';
-          counts[desc] = (counts[desc] || 0) + 1;
-        });
-        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-        const topFalla = sorted[0][0];
-        const topFallaPct = Math.round((sorted[0][1] / fallas.length) * 100);
-
-        aiText += `
-• Análisis de Repetibilidad: Esta máquina tiene ${fallas.length} fallas históricas de tipo "${cat}".
-• Foco Crítico IA: "${topFalla}" representa el ${topFallaPct}% de las ocurrencias.
-• Puntos sugeridos a revisar por técnico:
-  1. Verificar estado físico de componentes asociados a: ${topFalla}.
-  2. Ajustar y calibrar sensores del área de trabajo afectada.
-  3. Realizar pruebas de continuidad en cableados y señales de control.`;
-      } else {
-        aiText += `
-• Historial limpio: No hay fallas graves de tipo "${cat}" registradas recientemente.
-• Recomendación Preventiva Estándar:
-  1. Inspección general de conexiones del bloque de "${cat}".
-  2. Limpieza de polvo acumulado y reapriete de terminales.
-  3. Comprobar ciclos de operación libre de alarmas.`;
-      }
-
-    } else if (tipoMantenimiento === 'PREDICTIVO') {
-      const { data: fallas } = await supabaseClient
-        .from('fallas_por_maquina')
-        .select('descripcion_falla, creada')
-        .eq('maquina_id', maquinaId)
-        .order('creada', { ascending: false })
-        .limit(3);
-
-      if (fallas && fallas.length > 0) {
-        aiText += `
-• Alerta de Repetibilidad: El telar registró paros recientes por:
-  - "${fallas[0].descripcion_falla}"
-• Puntos de monitoreo predictivo:
-  1. Tomar lectura de temperatura en el módulo del componente indicado.
-  2. Comprobar desgaste milimétrico en guías o rodamientos.
-  3. Realizar inspección por termografía en el gabinete eléctrico asociado.`;
-      } else {
-        aiText += `
-• Recomendación Predictiva Basada en Tendencia General:
-  1. Medir nivel de vibración en flechas principales.
-  2. Revisar temperatura de rodamientos de motor principal.
-  3. Verificar desgaste prematuro de bandas de transmisión.`;
-      }
-
-    } else if (tipoMantenimiento === 'AUTONOMO') {
-      const { data: defectos } = await supabaseClient
-        .from('segundas_por_rollo')
-        .select('defecto')
-        .eq('maquina_id', maquinaId)
-        .limit(50);
-
-      if (defectos && defectos.length > 0) {
-        const counts = {};
-        defectos.forEach(d => {
-          const def = d.defecto || 'Defecto General';
-          counts[def] = (counts[def] || 0) + 1;
-        });
-        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-        const topDefect = sorted[0][0];
-
-        aiText += `
-• Alerta de Calidad: Se han registrado rollos de segunda con defecto de "${topDefect}".
-• Puntos de inspección para operador autónomo:
-  1. Limpiar guías de hilo, agujas y peines del telar para evitar: ${topDefect}.
-  2. Inspeccionar tensión y alineación en el filetero.
-  3. Comprobar que no haya acumulaciones de grasa/aceite que puedan manchar el tejido.`;
-      } else {
-        aiText += `
-• Calidad Excelente: No se registran defectos de segunda recientes.
-• Rutina Autónoma Básica:
-  1. Sopleteado de pelusa en la zona de formación de la tela.
-  2. Limpieza de agujas y guías con aire comprimido.
-  3. Verificar engrase correcto de tinas de lubricación de la máquina.`;
-      }
-    }
-  } catch (err) {
-    console.error('Error generating AI points:', err);
-    aiText += `\n• (Error cargando recomendaciones en tiempo real: ${err.message})`;
-  }
-
-  return aiText;
-}
-
-async function handleGenerateOTCalItem() {
-  if (!currentSelectedCalItem) return;
-  const { id_detalle, maquina_id, tipo_mantenimiento, actividad_sugerida, prioridad, responsable_sugerido } = currentSelectedCalItem;
-
-  showToast('Generando Orden de Trabajo...');
-
-  try {
-    if (supabaseClient) {
-      const newId = 'CAL-OT-' + Date.now().toString().slice(-6);
-      
-      const aiRecs = await getAICriticalPoints(maquina_id, tipo_mantenimiento, actividad_sugerida);
-      
-      const otObj = {
-        folio: newId,
-        orden_trabajo: tipo_mantenimiento === 'PREVENTIVO' ? 'MP' : tipo_mantenimiento === 'PREDICTIVO' ? 'MPD' : 'MA',
-        tipo_orden: tipo_mantenimiento === 'PREVENTIVO' ? 'PREVENTIVA' : tipo_mantenimiento === 'PREDICTIVO' ? 'PREDICTIVA' : 'AUTONOMA',
-        origen: 'Calendario ' + tipo_mantenimiento,
-        estatus: 'Programada',
-        fecha_inicio: new Date().toISOString().split('T')[0],
-        hora_inicio: new Date().toTimeString().split(' ')[0],
-        fecha_hora_inicio: new Date().toISOString(),
-        maquina_id: maquina_id,
-        falla: actividad_sugerida,
-        descripcion: `Generada automáticamente desde Calendario de Mantenimiento. Actividad: ${actividad_sugerida}${aiRecs}`,
-        prioridad: prioridad || 'Media',
-        cve_atendio: responsable_sugerido
-      };
-
-      const { data: otData, error: otErr } = await supabaseClient
-        .from('ordenes_trabajo')
-        .insert([otObj])
-        .select();
-
-      if (otErr) throw otErr;
-      const otUUID = otData[0].id_orden;
-
-      // Crear registro en bitacora_orden_trabajo (No bitacora_subtareas)
-      const bitacoraObj = {
-        id_orden: otUUID,
-        estatus_anterior: null,
-        estatus_nuevo: 'Programada',
-        usuario_evento: currentUser ? currentUser.name : 'Super Admin',
-        rol_usuario: currentUser ? (currentUser.role === 'admin' ? 'SUPER_ADMINISTRADOR' : 'MANTENIMIENTO') : 'SUPER_ADMINISTRADOR',
-        tipo_evento: 'Creación',
-        comentario: `Orden creada automáticamente desde el Calendario de Mantenimiento (${tipo_mantenimiento}).`,
-        origen: 'Sistema'
-      };
-
-      const { error: bitErr } = await supabaseClient
-        .from('bitacora_orden_trabajo')
-        .insert([bitacoraObj]);
-
-      if (bitErr) throw bitErr;
-
-      const { error: detErr } = await supabaseClient
-        .from('calendario_mantenimiento_detalle')
-        .update({ 
-          estatus_detalle: 'OT_GENERADA',
-          id_orden_generada: otUUID
-        })
-        .eq('id_detalle', id_detalle);
-
-      if (detErr) throw detErr;
-
-      showToast(`Orden de Trabajo ${newId} generada y programada correctamente.`);
-      closeModal('modal-admin-calendar-detail');
-      if (currentCalendarViewMode === 'grid') {
-        renderAdminCalendar();
-      } else {
-        renderAdminCalendars();
-      }
-    }
-  } catch (err) {
-    console.error('Error generating OT from calendar item:', err);
-    showToast(`Error al generar OT: ${err.message}`);
-  }
-}

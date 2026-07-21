@@ -16,15 +16,18 @@ async function run() {
 
   // 2. Estatus
   const estatus = [
-    { codigo_estatus: 'Solicitud recibida', descripcion: 'Recién ingresada desde app', estado_operativo: 'Abierto' },
-    { codigo_estatus: 'Asignada', descripcion: 'Asignada a técnico', estado_operativo: 'Abierto' },
-    { codigo_estatus: 'En revisión', descripcion: 'Técnico en campo', estado_operativo: 'En Proceso' },
-    { codigo_estatus: 'En ejecución con subtareas', descripcion: 'Tiene subtareas de fallas múltiples', estado_operativo: 'En Proceso' },
-    { codigo_estatus: 'Programada', descripcion: 'Postergada/Programada para fecha', estado_operativo: 'En Proceso' },
-    { codigo_estatus: 'Rechazada', descripcion: 'Cancelada/Rechazada por Admin', estado_operativo: 'Cerrado' },
-    { codigo_estatus: 'cancelada', descripcion: 'Cancelada', estado_operativo: 'Cerrado' },
-    { codigo_estatus: 'solicitada', descripcion: 'Refacción solicitada', estado_operativo: 'Abierto' },
-    { codigo_estatus: 'Completada', descripcion: 'Finalizada', estado_operativo: 'Cerrado' }
+    { codigo_estatus: 'solicitud_recibida', nombre_estatus: 'Solicitud Recibida', orden_flujo: 1, es_inicial: true },
+    { codigo_estatus: 'asignada', nombre_estatus: 'Asignada', orden_flujo: 2 },
+    { codigo_estatus: 'en_proceso', nombre_estatus: 'En Proceso', orden_flujo: 3 },
+    { codigo_estatus: 'en_revision', nombre_estatus: 'En Revisión', orden_flujo: 4 },
+    { codigo_estatus: 'en_ejecucion_con_subtareas', nombre_estatus: 'En Ejecución con Subtareas', orden_flujo: 5 },
+    { codigo_estatus: 'programada', nombre_estatus: 'Programada', orden_flujo: 6 },
+    { codigo_estatus: 'lista_para_validacion', nombre_estatus: 'Lista para Validación', orden_flujo: 7 },
+    { codigo_estatus: 'ejecutada', nombre_estatus: 'Ejecutada', orden_flujo: 8 },
+    { codigo_estatus: 'cerrada', nombre_estatus: 'Cerrada', orden_flujo: 9, es_final: true },
+    { codigo_estatus: 'rechazada', nombre_estatus: 'Rechazada', orden_flujo: 10, es_final: true },
+    { codigo_estatus: 'cancelada', nombre_estatus: 'Cancelada', orden_flujo: 11, es_final: true },
+    { codigo_estatus: 'solicitada', nombre_estatus: 'Refacción Solicitada', orden_flujo: 12 }
   ];
   await supabase.from('cat_estatus_orden').upsert(estatus, { onConflict: 'codigo_estatus' });
 
