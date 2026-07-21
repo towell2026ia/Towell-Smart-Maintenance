@@ -1581,27 +1581,50 @@
         
         <div class="form-grid">
           <div class="form-group">
-            <label for="review-type">Clasificar Tipo de OT *</label>
-            <select id="review-type" class="form-control" required>
+            <label for="review-type">Tipo de OT *</label>
+            <select id="review-type" class="form-control" onchange="recalculateOTPriorityInModal()" required>
               <option value="MC">Mantenimiento Correctivo (MC)</option>
               <option value="MP">Mantenimiento Preventivo (MP)</option>
               <option value="PE">Proyecto Especial (PE)</option>
               <option value="INF">Infraestructura (INF)</option>
-            </select>
-          </div>
-          
-          <div class="form-group">
-            <label for="review-priority">Ajustar Prioridad *</label>
-            <select id="review-priority" class="form-control" required>
-              <option value="Baja">Baja</option>
-              <option value="Media">Media</option>
-              <option value="Alta">Alta</option>
-              <option value="Crítica">Crítica</option>
+              <option value="MA">Mantenimiento Autónomo (MA)</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label for="review-tech">Asignar Técnico de Trabajo *</label>
+            <label for="review-risk">Nivel de Riesgo Operativo *</label>
+            <select id="review-risk" class="form-control" onchange="recalculateOTPriorityInModal()" required>
+              <option value="Bajo">Bajo (Sin riesgo a la operación/seguridad)</option>
+              <option value="Medio" selected>Medio (Riesgo en calidad o velocidad)</option>
+              <option value="Alto">Alto (Riesgo de seguridad / Paro total)</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="review-priority">Prioridad Asignada *</label>
+            <select id="review-priority" class="form-control" required>
+              <option value="Baja">Baja (P4)</option>
+              <option value="Media">Media (P3)</option>
+              <option value="Alta">Alta (P2)</option>
+              <option value="Crítica">Crítica (P1)</option>
+            </select>
+            <div id="review-calculated-priority" style="font-size: 0.78rem; font-weight: 600; color: var(--accent-blue); margin-top: 4px;">⭐ Calculando prioridad por matriz...</div>
+          </div>
+
+          <div class="form-group">
+            <label for="review-specialty">Especialidad Requerida *</label>
+            <select id="review-specialty" class="form-control" onchange="filterReviewTechsBySpecialty(this.value)" required>
+              <option value="Todas">Todas las especialidades</option>
+              <option value="Eléctrica">Eléctrica</option>
+              <option value="Mecánica">Mecánica</option>
+              <option value="Electrónica">Electrónica</option>
+              <option value="Servicios Auxiliares">Servicios Auxiliares</option>
+              <option value="Tintorería">Tintorería / Química</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="review-tech">Técnico Activo Disponible *</label>
             <select id="review-tech" class="form-control" required>
               <option value="">Selecciona técnico...</option>
               <!-- JS list -->

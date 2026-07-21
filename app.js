@@ -3527,8 +3527,88 @@ function renderAdminRequestsTable() {
 }
 
 // --- MODAL DE REVISIÓN (ADMIN) ---
+// --- MATRIZ DE PRIORIZACIÓN DE ÓRDENES (CRITICIDAD + URGENCIA + RIESGO) ---
+function calculateOTPriorityScoring(machineId, urgency, risk, type, machineStopped) {
+  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const mach = machines.find(m => m.id === machineId || m.equipo_towell === machineId);
+  const criticality = mach ? (mach.criticality || 'B') : 'B';
+
+  let score = 0;
+
+  // 1. Puntos por Criticidad de Equipo
+  if (criticality === 'A') score += 40;
+  else if (criticality === 'B') score += 25;
+  else score += 10;
+
+  // 2. Puntos por Urgencia Reportada
+  if (urgency === 'Crítica') score += 35;
+  else if (urgency === 'Alta') score += 25;
+  else if (urgency === 'Media') score += 15;
+  else score += 5;
+
+  // 3. Puntos por Nivel de Riesgo
+  if (risk === 'Alto') score += 25;
+  else if (risk === 'Medio') score += 15;
+  else score += 5;
+
+  // 4. Paro de máquina suma urgencia extra
+  if (machineStopped === 'Sí') score += 15;
+
+  // Determinar Prioridad Final
+  if (score >= 80 || (criticality === 'A' && (urgency === 'Crítica' || risk === 'Alto' || machineStopped === 'Sí'))) {
+    return { level: 'Crítica', label: 'Crítica (P1)', score: score };
+  } else if (score >= 55 || (criticality === 'A' || urgency === 'Alta' || risk === 'Alto')) {
+    return { level: 'Alta', label: 'Alta (P2)', score: score };
+  } else if (score >= 35 && type !== 'MP' && type !== 'MA') {
+    return { level: 'Media', label: 'Media (P3)', score: score };
+  } else {
+    return { level: 'Baja', label: 'Baja (P4)', score: score };
+  }
+}
+
+function recalculateOTPriorityInModal() {
+  const reqId = document.getElementById('review-req-id').value;
+  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  const req = requests.find(r => r.id === reqId);
+  
+  const urgency = req ? req.urgency : 'Media';
+  const machineId = req ? req.machine : null;
+  const machineStopped = req ? req.machineStopped : 'No';
+  const risk = document.getElementById('review-risk')?.value || 'Medio';
+  const type = document.getElementById('review-type')?.value || 'MC';
+
+  const res = calculateOTPriorityScoring(machineId, urgency, risk, type, machineStopped);
+  const prioSelect = document.getElementById('review-priority');
+  if (prioSelect) prioSelect.value = res.level;
+
+  const badge = document.getElementById('review-calculated-priority');
+  if (badge) {
+    badge.innerText = `⭐ Matriz Automática Sugiere: Prioridad ${res.label} (Score: ${res.score}/100)`;
+  }
+}
+
+function filterReviewTechsBySpecialty(specialty) {
+  const select = document.getElementById('review-tech');
+  if (!select) return;
+
+  const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+  const filtered = techs.filter(t => {
+    if (t.activo === false) return false;
+    if (!specialty || specialty === 'Todas') return true;
+    const spec = (t.specialty || t.observaciones || '').toLowerCase();
+    return spec.includes(specialty.toLowerCase()) || spec.includes('general') || spec.includes('coordinador');
+  });
+
+  let html = '<option value="">Selecciona técnico disponible...</option>';
+  filtered.forEach(t => {
+    const specLabel = t.specialty ? ` (${t.specialty})` : '';
+    html += `<option value="${t.id}">${t.name}${specLabel}</option>`;
+  });
+
+  select.innerHTML = html;
+}
+
 function openReviewModal(reqId) {
-  populateTectSelects();
   const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
   const req = requests.find(r => r.id === reqId);
   if (!req) return;
@@ -3554,14 +3634,17 @@ function openReviewModal(reqId) {
   }
 
   // Pre-cargar inputs de asignación
-  document.getElementById('review-type').value = req.type;
-  document.getElementById('review-priority').value = req.urgency;
+  document.getElementById('review-type').value = req.type || 'MC';
+  document.getElementById('review-risk').value = 'Medio';
+  document.getElementById('review-specialty').value = 'Todas';
+  
+  filterReviewTechsBySpecialty('Todas');
+  recalculateOTPriorityInModal();
 
   // Sugerir fecha compromiso de hoy + 1 día
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(12, 0, 0, 0);
-  // Formatear a string de local datetime
   const offset = tomorrow.getTimezoneOffset();
   tomorrow.setMinutes(tomorrow.getMinutes() - offset);
   document.getElementById('review-due-date').value = tomorrow.toISOString().slice(0, 16);
@@ -3581,9 +3664,10 @@ async function convertToWorkOrder() {
   const priority = document.getElementById('review-priority').value;
   const techId = document.getElementById('review-tech').value;
   const dueDate = document.getElementById('review-due-date').value;
+  const specialty = document.getElementById('review-specialty').value;
 
   if (!techId) {
-    alert('Por favor, selecciona un técnico.');
+    alert('Por favor, selecciona un técnico activo.');
     return;
   }
 
@@ -3608,17 +3692,19 @@ async function convertToWorkOrder() {
     area: req.area,
     machine: req.machine,
     type: type,
+    specialty: specialty,
     description: req.description,
     machineStopped: req.machineStopped,
     urgency: priority,
     status: 'Asignada',
     assignedTech: techId,
+    techName: techName,
     date: req.date,
     dueDate: new Date(dueDate).toISOString(),
     evidence: req.evidence,
     historyLogs: [
-      { date: req.date, status: 'Solicitud recibida', user: req.applicant, comment: 'Registro inicial de solicitud pública.' },
-      { date: new Date().toISOString(), status: 'Asignada', user: 'Super Admin', comment: `Orden de trabajo generada y asignada a ${techName}` }
+      { date: req.date, status: 'Solicitud recibida', user: req.applicant, comment: 'Registro inicial de solicitud.' },
+      { date: new Date().toISOString(), status: 'Asignada', user: 'Super Admin', comment: `Orden de trabajo convertida y asignada a ${techName} (${specialty})` }
     ]
   };
 
@@ -3634,6 +3720,7 @@ async function convertToWorkOrder() {
         .update({
           estatus: getDBStatus('Asignada'),
           orden_trabajo: type,
+          especialidad_requerida: specialty,
           cve_atendio: techId,
           nombre_atendio: techName,
           prioridad: priority,
@@ -3648,11 +3735,11 @@ async function convertToWorkOrder() {
   }
 
   closeModal('modal-admin-review');
-  showToast(`OT ${otId} asignada correctamente.`);
-  
-  // Refrescar paneles
-  switchAdminPanel('requests');
-  updateRequestsBadge();
+  showToast(`✅ Solicitud ${reqId} convertida exitosamente en OT y asignada a ${techName}.`);
+
+  // Refrescar en tiempo real tableros de admin y técnico
+  await syncDatabases();
+  refreshActiveViewSilently();
 }
 
 async function requestMoreInfoFromApplicant() {
