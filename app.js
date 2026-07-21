@@ -8009,7 +8009,63 @@ async function renderTechBitacora() {
     logs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
   }
 
-  const myLogs = logs.filter(l => !currentUser || l.cve_tecnico === currentUser.id);
+  // Auto-sintetizar registros de bitácora para cualquier OT ejecutada o cerrada que aún no tenga log en lista
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const closedOrExecuted = orders.filter(o => o.status === 'Ejecutada' || o.status === 'Cerrada');
+  closedOrExecuted.forEach(o => {
+    const otId = o.id || o.folio;
+    const hasLog = logs.some(l => l.otFolio === otId || (l.otUUID && l.otUUID === o.uuid));
+    if (!hasLog) {
+      const diagText = o.diagnosis ? `Diagnóstico: ${o.diagnosis}` : '';
+      const actText = o.activity ? `Actividad: ${o.activity}` : '';
+      const mainDesc = o.description || o.descripcion || 'Atención y resolución de Orden de Trabajo';
+      const activityDesc = `[OT ${otId}] ${mainDesc}${diagText ? ' | ' + diagText : ''}${actText ? ' | ' + actText : ''}`;
+      
+      const techId = o.assignedTech || o.cve_atendio || (currentUser ? (currentUser.uuid || currentUser.id) : 'T-01');
+      const techName = o.techName || o.nombre_tecnico || (currentUser ? currentUser.name : 'Técnico');
+
+      const syntheticLog = {
+        id: 'LOG-OT-' + otId,
+        otFolio: otId,
+        otUUID: o.uuid || null,
+        cve_tecnico: techId,
+        nombre_tecnico: techName,
+        area: o.area || o.departamento || 'PF',
+        maquina_id: o.machine || o.maquina_id || null,
+        fecha_hora_inicio: o.date || o.created_at || new Date().toISOString(),
+        fecha_hora_fin: o.closeDate || new Date().toISOString(),
+        descripcion_actividad: activityDesc,
+        refacciones_usadas: o.usedParts && Array.isArray(o.usedParts) ? o.usedParts.map(p => `${p.name || p.partId} x${p.quantity || 1}`).join(', ') : (o.refacciones_usadas || 'Sin refacciones'),
+        observaciones: o.observations || `Orden ${otId} finalizada con éxito.`,
+        date: o.closeDate || new Date().toISOString(),
+        status: o.status,
+        db_synced: false
+      };
+      logs.unshift(syntheticLog);
+    }
+  });
+
+  const myLogs = logs.filter(l => {
+    if (!currentUser) return true;
+    if (currentUser.role === 'admin' || currentUser.rol === 'SUPER_ADMINISTRADOR') return true;
+
+    const matchesId = l.cve_tecnico === currentUser.id || l.cve_tecnico === currentUser.uuid;
+    const matchesEmail = l.cve_tecnico === currentUser.email;
+    const matchesName = l.cve_tecnico === currentUser.name || l.nombre_tecnico === currentUser.name;
+
+    // Buscar si la OT correspondiente pertenece al técnico actual
+    const foundOrder = orders.find(o => o.id === l.otFolio || o.uuid === l.otUUID || o.folio === l.otFolio);
+    const matchesOrder = foundOrder && (
+      foundOrder.assignedTech === currentUser.id ||
+      foundOrder.assignedTech === currentUser.uuid ||
+      foundOrder.cve_atendio === currentUser.id ||
+      foundOrder.cve_atendio === currentUser.uuid ||
+      foundOrder.techName === currentUser.name ||
+      foundOrder.email === currentUser.email
+    );
+
+    return matchesId || matchesEmail || matchesName || matchesOrder;
+  });
 
   if (myLogs.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No tienes actividades registradas en la bitácora.</td></tr>`;
