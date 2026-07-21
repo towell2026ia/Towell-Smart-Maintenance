@@ -6603,16 +6603,16 @@ async function setWorkStatus(newStatus) {
   await updateOrderStatus(otId, newStatus);
 }
 
-// Generar registro automático en bitácora cuando una OT se da por terminada / cerrada
+// Generar o actualizar registro automático en bitácora cuando una OT se guarda o finaliza
 async function autoCreateBitacoraOnOTClose(orderObj, status, customObs = '') {
   if (!orderObj) return;
 
   const otId = orderObj.id || orderObj.folio || 'OT-000';
   const otUUID = orderObj.uuid || orderObj.id_orden || null;
   const machine = (orderObj.machine || orderObj.maquina_id || 'NO_APLICA');
-  const area = orderObj.area || orderObj.departamento || 'AF';
+  const area = orderObj.area || orderObj.departamento || orderObj.department || 'AF';
 
-  let techId = orderObj.assignedTech || orderObj.cve_atendio || (currentUser ? (currentUser.id || currentUser.cve_tecnico) : null);
+  let techId = orderObj.assignedTech || orderObj.cve_atendio || (currentUser ? (currentUser.uuid || currentUser.id || currentUser.cve_tecnico) : 'T-01');
   let techName = orderObj.techName || orderObj.nombre_tecnico || (currentUser ? (currentUser.name || currentUser.nombre_completo) : 'Técnico');
 
   // Tiempos
@@ -6622,19 +6622,51 @@ async function autoCreateBitacoraOnOTClose(orderObj, status, customObs = '') {
   const startObj = new Date(startDateStr);
   const endObj = new Date(endDateStr);
 
-  const activityDesc = `[Cierre OT: ${otId}] ${orderObj.description || orderObj.descripcion || 'Atención y resolución de Orden de Trabajo'}`;
+  const diagText = orderObj.diagnosis ? `Diagnóstico: ${orderObj.diagnosis}` : '';
+  const actText = orderObj.activity ? `Actividad: ${orderObj.activity}` : '';
+  const mainDesc = orderObj.description || orderObj.descripcion || 'Atención y resolución de Orden de Trabajo';
+  const activityDesc = `[OT ${otId}] ${mainDesc}${diagText ? ' | ' + diagText : ''}${actText ? ' | ' + actText : ''}`;
   
   let partsStr = 'Sin refacciones';
   if (orderObj.usedParts && Array.isArray(orderObj.usedParts) && orderObj.usedParts.length > 0) {
-    partsStr = orderObj.usedParts.map(p => `${p.name || p.partId} x${p.quantity || 1}`).join(', ');
+    partsStr = orderObj.usedParts.map(p => `${p.name || p.partName || p.partId} x${p.quantity || 1}`).join(', ');
   } else if (orderObj.refacciones_usadas) {
     partsStr = orderObj.refacciones_usadas;
   }
 
-  const obsStr = customObs || orderObj.observations || `Orden de trabajo ${otId} finalizada con estatus ${status}.`;
+  const obsStr = customObs || orderObj.observations || `Orden de trabajo ${otId} registrada con estatus ${status}.`;
 
-  // 1. Guardar en Supabase bitacora_mantenimiento si hay conexión y técnico válido
-  if (supabaseClient && techId) {
+  // 1. Actualizar o insertar en localStorage TSMAI_maintenance_logs
+  const localLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
+  const existingIdx = localLogs.findIndex(l => l.otFolio === otId || (l.otUUID && l.otUUID === otUUID));
+  
+  const updatedLogObj = {
+    id: existingIdx !== -1 ? localLogs[existingIdx].id : ('LOG-AUTO-' + Date.now().toString().slice(-6)),
+    otFolio: otId,
+    otUUID: otUUID,
+    cve_tecnico: techId || 'T-01',
+    nombre_tecnico: techName,
+    area: area,
+    maquina_id: machine === 'NO_APLICA' ? null : machine,
+    fecha_hora_inicio: startObj.toISOString(),
+    fecha_hora_fin: endObj.toISOString(),
+    descripcion_actividad: activityDesc,
+    refacciones_usadas: partsStr,
+    observaciones: obsStr,
+    date: endObj.toISOString(),
+    status: status,
+    db_synced: false
+  };
+
+  if (existingIdx !== -1) {
+    localLogs[existingIdx] = updatedLogObj;
+  } else {
+    localLogs.unshift(updatedLogObj);
+  }
+  localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(localLogs));
+
+  // 2. Guardar en Supabase bitacora_mantenimiento si hay conexión
+  if (supabaseClient) {
     try {
       const record = {
         id_orden: otUUID,
@@ -6650,34 +6682,16 @@ async function autoCreateBitacoraOnOTClose(orderObj, status, customObs = '') {
         activo: true
       };
 
-      await supabaseClient.from('bitacora_mantenimiento').insert([record]);
+      const { error: insErr } = await supabaseClient.from('bitacora_mantenimiento').insert([record]);
+      if (!insErr) {
+        updatedLogObj.db_synced = true;
+        localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(localLogs));
+      } else {
+        console.warn('Nota de sincronización bitácora Supabase:', insErr.message);
+      }
     } catch (err) {
       console.warn('Nota al registrar bitacora automática en Supabase:', err);
     }
-  }
-
-  // 2. Guardar en localStorage TSMAI_maintenance_logs
-  const localLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
-  const exists = localLogs.some(l => l.otFolio === otId);
-  if (!exists) {
-    const newLog = {
-      id: 'LOG-AUTO-' + Date.now().toString().slice(-6),
-      otFolio: otId,
-      otUUID: otUUID,
-      cve_tecnico: techId || 'T-01',
-      nombre_tecnico: techName,
-      area: area,
-      maquina_id: machine,
-      fecha_hora_inicio: startObj.toISOString(),
-      fecha_hora_fin: endObj.toISOString(),
-      descripcion_actividad: activityDesc,
-      refacciones_usadas: partsStr,
-      observaciones: obsStr,
-      date: endObj.toISOString(),
-      db_synced: !!supabaseClient
-    };
-    localLogs.unshift(newLog);
-    localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(localLogs));
   }
 
   // 3. Renderizar Dashboard y Bitácoras
@@ -7008,9 +7022,7 @@ async function saveTechnicalLog() {
   if (tempSubtasksToCreate.length > 0) {
     orders[orderIndex].status = 'Requiere subtarea';
   } else {
-    if (orders[orderIndex].status === 'Asignada') {
-      orders[orderIndex].status = 'En proceso';
-    }
+    orders[orderIndex].status = 'Ejecutada';
   }
 
   // Simular carga de archivo de cierre
@@ -7024,7 +7036,7 @@ async function saveTechnicalLog() {
     date: new Date().toISOString(),
     status: orders[orderIndex].status,
     user: currentUser.name,
-    comment: `Bitácora técnica actualizada. Diagnóstico: ${diagnosis.slice(0, 40)}...`
+    comment: `Bitácora técnica actualizada y finalizada. Diagnóstico: ${diagnosis.slice(0, 40)}...`
   });
 
   // Guardar localmente
@@ -7042,17 +7054,18 @@ async function saveTechnicalLog() {
   const machIndex = machines.findIndex(m => m.id === currentOrder.machine);
   if (machIndex !== -1) {
     machines[machIndex].cost += extraCost;
+    machines[machIndex].status = 'Operativa';
     if (orders[orderIndex].status === 'Ejecutada') {
       machines[machIndex].failures += 1;
     }
     localStorage.setItem('TSMAI_machines', JSON.stringify(machines));
   }
 
+  const combinedObservation = `Diagnóstico: ${diagnosis} | Actividad: ${activity} | Observaciones: ${observations}`;
+
   // Sincronizar reporte a Supabase
   if (supabaseClient) {
     try {
-      const combinedObservation = `Diagnóstico: ${diagnosis} | Actividad: ${activity} | Observaciones: ${observations}`;
-      
       const updateData = {
         estatus: getDBStatus(orders[orderIndex].status),
         observacion_cierre: combinedObservation,
@@ -7066,42 +7079,19 @@ async function saveTechnicalLog() {
         .update(updateData)
         .eq('folio', otId);
         
-      if (tempSelectedParts.length > 0) {
-        const consumptions = tempSelectedParts.map(selected => {
-          const part = parts.find(p => p.id === selected.partId);
-          const cost = part ? part.cost : 0;
-          const totalCost = cost * selected.quantity;
-          return {
-            fecha: new Date().toISOString().split('T')[0],
-            maquina_id: currentOrder.machine,
-            destino: currentOrder.machine,
-            codigo_articulo: selected.partId,
-            nombre_articulo: selected.partName || selected.name,
-            cantidad_estandar: selected.quantity,
-            precio_costo_unitario: cost,
-            importe_costo_calculado: totalCost,
-            importe_costo_origen: totalCost,
-            diferencia_importe: 0,
-            origen: 'App'
-          };
-        });
-        // El consumo se guarda en la bitácora de mantenimiento y el stock se decrementa directamente.
-        // Ya no se requiere escribir en la tabla intermedia redundante.
-      }
-      
       if (orders[orderIndex].status === 'Ejecutada' || orders[orderIndex].status === 'Cerrada') {
         await supabaseClient
           .from('cat_maquinas')
           .update({ activo: true })
           .eq('equipo_towell', currentOrder.machine);
-        
-        await autoCreateBitacoraOnOTClose(orders[orderIndex], orders[orderIndex].status, combinedObservation);
       }
-      
     } catch (err) {
       console.error('Error updating technical log in Supabase:', err);
     }
   }
+
+  // Generar/actualizar SIEMPRE el registro en Bitácora de Mantenimiento
+  await autoCreateBitacoraOnOTClose(orders[orderIndex], orders[orderIndex].status, combinedObservation);
 
   // Insertar todas las subtareas creadas en esta sesión
   if (tempSubtasksToCreate.length > 0) {
