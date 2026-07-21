@@ -6510,6 +6510,101 @@ async function setWorkStatus(newStatus) {
     return;
   }
 
+  // Si es OT principal, actualizar estado
+  await updateOrderStatus(otId, newStatus);
+}
+
+// Generar registro automático en bitácora cuando una OT se da por terminada / cerrada
+async function autoCreateBitacoraOnOTClose(orderObj, status, customObs = '') {
+  if (!orderObj) return;
+
+  const otId = orderObj.id || orderObj.folio || 'OT-000';
+  const otUUID = orderObj.uuid || orderObj.id_orden || null;
+  const machine = (orderObj.machine || orderObj.maquina_id || 'NO_APLICA');
+  const area = orderObj.area || orderObj.departamento || 'AF';
+
+  let techId = orderObj.assignedTech || orderObj.cve_atendio || (currentUser ? (currentUser.id || currentUser.cve_tecnico) : null);
+  let techName = orderObj.techName || orderObj.nombre_tecnico || (currentUser ? (currentUser.name || currentUser.nombre_completo) : 'Técnico');
+
+  // Tiempos
+  const startDateStr = orderObj.date || orderObj.created_at || orderObj.fecha_carga || new Date(Date.now() - 3600000).toISOString();
+  const endDateStr = new Date().toISOString();
+
+  const startObj = new Date(startDateStr);
+  const endObj = new Date(endDateStr);
+
+  const activityDesc = `[Cierre OT: ${otId}] ${orderObj.description || orderObj.descripcion || 'Atención y resolución de Orden de Trabajo'}`;
+  
+  let partsStr = 'Sin refacciones';
+  if (orderObj.usedParts && Array.isArray(orderObj.usedParts) && orderObj.usedParts.length > 0) {
+    partsStr = orderObj.usedParts.map(p => `${p.name || p.partId} x${p.quantity || 1}`).join(', ');
+  } else if (orderObj.refacciones_usadas) {
+    partsStr = orderObj.refacciones_usadas;
+  }
+
+  const obsStr = customObs || orderObj.observations || `Orden de trabajo ${otId} finalizada con estatus ${status}.`;
+
+  // 1. Guardar en Supabase bitacora_mantenimiento si hay conexión y técnico válido
+  if (supabaseClient && techId) {
+    try {
+      const record = {
+        id_orden: otUUID,
+        cve_tecnico: techId,
+        nombre_tecnico: techName,
+        area: area,
+        maquina_id: machine === 'NO_APLICA' ? null : machine,
+        fecha_hora_inicio: startObj.toISOString(),
+        fecha_hora_fin: endObj.toISOString(),
+        descripcion_actividad: activityDesc,
+        refacciones_usadas: partsStr,
+        observaciones: obsStr,
+        activo: true
+      };
+
+      await supabaseClient.from('bitacora_mantenimiento').insert([record]);
+    } catch (err) {
+      console.warn('Nota al registrar bitacora automática en Supabase:', err);
+    }
+  }
+
+  // 2. Guardar en localStorage TSMAI_maintenance_logs
+  const localLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
+  const exists = localLogs.some(l => l.otFolio === otId);
+  if (!exists) {
+    const newLog = {
+      id: 'LOG-AUTO-' + Date.now().toString().slice(-6),
+      otFolio: otId,
+      otUUID: otUUID,
+      cve_tecnico: techId || 'T-01',
+      nombre_tecnico: techName,
+      area: area,
+      maquina_id: machine,
+      fecha_hora_inicio: startObj.toISOString(),
+      fecha_hora_fin: endObj.toISOString(),
+      descripcion_actividad: activityDesc,
+      refacciones_usadas: partsStr,
+      observaciones: obsStr,
+      date: endObj.toISOString(),
+      db_synced: !!supabaseClient
+    };
+    localLogs.unshift(newLog);
+    localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(localLogs));
+  }
+
+  // 3. Renderizar Dashboard y Bitácoras
+  renderAdminDashboard();
+  renderTechDashboard();
+  renderTechBitacora();
+  renderAdminLogsTable();
+}
+
+// Actualizar estado de una Orden de Trabajo
+async function updateOrderStatus(otId, newStatus) {
+  if (isSubtaskID(otId)) {
+    await updateSubtaskStatus(otId, newStatus);
+    return;
+  }
+
   // Es una OT normal
   if (newStatus === 'Ejecutada' || newStatus === 'Cerrada') {
     const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
@@ -6543,6 +6638,7 @@ async function setWorkStatus(newStatus) {
     if (machIndex !== -1) {
       machines[machIndex].status = 'Operativa';
     }
+    await autoCreateBitacoraOnOTClose(orders[orderIndex], newStatus, `Estado de la orden cambiado a ${newStatus}`);
   }
 
   localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
@@ -6909,6 +7005,8 @@ async function saveTechnicalLog() {
           .from('cat_maquinas')
           .update({ activo: true })
           .eq('equipo_towell', currentOrder.machine);
+        
+        await autoCreateBitacoraOnOTClose(orders[orderIndex], orders[orderIndex].status, combinedObservation);
       }
       
     } catch (err) {
