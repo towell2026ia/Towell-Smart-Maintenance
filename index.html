@@ -46,7 +46,7 @@
        ========================================================================== -->
   <div id="view-public-portal" class="public-portal view-section active">
     <!-- Navbar Pública -->
-    <header class="public-navbar">
+    <header class="public-navbar" style="display: none;">
       <div style="display: flex; align-items: center;">
         <div class="public-logo" onclick="showPublicPanel('home')" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
           <img src="images/logo.png" id="app-logo-img" alt="Logo" style="height: 42px;">
@@ -69,9 +69,8 @@
       <div class="split-login-container">
         <!-- Lado Izquierdo: Azul Logo -->
         <div class="split-left-hero">
-          <div class="split-hero-logo" style="margin-bottom: 40px; display: flex; align-items: center; gap: 16px;">
-            <img src="images/logo.png" alt="Towell Logo" style="height: 64px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15));">
-            <span style="font-weight: 800; font-size: 2.2rem; letter-spacing: 1px; color: white;">TSM<span style="color: #38bdf8;">-AI</span></span>
+          <div class="split-hero-logo" style="margin-bottom: 40px; display: flex; justify-content: flex-start; align-items: center;">
+            <img src="images/logo.png" alt="Towell Logo" style="height: 140px; filter: drop-shadow(0 8px 12px rgba(0,0,0,0.25)); border-radius: 12px;">
           </div>
           <h1 style="font-size: 3rem; font-weight: 850; color: white; margin-bottom: 24px; line-height: 1.2; background: linear-gradient(to right, #ffffff, #93c5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: left;">Optimiza el flujo de planta con TSM-AI</h1>
           <p style="font-size: 1.25rem; color: #cbd5e1; line-height: 1.6; max-width: 550px; margin: 0; text-align: left;">Centro inteligente de solicitudes de mantenimiento, bitácoras operativas y control ejecutivo para Towell Smart Maintenance.</p>
