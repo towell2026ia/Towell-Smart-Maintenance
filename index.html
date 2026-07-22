@@ -3208,6 +3208,77 @@
         </form>
       </div>
     </div>
+  <!-- Modal: Detalles de Recomendación Predictiva IA -->
+  <div class="modal-overlay" id="modal-predictive-recommendation-details">
+    <div class="modal-card" style="max-width: 550px; background: #0f172a; border: 1px solid #1e293b; color: white; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+      <div class="modal-header" style="border-bottom: 1px solid #1e293b; padding: 16px 20px;">
+        <h4 style="font-weight:700; margin:0; font-size:1.2rem; display:flex; align-items:center; gap:8px; color: #38bdf8;">
+          <span>🔬 Análisis Predictivo IA</span>
+        </h4>
+        <button class="btn-close-modal" onclick="closeModal('modal-predictive-recommendation-details')" style="color: #94a3b8; font-size: 1.5rem;">×</button>
+      </div>
+      <div class="modal-body" style="padding: 20px; overflow-y: auto; max-height: 70vh;">
+        <!-- Header Info -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: rgba(56, 189, 248, 0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.15);">
+          <div>
+            <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8;">Máquina Recomendada</div>
+            <div id="pred-rec-machine" style="font-weight: 700; font-size: 1.25rem; color: white;">--</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8;">Prioridad Asignada</div>
+            <div id="pred-rec-priority" style="font-weight: 700; font-size: 1.1rem; color: #f43f5e;">--</div>
+          </div>
+        </div>
+
+        <!-- Risk Bar -->
+        <div style="margin-bottom: 20px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom: 6px;">
+            <span style="font-weight:600; font-size:0.9rem; color:#e2e8f0;">Riesgo Estimado de Falla</span>
+            <span id="pred-rec-risk-label" style="font-weight:700; font-size:0.9rem; color:#f43f5e;">0/10</span>
+          </div>
+          <div style="width:100%; height:10px; background:#1e293b; border-radius:5px; overflow:hidden;">
+            <div id="pred-rec-risk-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #3b82f6, #f43f5e); border-radius:5px; transition: width 0.5s ease-in-out;"></div>
+          </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+          <div style="background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; font-weight:600;">Tipo de Revisión</div>
+            <div id="pred-rec-type" style="font-size: 0.9rem; font-weight: 700; color: #e2e8f0;">--</div>
+          </div>
+          <div style="background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; font-weight:600;">Especialidad Requerida</div>
+            <div id="pred-rec-specialty" style="font-size: 0.9rem; font-weight: 700; color: #e2e8f0;">--</div>
+          </div>
+        </div>
+
+        <!-- Motivos (List) -->
+        <div style="margin-bottom: 20px;">
+          <h5 style="font-size:0.95rem; font-weight:700; margin:0 0 8px 0; color:#38bdf8;">Motivos de la Recomendación:</h5>
+          <ul id="pred-rec-motivos-list" style="margin: 0; padding-left: 20px; color: #cbd5e1; font-size: 0.9rem; line-height: 1.5;">
+            <!-- Dinámico -->
+          </ul>
+        </div>
+
+        <!-- Evidencia Histórica -->
+        <div style="background: rgba(15, 23, 42, 0.5); padding: 14px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 20px;">
+          <h5 style="font-size:0.9rem; font-weight:700; margin:0 0 6px 0; color:#94a3b8;">Evidencia Histórica Analizada:</h5>
+          <div id="pred-rec-evidence" style="color: #e2e8f0; font-size: 0.85rem; line-height: 1.5; font-style: italic;">
+            --
+          </div>
+        </div>
+
+        <!-- Proposed Date Info -->
+        <div style="font-size: 0.85rem; color: #94a3b8; text-align: center; border-top: 1px solid #1e293b; padding-top: 12px;">
+          Fecha de intervención recomendada: <strong id="pred-rec-date" style="color: white;">--</strong>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top: 1px solid #1e293b; padding: 16px 20px; display: flex; justify-content: flex-end; gap: 10px; background: rgba(15, 23, 42, 0.4);">
+        <button type="button" class="btn-action-secondary" onclick="closeModal('modal-predictive-recommendation-details')" style="background: transparent; color: #94a3b8; border: 1px solid #475569; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Cerrar Análisis</button>
+        <button type="button" id="pred-rec-approve-btn" class="btn-action-primary" style="background: #22c55e; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.2);">Aprobar OT</button>
+      </div>
+    </div>
   </div>
 
   <!-- ==========================================================================

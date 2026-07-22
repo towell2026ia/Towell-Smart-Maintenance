@@ -10359,18 +10359,20 @@ async function handleGenerateCalendarProposal(event) {
     if (hErr) throw hErr;
     const newCalId = headerData[0].id_calendario;
 
-    // B. Obtener catálogos
-    const [ordRes, plansRes, machinesRes, techsRes] = await Promise.all([
-      supabaseClient.from('ordenes_trabajo').select('fecha_carga, maquina_id'),
+    // B. Obtener catálogos y registros históricos completos
+    const [ordRes, plansRes, machinesRes, techsRes, bitacoraRes] = await Promise.all([
+      supabaseClient.from('ordenes_trabajo').select('id_orden, folio, fecha_carga, maquina_id, descripcion, estatus, prioridad, orden_trabajo, tiempo_atencion_min, fecha_hora_inicio, fecha_hora_fin'),
       supabaseClient.from('planes_mantenimiento_preventivo').select('*').eq('activo', true),
       supabaseClient.from('cat_maquinas').select('*').eq('activo', true),
-      supabaseClient.from('cat_tecnicos').select('*').eq('activo', true)
+      supabaseClient.from('cat_tecnicos').select('*').eq('activo', true),
+      supabaseClient.from('bitacora_mantenimiento').select('*')
     ]);
 
     const activePlans = plansRes.data || [];
     const activeMachines = machinesRes.data || [];
     const activeTechs = techsRes.data || [];
     const allOts = ordRes.data || [];
+    const allLogs = bitacoraRes.data || [];
 
     const detailsToInsert = [];
     const dayWorkload = {}; // Mapeo de carga por día para evitar colisiones
@@ -10467,34 +10469,179 @@ async function handleGenerateCalendarProposal(event) {
         }
       }
     } else if (type === 'PREDICTIVO') {
-      // Predictivo Mensual: Generar propuestas a partir de fallas acumuladas de máquinas
-      const failCounts = {};
-      allOts.forEach(o => {
-        if (o.maquina_id) failCounts[o.maquina_id] = (failCounts[o.maquina_id] || 0) + 1;
-      });
+      // Predictivo Mensual: Generar propuestas a partir del análisis estadístico e histórico (IA Engine)
+      const candidates = [];
+      const nowTime = new Date();
 
-      // Ordenar máquinas por recurrencia
-      const sortedMachines = activeMachines.sort((a, b) => (failCounts[b.equipo_towell] || 0) - (failCounts[a.equipo_towell] || 0));
-      
-      // Proponer predictivos para las máquinas con fallas este mes
+      for (const machine of activeMachines) {
+        const machId = machine.equipo_towell;
+        const machOts = allOts.filter(o => o.maquina_id === machId);
+        const machLogs = allLogs.filter(l => l.maquina_id === machId);
+
+        // 1. Fallas en los últimos 60 días
+        const sixtyDaysAgo = new Date();
+        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+        const recentOts = machOts.filter(o => o.orden_trabajo !== 'MP' && new Date(o.fecha_carga) >= sixtyDaysAgo);
+        const recentFailsCount = recentOts.length;
+
+        // 2. Repetición del mismo tipo de falla / palabras clave
+        const descWords = recentOts.map(o => (o.descripcion || '').toLowerCase());
+        const keywords = ['temperatura', 'calentamiento', 'caliente', 'vibracion', 'ruido', 'balero', 'rodamiento', 'fuga', 'presion', 'aceite', 'aire', 'motor', 'electrico', 'mecanico', 'polea', 'transmision'];
+        const keywordCounts = {};
+        keywords.forEach(k => {
+          keywordCounts[k] = descWords.filter(w => w.includes(k)).length;
+        });
+
+        let maxKeyword = '';
+        let maxCount = 0;
+        Object.entries(keywordCounts).forEach(([k, c]) => {
+          if (c > maxCount) {
+            maxCount = c;
+            maxKeyword = k;
+          }
+        });
+
+        // 3. Tiempo de paro acumulado (Downtime)
+        let totalDowntimeHours = 0;
+        machOts.forEach(o => {
+          if (o.tiempo_atencion_min) {
+            totalDowntimeHours += (o.tiempo_atencion_min / 60);
+          } else if (o.fecha_hora_inicio && o.fecha_hora_fin) {
+            const diffMs = new Date(o.fecha_hora_fin) - new Date(o.fecha_hora_inicio);
+            totalDowntimeHours += Math.max(0, diffMs / (1000 * 60 * 60));
+          }
+        });
+
+        // 4. Último mantenimiento predictivo o preventivo
+        let lastMaint = null;
+        machOts.forEach(o => {
+          if (o.orden_trabajo === 'MP' || o.orden_trabajo === 'MC') {
+            const d = new Date(o.fecha_carga);
+            if (!lastMaint || d > lastMaint) lastMaint = d;
+          }
+        });
+        machLogs.forEach(l => {
+          const d = new Date(l.fecha_hora_inicio);
+          if (!lastMaint || d > lastMaint) lastMaint = d;
+        });
+
+        const daysSinceLastMaint = lastMaint ? Math.floor((nowTime - lastMaint) / (1000 * 60 * 60 * 24)) : 999;
+
+        // 5. Estacionalidad: Fallas en este mes en años anteriores
+        const targetMonth = month;
+        const seasonalFails = machOts.filter(o => {
+          const d = new Date(o.fecha_carga);
+          return d.getMonth() === targetMonth && d.getFullYear() < year;
+        }).length;
+
+        // 6. Cálculo del Score de Riesgo (0-10)
+        let riskScore = 0;
+
+        const crit = (machine.criticidad || machine.prioridad_default || 'B').toUpperCase().trim();
+        if (crit.includes('A') || crit.includes('CRITICA') || crit.includes('CRÍTICA')) riskScore += 3.0;
+        else if (crit.includes('B') || crit.includes('MEDIA')) riskScore += 1.5;
+        else riskScore += 0.5;
+
+        riskScore += Math.min(3.0, recentFailsCount * 0.75);
+        if (maxCount >= 2) riskScore += 1.5;
+        riskScore += Math.min(1.5, totalDowntimeHours * 0.05);
+        if (daysSinceLastMaint > 30) riskScore += 1.0;
+
+        riskScore = parseFloat(riskScore.toFixed(1));
+
+        // 7. Determinar Tipo de Revisión e Inspector sugerido
+        let revType = 'Inspección predictiva termográfica y de vibraciones';
+        let specialty = 'Electromecánico';
+        if (maxKeyword) {
+          if (['temperatura', 'calentamiento', 'caliente'].includes(maxKeyword)) {
+            revType = 'Termografía infrarroja de tableros y rodamientos';
+            specialty = 'Eléctrico / Termógrafo';
+          } else if (['vibracion', 'ruido', 'balero', 'rodamiento'].includes(maxKeyword)) {
+            revType = 'Análisis de vibraciones y holguras mecánicas';
+            specialty = 'Mecánico / Vibraciones';
+          } else if (['fuga', 'presion', 'aire', 'aceite', 'hidraulico'].includes(maxKeyword)) {
+            revType = 'Detección de fugas por ultrasonido e inspección neumática';
+            specialty = 'Mecánico / Neumático';
+          }
+        }
+
+        // 8. Construir motivos estructurados
+        const motivos = [];
+        if (recentFailsCount > 0) {
+          motivos.push(`Registra ${recentFailsCount} falla(s) en los últimos 60 días.`);
+        }
+        if (maxCount >= 2) {
+          motivos.push(`Se detecta repetibilidad de fallas asociadas a: "${maxKeyword}" (${maxCount} eventos).`);
+        }
+        if (totalDowntimeHours > 0) {
+          motivos.push(`Ha acumulado ${totalDowntimeHours.toFixed(1)} horas de paro en producción.`);
+        }
+        if (lastMaint) {
+          motivos.push(`Último mantenimiento realizado hace ${daysSinceLastMaint} días (${lastMaint.toLocaleDateString('es-MX')}).`);
+        } else {
+          motivos.push(`No registra antecedentes de mantenimientos preventivos o predictivos.`);
+        }
+        if (seasonalFails > 0) {
+          motivos.push(`Este equipo tiene historial de fallas recurrentes en el mes seleccionado en años anteriores (${seasonalFails} fallas anteriores).`);
+        }
+        if (crit.includes('A') || crit.includes('CRITICA')) {
+          motivos.push(`Equipo catalogado como crítico (Criticidad Alta).`);
+        }
+
+        const otRefs = recentOts.slice(0, 3).map(o => o.folio).join(', ');
+        const evidencia = otRefs ? `Órdenes de Trabajo de referencia: [${otRefs}]. Tiempo de paro acumulado: ${totalDowntimeHours.toFixed(1)} hrs.` : `Sin registros de órdenes recientes. Analizado contra catálogo histórico general.`;
+
+        let finalPriority = 'MEDIA';
+        if (riskScore >= 6.0) finalPriority = 'CRÍTICA';
+        else if (riskScore >= 4.0) finalPriority = 'ALTA';
+        else if (riskScore < 2.5) finalPriority = 'BAJA';
+
+        if (riskScore >= 2.5) {
+          candidates.push({
+            maquina_id: machId,
+            riskScore: riskScore,
+            prioridad: finalPriority,
+            actividad_sugerida: `Análisis Predictivo: ${revType}`,
+            responsable_sugerido: activeTechs.find(t => (t.especialidad || '').toLowerCase().includes(specialty.split(' ')[0].toLowerCase()))?.nombre_tecnico || activeTechs[Math.floor(Math.random() * activeTechs.length)]?.nombre_tecnico || 'Supervisor',
+            tipo_revision: revType,
+            especialidad: specialty,
+            motivos: motivos,
+            evidencia: evidencia
+          });
+        }
+      }
+
+      candidates.sort((a, b) => b.riskScore - a.riskScore);
+
       let count = 0;
-      for (const machine of sortedMachines) {
-        if (count >= 10) break; // Límite de 10 inspecciones predictivas sugeridas por mes
-        
-        const day = 5 + (count * 2); // Espaciar días en el mes
+      for (const candidate of candidates) {
+        if (count >= 10) break;
+
+        const day = 5 + (count * 2);
         const projDate = new Date(year, month, day);
         const balancedDateStr = getBalancedDate(projDate);
 
+        const obsJson = {
+          motivos: candidate.motivos,
+          riesgo_estimado: `${candidate.riskScore}/10 (${candidate.prioridad})`,
+          tipo_revision: candidate.tipo_revision,
+          especialidad: candidate.especialidad,
+          evidencia: candidate.evidencia
+        };
+
         detailsToInsert.push({
           id_calendario: newCalId,
-          maquina_id: machine.equipo_towell,
+          maquina_id: candidate.maquina_id,
           fecha_programada: balancedDateStr,
           tipo_mantenimiento: 'PREDICTIVO',
-          prioridad: 'ALTA',
-          actividad_sugerida: `Inspección predictiva de vibraciones y temperatura - IA`,
-          responsable_sugerido: activeTechs[Math.floor(Math.random() * activeTechs.length)]?.nombre_tecnico || 'Supervisor',
+          prioridad: candidate.prioridad,
+          actividad_sugerida: candidate.actividad_sugerida,
+          responsable_sugerido: candidate.responsable_sugerido,
+          score_riesgo: candidate.riskScore,
+          observaciones: JSON.stringify(obsJson),
           estatus_detalle: 'PROPUESTO'
         });
+
         count++;
       }
     } else if (type === 'AUTONOMO') {
@@ -10585,11 +10732,20 @@ async function renderAdminCalendars() {
       if (d.estatus_detalle === 'APROBADO') badgeClass = 'badge-status-ejecutada';
       else if (d.estatus_detalle === 'PROPUESTO') badgeClass = 'badge-priority-media';
 
-      const actions = d.estatus_detalle === 'PROPUESTO' ? `
-        <button class="btn-table-action" onclick="approveProposalDetail('${d.id_detalle}')" style="background:#22c55e; color:white; border:none; margin-right:4px;">Aprobar</button>
-        <button class="btn-table-action" onclick="openEditProposalDateModal('${d.id_detalle}', '${d.maquina_id}', '${d.actividad_sugerida}', '${d.fecha_programada}')" style="margin-right:4px;">Reprogramar</button>
-        <button class="btn-table-action" onclick="deleteProposalDetail('${d.id_detalle}')" style="background:#ef4444; color:white; border:none;">Eliminar</button>
-      ` : `<span style="color:#22c55e;font-weight:700;">OT Generada (${d.id_orden_generada ? 'Sincronizada' : 'Pendiente'})</span>`;
+      let actions = '';
+      if (d.estatus_detalle === 'PROPUESTO') {
+        const iaBtn = d.tipo_mantenimiento === 'PREDICTIVO' && d.observaciones ? `
+          <button class="btn-table-action" onclick="showPredictiveRecommendation('${d.id_detalle}')" style="background:#0284c7; color:white; border:none; margin-right:4px;">🔬 Ver Recomendación IA</button>
+        ` : '';
+        actions = `
+          ${iaBtn}
+          <button class="btn-table-action" onclick="approveProposalDetail('${d.id_detalle}')" style="background:#22c55e; color:white; border:none; margin-right:4px;">Aprobar</button>
+          <button class="btn-table-action" onclick="openEditProposalDateModal('${d.id_detalle}', '${d.maquina_id}', '${d.actividad_sugerida}', '${d.fecha_programada}')" style="margin-right:4px;">Reprogramar</button>
+          <button class="btn-table-action" onclick="deleteProposalDetail('${d.id_detalle}')" style="background:#ef4444; color:white; border:none;">Eliminar</button>
+        `;
+      } else {
+        actions = `<span style="color:#22c55e;font-weight:700;">OT Generada (${d.id_orden_generada ? 'Sincronizada' : 'Pendiente'})</span>`;
+      }
 
       html += `
         <tr>
@@ -10825,5 +10981,93 @@ async function approveCalendar() {
     showToast('❌ Error en aprobación masiva.', 'error');
   }
 }
+
+// 9. Mostrar Detalle de Recomendación Predictiva IA
+async function showPredictiveRecommendation(detailId) {
+  if (!supabaseClient) return;
+  showToast('🔍 Obteniendo análisis predictivo...');
+
+  try {
+    const { data: d, error } = await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .select('*')
+      .eq('id_detalle', detailId)
+      .single();
+
+    if (error) throw error;
+    if (!d || !d.observaciones) {
+      showToast('⚠️ No se encontró análisis predictivo asociado.', 'warning');
+      return;
+    }
+
+    // Parsear observaciones JSON
+    let obs = {};
+    try {
+      obs = JSON.parse(d.observaciones);
+    } catch (e) {
+      console.warn('Fallo al parsear observaciones predictivas:', e);
+      obs = { motivos: [d.observaciones] };
+    }
+
+    // Poblar modal
+    document.getElementById('pred-rec-machine').textContent = d.maquina_id;
+    document.getElementById('pred-rec-priority').textContent = d.prioridad || 'MEDIA';
+    
+    // Calcular porcentaje de barra de riesgo
+    const scoreStr = (obs.riesgo_estimado || '0').split('/')[0];
+    const scoreVal = parseFloat(scoreStr) || 0;
+    const barPercent = Math.min(100, scoreVal * 10);
+    
+    document.getElementById('pred-rec-risk-label').textContent = `${scoreVal}/10`;
+    const riskBar = document.getElementById('pred-rec-risk-bar');
+    if (riskBar) {
+      riskBar.style.width = `${barPercent}%`;
+      // Cambiar color basado en severidad
+      if (scoreVal >= 6.0) riskBar.style.background = '#f43f5e'; // Rojo
+      else if (scoreVal >= 4.0) riskBar.style.background = '#fbbf24'; // Amarillo
+      else riskBar.style.background = '#3b82f6'; // Azul
+    }
+
+    document.getElementById('pred-rec-type').textContent = obs.tipo_revision || 'Inspección Predictiva General';
+    document.getElementById('pred-rec-specialty').textContent = obs.especialidad || 'Electromecánico';
+
+    // Lista de motivos
+    const motivosList = document.getElementById('pred-rec-motivos-list');
+    if (motivosList) {
+      motivosList.innerHTML = '';
+      const motivosArr = obs.motivos || [];
+      if (motivosArr.length === 0) {
+        motivosList.innerHTML = `<li>No hay motivos de alta prioridad detectados. Revisión sugerida rutinaria.</li>`;
+      } else {
+        motivosArr.forEach(m => {
+          motivosList.innerHTML += `<li>${m}</li>`;
+        });
+      }
+    }
+
+    document.getElementById('pred-rec-evidence').textContent = obs.evidencia || 'Sin evidencias externas registradas.';
+    document.getElementById('pred-rec-date').textContent = fmtDate(d.fecha_programada);
+
+    // Botón Aprobación
+    const approveBtn = document.getElementById('pred-rec-approve-btn');
+    if (approveBtn) {
+      if (d.estatus_detalle === 'PROPUESTO') {
+        approveBtn.style.display = 'block';
+        approveBtn.onclick = async () => {
+          closeModal('modal-predictive-recommendation-details');
+          await approveProposalDetail(detailId);
+        };
+      } else {
+        approveBtn.style.display = 'none';
+      }
+    }
+
+    openModal('modal-predictive-recommendation-details');
+  } catch (err) {
+    console.error('[showPredictiveRecommendation] Error loading recommendations:', err);
+    showToast('❌ Error al cargar la recomendación.', 'error');
+  }
+}
+
 
 
