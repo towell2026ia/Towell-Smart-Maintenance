@@ -947,6 +947,52 @@ async function loadChecklistAnalysis() {
 }
 
 // ============================================================
+// 9.5. PRESUPUESTO ANUAL DE MANTENIMIENTO POR MES (KPI REFACCIONES)
+// ============================================================
+
+async function loadAnnualBudgetKPI() {
+  const elBudget = document.getElementById('kpi-annual-budget');
+  const elMeta = document.getElementById('kpi-annual-budget-meta');
+  if (!elBudget) return;
+
+  try {
+    const { data: refParts } = await db
+      .from('cat_refacciones')
+      .select('maquina_id, cantidad_estandar, costo_unitario, precio_costo_unitario');
+
+    const machineCostMap = {};
+    (refParts || []).forEach(r => {
+      const mId = r.maquina_id || 'GENERAL';
+      const qty = parseFloat(r.cantidad_estandar) || 1;
+      const price = parseFloat(r.costo_unitario || r.precio_costo_unitario) || 0;
+      machineCostMap[mId] = (machineCostMap[mId] || 0) + (qty * price);
+    });
+
+    let totalBaseRefacciones = 0;
+    for (const mId in machineCostMap) {
+      totalBaseRefacciones += machineCostMap[mId];
+    }
+
+    // Presupuesto mensual programado para los 3 calendarios (MP 100%, PDC 75%, MA 25%)
+    const monthlyPreventive = totalBaseRefacciones * 1.0;
+    const monthlyPredictive = totalBaseRefacciones * 0.75;
+    const monthlyAutonomous = totalBaseRefacciones * 0.25;
+
+    const monthlyBudget = Math.round(monthlyPreventive + monthlyPredictive + monthlyAutonomous);
+    const annualBudget = Math.round(monthlyBudget * 12);
+
+    elBudget.innerHTML = '';
+    animateCounter(elBudget, monthlyBudget, ' MXN/mes', 0);
+    if (elMeta) {
+      elMeta.innerHTML = `<span>$${annualBudget.toLocaleString('es-MX')} MXN</span> Anual (3 Calendarios MP, PDC, MA)`;
+    }
+  } catch (err) {
+    console.error('[loadAnnualBudgetKPI] Error:', err);
+    elBudget.textContent = '—';
+  }
+}
+
+// ============================================================
 // 10. MAIN ORCHESTRATOR
 // ============================================================
 
@@ -955,6 +1001,7 @@ async function loadDashboard() {
 
   await Promise.allSettled([
     loadKPIs(),
+    loadAnnualBudgetKPI(),
     loadTechChart(),
     loadDeptChart(),
     loadBottlenecks(),
