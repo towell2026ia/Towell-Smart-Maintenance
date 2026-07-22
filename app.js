@@ -1563,11 +1563,14 @@ async function handleRequestSubmit(event) {
     applicant_code: cveSolicitante,
     shift: shift,
     area: area,
+    plant: area === 'AF' ? 'Planta General' : (area === 'CF' ? 'Planta 2 (Confección)' : 'Planta 1 (Tejido)'),
+    department: area,
     machine: machine,
     type: type,
     description: description,
     machineStopped: machineStopped,
     urgency: urgency,
+    risk: machineStopped === 'Sí' ? 'Alto' : 'Medio',
     status: 'Solicitud recibida',
     date: new Date().toISOString(),
     evidence: evidenceFile
@@ -1601,6 +1604,130 @@ async function handleRequestSubmit(event) {
   document.getElementById('confirm-folio').innerText = reqId;
   showPublicPanel('confirm');
   showToast(`Solicitud ${reqId} registrada correctamente.`);
+}
+
+// --- ACCIONES DE CREACIÓN DE SOLICITUD POR SUPERADMINISTRADOR ---
+function openAdminCreateRequestModal() {
+  document.getElementById('form-admin-create-request').reset();
+  
+  // Populate datalist employees-list-admin
+  const datalist = document.getElementById('employees-list-admin');
+  if (datalist) {
+    const list = window.publicEmployeesList || [];
+    datalist.innerHTML = list.map(e => `<option value="${e.nombre_empleado}"></option>`).join('');
+  }
+
+  openModal('modal-admin-create-request');
+}
+
+function loadMachinesForAdminArea(areaCode) {
+  const machineSelect = document.getElementById('admin-req-machine');
+  if (!machineSelect) return;
+  
+  if (!areaCode) {
+    machineSelect.innerHTML = '<option value="">Selecciona área primero</option>';
+    machineSelect.disabled = true;
+    return;
+  }
+
+  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const filtered = machines.filter(m => (m.area === areaCode || m.departamento_codigo === areaCode || areaCode === 'General') && m.activo !== false);
+
+  let html = '<option value="">Selecciona Máquina / Equipo</option>';
+  filtered.forEach(m => {
+    const critBadge = m.criticality ? ` [Criticidad ${m.criticality}]` : '';
+    html += `<option value="${m.id}">${m.name} (${m.id})${critBadge}</option>`;
+  });
+
+  machineSelect.innerHTML = html;
+  machineSelect.disabled = false;
+}
+
+async function handleAdminRequestSubmit(event) {
+  event.preventDefault();
+
+  const name = document.getElementById('admin-req-name').value;
+  const plant = document.getElementById('admin-req-plant').value;
+  const area = document.getElementById('admin-req-area').value;
+  const dept = document.getElementById('admin-req-department').value;
+  const machine = document.getElementById('admin-req-machine').value;
+  const shift = document.getElementById('admin-req-shift').value;
+  const type = document.getElementById('admin-req-type').value;
+  const urgency = document.getElementById('admin-req-urgency').value;
+  const risk = document.getElementById('admin-req-risk').value;
+  const machineStopped = document.querySelector('input[name="admin-req-stopped"]:checked').value;
+  const description = document.getElementById('admin-req-description').value;
+
+  // Generar folio de negocio
+  const prefix = area;
+  const combinedList = [
+    ...(JSON.parse(localStorage.getItem('TSMAI_requests') || '[]')),
+    ...(JSON.parse(localStorage.getItem('TSMAI_orders') || '[]'))
+  ];
+  
+  let maxNum = 0;
+  combinedList.forEach(o => {
+    const idStr = o.id || '';
+    if (idStr.includes(prefix)) {
+      const match = idStr.match(/\d+/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  });
+
+  let nextConsecutive = maxNum + 1;
+  let reqId = `${prefix}${String(nextConsecutive).padStart(5, '0')}`;
+
+  const matchedEmp = (window.publicEmployeesList || []).find(
+    e => e.nombre_empleado && e.nombre_empleado.trim().toLowerCase() === name.trim().toLowerCase()
+  );
+  const cveSolicitante = matchedEmp ? matchedEmp.cve_empleado : null;
+
+  const newRequest = {
+    id: reqId,
+    applicant: name,
+    applicant_code: cveSolicitante,
+    plant: plant,
+    area: area,
+    department: dept,
+    machine: machine,
+    shift: shift,
+    type: type,
+    urgency: urgency,
+    risk: risk,
+    machineStopped: machineStopped,
+    description: description,
+    status: 'Solicitud recibida',
+    date: new Date().toISOString()
+  };
+
+  // Insertar en Supabase / LocalCache
+  await dbInsertRequest(newRequest);
+
+  // Si la máquina está parada, actualizar estado
+  if (machineStopped === 'Sí') {
+    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const machineIndex = machines.findIndex(m => m.id === machine);
+    if (machineIndex !== -1) {
+      machines[machineIndex].status = 'Parada';
+      localStorage.setItem('TSMAI_machines', JSON.stringify(machines));
+    }
+    if (supabaseClient) {
+      try {
+        await supabaseClient.from('cat_maquinas').update({ activo: false }).eq('equipo_towell', machine);
+      } catch (err) {
+        console.error('Error updating machine status in Supabase:', err);
+      }
+    }
+  }
+
+  closeModal('modal-admin-create-request');
+  showToast(`✅ Solicitud ${reqId} registrada exitosamente.`);
+
+  await syncDatabases();
+  refreshActiveViewSilently();
 }
 
 // Copiar folio
