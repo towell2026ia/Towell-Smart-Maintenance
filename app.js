@@ -1477,6 +1477,12 @@ function showPublicPanel(panelName) {
   }
   localStorage.setItem('TSMAI_current_route', route);
   
+  // Ocultar barra de navegación superior en el Home (Split screen bienvenida) y mostrarla en otros paneles
+  const publicNavbar = document.querySelector('.public-navbar');
+  if (publicNavbar) {
+    publicNavbar.style.display = (panelName === 'home') ? 'none' : 'flex';
+  }
+  
   // Mostrar u ocultar botón de regresar en el portal público
   const backBtn = document.getElementById('btn-public-back');
   if (backBtn) {
@@ -1887,46 +1893,65 @@ function handleSearchFolio() {
 
 // --- CONTROL DE LOGIN ---
 function openLogin(mode) {
-  document.getElementById('form-login').reset();
-  
-  const demoBox = document.getElementById('login-demo-box');
-  const loginForm = document.getElementById('form-login');
-  
-  if (mode === 'users') {
-    // Acceso de usuarios con correo/contraseña
-    document.querySelector('.login-logo h2').innerText = '🔐 Acceso de Usuarios';
-    document.querySelector('.login-logo p').innerText = 'Ingresa tus credenciales oficiales';
-    document.getElementById('login-email').value = '';
-    document.getElementById('login-password').value = '';
-    document.getElementById('login-role-target').value = 'users';
-    
-    if (demoBox) demoBox.style.display = 'none';
-    if (loginForm) loginForm.style.display = 'block';
-  } else if (mode === 'demo') {
-    // Acceso rápido para demostración
-    document.querySelector('.login-logo h2').innerText = '🚀 Demo de Prueba / Roles';
-    document.querySelector('.login-logo p').innerText = 'Selecciona un rol para interactuar';
-    document.getElementById('login-role-target').value = 'demo';
-    
-    if (demoBox) demoBox.style.display = 'block';
-    if (loginForm) loginForm.style.display = 'none';
-  } else {
-    // Fallback retrocompatible
-    document.getElementById('login-role-target').value = mode;
-    const label = mode === 'admin' ? 'Acceso Super Administrador' : 'Acceso Equipo de Mantenimiento';
-    document.querySelector('.login-logo h2').innerText = label;
-    if (mode === 'admin') {
-      document.getElementById('login-email').value = 'admin@tsm-ai.com';
-      document.getElementById('login-password').value = 'admin123';
-    } else {
-      document.getElementById('login-email').value = 'carlos@tsm-ai.com';
-      document.getElementById('login-password').value = 'tech123';
-    }
-    if (demoBox) demoBox.style.display = 'block';
-    if (loginForm) loginForm.style.display = 'block';
-  }
+  showView('public-portal');
+  showPublicPanel('home');
+  switchLoginTab(mode === 'demo' ? 'demo' : 'users');
+}
 
-  showView('login');
+function switchLoginTab(tab) {
+  const usersForm = document.getElementById('split-form-login');
+  const demoBox = document.getElementById('split-demo-box');
+  const btnUsers = document.getElementById('tab-btn-users');
+  const btnDemo = document.getElementById('tab-btn-demo');
+
+  if (!usersForm || !demoBox || !btnUsers || !btnDemo) return;
+
+  if (tab === 'users') {
+    usersForm.style.display = 'block';
+    demoBox.style.display = 'none';
+    
+    // Activo
+    btnUsers.style.background = 'white';
+    btnUsers.style.color = '#0f172a';
+    btnUsers.style.fontWeight = '600';
+    btnUsers.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+    
+    btnDemo.style.background = 'transparent';
+    btnDemo.style.color = '#64748b';
+    btnDemo.style.fontWeight = '500';
+    btnDemo.style.boxShadow = 'none';
+  } else {
+    usersForm.style.display = 'none';
+    demoBox.style.display = 'block';
+
+    // Activo
+    btnDemo.style.background = 'white';
+    btnDemo.style.color = '#0f172a';
+    btnDemo.style.fontWeight = '600';
+    btnDemo.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+    
+    btnUsers.style.background = 'transparent';
+    btnUsers.style.color = '#64748b';
+    btnUsers.style.fontWeight = '500';
+    btnUsers.style.boxShadow = 'none';
+  }
+}
+
+async function handleSplitLoginSubmit(event) {
+  event.preventDefault();
+  
+  const emailInput = document.getElementById('login-email');
+  const passInput = document.getElementById('login-password');
+  const roleInput = document.getElementById('login-role-target');
+  
+  if (emailInput && passInput) {
+    emailInput.value = document.getElementById('split-login-email').value.trim();
+    passInput.value = document.getElementById('split-login-password').value.trim();
+    if (roleInput) roleInput.value = 'users';
+    
+    // Ejecutar el login submit original
+    await handleLoginSubmit(event);
+  }
 }
 
 async function quickLogin(role, techId) {

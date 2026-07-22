@@ -1684,3 +1684,93 @@ body {
 #excel-preview-container tr:hover {
   background-color: #f8fafc;
 }
+
+/* ==========================================================================
+   Diseño Dividido (Split Layout) para Pantalla de Acceso / Bienvenida
+   ========================================================================== */
+.split-login-container {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.split-left-hero {
+  flex: 1.2;
+  background: #0f172a; /* Azul de logo */
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 80px;
+  box-shadow: inset -20px 0 30px -10px rgba(0, 0, 0, 0.15);
+}
+
+.split-right-login {
+  flex: 0.8;
+  background: #fdfcf7; /* Blanco / Crema */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.split-login-card {
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 36px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+}
+
+.split-login-tabs {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  border: 1px solid #e2e8f0;
+}
+
+.split-login-tabs button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-weight: 500;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.split-login-tabs button:focus {
+  outline: none;
+}
+
+@media (max-width: 900px) {
+  .split-login-container {
+    flex-direction: column;
+  }
+  .split-left-hero {
+    padding: 40px 20px;
+    text-align: center;
+    align-items: center;
+  }
+  .split-hero-logo {
+    justify-content: center;
+  }
+  .split-left-hero h1 {
+    font-size: 2.2rem !important;
+  }
+  .split-left-hero p {
+    text-align: center;
+    margin: 0 auto;
+  }
+  .split-right-login {
+    padding: 30px 15px;
+  }
+}

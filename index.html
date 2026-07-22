@@ -64,21 +64,71 @@
       </nav>
     </header>
 
-    <!-- Panel 1.1: Home del Solicitante -->
-    <main id="panel-public-home" class="portal-hero">
-      <h1>Optimiza el flujo de planta con <span>TSM-AI</span></h1>
-      <p>Centro inteligente de solicitudes de mantenimiento, bitácoras operativas y control ejecutivo para Towell Smart Maintenance.</p>
-      
-      <div class="portal-actions-grid">
-        <div class="portal-card" onclick="showPublicPanel('create')">
-          <div class="portal-card-icon">➕</div>
-          <h3>Nueva Solicitud de Servicio</h3>
-          <p>Reporta fallas mecánicas, eléctricas, de infraestructura o solicitudes especiales en las áreas de planta.</p>
+    <!-- Panel 1.1: Home del Solicitante (Split Layout Acceso/Landing) -->
+    <main id="panel-public-home" style="display: block; margin: 0; padding: 0; width: 100%; min-height: 100vh;">
+      <div class="split-login-container">
+        <!-- Lado Izquierdo: Azul Logo -->
+        <div class="split-left-hero">
+          <div class="split-hero-logo" style="margin-bottom: 40px; display: flex; align-items: center; gap: 16px;">
+            <img src="images/logo.png" alt="Towell Logo" style="height: 64px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15));">
+            <span style="font-weight: 800; font-size: 2.2rem; letter-spacing: 1px; color: white;">TSM<span style="color: #38bdf8;">-AI</span></span>
+          </div>
+          <h1 style="font-size: 3rem; font-weight: 850; color: white; margin-bottom: 24px; line-height: 1.2; background: linear-gradient(to right, #ffffff, #93c5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: left;">Optimiza el flujo de planta con TSM-AI</h1>
+          <p style="font-size: 1.25rem; color: #cbd5e1; line-height: 1.6; max-width: 550px; margin: 0; text-align: left;">Centro inteligente de solicitudes de mantenimiento, bitácoras operativas y control ejecutivo para Towell Smart Maintenance.</p>
         </div>
-        <div class="portal-card" onclick="showPublicPanel('check')">
-          <div class="portal-card-icon">🔍</div>
-          <h3>Consultar Estado de Folio</h3>
-          <p>Sigue el progreso de tu reporte en tiempo real. Consulta la asignación de técnicos y tiempos compromiso.</p>
+        
+        <!-- Lado Derecho: Blanco / Crema -->
+        <div class="split-right-login">
+          <div class="split-login-card">
+            <!-- Selector de Pestañas (Tabs) -->
+            <div class="split-login-tabs">
+              <button type="button" id="tab-btn-users" onclick="switchLoginTab('users')" style="flex: 1; border: none; background: white; color: #0f172a; font-weight: 600; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">Iniciar Sesión</button>
+              <button type="button" id="tab-btn-demo" onclick="switchLoginTab('demo')" style="flex: 1; border: none; background: transparent; color: #64748b; font-weight: 500; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.95rem;">Demo de Prueba</button>
+            </div>
+
+            <!-- Formulario de Iniciar Sesión (Acceso) -->
+            <form id="split-form-login" onsubmit="handleSplitLoginSubmit(event)" style="display: block;">
+              <div class="form-group" style="margin-bottom: 18px;">
+                <label for="split-login-email" style="display: block; font-weight: 600; font-size: 0.9rem; color: #334155; margin-bottom: 8px;">Correo</label>
+                <input type="email" id="split-login-email" class="form-control" placeholder="usuario@tsm-ai.com" required style="width:100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem;">
+              </div>
+              <div class="form-group" style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <label for="split-login-password" style="font-weight: 600; font-size: 0.9rem; color: #334155; margin: 0;">Contraseña</label>
+                  <a href="javascript:void(0)" onclick="openPasswordRecoveryRequest()" style="font-size: 0.8rem; color: #0284c7; text-decoration: none; font-weight: 600;">¿Olvidaste tu contraseña?</a>
+                </div>
+                <input type="password" id="split-login-password" class="form-control" placeholder="••••••••" required style="width:100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem;">
+              </div>
+              <button type="submit" class="btn-submit" style="width: 100%; padding: 12px; background: #0284c7; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.2);">Ingresar</button>
+            </form>
+
+            <!-- Formulario de Acceso Rápido (Demo) -->
+            <div id="split-demo-box" style="display: none;">
+              <p style="font-size: 0.85rem; color: #64748b; margin-top: 0; margin-bottom: 16px; font-weight: 500;">Acceso rápido de prueba para roles de usuario:</p>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                <button class="btn-demo-role" onclick="quickLogin('admin')" style="padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.85rem;">👑 Admin</button>
+                <button class="btn-demo-role" onclick="quickLogin('tech', 'T-01')" style="padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.85rem;">👨‍🔧 Tec Carlos</button>
+                <button class="btn-demo-role" onclick="quickLogin('tech', 'T-02')" style="padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.85rem;">👩‍🔧 Tec Sofía</button>
+                <button class="btn-demo-role" onclick="quickLogin('tech', 'T-03')" style="padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.85rem;">👨‍🔧 Tec Alejandro</button>
+              </div>
+              <div style="background: #f1f5f9; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.8rem; color: #475569; line-height: 1.4; text-align: left;">
+                <strong>Cuentas demo (contraseña: Demo1234!)</strong><br>
+                • Solicitante: <code>solicitante@demo.com</code><br>
+                • Administrador: <code>admin@demo.com</code>
+              </div>
+            </div>
+
+            <!-- Acceso sin cuenta -->
+            <div style="border-top: 1px solid #e2e8f0; margin-top: 24px; padding-top: 16px; text-align: center;">
+              <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 10px 0; font-weight: 500;">¿Deseas reportar una falla?</p>
+              <div style="display: flex; justify-content: center; gap: 16px;">
+                <a href="javascript:void(0)" onclick="showPublicPanel('create')" style="font-size: 0.9rem; color: #0284c7; font-weight: 700; text-decoration: none;">📋 Reportar Falla sin Cuenta</a>
+                <span style="color: #cbd5e1;">|</span>
+                <a href="javascript:void(0)" onclick="showPublicPanel('check')" style="font-size: 0.9rem; color: #0284c7; font-weight: 700; text-decoration: none;">🔍 Consultar Folio</a>
+              </div>
+            </div>
+
+          </div>
         </div>
       </div>
     </main>
