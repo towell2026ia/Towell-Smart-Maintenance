@@ -3346,68 +3346,74 @@ function renderAdminDashboard() {
     });
   }
 
-  // --- WIDGET 2: Alertas de Mantenimiento Dinámicas ---
+  // --- WIDGET 2: Alertas de Mantenimiento (Repetibilidad y Costos Elevados) ---
   const alertList = document.getElementById('wb-alert-list');
   if (alertList) {
     let alertHTML = '';
-    
-    // Alertas por máquinas paradas/inactivas
-    const stoppedMachines = machines.filter(m => m.status === 'Parada' || m.activo === false);
-    stoppedMachines.forEach(m => {
-      alertHTML += `
-        <div class="alert-item alert-critical">
-          <span>🚨</span>
-          <div><strong>Máquina Inactiva:</strong> El equipo ${m.name || m.id} (${m.id}) en área ${m.area} requiere liberación o servicio.</div>
-        </div>
-      `;
-    });
 
-    // Alertas de OTs Críticas Abiertas
-    const criticalOrders = orders.filter(o => o.urgency === 'Crítica' && o.status !== 'Cerrada' && o.status !== 'Cancelada');
-    criticalOrders.forEach(o => {
-      alertHTML += `
-        <div class="alert-item alert-critical">
-          <span>🚨</span>
-          <div><strong>Prioridad Crítica:</strong> La OT ${o.id} (${(o.description || '').substring(0, 45)}...) requiere atención.</div>
-        </div>
-      `;
-    });
-
-    // Alertas de OTs Vencidas Abiertas
-    const now = new Date();
-    const overdueOrders = orders.filter(o => o.dueDate && new Date(o.dueDate) < now && o.status !== 'Cerrada' && o.status !== 'Cancelada');
-    overdueOrders.forEach(o => {
-      const formattedDate = new Date(o.dueDate).toLocaleDateString('es-ES');
-      alertHTML += `
-        <div class="alert-item alert-warning">
-          <span>⚠️</span>
-          <div><strong>OT Vencida:</strong> La OT ${o.id} en máquina ${o.machine || 'N/A'} venció el ${formattedDate}.</div>
-        </div>
-      `;
-    });
-
-    // Fallas recurrentes por máquina
+    // 1. Alertas de Repetibilidad de Fallas por Máquina (>= 2 fallas en historial)
     const machineFailCounts = {};
     orders.forEach(o => {
       if (o.machine && o.machine !== 'NO_APLICA' && o.status !== 'Cancelada') {
         machineFailCounts[o.machine] = (machineFailCounts[o.machine] || 0) + 1;
       }
     });
+
     Object.entries(machineFailCounts).forEach(([machId, count]) => {
-      if (count >= 3) {
+      if (count >= 2) {
         alertHTML += `
-          <div class="alert-item alert-warning">
-            <span>🔥</span>
-            <div><strong>Fallas Recurrentes:</strong> El equipo ${machId} registra ${count} fallas acumuladas.</div>
+          <div class="alert-item alert-warning" style="border-left: 4px solid var(--color-warning);">
+            <span style="font-size: 1.2rem;">🔥</span>
+            <div><strong>Repetibilidad de Falla:</strong> El equipo <strong>${machId}</strong> acumula <strong>${count} fallas repetidas</strong>. Requiere revisión de ingeniería.</div>
           </div>
         `;
       }
     });
-    
+
+    // 2. Alertas por Costes Elevados en Refacciones (Por OT > $1,500 MXN o Acumulado Máquina > $3,000 MXN)
+    const machineCostMap = {};
+    orders.forEach(o => {
+      if (o.machine && o.usedParts && o.usedParts.length > 0) {
+        const cost = o.usedParts.reduce((sum, p) => sum + ((p.quantity || 1) * (p.costoUnitario || p.cost || 0)), 0);
+        machineCostMap[o.machine] = (machineCostMap[o.machine] || 0) + cost;
+
+        if (cost >= 1500) {
+          alertHTML += `
+            <div class="alert-item alert-critical" style="border-left: 4px solid var(--color-critical);">
+              <span style="font-size: 1.2rem;">💵</span>
+              <div><strong>Alto Costo en Servicio:</strong> La OT <strong>${o.id}</strong> en equipo ${o.machine} consumió <strong>$${cost.toLocaleString('es-MX')} MXN</strong> en refacciones.</div>
+            </div>
+          `;
+        }
+      }
+    });
+
+    Object.entries(machineCostMap).forEach(([machId, totalCost]) => {
+      if (totalCost >= 3000) {
+        alertHTML += `
+          <div class="alert-item alert-critical" style="border-left: 4px solid var(--color-critical);">
+            <span style="font-size: 1.2rem;">💰</span>
+            <div><strong>Costo Acumulado Elevado:</strong> El equipo <strong>${machId}</strong> supera el umbral con <strong>$${totalCost.toLocaleString('es-MX')} MXN</strong> en refacciones.</div>
+          </div>
+        `;
+      }
+    });
+
+    // 3. Alertas por Máquina Crítica 'A' Inactiva o Parada
+    const stoppedCritAMachines = machines.filter(m => (m.status === 'Parada' || m.activo === false) && m.criticality === 'A');
+    stoppedCritAMachines.forEach(m => {
+      alertHTML += `
+        <div class="alert-item alert-critical" style="border-left: 4px solid var(--color-critical);">
+          <span style="font-size: 1.2rem;">🚨</span>
+          <div><strong>Paro en Equipo Crítico A:</strong> La máquina de alta prioridad <strong>${m.name || m.id} (${m.id})</strong> está parada.</div>
+        </div>
+      `;
+    });
+
     if (alertHTML === '') {
       alertHTML = `
         <div style="text-align: center; color: var(--text-muted); padding: 20px;">
-          ✅ No hay alertas activas en el sistema. Todo marcha en orden.
+          ✅ Sin alertas de repetibilidad ni costos elevados. Operación óptima.
         </div>
       `;
     }
