@@ -3116,6 +3116,101 @@
   </div>
 
   <!-- ==========================================================================
+       6.5. MODALES DE CALENDARIOS (PROPUESAS & REPROGRAMACIÓN)
+       ========================================================================== -->
+  
+  <!-- Modal: Proponer Calendario -->
+  <div class="modal-overlay" id="modal-generate-calendar-proposal">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-header">
+        <h4 style="font-weight:700; margin:0; font-size:1.15rem;">⚡ Proponer Calendario de Mantenimiento</h4>
+        <button class="btn-close-modal" onclick="closeModal('modal-generate-calendar-proposal')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-generate-proposal" onsubmit="handleGenerateCalendarProposal(event)">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="proposal-type" style="font-weight: 600; display: block; margin-bottom: 4px;">Tipo de Calendario</label>
+            <select id="proposal-type" class="form-control" onchange="toggleProposalPeriodFields()" required style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+              <option value="PREVENTIVO">Preventivo Anual</option>
+              <option value="PREDICTIVO">Predictivo Mensual</option>
+              <option value="AUTONOMO">Autónomo Semanal</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="proposal-year" style="font-weight: 600; display: block; margin-bottom: 4px;">Año</label>
+            <input type="number" id="proposal-year" class="form-control" value="2026" min="2020" max="2035" onchange="validateProposalPeriod()" required style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+          </div>
+
+          <div class="form-group" id="proposal-month-group" style="margin-bottom: 12px; display: none;">
+            <label for="proposal-month" style="font-weight: 600; display: block; margin-bottom: 4px;">Mes</label>
+            <select id="proposal-month" class="form-control" onchange="validateProposalPeriod()" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+              <option value="0">Enero</option>
+              <option value="1">Febrero</option>
+              <option value="2">Marzo</option>
+              <option value="3">Abril</option>
+              <option value="4">Mayo</option>
+              <option value="5">Junio</option>
+              <option value="6">Julio</option>
+              <option value="7">Agosto</option>
+              <option value="8">Septiembre</option>
+              <option value="9">Octubre</option>
+              <option value="10">Noviembre</option>
+              <option value="11">Diciembre</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="proposal-week-group" style="margin-bottom: 12px; display: none;">
+            <label for="proposal-week" style="font-weight: 600; display: block; margin-bottom: 4px;">Semana del Año (1-52)</label>
+            <input type="number" id="proposal-week" class="form-control" value="1" min="1" max="52" onchange="validateProposalPeriod()" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+          </div>
+
+          <!-- Live warning badge for validations -->
+          <div id="proposal-validation-warning" style="display:none; background: rgba(245, 158, 11, 0.15); border: 1px dashed var(--color-warning); color: #fbbf24; padding: 10px; border-radius: 6px; font-size: 0.8rem; margin: 12px 0; font-weight: 500;">
+            ⚠️ Ya existe un calendario registrado para este período.
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
+            <button type="button" class="btn-action-secondary" onclick="closeModal('modal-generate-calendar-proposal')">Cancelar</button>
+            <button type="submit" id="btn-submit-proposal" class="btn-action-primary" style="background: var(--primary-color); color: white;">⚡ Generar Propuesta</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Editar Fecha de Propuesta -->
+  <div class="modal-overlay" id="modal-edit-proposal-date">
+    <div class="modal-card" style="max-width: 400px;">
+      <div class="modal-header">
+        <h4 style="font-weight:700; margin:0; font-size:1.15rem;">✏️ Reprogramar Fecha</h4>
+        <button class="btn-close-modal" onclick="closeModal('modal-edit-proposal-date')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-edit-proposal-date" onsubmit="handleSaveProposalDate(event)">
+          <input type="hidden" id="edit-proposal-detail-id">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Máquina</label>
+            <div id="edit-proposal-machine" style="font-weight: 700; font-size: 1rem; margin-bottom: 8px; color: var(--accent-blue);">--</div>
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Servicio</label>
+            <div id="edit-proposal-service" style="font-size: 0.9rem; margin-bottom: 8px; color: var(--text-color-light);">--</div>
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="edit-proposal-new-date" style="font-weight: 600; display: block; margin-bottom: 4px;">Nueva Fecha Programada</label>
+            <input type="date" id="edit-proposal-new-date" class="form-control" required style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
+            <button type="button" class="btn-action-secondary" onclick="closeModal('modal-edit-proposal-date')">Cancelar</button>
+            <button type="submit" class="btn-action-primary" style="background: var(--color-preventive); color: white;">💾 Guardar Fecha</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
        7. MENSAJES FLOTANTES (Toasts)
        ========================================================================== -->
   <div id="toast" class="toast-notification">

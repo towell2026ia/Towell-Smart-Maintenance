@@ -4129,17 +4129,18 @@ async function renderAdminCalendar() {
     localOrders = allLocalOrders.filter(o => o.type !== 'MP' && o.type !== 'PREVENTIVO' && o.type !== 'PREDICTIVO' && o.type !== 'AUTONOMO');
   }
 
-  // 4. Obtener sugerencias de base de datos
+  // 4. Obtener sugerencias y propuestas reales de la base de datos
   let suggestions = [];
   if (supabaseClient && (showPreventivos || showPredictivos || showAutonomos)) {
     try {
       const { data, error } = await supabaseClient
-        .from('vw_calendario_consolidado')
-        .select('*')
-        .eq('anio', currentCalendarYear);
+        .from('calendario_mantenimiento_detalle')
+        .select('*, calendarios_mantenimiento(anio, mes, semana)');
         
       if (!error && data) {
         suggestions = data.filter(item => {
+          const calHeader = item.calendarios_mantenimiento || {};
+          if (calHeader.anio !== currentCalendarYear) return false;
           if (item.tipo_mantenimiento === 'PREVENTIVO' && !showPreventivos) return false;
           if (item.tipo_mantenimiento === 'PREDICTIVO' && !showPredictivos) return false;
           if (item.tipo_mantenimiento === 'AUTONOMO' && !showAutonomos) return false;
@@ -4147,7 +4148,7 @@ async function renderAdminCalendar() {
         });
       }
     } catch (err) {
-      console.error('Error fetching consolidated calendar suggestions:', err);
+      console.error('Error fetching proposed calendar details:', err);
     }
   }
 
@@ -4161,10 +4162,10 @@ async function renderAdminCalendar() {
 
   const suggestionEvents = suggestions.map(s => ({
     id: s.maquina_id,
-    id_ref: s.id_sugerencia || s.id_referencia || s.maquina_id,
+    id_ref: s.id_detalle,
     type: s.tipo_mantenimiento,
-    title: `${s.tipo_mantenimiento} - ${s.actividad}`,
-    date: s.fecha_sugerida
+    title: `${s.tipo_mantenimiento}: ${s.maquina_id} - ${s.actividad_sugerida.replace('Servicio preventivo: ', '')}`,
+    date: s.fecha_programada
   }));
 
   const allEvents = [...correctiveEvents, ...suggestionEvents];
@@ -10218,4 +10219,611 @@ async function rejectWorkOrderFromModal() {
   if (typeof syncDatabases === 'function') await syncDatabases();
   refreshActiveViewSilently();
 }
+
+// ============================================================================
+// FASE 6 & 6.1: MOTOR DE CALENDARIOS DE MANTENIMIENTO (SUPERVISOR)
+// ============================================================================
+
+// 1. Modal "⚡ Proponer Calendario" & Validaciones de Frecuencia
+function generateCalendarProposalModal() {
+  const proposalYear = document.getElementById('proposal-year');
+  if (proposalYear) {
+    proposalYear.value = new Date().getFullYear();
+  }
+  toggleProposalPeriodFields();
+  openModal('modal-generate-calendar-proposal');
+}
+
+function toggleProposalPeriodFields() {
+  const type = document.getElementById('proposal-type').value;
+  const monthGroup = document.getElementById('proposal-month-group');
+  const weekGroup = document.getElementById('proposal-week-group');
+  
+  if (type === 'PREVENTIVO') {
+    if (monthGroup) monthGroup.style.display = 'none';
+    if (weekGroup) weekGroup.style.display = 'none';
+  } else if (type === 'PREDICTIVO') {
+    if (monthGroup) monthGroup.style.display = 'block';
+    if (weekGroup) weekGroup.style.display = 'none';
+  } else if (type === 'AUTONOMO') {
+    if (monthGroup) monthGroup.style.display = 'none';
+    if (weekGroup) weekGroup.style.display = 'block';
+  }
+  validateProposalPeriod();
+}
+
+async function validateProposalPeriod() {
+  const warningEl = document.getElementById('proposal-validation-warning');
+  const submitBtn = document.getElementById('btn-submit-proposal');
+  if (!warningEl || !submitBtn) return;
+
+  const type = document.getElementById('proposal-type').value;
+  const year = parseInt(document.getElementById('proposal-year').value) || new Date().getFullYear();
+  
+  let month = null;
+  let week = null;
+
+  if (type === 'PREDICTIVO') {
+    month = parseInt(document.getElementById('proposal-month').value);
+  } else if (type === 'AUTONOMO') {
+    week = parseInt(document.getElementById('proposal-week').value);
+  }
+
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      let query = supabaseClient
+        .from('calendarios_mantenimiento')
+        .select('id_calendario')
+        .eq('tipo_calendario', type)
+        .eq('anio', year);
+
+      if (month === null) query = query.is('mes', null);
+      else query = query.eq('mes', month);
+
+      if (week === null) query = query.is('semana', null);
+      else query = query.eq('semana', week);
+
+      const { data, error } = await query;
+      if (!error && data && data.length > 0) {
+        warningEl.style.display = 'block';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+      } else {
+        warningEl.style.display = 'none';
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+      }
+    } catch (e) {
+      console.warn('[validateProposalPeriod] Error checking periods:', e);
+    }
+  }
+}
+
+// 2. Ejecutar generación de propuestas (Preventiva Anual, Predictiva, Autónoma)
+async function handleGenerateCalendarProposal(event) {
+  event.preventDefault();
+  const type = document.getElementById('proposal-type').value;
+  const year = parseInt(document.getElementById('proposal-year').value);
+  
+  let month = null;
+  let week = null;
+
+  if (type === 'PREDICTIVO') month = parseInt(document.getElementById('proposal-month').value);
+  else if (type === 'AUTONOMO') week = parseInt(document.getElementById('proposal-week').value);
+
+  closeModal('modal-generate-calendar-proposal');
+  showToast('⚡ Generando propuesta de calendario...');
+
+  if (!supabaseClient) {
+    showToast('⚠️ Sin conexión a la base de datos.', 'error');
+    return;
+  }
+
+  try {
+    // A. Crear la cabecera del calendario con fechas de periodo requeridas (NOT NULL)
+    let startPeriod, endPeriod;
+    if (type === 'PREVENTIVO') {
+      startPeriod = `${year}-01-01`;
+      endPeriod = `${year}-12-31`;
+    } else if (type === 'PREDICTIVO') {
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      startPeriod = firstDay.toISOString().split('T')[0];
+      endPeriod = lastDay.toISOString().split('T')[0];
+    } else { // AUTONOMO
+      const firstDay = new Date(year, 0, 1 + (week - 1) * 7);
+      const lastDay = new Date(year, 0, 1 + (week - 1) * 7 + 6);
+      startPeriod = firstDay.toISOString().split('T')[0];
+      endPeriod = lastDay.toISOString().split('T')[0];
+    }
+
+    const headerRecord = {
+      tipo_calendario: type,
+      anio: year,
+      mes: month,
+      semana: week,
+      fecha_inicio_periodo: startPeriod,
+      fecha_fin_periodo: endPeriod,
+      estatus_calendario: 'PROPUESTO',
+      generado_por: currentUser ? currentUser.name : 'Supervisor',
+      origen_generacion: 'IA Engine'
+    };
+
+    const { data: headerData, error: hErr } = await supabaseClient
+      .from('calendarios_mantenimiento')
+      .insert([headerRecord])
+      .select();
+
+    if (hErr) throw hErr;
+    const newCalId = headerData[0].id_calendario;
+
+    // B. Obtener catálogos
+    const [ordRes, plansRes, machinesRes, techsRes] = await Promise.all([
+      supabaseClient.from('ordenes_trabajo').select('fecha_carga, maquina_id'),
+      supabaseClient.from('planes_mantenimiento_preventivo').select('*').eq('activo', true),
+      supabaseClient.from('cat_maquinas').select('*').eq('activo', true),
+      supabaseClient.from('cat_tecnicos').select('*').eq('activo', true)
+    ]);
+
+    const activePlans = plansRes.data || [];
+    const activeMachines = machinesRes.data || [];
+    const activeTechs = techsRes.data || [];
+    const allOts = ordRes.data || [];
+
+    const detailsToInsert = [];
+    const dayWorkload = {}; // Mapeo de carga por día para evitar colisiones
+
+    // Llenar carga inicial con OTs existentes
+    allOts.forEach(o => {
+      const dateStr = (o.fecha_carga || '').split('T')[0];
+      if (dateStr) dayWorkload[dateStr] = (dayWorkload[dateStr] || 0) + 1;
+    });
+
+    // Helper anti-colisión: busca el día más cercano con carga < 3
+    function getBalancedDate(targetDate) {
+      let current = new Date(targetDate);
+      let offset = 0;
+      while (true) {
+        let candidate = new Date(current);
+        candidate.setDate(current.getDate() + offset);
+        let key = candidate.toISOString().split('T')[0];
+        
+        if ((dayWorkload[key] || 0) < 3) {
+          dayWorkload[key] = (dayWorkload[key] || 0) + 1;
+          return key;
+        }
+
+        // Buscar en ambas direcciones
+        offset = offset >= 0 ? -offset - 1 : -offset;
+        if (Math.abs(offset) > 30) {
+          // Fallback a la fecha original si no hay cupo en 30 días
+          return targetDate.toISOString().split('T')[0];
+        }
+      }
+    }
+
+    if (type === 'PREVENTIVO') {
+      // Algoritmo Preventivo Anual
+      for (const machine of activeMachines) {
+        const mPlans = activePlans.filter(p => p.maquina_id === machine.equipo_towell);
+        
+        for (const plan of mPlans) {
+          const freq = plan.frecuencia || 3;
+          const unit = (plan.unidad_frecuencia || 'meses').toLowerCase();
+          
+          let lastDate = plan.ultima_ejecucion ? new Date(plan.ultima_ejecucion) : new Date(year, 0, 15);
+          if (lastDate.getFullYear() < year) {
+            lastDate = new Date(year, 0, 15);
+          }
+
+          // Proyectar ejecuciones del año
+          let projections = [];
+          if (unit === 'meses') {
+            const occurrences = Math.floor(12 / freq);
+            for (let o = 0; o < occurrences; o++) {
+              const d = new Date(lastDate);
+              d.setMonth(lastDate.getMonth() + (o * freq));
+              if (d.getFullYear() === year) projections.push(d);
+            }
+          } else if (unit === 'semanas') {
+            const occurrences = Math.floor(52 / freq);
+            for (let o = 0; o < occurrences; o++) {
+              const d = new Date(lastDate);
+              d.setDate(lastDate.getDate() + (o * freq * 7));
+              if (d.getFullYear() === year) projections.push(d);
+            }
+          } else {
+            // Días o por defecto (cada 2 meses)
+            const occurrences = 6;
+            for (let o = 0; o < occurrences; o++) {
+              const d = new Date(lastDate);
+              d.setMonth(lastDate.getMonth() + (o * 2));
+              if (d.getFullYear() === year) projections.push(d);
+            }
+          }
+
+          // Registrar propuestas balanceadas
+          projections.forEach(proj => {
+            const balancedDateStr = getBalancedDate(proj);
+            
+            // Asignar técnico sugerido o aleatorio
+            const matchingTech = activeTechs.find(t => t.nombre_tecnico.toLowerCase() === (plan.responsable || '').toLowerCase()) 
+              || activeTechs[Math.floor(Math.random() * activeTechs.length)];
+
+            detailsToInsert.push({
+              id_calendario: newCalId,
+              maquina_id: machine.equipo_towell,
+              fecha_programada: balancedDateStr,
+              tipo_mantenimiento: 'PREVENTIVO',
+              prioridad: machine.prioridad_default || 'MEDIA',
+              actividad_sugerida: `Servicio preventivo: ${plan.nombre_plan || plan.codigo_servicio}`,
+              responsable_sugerido: matchingTech ? matchingTech.nombre_tecnico : 'Supervisor',
+              id_plan: plan.id_plan,
+              estatus_detalle: 'PROPUESTO'
+            });
+          });
+        }
+      }
+    } else if (type === 'PREDICTIVO') {
+      // Predictivo Mensual: Generar propuestas a partir de fallas acumuladas de máquinas
+      const failCounts = {};
+      allOts.forEach(o => {
+        if (o.maquina_id) failCounts[o.maquina_id] = (failCounts[o.maquina_id] || 0) + 1;
+      });
+
+      // Ordenar máquinas por recurrencia
+      const sortedMachines = activeMachines.sort((a, b) => (failCounts[b.equipo_towell] || 0) - (failCounts[a.equipo_towell] || 0));
+      
+      // Proponer predictivos para las máquinas con fallas este mes
+      let count = 0;
+      for (const machine of sortedMachines) {
+        if (count >= 10) break; // Límite de 10 inspecciones predictivas sugeridas por mes
+        
+        const day = 5 + (count * 2); // Espaciar días en el mes
+        const projDate = new Date(year, month, day);
+        const balancedDateStr = getBalancedDate(projDate);
+
+        detailsToInsert.push({
+          id_calendario: newCalId,
+          maquina_id: machine.equipo_towell,
+          fecha_programada: balancedDateStr,
+          tipo_mantenimiento: 'PREDICTIVO',
+          prioridad: 'ALTA',
+          actividad_sugerida: `Inspección predictiva de vibraciones y temperatura - IA`,
+          responsable_sugerido: activeTechs[Math.floor(Math.random() * activeTechs.length)]?.nombre_tecnico || 'Supervisor',
+          estatus_detalle: 'PROPUESTO'
+        });
+        count++;
+      }
+    } else if (type === 'AUTONOMO') {
+      // Autónomo Semanal: Rutinas básicas recurrentes de limpieza y calibración
+      activeMachines.forEach((machine, idx) => {
+        // Programar una revisión para la semana dada
+        const baseDay = 1 + (idx % 5);
+        const startOfYear = new Date(year, 0, 1);
+        const projDate = new Date(startOfYear.setDate(startOfYear.getDate() + ((week - 1) * 7) + baseDay));
+        const balancedDateStr = getBalancedDate(projDate);
+
+        detailsToInsert.push({
+          id_calendario: newCalId,
+          maquina_id: machine.equipo_towell,
+          fecha_programada: balancedDateStr,
+          tipo_mantenimiento: 'AUTONOMO',
+          prioridad: 'BAJA',
+          actividad_sugerida: `Rutina autónoma semanal: limpieza, lubricación y reapriete`,
+          responsable_sugerido: 'Operador de Planta',
+          estatus_detalle: 'PROPUESTO'
+        });
+      });
+    }
+
+    if (detailsToInsert.length > 0) {
+      const { error: dErr } = await supabaseClient
+        .from('calendario_mantenimiento_detalle')
+        .insert(detailsToInsert);
+
+      if (dErr) throw dErr;
+    }
+
+    showToast('✅ Propuesta de calendario generada exitosamente.');
+    switchCalendarViewMode('table');
+  } catch (err) {
+    console.error('[GenerateProposal] Error:', err);
+    showToast('❌ Error al generar la propuesta: ' + err.message, 'error');
+  }
+}
+
+// 3. Renderizar Tabla de Propuestas (Lista de Propuestas)
+let currentCalendarTab = 'preventivo';
+
+async function renderAdminCalendars() {
+  const tbody = document.getElementById('table-calendar-tbody');
+  const thead = document.getElementById('table-calendar-thead');
+  if (!tbody || !thead) return;
+
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Cargando propuestas…</td></tr>`;
+
+  if (!supabaseClient) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--color-critical);">⚠️ Sin conexión a base de datos.</td></tr>`;
+    return;
+  }
+
+  try {
+    // 1. Renders the head of the table
+    thead.innerHTML = `
+      <tr>
+        <th>Máquina</th>
+        <th>Tipo</th>
+        <th>Actividad sugerida</th>
+        <th>Fecha Programada</th>
+        <th>Asignado A</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    `;
+
+    // 2. Query details filter by current active tab
+    const dbType = currentCalendarTab.toUpperCase();
+    const { data: details, error } = await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .select('*, calendarios_mantenimiento(anio, mes, semana)')
+      .eq('tipo_mantenimiento', dbType)
+      .order('fecha_programada', { ascending: true });
+
+    if (error) throw error;
+
+    if (!details || details.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted); font-style:italic;">No hay propuestas de mantenimiento programadas para esta categoría.</td></tr>`;
+      return;
+    }
+
+    let html = '';
+    details.forEach(d => {
+      let badgeClass = 'badge-priority-baja';
+      if (d.estatus_detalle === 'APROBADO') badgeClass = 'badge-status-ejecutada';
+      else if (d.estatus_detalle === 'PROPUESTO') badgeClass = 'badge-priority-media';
+
+      const actions = d.estatus_detalle === 'PROPUESTO' ? `
+        <button class="btn-table-action" onclick="approveProposalDetail('${d.id_detalle}')" style="background:#22c55e; color:white; border:none; margin-right:4px;">Aprobar</button>
+        <button class="btn-table-action" onclick="openEditProposalDateModal('${d.id_detalle}', '${d.maquina_id}', '${d.actividad_sugerida}', '${d.fecha_programada}')" style="margin-right:4px;">Reprogramar</button>
+        <button class="btn-table-action" onclick="deleteProposalDetail('${d.id_detalle}')" style="background:#ef4444; color:white; border:none;">Eliminar</button>
+      ` : `<span style="color:#22c55e;font-weight:700;">OT Generada (${d.id_orden_generada ? 'Sincronizada' : 'Pendiente'})</span>`;
+
+      html += `
+        <tr>
+          <td><strong>${d.maquina_id}</strong></td>
+          <td>${d.tipo_mantenimiento}</td>
+          <td>${d.actividad_sugerida}</td>
+          <td>${fmtDate(d.fecha_programada)}</td>
+          <td>${d.responsable_sugerido || '—'}</td>
+          <td><span class="badge ${badgeClass}">${d.estatus_detalle}</span></td>
+          <td>${actions}</td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+
+    // Agregar botón de aprobación masiva en el header si hay propuestas
+    const hasProposals = details.some(d => d.estatus_detalle === 'PROPUESTO');
+    const headerActions = document.querySelector('#calendar-view-table-mode .responsive-table-wrapper');
+    if (headerActions) {
+      let bulkBtn = document.getElementById('btn-bulk-approve-calendar');
+      if (hasProposals) {
+        if (!bulkBtn) {
+          const btnDiv = document.createElement('div');
+          btnDiv.style.margin = '12px 0';
+          btnDiv.id = 'btn-bulk-approve-wrapper';
+          btnDiv.innerHTML = `<button class="btn-nav btn-nav-primary" id="btn-bulk-approve-calendar" onclick="approveCalendar()" style="background:#22c55e; color:white;">🎯 Aprobar Todo el Calendario y Generar OTs</button>`;
+          headerActions.parentNode.insertBefore(btnDiv, headerActions);
+        }
+      } else {
+        const wrapper = document.getElementById('btn-bulk-approve-wrapper');
+        if (wrapper) wrapper.remove();
+      }
+    }
+  } catch (err) {
+    console.error('[renderAdminCalendars] Error:', err);
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--color-critical);">❌ Error al cargar propuestas: ${err.message}</td></tr>`;
+  }
+}
+
+// 4. Cambiar de pestaña de propuesta
+function switchCalendarTab(tab) {
+  currentCalendarTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+    btn.style.borderBottomColor = 'transparent';
+    btn.style.color = 'var(--text-muted)';
+  });
+
+  const activeBtn = document.getElementById(`tab-btn-${tab}-sub`);
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+    activeBtn.style.borderBottomColor = 'var(--primary-color)';
+    activeBtn.style.color = 'var(--primary-color)';
+  }
+
+  renderAdminCalendars();
+}
+
+// 5. Reprogramación de fecha individual
+function openEditProposalDateModal(detailId, machineId, serviceCode, currentDateStr) {
+  document.getElementById('edit-proposal-detail-id').value = detailId;
+  document.getElementById('edit-proposal-machine').textContent = machineId;
+  document.getElementById('edit-proposal-service').textContent = serviceCode;
+  document.getElementById('edit-proposal-new-date').value = currentDateStr;
+  openModal('modal-edit-proposal-date');
+}
+
+async function handleSaveProposalDate(event) {
+  event.preventDefault();
+  const id = document.getElementById('edit-proposal-detail-id').value;
+  const newDate = document.getElementById('edit-proposal-new-date').value;
+
+  closeModal('modal-edit-proposal-date');
+  showToast('💾 Actualizando fecha programada...');
+
+  try {
+    const { error } = await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .update({ fecha_programada: newDate, fecha_actualizacion: new Date().toISOString() })
+      .eq('id_detalle', id);
+
+    if (error) throw error;
+    showToast('✅ Fecha reprogramada exitosamente.');
+    renderAdminCalendars();
+    renderAdminCalendar();
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Error al actualizar fecha: ' + err.message, 'error');
+  }
+}
+
+// 6. Eliminar propuesta individual
+async function deleteProposalDetail(detailId) {
+  if (!confirm('¿Estás seguro de eliminar esta propuesta de intervención?')) return;
+  showToast('🗑️ Eliminando propuesta...');
+
+  try {
+    const { error } = await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .delete()
+      .eq('id_detalle', detailId);
+
+    if (error) throw error;
+    showToast('✅ Propuesta eliminada.');
+    renderAdminCalendars();
+    renderAdminCalendar();
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Error al eliminar propuesta.', 'error');
+  }
+}
+
+// 7. Aprobación y Generación de Órdenes de Trabajo
+async function approveProposalDetail(detailId) {
+  showToast('⚙️ Aprobando propuesta y generando orden...');
+
+  try {
+    const { data: detailData, error: detErr } = await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .select('*')
+      .eq('id_detalle', detailId)
+      .single();
+
+    if (detErr) throw detErr;
+
+    // Buscar técnico UUID en catálogo
+    const { data: techData } = await supabaseClient
+      .from('cat_tecnicos')
+      .select('cve_tecnico, nombre_tecnico')
+      .eq('nombre_tecnico', detailData.responsable_sugerido)
+      .maybeSingle();
+
+    const orderRecord = {
+      orden_trabajo: detailData.tipo_mantenimiento === 'PREVENTIVO' ? 'MP' : (detailData.tipo_mantenimiento === 'PREDICTIVO' ? 'MC' : 'MA'),
+      origen: 'App',
+      estatus: 'asignada',
+      fecha_inicio: detailData.fecha_programada,
+      fecha_hora_inicio: `${detailData.fecha_programada}T08:00:00`,
+      maquina_id: detailData.maquina_id,
+      descripcion: detailData.actividad_sugerida,
+      nombre_solicitante: 'Generador de Calendarios AI',
+      cve_atendio: techData ? techData.cve_tecnico : null,
+      nombre_atendio: techData ? techData.nombre_tecnico : null,
+      prioridad: detailData.prioridad || 'Media',
+      id_plan: detailData.id_plan
+    };
+
+    // 1. Insertar orden de trabajo
+    const { data: otData, error: otErr } = await supabaseClient
+      .from('ordenes_trabajo')
+      .insert([orderRecord])
+      .select();
+
+    if (otErr) throw otErr;
+    const newOT = otData[0];
+
+    // 2. Actualizar propuesta vinculándola a la orden generada
+    await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .update({
+        estatus_detalle: 'APROBADO',
+        id_orden_generada: newOT.id_orden
+      })
+      .eq('id_detalle', detailId);
+
+    // 3. Obtener checklist asociado e insertarlo en respuestas
+    if (detailData.id_plan) {
+      const { data: planData } = await supabaseClient
+        .from('planes_mantenimiento_preventivo')
+        .select('codigo_servicio')
+        .eq('id_plan', detailData.id_plan)
+        .single();
+
+      if (planData && planData.codigo_servicio) {
+        const { data: questions } = await supabaseClient
+          .from('checklists_mantenimiento')
+          .select('id_checklist')
+          .eq('codigo_servicio', planData.codigo_servicio)
+          .eq('activo', true);
+
+        if (questions && questions.length > 0) {
+          const responses = questions.map(q => ({
+            id_orden: newOT.id_orden,
+            id_checklist: q.id_checklist,
+            respuesta: null
+          }));
+
+          await supabaseClient.from('respuestas_checklist_orden').insert(responses);
+        }
+      }
+    }
+
+    showToast(`✅ Propuesta aprobada. Generada la orden de trabajo folio ${newOT.folio || ''}.`);
+    await syncDatabases();
+    renderAdminCalendars();
+    renderAdminCalendar();
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Error al aprobar la sugerencia: ' + err.message, 'error');
+  }
+}
+
+// 8. Aprobación Masiva de Calendario
+async function approveCalendar() {
+  const dbType = currentCalendarTab.toUpperCase();
+  showToast('⚙️ Aprobando todas las propuestas en lote...');
+
+  try {
+    const { data: details, error: detErr } = await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .select('*')
+      .eq('tipo_mantenimiento', dbType)
+      .eq('estatus_detalle', 'PROPUESTO');
+
+    if (detErr) throw detErr;
+
+    if (!details || details.length === 0) {
+      showToast('No hay sugerencias propuestas para aprobar.');
+      return;
+    }
+
+    // Aprobar secuencialmente en lote
+    for (const d of details) {
+      await approveProposalDetail(d.id_detalle);
+    }
+
+    showToast(`🎯 Lote aprobado. Se han generado ${details.length} órdenes de trabajo.`);
+    renderAdminCalendars();
+    renderAdminCalendar();
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Error en aprobación masiva.', 'error');
+  }
+}
+
 
