@@ -1246,18 +1246,25 @@ function restoreRouteFromHash() {
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
+  // 1. Restaurar usuario guardado localmente e iniciar la UI de inmediato de forma síncrona
+  const savedUserStr = localStorage.getItem('TSMAI_current_user');
+  if (savedUserStr) {
+    try { currentUser = JSON.parse(savedUserStr); } catch (e) {}
+  }
+
+  // 2. Restaurar ruta al instante (previene cualquier parpadeo de pantalla inicial)
+  restoreRouteFromHash();
+
   // Asegurar que el seed de datos esté cargado
   if (typeof initLocalStorage === 'function') {
     initLocalStorage();
   }
 
-  // Restaurar usuario guardado localmente si existe
-  const savedUserStr = localStorage.getItem('TSMAI_current_user');
-  if (savedUserStr) {
-    try { currentUser = JSON.parse(savedUserStr); } catch (e) {}
-  }
-  
-  // Sincronizar bases de datos con Supabase si hay sesión activa
+  // Cargar datos en los selects dinámicos
+  populateTectSelects();
+  loadPublicEmployeesList();
+
+  // 3. En segundo plano: Validar sesión de Supabase y sincronizar bases de datos silenciosamente
   if (supabaseClient) {
     try {
       const { data: { session } } = await supabaseClient.auth.getSession();
@@ -1278,6 +1285,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentUser = { role: 'tech', id: techId, uuid: dbUser.id_usuario, name: dbUser.nombre_completo, email: dbUser.correo, specialty: dbUser.observaciones || 'General', avatar: '👨‍🔧', department: dbUser.departamento };
           }
           persistSessionUser(currentUser);
+          restoreRouteFromHash();
         }
       }
     } catch (e) {
@@ -1287,9 +1295,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   if (useLiveDatabase) {
     await syncDatabases();
+    refreshActiveViewSilently();
   }
   
-  // Registrar listeners de eventos de click fuera del dropdown de navbar
+  // Registrar listeners de eventos
   window.addEventListener('click', (e) => {
     const menu = document.getElementById('menu-acceso-interno');
     const btn = document.getElementById('btn-acceso-interno');
@@ -1298,34 +1307,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Escuchar cambios de retroceso/avance en el navegador
   window.addEventListener('hashchange', restoreRouteFromHash);
   window.addEventListener('popstate', restoreRouteFromHash);
 
-  // Cargar datos en los selects dinámicos
-  populateTectSelects();
-  loadPublicEmployeesList();
-
-  // Interceptor de recuperación de contraseña / magic link
   triggerRecoveryUI();
-  
-  // Activar suscripciones Supabase Realtime y sincronización automática silenciosa
   setupRealtimeSubscriptions();
-
-  // Restaurar vista y panel exacto manteniendo la sesión del usuario
-  restoreRouteFromHash();
 });
 
 // --- ENRUTADOR DE VISTAS PRINCIPALES (SPA) ---
 function showView(viewId) {
+  // Remover estilo de pre-carga in-head si existía
+  const preloadStyle = document.getElementById('preload-hide-public');
+  if (preloadStyle) {
+    try { preloadStyle.remove(); } catch(e) {}
+  }
+
   // Ocultar todas las secciones de vista principal
   document.querySelectorAll('.view-section').forEach(view => {
     view.classList.remove('active');
+    view.style.display = 'none';
   });
   
   // Mostrar la vista objetivo
   const targetView = document.getElementById(`view-${viewId}`);
   if (targetView) {
+    targetView.style.display = 'block';
     targetView.classList.add('active');
   }
 

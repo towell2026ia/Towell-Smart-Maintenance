@@ -3,7 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>TSM-AI - Towell Smart Maintenance AI</title>
+
+  <!-- Script In-Head de Transición Orgánica (Evita parpadeo de pantalla inicial si hay sesión activa) -->
+  <script>
+    (function() {
+      try {
+        const u = JSON.parse(localStorage.getItem('TSMAI_current_user') || 'null');
+        const h = window.location.hash || '';
+        if (u || h.includes('admin') || h.includes('tech')) {
+          const st = document.createElement('style');
+          st.id = 'preload-hide-public';
+          st.textContent = '#view-public-portal { display: none !important; }';
+          document.head.appendChild(st);
+        }
+      } catch(e) {}
+    })();
+  </script>
+
   <!-- Fuentes Premium Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,12 +32,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Configuración local (Supabase Keys) — en Netlify se inyecta via snippet -->
-  <script src="config.js"></script>
+  <!-- Configuración local (Supabase Keys) -->
+  <script src="config.js?v=2.2.0"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- Estilos base -->
-  <link rel="stylesheet" href="style.css">
+  <!-- Estilos base con control de versión -->
+  <link rel="stylesheet" href="style.css?v=2.2.0">
 </head>
 <body>
 
@@ -3035,8 +3055,9 @@
     <span id="toast-text">Notificación exitosa!</span>
   </div>
 
-  <!-- Carga de Lógica seed.js y app.js -->
-  <script src="seed.js"></script>
-  <script src="app.js"></script>
+  <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
+  <script src="seed.js?v=2.2.0"></script>
+  <script src="app.js?v=2.2.0"></script>
+  <script src="dashboard.js?v=2.2.0"></script>
 </body>
 </html>
