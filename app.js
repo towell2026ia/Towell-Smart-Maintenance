@@ -1143,9 +1143,17 @@ function refreshActiveViewSilently() {
 }
 
 function setupRealtimeSubscriptions() {
+  // --- A1: Limpiar canal previo si existe para evitar suscripciones duplicadas ---
+  if (window._tsmaiRealtimeChannel && supabaseClient) {
+    try { supabaseClient.removeChannel(window._tsmaiRealtimeChannel); } catch(e) {}
+    window._tsmaiRealtimeChannel = null;
+  }
+
   if (supabaseClient) {
     try {
       const channel = supabaseClient.channel('tsmai-realtime-channel');
+      window._tsmaiRealtimeChannel = channel;
+
       channel
         .on(
           'postgres_changes',
@@ -1158,6 +1166,12 @@ function setupRealtimeSubscriptions() {
         )
         .subscribe((status) => {
           console.log('[Realtime] Subscription status:', status);
+          updateConnectionIndicator(status === 'SUBSCRIBED');
+          // A1: Reconexión automática si el canal cae
+          if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+            console.warn('[Realtime] Canal caído. Reconectando en 5s...');
+            setTimeout(() => setupRealtimeSubscriptions(), 5000);
+          }
         });
     } catch (err) {
       console.warn('[Realtime] Error subscribing to live changes:', err);
@@ -1178,6 +1192,22 @@ function setupRealtimeSubscriptions() {
         refreshActiveViewSilently();
       }
     }, 6000);
+  }
+
+  // A2: Detectar conectividad del navegador (con flag anti-duplicado)
+  if (!window._tsmaiNetworkListenersRegistered) {
+    window._tsmaiNetworkListenersRegistered = true;
+    window.addEventListener('online', () => {
+      console.log('[Network] Conexión recuperada. Sincronizando...');
+      updateConnectionIndicator(true);
+      if (useLiveDatabase && supabaseClient) {
+        syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn(e));
+      }
+    });
+    window.addEventListener('offline', () => {
+      console.warn('[Network] Sin conexión a internet.');
+      updateConnectionIndicator(false);
+    });
   }
 }
 
@@ -1308,7 +1338,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   window.addEventListener('hashchange', restoreRouteFromHash);
-  window.addEventListener('popstate', restoreRouteFromHash);
+
+  // A3: Listener popstate mejorado — protege sesión activa y no bloquea flujo de recovery
+  window.addEventListener('popstate', (event) => {
+    const hash = window.location.hash || '';
+    // No interferir con flujo de recuperación de contraseña
+    if (hash.includes('type=recovery') || hash.includes('access_token')) {
+      triggerRecoveryUI();
+      return;
+    }
+    // Si hay sesión activa y el hash apunta fuera del área del usuario → bloquear retroceso accidental
+    if (currentUser) {
+      const isSuperAdmin = currentUser.role === 'admin' || currentUser.rol === 'SUPER_ADMINISTRADOR' || currentUser.role === 'SUPER_ADMINISTRADOR';
+      const role = isSuperAdmin ? 'admin' : 'tech';
+      if (!hash.startsWith(`#${role}/`)) {
+        const panel = isSuperAdmin ? (activeAdminPanel || 'dashboard') : (activeTechPanel || 'dashboard');
+        history.pushState(null, '', `#${role}/${panel}`);
+        return;
+      }
+    }
+    restoreRouteFromHash();
+  });
 
   triggerRecoveryUI();
   setupRealtimeSubscriptions();
@@ -6566,10 +6616,11 @@ function updateTechActionButtons(order) {
 }
 
 async function startWorkOnOT() {
+  setButtonLoading('btn-tech-start-work', true);
   const otId = document.getElementById('tech-ot-id').value;
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const idx = orders.findIndex(o => o.id === otId);
-  if (idx === -1) return;
+  if (idx === -1) { setButtonLoading('btn-tech-start-work', false); return; }
 
   const nowISO = new Date().toISOString();
   orders[idx].status = 'En proceso';
@@ -6596,19 +6647,22 @@ async function startWorkOnOT() {
         .eq('folio', otId);
     } catch (err) {
       console.error('Error updating start work in Supabase:', err);
+      showToast('No se pudo guardar en el servidor. Verifica tu conexión.', 'error');
     }
   }
 
-  showToast('🚀 Trabajo iniciado. El estado cambió a En proceso.');
+  showToast('🚀 Trabajo iniciado. El estado cambió a En proceso.', 'success');
+  setButtonLoading('btn-tech-start-work', false);
   updateTechActionButtons(orders[idx]);
   renderTechOrdersTable();
 }
 
 async function pauseWorkOnOT() {
+  setButtonLoading('btn-tech-pause-work', true);
   const otId = document.getElementById('tech-ot-id').value;
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const idx = orders.findIndex(o => o.id === otId);
-  if (idx === -1) return;
+  if (idx === -1) { setButtonLoading('btn-tech-pause-work', false); return; }
 
   const reason = prompt('Motivo de la pausa (ej. Espera de refacción, Paro de línea):') || 'Espera de refacción/material';
 
@@ -6633,19 +6687,22 @@ async function pauseWorkOnOT() {
         .eq('folio', otId);
     } catch (err) {
       console.error('Error pausing work in Supabase:', err);
+      showToast('No se pudo guardar la pausa en el servidor. Verifica tu conexión.', 'error');
     }
   }
 
-  showToast('⏸️ Trabajo pausado (En espera).');
+  showToast('⏸️ Trabajo pausado (En espera).', 'warning');
+  setButtonLoading('btn-tech-pause-work', false);
   updateTechActionButtons(orders[idx]);
   renderTechOrdersTable();
 }
 
 async function resumeWorkOnOT() {
+  setButtonLoading('btn-tech-resume-work', true);
   const otId = document.getElementById('tech-ot-id').value;
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const idx = orders.findIndex(o => o.id === otId);
-  if (idx === -1) return;
+  if (idx === -1) { setButtonLoading('btn-tech-resume-work', false); return; }
 
   orders[idx].status = 'En proceso';
   orders[idx].pauseReason = null;
@@ -6668,10 +6725,12 @@ async function resumeWorkOnOT() {
         .eq('folio', otId);
     } catch (err) {
       console.error('Error resuming work in Supabase:', err);
+      showToast('No se pudo guardar la reanudación en el servidor. Verifica tu conexión.', 'error');
     }
   }
 
-  showToast('▶️ Trabajo reanudado (En proceso).');
+  showToast('▶️ Trabajo reanudado (En proceso).', 'success');
+  setButtonLoading('btn-tech-resume-work', false);
   updateTechActionButtons(orders[idx]);
   renderTechOrdersTable();
 }
@@ -6688,6 +6747,8 @@ async function finishWorkOnOT() {
     alert('Por favor describe la actividad realizada antes de finalizar el trabajo.');
     return;
   }
+
+  setButtonLoading('btn-tech-finish-work', true);
 
   const nowISO = new Date().toISOString();
   orders[idx].fecha_hora_fin = nowISO;
@@ -6724,11 +6785,13 @@ async function finishWorkOnOT() {
         .eq('folio', otId);
     } catch (err) {
       console.error('Error finishing work in Supabase:', err);
+      showToast('No se pudo guardar el cierre de OT en el servidor. Verifica tu conexión.', 'error');
     }
   }
 
+  setButtonLoading('btn-tech-finish-work', false);
   closeModal('modal-tech-ot-detail');
-  showToast('✅ Trabajo finalizado. La OT cambió a Pendiente de validación.');
+  showToast('✅ Trabajo finalizado. La OT cambió a Pendiente de validación.', 'success');
 
   renderTechOrdersTable();
   if (typeof syncDatabases === 'function') await syncDatabases();
@@ -8726,15 +8789,76 @@ function closeModal(modalId) {
   }
 }
 
-function showToast(message) {
+// --- E1: Indicador de conectividad ---
+function updateConnectionIndicator(online) {
+  document.querySelectorAll('.system-status-indicator').forEach(badge => {
+    const dot = badge.querySelector('.status-dot');
+    const label = badge.querySelector('.conn-label');
+    if (online) {
+      badge.classList.remove('offline');
+      if (dot) { dot.style.backgroundColor = ''; dot.style.animation = ''; }
+      if (label) label.textContent = 'En Vivo';
+    } else {
+      badge.classList.add('offline');
+      if (dot) { dot.style.backgroundColor = '#ef4444'; dot.style.animation = 'pulse-red 1s infinite'; }
+      if (label) label.textContent = 'Sin conexión';
+    }
+  });
+}
+
+// --- C1: showToast tipificado (compatible con llamadas existentes — type es opcional) ---
+function showToast(message, type = 'info') {
   const toast = document.getElementById('toast');
   const toastText = document.getElementById('toast-text');
-  if (toast && toastText) {
-    toastText.innerText = message;
-    toast.classList.add('show');
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, 3000);
+  if (!toast || !toastText) return;
+
+  const config = {
+    success: { color: '#22c55e' },
+    error:   { color: '#ef4444' },
+    warning: { color: '#f59e0b' },
+    info:    { color: '#06b6d4' },
+  };
+  const { color } = config[type] || config.info;
+
+  toastText.innerText = message;
+  toast.style.setProperty('--toast-accent', color);
+  toast.className = `toast-notification toast-${type}`;
+  toast.classList.add('show');
+
+  clearTimeout(toast._hideTimer);
+  toast._hideTimer = setTimeout(() => {
+    toast.classList.remove('show');
+  }, type === 'error' ? 5000 : 3000);
+}
+
+// --- C2: Bloqueo de botón durante operaciones async (anti-doble-clic) ---
+function setButtonLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  if (loading) {
+    btn.dataset.originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Guardando...';
+    btn.disabled = true;
+  } else {
+    btn.innerHTML = btn.dataset.originalText || btn.innerHTML;
+    btn.disabled = false;
+    delete btn.dataset.originalText;
+  }
+}
+
+// --- D1: Wrapper de llamadas Supabase con reintentos automáticos ---
+async function supabaseCall(fn, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const result = await fn();
+      if (result?.error) throw result.error;
+      return result;
+    } catch (err) {
+      if (attempt === retries) throw err;
+      const wait = 1000 * (attempt + 1);
+      console.warn(`[supabaseCall] Reintento ${attempt + 1}/${retries} en ${wait}ms...`, err.message);
+      await new Promise(r => setTimeout(r, wait));
+    }
   }
 }
 

@@ -1632,11 +1632,29 @@ body {
   gap: 10px;
   transform: translateY(150%);
   transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  border-left: 4px solid var(--accent-cyan);
+  border-left: 4px solid var(--toast-accent, var(--accent-cyan));
 }
 
 .toast-notification.show {
   transform: translateY(0);
+}
+
+/* Tipos de toast */
+.toast-notification.toast-success { border-color: #22c55e; }
+.toast-notification.toast-error   { border-color: #ef4444; }
+.toast-notification.toast-warning { border-color: #f59e0b; }
+.toast-notification.toast-info    { border-color: #06b6d4; }
+
+/* Indicador offline */
+.system-status-indicator.offline .status-dot {
+  background-color: #ef4444;
+  animation: pulse-red 1s infinite;
+}
+
+@keyframes pulse-red {
+  0%   { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70%  { transform: scale(1);    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
 /* --- ESTILOS ADICIONALES EXCEL & CALENDARIOS --- */

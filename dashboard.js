@@ -1017,6 +1017,58 @@ async function loadDashboard() {
 // 11. BOOT
 // ============================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-  loadDashboard();
+/** Muestra la hora de la última actualización en la navbar */
+function updateDashLastUpdate() {
+  const el = document.getElementById('dash-last-update');
+  if (el) {
+    const now = new Date();
+    el.textContent = `Actualizado: ${now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadDashboard();
+  updateDashLastUpdate();
+
+  // B1: Polling automático cada 30 segundos — actualiza KPIs y gráficas sin recargar la página
+  if (!window._dashboardInterval) {
+    window._dashboardInterval = setInterval(async () => {
+      try {
+        console.log('[Dashboard] Auto-refresh iniciado...');
+        await Promise.allSettled([
+          loadKPIs(),
+          loadAnnualBudgetKPI(),
+          loadTechChart(),
+          loadDeptChart(),
+          loadMonthlyTrend(),
+          loadCriticalInventory(),
+        ]);
+        updateDashLastUpdate();
+        console.log('[Dashboard] Auto-refresh completado.');
+      } catch (e) {
+        console.warn('[Dashboard] Error en refresh automático:', e);
+      }
+    }, 30000);
+  }
+
+  // B2: Reconectar si se recupera la conexión a internet
+  window.addEventListener('online', async () => {
+    console.log('[Dashboard] Red recuperada. Recargando dashboard...');
+    await loadDashboard();
+    updateDashLastUpdate();
+  });
+
+  // Botón de refresh manual (ya existente en la navbar)
+  const btnRefresh = document.getElementById('btn-refresh-dashboard');
+  if (btnRefresh) {
+    btnRefresh.addEventListener('click', async () => {
+      btnRefresh.style.opacity = '0.5';
+      btnRefresh.disabled = true;
+      await loadDashboard();
+      updateDashLastUpdate();
+      btnRefresh.style.opacity = '';
+      btnRefresh.disabled = false;
+    });
+  }
 });
+
