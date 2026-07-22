@@ -10645,25 +10645,208 @@ async function handleGenerateCalendarProposal(event) {
         count++;
       }
     } else if (type === 'AUTONOMO') {
-      // Autónomo Semanal: Rutinas básicas recurrentes de limpieza y calibración
-      activeMachines.forEach((machine, idx) => {
-        // Programar una revisión para la semana dada
-        const baseDay = 1 + (idx % 5);
-        const startOfYear = new Date(year, 0, 1);
-        const projDate = new Date(startOfYear.setDate(startOfYear.getDate() + ((week - 1) * 7) + baseDay));
-        const balancedDateStr = getBalancedDate(projDate);
+      // Autónomo Semanal: Generar propuestas en base a la carga de Segundas por Rollo
+      // 1. Obtener registros de segundas del periodo actual y anterior
+      const [segundasRes, prevSegundasRes, relRes] = await Promise.all([
+        supabaseClient.from('segundas_por_rollo').select('*').eq('anio', year).eq('semana', week),
+        supabaseClient.from('segundas_por_rollo').select('*').eq('anio', year).eq('semana', week - 1),
+        supabaseClient.from('cat_relacion_defecto_falla').select('*').eq('activo', true)
+      ]);
 
-        detailsToInsert.push({
-          id_calendario: newCalId,
-          maquina_id: machine.equipo_towell,
-          fecha_programada: balancedDateStr,
-          tipo_mantenimiento: 'AUTONOMO',
-          prioridad: 'BAJA',
-          actividad_sugerida: `Rutina autónoma semanal: limpieza, lubricación y reapriete`,
-          responsable_sugerido: 'Operador de Planta',
-          estatus_detalle: 'PROPUESTO'
+      const currentSegundas = segundasRes.data || [];
+      const prevSegundas = prevSegundasRes.data || [];
+      const relations = relRes.data || [];
+
+      if (currentSegundas.length === 0) {
+        showToast('⚠️ No hay registros de Segundas por Rollo cargados para esta semana. Generando rutinas base...', 'warning');
+        // Fallback a rutinas base de limpieza para máquinas activas
+        activeMachines.forEach((machine, idx) => {
+          const baseDay = 1 + (idx % 5);
+          const startOfYear = new Date(year, 0, 1);
+          const projDate = new Date(startOfYear.setDate(startOfYear.getDate() + ((week - 1) * 7) + baseDay));
+          const balancedDateStr = getBalancedDate(projDate);
+
+          detailsToInsert.push({
+            id_calendario: newCalId,
+            maquina_id: machine.equipo_towell,
+            fecha_programada: balancedDateStr,
+            tipo_mantenimiento: 'AUTONOMO',
+            prioridad: 'BAJA',
+            actividad_sugerida: `Rutina autónoma base: Limpieza y reapriete general`,
+            responsable_sugerido: 'Operador de Planta',
+            estatus_detalle: 'PROPUESTO'
+          });
         });
-      });
+      } else {
+        // Agrupar por máquina + defecto
+        const groups = {};
+        currentSegundas.forEach(s => {
+          const key = `${s.maquina_id}::${s.codigo_defecto}`;
+          if (!groups[key]) {
+            groups[key] = {
+              maquina_id: s.maquina_id,
+              codigo_defecto: s.codigo_defecto,
+              defecto: s.defecto || s.codigo_defecto,
+              cantidad_defecto: 0,
+              mts_rollo: 0,
+              turnos: {},
+              articulos: new Set()
+            };
+          }
+          groups[key].cantidad_defecto += parseFloat(s.cantidad_defecto || 0);
+          groups[key].mts_rollo += parseFloat(s.mts_rollo || 0);
+          if (s.turno_tejido) {
+            groups[key].turnos[s.turno_tejido] = (groups[key].turnos[s.turno_tejido] || 0) + parseFloat(s.cantidad_defecto || 0);
+          }
+          if (s.nombre_articulo || s.codigo_articulo) {
+            groups[key].articulos.add(s.nombre_articulo || s.codigo_articulo);
+          }
+        });
+
+        // Agrupar también periodo anterior para comparar incremento
+        const prevGroups = {};
+        prevSegundas.forEach(s => {
+          const key = `${s.maquina_id}::${s.codigo_defecto}`;
+          prevGroups[key] = (prevGroups[key] || 0) + parseFloat(s.cantidad_defecto || 0);
+        });
+
+        // Evaluar cada grupo y calcular prioridades
+        for (const [key, g] of Object.entries(groups)) {
+          const machine = activeMachines.find(m => m.equipo_towell === g.maquina_id);
+          if (!machine) continue;
+
+          const currentVal = g.cantidad_defecto;
+          const prevVal = prevGroups[key] || 0;
+          let incrementPercent = 0;
+          if (prevVal > 0) {
+            incrementPercent = ((currentVal - prevVal) / prevVal) * 100;
+          } else if (currentVal > 0) {
+            incrementPercent = 100; // Primer evento
+          }
+
+          // Encontrar turno de mayor incidencia
+          let worstTurno = 'No especificado';
+          let maxTurnoVal = 0;
+          Object.entries(g.turnos).forEach(([t, v]) => {
+            if (v > maxTurnoVal) {
+              maxTurnoVal = v;
+              worstTurno = t;
+            }
+          });
+
+          // Verificar mantenimientos recientes (últimos 14 días)
+          const machOts = allOts.filter(o => o.maquina_id === g.maquina_id);
+          const machLogs = allLogs.filter(l => l.maquina_id === g.maquina_id);
+          const nowTime = new Date();
+          let lastInterventionDays = 999;
+          let lastInterventionType = '';
+
+          machOts.forEach(o => {
+            if (o.fecha_hora_inicio) {
+              const diffDays = Math.floor((nowTime - new Date(o.fecha_hora_inicio)) / (1000 * 60 * 60 * 24));
+              if (diffDays < lastInterventionDays) {
+                lastInterventionDays = diffDays;
+                lastInterventionType = o.orden_trabajo || 'OT';
+              }
+            }
+          });
+          machLogs.forEach(l => {
+            if (l.fecha_hora_inicio) {
+              const diffDays = Math.floor((nowTime - new Date(l.fecha_hora_inicio)) / (1000 * 60 * 60 * 24));
+              if (diffDays < lastInterventionDays) {
+                lastInterventionDays = diffDays;
+                lastInterventionType = 'Bitácora';
+              }
+            }
+          });
+
+          // Buscar relación Defecto -> Actividad/Checklist
+          const relation = relations.find(r => 
+            (r.codigo_defecto && r.codigo_defecto.toLowerCase() === g.codigo_defecto.toLowerCase()) || 
+            (r.defecto_calidad && r.defecto_calidad.toLowerCase().includes(g.defecto.toLowerCase()))
+          );
+
+          let activityDetails = 'Revisar equipo general para corregir defectos de calidad.';
+          let checklistLabel = 'Revisión autónoma general de calidad';
+          
+          if (relation && relation.actividad_autonoma_sugerida) {
+            activityDetails = relation.actividad_autonoma_sugerida;
+          } else {
+            const defMap = {
+              'mancha de aceite': 'Inspección de fugas, sellos desgastados y depósitos de lubricación.',
+              'trama floja': 'Ajustar la tensión de la trama, verificar alimentadores de hilo y sensores de trama.',
+              'hilo roto': 'Limpiar y revisar guías de hilo, calibrar tensión y enhebradores.',
+              'variacion dimensional': 'Revisar y calibrar parámetros dimensionales, rodillos y engranajes.',
+              'contaminacion': 'Realizar rutina profunda de limpieza de pelusa y restos en zonas críticas de tejido.'
+            };
+            const matchedKey = Object.keys(defMap).find(k => g.defecto.toLowerCase().includes(k) || g.codigo_defecto.toLowerCase().includes(k));
+            if (matchedKey) {
+              activityDetails = defMap[matchedKey];
+              checklistLabel = `Revisión autónoma de ${matchedKey}`;
+            }
+          }
+
+          // Calcular prioridad
+          let priority = 'BAJA';
+          const crit = (machine.criticidad || 'B').toUpperCase();
+          
+          if (currentVal >= 50 || incrementPercent >= 25 || (crit.includes('A') && currentVal >= 20)) {
+            priority = 'ALTA';
+          } else if (currentVal >= 20 || incrementPercent >= 10) {
+            priority = 'MEDIA';
+          }
+
+          // Si el incremento contra la semana anterior disminuye y está bajo control, no generar acción
+          if (currentVal < 5 && incrementPercent < 0) {
+            continue;
+          }
+
+          const motivos = [
+            `Registra ${currentVal} segundas por defecto "${g.defecto}" esta semana.`,
+            `Turno de mayor incidencia: ${worstTurno}.`,
+            `Variación contra semana anterior: ${incrementPercent >= 0 ? '+' : ''}${incrementPercent.toFixed(1)}%.`
+          ];
+          
+          if (lastInterventionDays < 14) {
+            motivos.push(`⚠️ Mantenimiento reciente: Recibió intervención (${lastInterventionType}) hace ${lastInterventionDays} días.`);
+          }
+          if (crit.includes('A')) {
+            motivos.push(`Telar de alta criticidad en planta.`);
+          }
+
+          const obsJson = {
+            motivos: motivos,
+            defecto_principal: g.defecto,
+            cantidad_segundas: currentVal,
+            incremento_semanal: incrementPercent,
+            turno_incidencia: worstTurno,
+            tipo_revision: relation ? relation.categoria_falla : 'Calidad Textil',
+            especialidad: 'Operador / Técnico Autónomo',
+            actividades_recomendadas: activityDetails.split('\n').map(a => a.replace('- ', '').trim()).filter(Boolean),
+            evidencia: `Reporte semanal de Segundas por Rollo. Total metros: ${g.mts_rollo.toFixed(1)} mts.`
+          };
+
+          // Programar fecha balanceada
+          const day = 2 + (detailsToInsert.length % 5);
+          const projDate = new Date(year, 0, 1);
+          projDate.setDate(projDate.getDate() + ((week - 1) * 7) + day);
+          const balancedDateStr = getBalancedDate(projDate);
+
+          detailsToInsert.push({
+            id_calendario: newCalId,
+            maquina_id: g.maquina_id,
+            fecha_programada: balancedDateStr,
+            tipo_mantenimiento: 'AUTONOMO',
+            prioridad: priority,
+            actividad_sugerida: `Mantenimiento Autónomo: Corregir defecto "${g.defecto}"`,
+            responsable_sugerido: 'Operador de Planta',
+            fuente_principal: g.codigo_defecto,
+            score_riesgo: currentVal,
+            observaciones: JSON.stringify(obsJson),
+            estatus_detalle: 'PROPUESTO'
+          });
+        }
+      }
     }
 
     if (detailsToInsert.length > 0) {
@@ -10734,9 +10917,12 @@ async function renderAdminCalendars() {
 
       let actions = '';
       if (d.estatus_detalle === 'PROPUESTO') {
-        const iaBtn = d.tipo_mantenimiento === 'PREDICTIVO' && d.observaciones ? `
-          <button class="btn-table-action" onclick="showPredictiveRecommendation('${d.id_detalle}')" style="background:#0284c7; color:white; border:none; margin-right:4px;">🔬 Ver Recomendación IA</button>
-        ` : '';
+        let iaBtn = '';
+        if (d.tipo_mantenimiento === 'PREDICTIVO' && d.observaciones) {
+          iaBtn = `<button class="btn-table-action" onclick="showPredictiveRecommendation('${d.id_detalle}')" style="background:#0284c7; color:white; border:none; margin-right:4px;">🔬 Ver Recomendación IA</button>`;
+        } else if (d.tipo_mantenimiento === 'AUTONOMO' && d.observaciones) {
+          iaBtn = `<button class="btn-table-action" onclick="showAutonomousSegundasDetails('${d.id_detalle}')" style="background:#0284c7; color:white; border:none; margin-right:4px;">📊 Ver Análisis de Segundas</button>`;
+        }
         actions = `
           ${iaBtn}
           <button class="btn-table-action" onclick="approveProposalDetail('${d.id_detalle}')" style="background:#22c55e; color:white; border:none; margin-right:4px;">Aprobar</button>
@@ -10937,6 +11123,39 @@ async function approveProposalDetail(detailId) {
           await supabaseClient.from('respuestas_checklist_orden').insert(responses);
         }
       }
+    } else if (detailData.tipo_mantenimiento === 'AUTONOMO') {
+      let defectCode = detailData.fuente_principal;
+      if (!defectCode && detailData.observaciones) {
+        try {
+          const obs = JSON.parse(detailData.observaciones);
+          defectCode = obs.defecto_principal;
+        } catch (e) {}
+      }
+
+      if (defectCode) {
+        const { data: rel } = await supabaseClient
+          .from('cat_relacion_defecto_falla')
+          .select('tipo_falla_id')
+          .eq('codigo_defecto', defectCode)
+          .maybeSingle();
+
+        const fallaId = rel ? rel.tipo_falla_id : 'MA_GENERAL';
+
+        const { data: questions } = await supabaseClient
+          .from('checklists_mantenimiento')
+          .select('id_checklist')
+          .eq('tipo_falla_id', fallaId)
+          .eq('activo', true);
+
+        if (questions && questions.length > 0) {
+          const responses = questions.map(q => ({
+            id_orden: newOT.id_orden,
+            id_checklist: q.id_checklist,
+            respuesta: null
+          }));
+          await supabaseClient.from('respuestas_checklist_orden').insert(responses);
+        }
+      }
     }
 
     showToast(`✅ Propuesta aprobada. Generada la orden de trabajo folio ${newOT.folio || ''}.`);
@@ -11009,6 +11228,17 @@ async function showPredictiveRecommendation(detailId) {
       obs = { motivos: [d.observaciones] };
     }
 
+    // Restaurar títulos a versión "Análisis Predictivo IA"
+    const headerTitle = document.querySelector('#modal-predictive-recommendation-details .modal-header h4 span');
+    if (headerTitle) {
+      headerTitle.textContent = '🔬 Análisis Predictivo IA';
+    }
+
+    const labelType = document.querySelector('#modal-predictive-recommendation-details div[style*="grid-template-columns"] div:nth-child(1) div:nth-child(1)');
+    const labelSpecialty = document.querySelector('#modal-predictive-recommendation-details div[style*="grid-template-columns"] div:nth-child(2) div:nth-child(1)');
+    if (labelType) labelType.textContent = 'Tipo de Revisión';
+    if (labelSpecialty) labelSpecialty.textContent = 'Especialidad Requerida';
+
     // Poblar modal
     document.getElementById('pred-rec-machine').textContent = d.maquina_id;
     document.getElementById('pred-rec-priority').textContent = d.prioridad || 'MEDIA';
@@ -11066,6 +11296,99 @@ async function showPredictiveRecommendation(detailId) {
   } catch (err) {
     console.error('[showPredictiveRecommendation] Error loading recommendations:', err);
     showToast('❌ Error al cargar la recomendación.', 'error');
+  }
+}
+
+// 10. Mostrar Detalle de Análisis de Segundas por Rollo (Mantenimiento Autónomo)
+async function showAutonomousSegundasDetails(detailId) {
+  if (!supabaseClient) return;
+  showToast('🔍 Obteniendo análisis de segundas...');
+
+  try {
+    const { data: d, error } = await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .select('*')
+      .eq('id_detalle', detailId)
+      .single();
+
+    if (error) throw error;
+    if (!d || !d.observaciones) {
+      showToast('⚠️ No se encontró análisis de segundas asociado.', 'warning');
+      return;
+    }
+
+    let obs = {};
+    try {
+      obs = JSON.parse(d.observaciones);
+    } catch (e) {
+      console.warn('Fallo al parsear observaciones autónomas:', e);
+      obs = { motivos: [d.observaciones] };
+    }
+
+    // Cambiar títulos dinámicamente a versión "Segundas por Rollo"
+    const headerTitle = document.querySelector('#modal-predictive-recommendation-details .modal-header h4 span');
+    if (headerTitle) {
+      headerTitle.textContent = '📊 Análisis de Segundas por Rollo';
+    }
+
+    // Cambiar etiquetas de la grilla de detalles
+    const labelType = document.querySelector('#modal-predictive-recommendation-details div[style*="grid-template-columns"] div:nth-child(1) div:nth-child(1)');
+    const labelSpecialty = document.querySelector('#modal-predictive-recommendation-details div[style*="grid-template-columns"] div:nth-child(2) div:nth-child(1)');
+    if (labelType) labelType.textContent = 'Defecto Principal';
+    if (labelSpecialty) labelSpecialty.textContent = 'Turno con mayor Incidencia';
+
+    // Poblar modal
+    document.getElementById('pred-rec-machine').textContent = d.maquina_id;
+    document.getElementById('pred-rec-priority').textContent = d.prioridad || 'MEDIA';
+    
+    // Barra de riesgo en base a cantidad de segundas (0 a 100+)
+    const segundasCount = parseFloat(d.score_riesgo) || 0;
+    const barPercent = Math.min(100, (segundasCount / 100) * 100);
+    
+    document.getElementById('pred-rec-risk-label').textContent = `${segundasCount} segundas`;
+    const riskBar = document.getElementById('pred-rec-risk-bar');
+    if (riskBar) {
+      riskBar.style.width = `${barPercent}%`;
+      // Cambiar color basado en cantidad
+      if (segundasCount >= 50) riskBar.style.background = '#f43f5e'; // Rojo
+      else if (segundasCount >= 20) riskBar.style.background = '#fbbf24'; // Amarillo
+      else riskBar.style.background = '#3b82f6'; // Azul
+    }
+
+    document.getElementById('pred-rec-type').textContent = obs.defecto_principal || '--';
+    document.getElementById('pred-rec-specialty').textContent = obs.turno_incidencia || 'No especificado';
+
+    // Lista de motivos
+    const motivosList = document.getElementById('pred-rec-motivos-list');
+    if (motivosList) {
+      motivosList.innerHTML = '';
+      const motivosArr = obs.motivos || [];
+      motivosArr.forEach(m => {
+        motivosList.innerHTML += `<li>${m}</li>`;
+      });
+    }
+
+    document.getElementById('pred-rec-evidence').textContent = obs.evidencia || '--';
+    document.getElementById('pred-rec-date').textContent = fmtDate(d.fecha_programada);
+
+    // Botón Aprobación
+    const approveBtn = document.getElementById('pred-rec-approve-btn');
+    if (approveBtn) {
+      if (d.estatus_detalle === 'PROPUESTO') {
+        approveBtn.style.display = 'block';
+        approveBtn.onclick = async () => {
+          closeModal('modal-predictive-recommendation-details');
+          await approveProposalDetail(detailId);
+        };
+      } else {
+        approveBtn.style.display = 'none';
+      }
+    }
+
+    openModal('modal-predictive-recommendation-details');
+  } catch (err) {
+    console.error('[showAutonomousSegundasDetails] Error loading details:', err);
+    showToast('❌ Error al cargar los detalles.', 'error');
   }
 }
 

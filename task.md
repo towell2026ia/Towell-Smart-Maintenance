@@ -1,35 +1,15 @@
-- `[x]` 1. Unificar Calendarios (2 en 1) en HTML
-  - `[x]` 1.1 Ocultar botón de menú lateral `menu-admin-calendars`
-  - `[x]` 1.2 Rediseñar `panel-admin-calendar` para albergar filtros y vistas duales (Grid/Tabla)
-- `[x]` 2. Corregir y ampliar lógica en JS (`app.js`)
-  - `[x]` 2.1 Actualizar nombres de vistas y campos a `fecha_sugerida` en `renderAdminCalendars()`
-  - `[x]` 2.2 Integrar cuadrícula de calendario dinámica con filtros en `renderAdminCalendar()`
-  - `[x]` 2.3 Manejar los botones de navegación mes anterior/mes siguiente
-- `[x]` 3. Validar y subir cambios a GitHub
-- `[x]` 4. Matriz de Criticidad de Maquinaria
-  - `[x]` 4.1 Crear y ejecutar load_criticidad.js para procesar Criticidad_maquina.xlsb
-  - `[x]` 4.2 Mapear prioridades numéricas a niveles textuales con colores en UI
-  - `[x]` 4.3 Asignar por defecto 'Muy Baja' a máquinas ausentes en la matriz
-- `[x]` 5. Alta del Equipo Técnico
-  - `[x]` 5.1 Crear modal `modal-admin-new-technician` en HTML para capturar datos
-  - `[x]` 5.2 Implementar `submitNewTechnician()` para insertar en `cat_tecnicos` y `cat_usuarios_roles`
-  - `[x]` 5.3 Sincronizar con el almacenamiento local y refrescar dinámicamente la UI
-  - `[x]` 5.4 Importar base de datos masiva desde TECNICOS_DE_MANTENIMIENTO.xlsx y sembrar cat_turnos
-- `[x]` 6. Carga de Super Administradores
-  - `[x]` 6.1 Crear y ejecutar load_super_admins.js para procesar Base_Super_Administrador.xlsx
-  - `[x]` 6.2 Registrar al Director y Gerente de Calidad en cat_usuarios_roles con privilegios de administrador
-- `[x]` 7. Sincronización en la Nube de Formularios y Respuestas
-  - `[x]` 7.1 Registrar la orden de trabajo comodín para levantamientos autónomos
-  - `[x]` 7.2 Integrar el guardado de plantillas de formularios con cat_servicios_mantenimiento y checklists_mantenimiento
-  - `[x]` 7.3 Sincronizar respuestas locales pendientes (db_synced = false) con respuestas_checklist_orden en Supabase
-  - `[x]` 7.4 Mejorar renderAdminRespChk con JOIN relacional para mostrar nombres y preguntas legibles
-- `[x]` 8. Formulario de Bitácora de Mantenimiento (F-BITACORA)
-  - `[x]` 8.1 Sembrar plantilla de Bitácora (8 preguntas) en Supabase con seed_bitacora_template.js
-  - `[x]` 8.2 Añadir opción 'Bitácora de Actividades' al menú lateral del técnico y su panel correspondiente
-  - `[x]` 8.3 Implementar modal con lógica de pre-rellenado (por OT), filtros de máquina por área, y descontado de stock de refacciones
-  - `[x]` 8.4 Habilitar agrupado correlativo por envío en la bandeja del administrador
-- `[x]` 9. Tabla Dedicada para Bitácora de Mantenimiento (bitacora_mantenimiento)
-  - `[x]` 9.1 Crear archivo de migración SQL create_bitacora_mantenimiento.sql para la tabla y sus índices
-  - `[x]` 9.2 Modificar flujo de guardado y carga técnica para usar el almacén dedicado TSMAI_maintenance_logs
-  - `[x]` 9.3 Implementar lógica de resolución de UUIDs de OT y sincronización bidireccional en syncDatabases
-  - `[x]` 9.4 Integrar las bitácoras autónomas con el panel histórico del administrador renderAdminLogsTable
+# Paso 6.1.3 — Task List (Autónomo Semanal por Segundas por Rollo)
+
+## A — Diseño e Interfaz en HTML
+- `[x]` A1 — Integrar la vista de recomendación IA predictiva para soportar análisis de Segundas por Rollo
+- `[x]` A2 — Configurar etiquetas y títulos dinámicos en el modal interactivo
+
+## B — Lógica y Algoritmos en JS (app.js)
+- `[x]` B1 — Desarrollar motor de análisis de Segundas por Rollo agrupando por telar y código de defecto
+- `[x]` B2 — Programar cálculo dinámico de variación porcentual contra semana anterior e incidencias por turno
+- `[x]` B3 — Cruzar defectos de calidad con el catálogo relacional `cat_relacion_defecto_falla` para obtener checklists y actividades autónomas sugeridas
+- `[x]` B4 — Integrar la visualización interactiva "Ver Análisis de Segundas" en la pestaña de propuestas autónomas
+
+## C — Aprobación y Generación de OTs
+- `[x]` C1 — Programar la inyección automática de checklists de calidad en `respuestas_checklist_orden` al aprobar propuestas autónomas
+- `[x]` C2 — Probar la generación secuencial y validación de idempotencia en la base de datos Supabase
