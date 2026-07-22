@@ -4664,14 +4664,12 @@ async function renderAdminPartsTable() {
         .order('nombre_articulo');
       if (!error && data && data.length > 0) {
         parts = data.map(p => ({
-          id: p.codigo_articulo || p.id_refaccion,
-          name: p.nombre_articulo,
-          category: p.familia || 'General',
-          cost: p.precio_unitario || p.precio_costo_unitario || 0,
-          stock: p.cantidad_existencia || p.stock_actual || 0,
-          minStock: p.stock_minimo || p.cantidad_minima || 3,
-          activo: p.activo !== false,
-          unit: p.unidad_medida || 'PZA'
+          id: p.codigo_articulo || p.id,
+          name: p.nombre_articulo || p.codigo_articulo,
+          maquina: p.maquina_id || 'General',
+          cantidadEstandar: parseFloat(p.cantidad_estandar) || 1,
+          cost: parseFloat(p.costo_unitario || p.precio_costo_unitario || 0),
+          activo: p.activo !== false
         }));
         localStorage.setItem('TSMAI_parts', JSON.stringify(parts));
       }
@@ -4687,22 +4685,18 @@ async function renderAdminPartsTable() {
   let html = '';
   parts.forEach(p => {
     const isActive = p.activo !== false;
-    const lowStock = p.stock <= p.minStock;
-    const stockBadge = !isActive
-      ? '<span class="badge badge-priority-alta">Inactivo</span>'
-      : (lowStock
-        ? '<span class="badge badge-priority-crítica">🚨 Bajo Stock</span>'
-        : '<span class="badge badge-status-ejecutada">✅ Óptimo</span>');
+    const statusBadge = isActive
+      ? '<span class="badge badge-status-ejecutada">✅ Activo</span>'
+      : '<span class="badge badge-priority-alta">Inactivo</span>';
     
     html += `
       <tr style="opacity: ${isActive ? 1 : 0.65}">
         <td><strong>${p.id}</strong></td>
         <td>${p.name}</td>
-        <td>${p.category}</td>
+        <td><span style="color:var(--accent-blue); font-weight:600;">${p.maquina}</span></td>
+        <td style="font-weight: 700; font-size:1.05em; color:var(--accent-green);">${p.cantidadEstandar} pza</td>
         <td>$${Number(p.cost).toFixed(2)} MXN</td>
-        <td style="font-weight: 700; color: ${isActive && lowStock ? 'var(--color-critical)' : 'inherit'}; font-size:1.1em;">${p.stock} <small style="font-weight:400;color:var(--text-muted);">${p.unit || 'PZA'}</small></td>
-        <td>${p.minStock}</td>
-        <td>${stockBadge}</td>
+        <td>${statusBadge}</td>
         <td>
           <button class="btn-table-action" onclick="openAdminPartModal('${p.id}')">✏️ Editar</button>
           <button class="btn-table-action" style="color: ${isActive ? 'var(--color-critical)' : 'var(--color-preventive)'}; border-color: ${isActive ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}" onclick="deleteAdminPart('${p.id}')">
@@ -7207,25 +7201,7 @@ async function saveTechnicalLog() {
     if (idx !== -1) parts[idx].stock += prev.quantity;
   });
 
-  // Restar nuevas partes
-  let stockError = false;
-  tempSelectedParts.forEach(selected => {
-    const idx = parts.findIndex(p => p.id === selected.partId);
-    if (idx !== -1) {
-      if (parts[idx].stock >= selected.quantity) {
-        parts[idx].stock -= selected.quantity;
-      } else {
-        stockError = true;
-      }
-    }
-  });
-
-  if (stockError) {
-    alert('Ocurrió un problema con el inventario de refacciones. Verifica cantidades.');
-    return;
-  }
-
-  // Guardar datos en la OT
+  // Guardar datos en la OT (Refacciones consumidas en el servicio)
   orders[orderIndex].diagnosis = diagnosis;
   orders[orderIndex].activity = activity;
   orders[orderIndex].observations = observations;
@@ -7814,38 +7790,39 @@ async function loadPartsForMachine(machineId) {
     return;
   }
 
-  partSelect.innerHTML = '<option value="">⏳ Cargando refacciones de la máquina...</option>';
+  partSelect.innerHTML = '<option value="">⏳ Cargando refacciones del servicio...</option>';
 
   let machineParts = [];
 
   if (useLiveDatabase && supabaseClient) {
     try {
-      // Query refacciones_por_maquina filtered by this specific machine
       const { data, error } = await supabaseClient
-        .from('refacciones_por_maquina')
-        .select('codigo_articulo, nombre_articulo, cantidad_estandar, precio_costo_unitario')
+        .from('cat_refacciones')
+        .select('codigo_articulo, nombre_articulo, maquina_id, cantidad_estandar, costo_unitario, precio_costo_unitario')
         .eq('maquina_id', machineId)
         .order('nombre_articulo');
 
       if (!error && data && data.length > 0) {
-        // Enrich with stock from cat_refacciones
-        const codes = [...new Set(data.map(r => r.codigo_articulo))];
-        const { data: stockData } = await supabaseClient
-          .from('cat_refacciones')
-          .select('codigo_articulo, stock_actual, stock_minimo')
-          .in('codigo_articulo', codes);
-
-        const stockMap = {};
-        (stockData || []).forEach(s => { stockMap[s.codigo_articulo] = s; });
-
         machineParts = data.map(r => ({
           id: r.codigo_articulo,
           name: r.nombre_articulo || r.codigo_articulo,
           cantidadEstandar: parseFloat(r.cantidad_estandar) || 1,
-          costo: parseFloat(r.precio_costo_unitario) || 0,
-          stock: parseFloat(stockMap[r.codigo_articulo]?.stock_actual) || 0,
-          stockMinimo: parseFloat(stockMap[r.codigo_articulo]?.stock_minimo) || 0
+          costo: parseFloat(r.costo_unitario || r.precio_costo_unitario || 0)
         }));
+      } else {
+        // Fallback: general parts
+        const { data: genData } = await supabaseClient
+          .from('cat_refacciones')
+          .select('codigo_articulo, nombre_articulo, cantidad_estandar, costo_unitario, precio_costo_unitario')
+          .limit(100);
+        if (genData && genData.length > 0) {
+          machineParts = genData.map(r => ({
+            id: r.codigo_articulo,
+            name: r.nombre_articulo || r.codigo_articulo,
+            cantidadEstandar: parseFloat(r.cantidad_estandar) || 1,
+            costo: parseFloat(r.costo_unitario || r.precio_costo_unitario || 0)
+          }));
+        }
       }
     } catch (err) {
       console.warn('Error loading machine parts:', err);
@@ -7855,7 +7832,12 @@ async function loadPartsForMachine(machineId) {
   // Fallback: use full catalog from localStorage
   if (machineParts.length === 0) {
     const allParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
-    machineParts = allParts.map(p => ({ id: p.id, name: p.name, cantidadEstandar: 1, costo: p.cost || 0, stock: p.stock || 0, stockMinimo: p.minStock || 0 }));
+    machineParts = allParts.map(p => ({
+      id: p.id,
+      name: p.name,
+      cantidadEstandar: p.cantidadEstandar || 1,
+      costo: p.cost || 0
+    }));
   }
 
   tempBitacoraMachineParts = machineParts;
@@ -7865,8 +7847,7 @@ async function loadPartsForMachine(machineId) {
     : `<option value="">⚠️ Sin refacciones asignadas a esta máquina</option>`;
 
   machineParts.forEach(p => {
-    const stockBadge = p.stock <= p.stockMinimo ? ' ⚠️ Stock bajo' : '';
-    partSelect.innerHTML += `<option value="${p.id}" data-qty="${p.cantidadEstandar}" data-costo="${p.costo}">${p.name} — Std: ${p.cantidadEstandar} | Stock: ${p.stock}${stockBadge}</option>`;
+    partSelect.innerHTML += `<option value="${p.id}" data-qty="${p.cantidadEstandar}" data-costo="${p.costo}">${p.name} — Requerido Servicio: ${p.cantidadEstandar} pza ($${p.costo.toFixed(2)})</option>`;
   });
 }
 
@@ -7969,19 +7950,9 @@ function addPartToBitacoraList() {
     part = { id: partId, name: selectedOption?.text || partId, cantidadEstandar: qty, costo: 0, stock: 999, stockMinimo: 0 };
   }
 
-  if (part.stock > 0 && qty > part.stock) {
-    alert(`Stock insuficiente. Solo quedan ${part.stock} unidades disponibles.`);
-    return;
-  }
-
   const existIndex = tempBitacoraSelectedParts.findIndex(p => p.partId === partId);
   if (existIndex !== -1) {
-    const newTotal = tempBitacoraSelectedParts[existIndex].quantity + qty;
-    if (part.stock > 0 && newTotal > part.stock) {
-      alert(`Stock insuficiente. No puedes agregar más de ${part.stock} unidades en total.`);
-      return;
-    }
-    tempBitacoraSelectedParts[existIndex].quantity = newTotal;
+    tempBitacoraSelectedParts[existIndex].quantity += qty;
   } else {
     tempBitacoraSelectedParts.push({
       partId: partId,
@@ -8103,28 +8074,6 @@ async function submitNewBitacoraLog() {
       
       const { error: insErr } = await supabaseClient.from('bitacora_mantenimiento').insert([record]);
       if (insErr) throw insErr;
-      
-      // 2. Restar stock en Supabase
-      if (tempBitacoraSelectedParts.length > 0) {
-        for (const selected of tempBitacoraSelectedParts) {
-          try {
-            const { data: partData } = await supabaseClient
-              .from('cat_refacciones')
-              .select('stock_actual')
-              .eq('codigo_articulo', selected.partId)
-              .maybeSingle();
-            if (partData) {
-              const newStock = Math.max(0, (partData.stock_actual || 50) - selected.quantity);
-              await supabaseClient
-                .from('cat_refacciones')
-                .update({ stock_actual: newStock })
-                .eq('codigo_articulo', selected.partId);
-            }
-          } catch (stkErr) {
-            console.warn('Error updating live stock:', stkErr);
-          }
-        }
-      }
     } catch (err) {
       console.error('Error saving bitacora to Supabase:', err);
       alert('Error al guardar en Supabase: ' + err.message);
@@ -8153,18 +8102,6 @@ async function submitNewBitacoraLog() {
 
   localLogs.push(newLog);
   localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(localLogs));
-
-  // Restar stock local
-  if (tempBitacoraSelectedParts.length > 0) {
-    const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
-    tempBitacoraSelectedParts.forEach(selected => {
-      const idx = parts.findIndex(p => p.id === selected.partId);
-      if (idx !== -1) {
-        parts[idx].stock = Math.max(0, parts[idx].stock - selected.quantity);
-      }
-    });
-    localStorage.setItem('TSMAI_parts', JSON.stringify(parts));
-  }
 
   closeModal('modal-tech-new-bitacora');
   showToast('Actividad registrada con éxito.');
