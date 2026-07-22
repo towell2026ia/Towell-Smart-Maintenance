@@ -1923,67 +1923,130 @@ function openLogin(mode) {
 }
 
 async function quickLogin(role, techId) {
-  useLiveDatabase = false;
-  console.log('[TSMAI] Demo Mode activated via Quick Login.');
-
-  if (role === 'admin') {
-    const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-    const dbAdmin = users.find(u => u.rol === 'SUPER_ADMINISTRADOR');
-    if (dbAdmin) {
-      currentUser = { 
-        role: 'admin', 
-        name: dbAdmin.nombre_completo, 
-        email: dbAdmin.correo,
-        uuid: dbAdmin.id_usuario 
-      };
-      showToast(`Sesión iniciada como Super Admin: ${dbAdmin.nombre_completo}`);
-    } else {
-      currentUser = { role: 'admin', name: 'Super Administrador' };
-      showToast('Sesión iniciada como Super Administrador.');
-    }
-    showView('admin');
-    switchAdminPanel('dashboard');
+  showToast('🔑 Iniciando sesión rápida...');
+  
+  if (supabaseClient) {
+    useLiveDatabase = true;
+    console.log('[TSMAI] Live Database mode activated via Quick Login.');
   } else {
-    // Buscar si es un usuario de mantenimiento real en la base de datos
-    const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-    const dbUser = users.find(u => u.rol === 'MANTENIMIENTO' && (u.cve_tecnico === techId || u.id_usuario === techId));
-    if (dbUser) {
-      currentUser = {
-        role: 'tech',
-        id: dbUser.cve_tecnico || dbUser.id_usuario,
-        uuid: dbUser.id_usuario,
-        name: dbUser.nombre_completo,
-        email: dbUser.correo,
-        specialty: dbUser.observaciones || 'General',
-        avatar: '👨‍🔧',
-        department: dbUser.departamento
-      };
-      showToast(`Sesión iniciada como Técnico: ${dbUser.nombre_completo}`);
-      
-      document.getElementById('tech-profile-name').innerText = dbUser.nombre_completo;
-      document.getElementById('tech-profile-specialty').innerText = dbUser.observaciones || 'General';
-      document.getElementById('tech-profile-avatar').innerText = '👨‍🔧';
-      
-      showView('tech');
-      switchTechPanel('dashboard');
-      return;
-    }
+    useLiveDatabase = false;
+    console.log('[TSMAI] Demo Mode activated via Quick Login.');
+  }
 
-    // Fallback a técnicos demo locales
-    const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
-    const tech = techs.find(t => t.id === techId);
-    if (tech) {
-      currentUser = { role: 'tech', ...tech };
-      showToast(`Sesión iniciada como Técnico: ${tech.name}`);
+  try {
+    if (role === 'admin') {
+      let dbAdmin = null;
+      if (useLiveDatabase) {
+        // Consultar primer administrador en Supabase
+        const { data, error } = await supabaseClient
+          .from('cat_usuarios_roles')
+          .select('*')
+          .eq('rol', 'SUPER_ADMINISTRADOR')
+          .order('fecha_alta', { ascending: true })
+          .limit(1);
+          
+        if (!error && data && data.length > 0) {
+          dbAdmin = data[0];
+        }
+      }
+
+      if (!dbAdmin) {
+        // Fallback a caché local
+        const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+        dbAdmin = users.find(u => u.rol === 'SUPER_ADMINISTRADOR');
+      }
+
+      if (dbAdmin) {
+        currentUser = { 
+          role: 'admin', 
+          name: dbAdmin.nombre_completo, 
+          email: dbAdmin.correo,
+          uuid: dbAdmin.id_usuario 
+        };
+      } else {
+        currentUser = { role: 'admin', name: 'Super Administrador' };
+      }
+
+      persistSessionUser(currentUser);
+      showToast(`Sesión iniciada como Super Admin: ${currentUser.name}`);
       
-      // Actualizar perfil técnico en la barra lateral
-      document.getElementById('tech-profile-name').innerText = tech.name;
-      document.getElementById('tech-profile-specialty').innerText = tech.specialty;
-      document.getElementById('tech-profile-avatar').innerText = tech.avatar;
-      
-      showView('tech');
-      switchTechPanel('dashboard');
+      if (useLiveDatabase) {
+        await syncDatabases();
+      }
+      showView('admin');
+      switchAdminPanel('dashboard');
+
+    } else {
+      // Técnico
+      let dbUser = null;
+      if (useLiveDatabase) {
+        // Consultar técnico por cve_tecnico en Supabase
+        const { data, error } = await supabaseClient
+          .from('cat_usuarios_roles')
+          .select('*')
+          .eq('rol', 'MANTENIMIENTO')
+          .eq('cve_tecnico', techId)
+          .maybeSingle();
+
+        if (!error && data) {
+          dbUser = data;
+        }
+      }
+
+      if (!dbUser) {
+        // Fallback a caché local
+        const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+        dbUser = users.find(u => u.rol === 'MANTENIMIENTO' && (u.cve_tecnico === techId || u.id_usuario === techId));
+      }
+
+      if (dbUser) {
+        currentUser = {
+          role: 'tech',
+          id: dbUser.cve_tecnico || dbUser.id_usuario,
+          uuid: dbUser.id_usuario,
+          name: dbUser.nombre_completo,
+          email: dbUser.correo,
+          specialty: dbUser.observaciones || 'General',
+          avatar: '👨‍🔧',
+          department: dbUser.departamento
+        };
+        persistSessionUser(currentUser);
+        showToast(`Sesión iniciada como Técnico: ${dbUser.nombre_completo}`);
+        
+        document.getElementById('tech-profile-name').innerText = dbUser.nombre_completo;
+        document.getElementById('tech-profile-specialty').innerText = dbUser.observaciones || 'General';
+        document.getElementById('tech-profile-avatar').innerText = '👨‍🔧';
+
+        if (useLiveDatabase) {
+          await syncDatabases();
+        }
+        showView('tech');
+        switchTechPanel('dashboard');
+        return;
+      }
+
+      // Fallback secundario a técnicos demo locales
+      const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+      const tech = techs.find(t => t.id === techId);
+      if (tech) {
+        currentUser = { role: 'tech', ...tech };
+        persistSessionUser(currentUser);
+        showToast(`Sesión iniciada como Técnico: ${tech.name}`);
+        
+        document.getElementById('tech-profile-name').innerText = tech.name;
+        document.getElementById('tech-profile-specialty').innerText = tech.specialty;
+        document.getElementById('tech-profile-avatar').innerText = tech.avatar;
+
+        if (useLiveDatabase) {
+          await syncDatabases();
+        }
+        showView('tech');
+        switchTechPanel('dashboard');
+      }
     }
+  } catch (err) {
+    console.error('Error en quickLogin:', err);
+    showToast('❌ Error al iniciar sesión de prueba.', 'error');
   }
 }
 
