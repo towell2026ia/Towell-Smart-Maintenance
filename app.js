@@ -1938,20 +1938,8 @@ function switchLoginTab(tab) {
 }
 
 async function handleSplitLoginSubmit(event) {
-  event.preventDefault();
-  
-  const emailInput = document.getElementById('login-email');
-  const passInput = document.getElementById('login-password');
-  const roleInput = document.getElementById('login-role-target');
-  
-  if (emailInput && passInput) {
-    emailInput.value = document.getElementById('split-login-email').value.trim();
-    passInput.value = document.getElementById('split-login-password').value.trim();
-    if (roleInput) roleInput.value = 'users';
-    
-    // Ejecutar el login submit original
-    await handleLoginSubmit(event);
-  }
+  if (event) event.preventDefault();
+  await handleLoginSubmit(event);
 }
 
 async function quickLogin(role, techId) {
@@ -2083,10 +2071,27 @@ async function quickLogin(role, techId) {
 }
 
 async function handleLoginSubmit(event) {
-  event.preventDefault();
-  const role = document.getElementById('login-role-target').value;
-  const email = document.getElementById('login-email').value.trim().toLowerCase();
-  const password = document.getElementById('login-password').value.trim();
+  if (event) event.preventDefault();
+  
+  const isSplitActive = document.getElementById('split-form-login') && document.getElementById('split-form-login').style.display !== 'none';
+  
+  const roleInput = document.getElementById('login-role-target');
+  const role = roleInput ? roleInput.value : 'users';
+  
+  let email = '';
+  let password = '';
+  
+  if (isSplitActive) {
+    const splitEmail = document.getElementById('split-login-email');
+    const splitPass = document.getElementById('split-login-password');
+    email = splitEmail ? splitEmail.value.trim().toLowerCase() : '';
+    password = splitPass ? splitPass.value.trim() : '';
+  } else {
+    const origEmail = document.getElementById('login-email');
+    const origPass = document.getElementById('login-password');
+    email = origEmail ? origEmail.value.trim().toLowerCase() : '';
+    password = origPass ? origPass.value.trim() : '';
+  }
 
   let dbUser = null;
 
