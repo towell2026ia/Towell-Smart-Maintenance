@@ -49,24 +49,18 @@
     <header class="public-navbar">
       <div style="display: flex; align-items: center;">
         <div class="public-logo" onclick="showPublicPanel('home')" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
-          <img src="images/logo.png" id="app-logo-img" onerror="this.style.display='none'; document.getElementById('app-logo-text').style.display='inline-block';" alt="Logo" style="height: 42px;">
-          <span id="app-logo-text" class="public-logo-text" style="display: none;">TSM<span class="public-logo-accent">-AI</span></span>
+          <img src="images/logo.png" id="app-logo-img" alt="Logo" style="height: 42px;">
+          <span id="app-logo-text" class="public-logo-text">TSM<span class="public-logo-accent">-AI</span></span>
         </div>
         <button class="btn-nav btn-nav-outline" id="btn-public-back" onclick="showPublicPanel('home')" style="display: none; margin-left: 20px;">
           ← Regresar al Menú Principal
         </button>
       </div>
-      <nav class="nav-links">
-        <!-- Dropdown Acceso Interno -->
-        <div class="dropdown-container">
-          <button class="btn-nav btn-nav-primary" id="btn-acceso-interno" onclick="toggleAccesoInternoMenu()">
-            Acceso Interno ▾
-          </button>
-          <div class="dropdown-menu" id="menu-acceso-interno">
-            <a class="dropdown-item" onclick="openLogin('users')">🔐 Acceso de Usuarios</a>
-            <a class="dropdown-item" onclick="openLogin('demo')">🚀 Demo de Prueba</a>
-          </div>
-        </div>
+      <nav class="nav-links" style="display: flex; align-items: center; gap: 16px;">
+        <!-- Acceso Directo de Usuarios y Demos -->
+        <a class="nav-link-item" onclick="openLogin('users')" style="cursor: pointer; color: white; font-weight: 600; text-decoration: none; font-size: 1rem; transition: color 0.2s;" onmouseover="this.style.color='#38bdf8'" onmouseout="this.style.color='white'">Acceso</a>
+        <span style="color: #475569; font-weight: 300; font-size: 1rem;">|</span>
+        <a class="nav-link-item" onclick="openLogin('demo')" style="cursor: pointer; color: #94a3b8; font-weight: 500; text-decoration: none; font-size: 1rem; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#94a3b8'">Demo</a>
       </nav>
     </header>
 

@@ -1242,6 +1242,7 @@ function restoreRouteFromHash() {
   if (currentUser) {
     const isSuperAdmin = currentUser.role === 'admin' || currentUser.rol === 'SUPER_ADMINISTRADOR' || currentUser.role === 'SUPER_ADMINISTRADOR';
     const isTech = currentUser.role === 'tech' || currentUser.rol === 'MANTENIMIENTO' || currentUser.role === 'MANTENIMIENTO';
+    const isPublic = currentUser.role === 'public' || currentUser.rol === 'SOLICITANTE_PUBLICO' || currentUser.role === 'SOLICITANTE';
 
     if (isSuperAdmin) {
       const targetPanel = (viewId === 'admin' && panelId) ? panelId : (activeAdminPanel || 'dashboard');
@@ -1259,6 +1260,10 @@ function restoreRouteFromHash() {
 
       showView('tech');
       switchTechPanel(targetPanel);
+      return true;
+    } else if (isPublic) {
+      showView('public-portal');
+      showPublicPanel('home');
       return true;
     }
   }
@@ -1314,6 +1319,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           } else if (dbUser.rol === 'MANTENIMIENTO') {
             const techId = dbUser.cve_tecnico || dbUser.id_usuario;
             currentUser = { role: 'tech', id: techId, uuid: dbUser.id_usuario, name: dbUser.nombre_completo, email: dbUser.correo, specialty: dbUser.observaciones || 'General', avatar: '👨‍🔧', department: dbUser.departamento };
+          } else if (dbUser.rol === 'SOLICITANTE_PUBLICO' || dbUser.rol === 'SOLICITANTE') {
+            currentUser = { role: 'public', name: dbUser.nombre_completo, email: dbUser.correo, uuid: dbUser.id_usuario };
           }
           persistSessionUser(currentUser);
           restoreRouteFromHash();
@@ -2164,6 +2171,17 @@ async function handleLoginSubmit(event) {
       
       showView('tech');
       switchTechPanel('dashboard');
+    } else if (dbUser.rol === 'SOLICITANTE_PUBLICO' || dbUser.rol === 'SOLICITANTE') {
+      currentUser = { 
+        role: 'public', 
+        name: dbUser.nombre_completo, 
+        email: dbUser.correo,
+        uuid: dbUser.id_usuario 
+      };
+      persistSessionUser(currentUser);
+      showToast(`Sesión iniciada como Solicitante: ${dbUser.nombre_completo}`);
+      showView('public-portal');
+      showPublicPanel('home');
     } else {
       alert(`El rol del usuario (${dbUser.rol}) no está configurado para acceso directo a paneles.`);
     }
