@@ -521,7 +521,7 @@ async function dbGetRequests() {
         description: o.descripcion,
         machineStopped: o.observacion_inicial ? 'Sí' : 'No',
         urgency: o.prioridad,
-        status: o.estatus,
+        status: formatStatus(o.estatus),
         date: o.fecha_hora_inicio || o.fecha_carga,
         evidence: null
       }));
@@ -552,7 +552,7 @@ async function dbGetOrders() {
         description: o.descripcion,
         machineStopped: o.observacion_inicial ? 'Sí' : 'No',
         urgency: o.prioridad,
-        status: o.estatus,
+        status: formatStatus(o.estatus),
         assignedTech: o.cve_atendio,
         date: o.fecha_hora_inicio || o.fecha_carga,
         dueDate: o.fecha_fin ? `${o.fecha_fin}T${o.hora_fin}` : null,
@@ -729,6 +729,7 @@ async function syncDatabases() {
       const localOrders = [];
       
       dbOrders.forEach(o => {
+        const formattedStatus = formatStatus(o.estatus);
         const item = {
           id: o.folio,
           uuid: o.id_orden,
@@ -741,7 +742,7 @@ async function syncDatabases() {
           description: o.descripcion,
           machineStopped: o.observacion_inicial || 'No',
           urgency: o.prioridad || 'Media',
-          status: o.estatus,
+          status: formattedStatus,
           assignedTech: o.cve_atendio,
           date: o.fecha_hora_inicio || o.fecha_carga,
           dueDate: o.fecha_fin ? `${o.fecha_fin}T${o.hora_fin}` : null,
@@ -752,7 +753,7 @@ async function syncDatabases() {
         };
         
         localRequests.push(item);
-        if (o.estatus !== 'Solicitud recibida') {
+        if (formattedStatus !== 'Solicitud recibida') {
           localOrders.push(item);
         }
       });
@@ -7883,7 +7884,7 @@ async function openTechChecklistRunModal(formId) {
             id: o.folio,
             uuid: o.id_orden,
             assignedTech: o.cve_atendio,
-            status: o.estatus,
+            status: formatStatus(o.estatus),
             description: o.description
           }));
         }
@@ -8136,7 +8137,7 @@ async function openNewBitacoraLogModal() {
       if (!ordRes.error && ordRes.data) {
         orders = ordRes.data.map(o => ({
           id: o.folio, uuid: o.id_orden,
-          assignedTech: o.cve_atendio, status: o.estatus,
+          assignedTech: o.cve_atendio, status: formatStatus(o.estatus),
           description: o.descripcion, area: o.departamento_codigo,
           machine: o.maquina_id
         }));
