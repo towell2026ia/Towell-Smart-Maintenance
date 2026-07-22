@@ -2,15 +2,14 @@
  * TSM-AI Analytics Dashboard — dashboard.js
  * Towell Smart Maintenance AI
  *
- * Reads Supabase credentials from config.js (exposes SUPABASE_URL / SUPABASE_ANON_KEY as globals)
- * and renders all KPIs, charts and tables.
+ * Renders executive KPIs, OT delay, alerts, compliance gauge, 
+ * forecast vs budget (MXN), downtime hours, and top machines.
  */
 
 // ============================================================
 // 1. CONFIG & CLIENT INIT
 // ============================================================
 
-// config.js exposes: const SUPABASE_URL = "..." and const SUPABASE_ANON_KEY = "..."
 const _supa_url = typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL
   : (window.TSM_CONFIG ? window.TSM_CONFIG.supabaseUrl : null);
 
@@ -24,32 +23,6 @@ if (!_supa_url || !_supa_key) {
 const { createClient } = supabase;
 const db = createClient(_supa_url, _supa_key);
 
-// ============================================================
-// 2. CHART DEFAULTS (dark theme)
-// ============================================================
-
-const CHART_DEFAULTS = {
-  color: 'rgba(255,255,255,0.85)',
-  gridColor: 'rgba(255,255,255,0.08)',
-  tickColor: 'rgba(255,255,255,0.5)',
-  legendPos: 'bottom',
-};
-
-// Colour palette for charts
-const PALETTE = [
-  '#6366f1', '#06b6d4', '#10b981', '#f59e0b',
-  '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6',
-  '#f97316', '#a3e635',
-];
-
-// Department labels map
-const DEPT_LABELS = {
-  PF: 'Planta Fabric',
-  CF: 'Costura',
-  TF: 'Tintorería',
-  AF: 'Almacén/Fabric',
-};
-
 // Chart registry to destroy before re-render
 const _charts = {};
 
@@ -60,50 +33,32 @@ function destroyChart(id) {
   }
 }
 
+// Color palette for executive dashboard
+const PALETTE = {
+  blue: '#3b82f6',
+  orange: '#f59e0b',
+  red: '#ef4444',
+  darkRed: '#b91c1c',
+  green: '#10b981',
+  purple: '#a855f7',
+  cyan: '#06b6d4',
+  textSecondary: '#94a3b8',
+  gridColor: 'rgba(255,255,255,0.06)'
+};
+
 // ============================================================
-// 3. UTILITY HELPERS
+// 2. UTILITY HELPERS
 // ============================================================
 
-/**
- * Calculate duration in hours between two ISO timestamp strings.
- * Returns null if either value is missing or invalid.
- */
-function durationHours(isoStart, isoEnd) {
-  if (!isoStart || !isoEnd) return null;
-  const s = new Date(isoStart);
-  const e = new Date(isoEnd);
-  if (isNaN(s) || isNaN(e) || e <= s) return null;
-  return (e - s) / 3_600_000; // ms → hours
-}
-
-/** Format a number to 1 decimal place */
-function fmt1(n) {
-  if (n === null || n === undefined || isNaN(n)) return '—';
-  return Number(n).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-}
-
-/** Format integer with locale separators */
-function fmtInt(n) {
-  if (n === null || n === undefined) return '0';
-  return Number(n).toLocaleString('es-MX');
-}
-
-/**
- * Animated counter for KPI values
- * @param {HTMLElement} el — target element
- * @param {number} target — final value
- * @param {string} suffix — e.g. ' h', '%'
- * @param {number} decimals — decimal places
- */
 function animateCounter(el, target, suffix = '', decimals = 0) {
-  const duration = 900;
+  if (!el) return;
+  const duration = 800;
   const start = performance.now();
   const startVal = 0;
 
   function step(now) {
     const elapsed = now - start;
     const progress = Math.min(elapsed / duration, 1);
-    // easeOutExpo
     const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
     const current = startVal + (target - startVal) * eased;
     el.textContent = current.toLocaleString('es-MX', {
@@ -115,7 +70,6 @@ function animateCounter(el, target, suffix = '', decimals = 0) {
   requestAnimationFrame(step);
 }
 
-/** Show an empty/error state inside a container */
 function showEmpty(containerId, message = 'Sin datos disponibles') {
   const el = document.getElementById(containerId);
   if (!el) return;
@@ -126,898 +80,571 @@ function showEmpty(containerId, message = 'Sin datos disponibles') {
     </div>`;
 }
 
-/** Show spinner inside a container */
-function showSpinner(containerId) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  el.innerHTML = `<div class="loading-overlay"><div class="spinner"></div><span class="loading-text">Cargando…</span></div>`;
-}
-
 // ============================================================
-// 4. LOAD KPIs
-// ============================================================
-
-async function loadKPIs() {
-  try {
-    // Run 4 queries in parallel
-    const [
-      { count: totalOTs, error: e1 },
-      { count: closedOTs, error: e2 },
-      { data: mttrData, error: e3 },
-      { count: techCount, error: e4 },
-    ] = await Promise.all([
-      // Total OTs
-      db.from('ordenes_trabajo').select('*', { count: 'exact', head: true }),
-      // Closed OTs (estatus = 'cerrada' or 'CERRADA' or 'CER')
-      db.from('ordenes_trabajo')
-        .select('*', { count: 'exact', head: true })
-        .or('estatus.ilike.cer%,estatus.ilike.close%,estatus.eq.CERRADA,estatus.eq.Cerrada,estatus.eq.cerrada'),
-      // MTTR: fetch OTs that have both timestamps
-      db.from('ordenes_trabajo')
-        .select('fecha_hora_inicio,fecha_hora_fin,tiempo_atencion_min')
-        .not('fecha_hora_fin', 'is', null)
-        .not('fecha_hora_inicio', 'is', null)
-        .limit(2000),
-      // Active technicians
-      db.from('cat_tecnicos')
-        .select('*', { count: 'exact', head: true })
-        .eq('activo', true),
-    ]);
-
-    // --- Total OTs ---
-    const elTotal = document.getElementById('kpi-total-ots');
-    if (!e1 && totalOTs !== null) {
-      elTotal.innerHTML = '';
-      animateCounter(elTotal, totalOTs, '', 0);
-      document.getElementById('kpi-total-ots-meta').textContent = 'Total de órdenes registradas';
-    } else {
-      elTotal.textContent = '—';
-    }
-
-    // --- Closed OTs ---
-    const elClosed = document.getElementById('kpi-closed-ots');
-    if (!e2 && closedOTs !== null) {
-      elClosed.innerHTML = '';
-      animateCounter(elClosed, closedOTs, '', 0);
-      const pct = totalOTs ? ((closedOTs / totalOTs) * 100).toFixed(1) : 0;
-      document.getElementById('kpi-closed-ots-meta').innerHTML = `<span>${pct}%</span> tasa de cierre`;
-    } else {
-      elClosed.textContent = '—';
-    }
-
-    // --- MTTR ---
-    const elMTTR = document.getElementById('kpi-mttr');
-    if (!e3 && mttrData && mttrData.length > 0) {
-      // Prefer tiempo_atencion_min if available, else calculate from timestamps
-      const hours = mttrData.map(row => {
-        if (row.tiempo_atencion_min && row.tiempo_atencion_min > 0) {
-          return row.tiempo_atencion_min / 60;
-        }
-        return durationHours(row.fecha_hora_inicio, row.fecha_hora_fin);
-      }).filter(h => h !== null && h > 0 && h < 720); // filter outliers > 30 days
-
-      const avg = hours.length > 0 ? hours.reduce((a, b) => a + b, 0) / hours.length : null;
-      elMTTR.innerHTML = '';
-      if (avg !== null) {
-        animateCounter(elMTTR, avg, ' h', 1);
-        document.getElementById('kpi-mttr-meta').textContent = `Sobre ${fmtInt(hours.length)} OTs cerradas`;
-      } else {
-        elMTTR.textContent = '—';
-      }
-    } else {
-      elMTTR.textContent = '—';
-    }
-
-    // --- Técnicos Activos ---
-    const elTech = document.getElementById('kpi-technicians');
-    if (!e4 && techCount !== null) {
-      elTech.innerHTML = '';
-      animateCounter(elTech, techCount, '', 0);
-      document.getElementById('kpi-technicians-meta').textContent = 'Técnicos activos en sistema';
-    } else {
-      elTech.textContent = '—';
-    }
-
-  } catch (err) {
-    console.error('[loadKPIs] Error:', err);
-    ['kpi-total-ots', 'kpi-closed-ots', 'kpi-mttr', 'kpi-technicians'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = '—';
-    });
-  }
-}
-
-// ============================================================
-// 5. TECH HOURS CHART
-// ============================================================
-
-async function loadTechChart() {
-  const wrapId = 'tech-chart-wrap';
-  const containerId = 'tech-chart-container';
-
-  try {
-    // Query OTs with technician and time data
-    const { data, error } = await db
-      .from('ordenes_trabajo')
-      .select('nombre_atendio, cve_atendio, fecha_hora_inicio, fecha_hora_fin, tiempo_atencion_min')
-      .not('nombre_atendio', 'is', null)
-      .not('fecha_hora_inicio', 'is', null)
-      .limit(3000);
-
-    if (error) throw error;
-    if (!data || data.length === 0) {
-      showEmpty(wrapId, 'Sin datos de técnicos disponibles');
-      return;
-    }
-
-    // Aggregate hours per technician
-    const techMap = {};
-    data.forEach(row => {
-      const name = row.nombre_atendio || row.cve_atendio || 'Sin asignar';
-      let hrs = null;
-      if (row.tiempo_atencion_min && row.tiempo_atencion_min > 0) {
-        hrs = row.tiempo_atencion_min / 60;
-      } else {
-        hrs = durationHours(row.fecha_hora_inicio, row.fecha_hora_fin);
-      }
-      if (hrs !== null && hrs > 0 && hrs < 720) {
-        if (!techMap[name]) techMap[name] = { total: 0, count: 0 };
-        techMap[name].total += hrs;
-        techMap[name].count += 1;
-      }
-    });
-
-    const sorted = Object.entries(techMap)
-      .map(([name, v]) => ({ name, hours: v.total, count: v.count }))
-      .sort((a, b) => b.hours - a.hours)
-      .slice(0, 12);
-
-    if (sorted.length === 0) {
-      showEmpty(wrapId, 'Sin datos de horas disponibles');
-      return;
-    }
-
-    // Show canvas
-    document.getElementById(wrapId).style.display = 'none';
-    document.getElementById(containerId).style.display = 'block';
-
-    destroyChart('chart-tech-times');
-    const ctx = document.getElementById('chart-tech-times').getContext('2d');
-
-    _charts['chart-tech-times'] = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: sorted.map(d => d.name.split(' ').slice(0, 2).join(' ')),
-        datasets: [{
-          label: 'Horas trabajadas',
-          data: sorted.map(d => parseFloat(d.hours.toFixed(1))),
-          backgroundColor: sorted.map((_, i) => PALETTE[i % PALETTE.length] + 'cc'),
-          borderColor: sorted.map((_, i) => PALETTE[i % PALETTE.length]),
-          borderWidth: 1,
-          borderRadius: 6,
-          borderSkipped: false,
-        }],
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: 'rgba(15,23,42,0.95)',
-            borderColor: 'rgba(99,102,241,0.4)',
-            borderWidth: 1,
-            titleColor: '#f1f5f9',
-            bodyColor: '#94a3b8',
-            callbacks: {
-              label: ctx => ` ${fmt1(ctx.raw)} h — ${sorted[ctx.dataIndex].count} OTs`,
-            },
-          },
-        },
-        scales: {
-          x: {
-            grid: { color: CHART_DEFAULTS.gridColor },
-            ticks: { color: CHART_DEFAULTS.tickColor, font: { size: 11 } },
-            title: {
-              display: true,
-              text: 'Horas totales trabajadas',
-              color: CHART_DEFAULTS.tickColor,
-              font: { size: 11 },
-            },
-          },
-          y: {
-            grid: { display: false },
-            ticks: { color: '#e2e8f0', font: { size: 11 } },
-          },
-        },
-      },
-    });
-
-  } catch (err) {
-    console.error('[loadTechChart] Error:', err);
-    showEmpty(wrapId, 'Sin datos disponibles');
-  }
-}
-
-// ============================================================
-// 6. DEPT DOUGHNUT CHART
-// ============================================================
-
-async function loadDeptChart() {
-  const wrapId = 'dept-chart-wrap';
-  const containerId = 'dept-chart-container';
-
-  try {
-    const { data, error } = await db
-      .from('ordenes_trabajo')
-      .select('departamento, tiempo_atencion_min, fecha_hora_inicio, fecha_hora_fin')
-      .not('departamento', 'is', null)
-      .limit(5000);
-
-    if (error) throw error;
-    if (!data || data.length === 0) {
-      showEmpty(wrapId, 'Sin datos por departamento');
-      return;
-    }
-
-    // Group by departamento
-    const deptMap = {};
-    data.forEach(row => {
-      const dept = row.departamento || 'Otros';
-      if (!deptMap[dept]) deptMap[dept] = { count: 0, hours: 0 };
-      deptMap[dept].count += 1;
-
-      let hrs = null;
-      if (row.tiempo_atencion_min && row.tiempo_atencion_min > 0) {
-        hrs = row.tiempo_atencion_min / 60;
-      } else {
-        hrs = durationHours(row.fecha_hora_inicio, row.fecha_hora_fin);
-      }
-      if (hrs !== null && hrs > 0 && hrs < 720) {
-        deptMap[dept].hours += hrs;
-      }
-    });
-
-    const labels = Object.keys(deptMap).map(k => DEPT_LABELS[k] || k);
-    const counts = Object.values(deptMap).map(v => v.count);
-    const colors = labels.map((_, i) => PALETTE[i % PALETTE.length]);
-
-    // Show canvas
-    document.getElementById(wrapId).style.display = 'none';
-    document.getElementById(containerId).style.display = 'block';
-
-    destroyChart('chart-dept-times');
-    const ctx = document.getElementById('chart-dept-times').getContext('2d');
-
-    _charts['chart-dept-times'] = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels,
-        datasets: [{
-          data: counts,
-          backgroundColor: colors.map(c => c + 'bb'),
-          borderColor: colors,
-          borderWidth: 2,
-          hoverBorderWidth: 3,
-          hoverOffset: 8,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '62%',
-        plugins: {
-          legend: {
-            position: CHART_DEFAULTS.legendPos,
-            labels: {
-              color: '#e2e8f0',
-              padding: 16,
-              font: { size: 11 },
-              usePointStyle: true,
-              pointStyleWidth: 10,
-            },
-          },
-          tooltip: {
-            backgroundColor: 'rgba(15,23,42,0.95)',
-            borderColor: 'rgba(6,182,212,0.4)',
-            borderWidth: 1,
-            titleColor: '#f1f5f9',
-            bodyColor: '#94a3b8',
-            callbacks: {
-              label: ctx => {
-                const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                const pct = ((ctx.raw / total) * 100).toFixed(1);
-                return ` ${fmtInt(ctx.raw)} OTs (${pct}%)`;
-              },
-            },
-          },
-        },
-      },
-    });
-
-  } catch (err) {
-    console.error('[loadDeptChart] Error:', err);
-    showEmpty(wrapId, 'Sin datos disponibles');
-  }
-}
-
-// ============================================================
-// 7. BOTTLENECKS TABLE
-// ============================================================
-
-async function loadBottlenecks() {
-  const wrapId = 'bottlenecks-wrap';
-
-  try {
-    // Query OTs grouped by machine
-    const { data, error } = await db
-      .from('ordenes_trabajo')
-      .select('maquina_id, tiempo_atencion_min, fecha_hora_inicio, fecha_hora_fin, departamento, falla')
-      .not('maquina_id', 'is', null)
-      .limit(5000);
-
-    if (error) throw error;
-    if (!data || data.length === 0) {
-      showEmpty(wrapId, 'Sin datos de máquinas disponibles');
-      return;
-    }
-
-    // Aggregate by machine
-    const machineMap = {};
-    data.forEach(row => {
-      const id = row.maquina_id;
-      if (!machineMap[id]) machineMap[id] = { count: 0, totalHrs: 0, dept: row.departamento || '—', samples: 0 };
-      machineMap[id].count += 1;
-
-      let hrs = null;
-      if (row.tiempo_atencion_min && row.tiempo_atencion_min > 0) {
-        hrs = row.tiempo_atencion_min / 60;
-      } else {
-        hrs = durationHours(row.fecha_hora_inicio, row.fecha_hora_fin);
-      }
-      if (hrs !== null && hrs > 0 && hrs < 720) {
-        machineMap[id].totalHrs += hrs;
-        machineMap[id].samples += 1;
-      }
-    });
-
-    const sorted = Object.entries(machineMap)
-      .map(([id, v]) => ({
-        id,
-        count: v.count,
-        avgHrs: v.samples > 0 ? v.totalHrs / v.samples : null,
-        totalHrs: v.totalHrs,
-        dept: v.dept,
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    const maxCount = sorted[0]?.count || 1;
-
-    const rows = sorted.map((m, i) => {
-      const rankClass = i < 3 ? 'top-3' : '';
-      const deptLabel = DEPT_LABELS[m.dept] || m.dept;
-      const pct = ((m.count / maxCount) * 100).toFixed(0);
-
-      return `
-        <tr>
-          <td><span class="rank-badge ${rankClass}">${i + 1}</span></td>
-          <td style="font-weight:600;color:#e2e8f0;">${m.id}</td>
-          <td>
-            <div>${fmtInt(m.count)} OTs</div>
-            <div class="bar-mini" style="width:${pct}%"></div>
-          </td>
-          <td>${m.avgHrs !== null ? fmt1(m.avgHrs) + ' h' : '—'}</td>
-          <td>${fmt1(m.totalHrs)} h</td>
-          <td><span class="pill ${i < 3 ? 'pill-danger' : i < 6 ? 'pill-warning' : 'pill-success'}">${deptLabel}</span></td>
-        </tr>`;
-    }).join('');
-
-    document.getElementById(wrapId).innerHTML = `
-      <div class="data-table-wrapper">
-        <table class="data-table" id="table-bottlenecks" aria-label="Tabla de cuellos de botella por máquina">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Máquina</th>
-              <th>Frecuencia</th>
-              <th>MTTR Prom.</th>
-              <th>Horas Total</th>
-              <th>Área</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
-
-  } catch (err) {
-    console.error('[loadBottlenecks] Error:', err);
-    showEmpty(wrapId, 'Sin datos disponibles');
-  }
-}
-
-// ============================================================
-// 8. MONTHLY TREND LINE CHART
-// ============================================================
-
-async function loadMonthlyTrend() {
-  const wrapId = 'trend-chart-wrap';
-  const containerId = 'trend-chart-container';
-
-  try {
-    // Fetch OTs from last 6 months
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-    sixMonthsAgo.setDate(1);
-    sixMonthsAgo.setHours(0, 0, 0, 0);
-
-    const { data, error } = await db
-      .from('ordenes_trabajo')
-      .select('fecha_hora_inicio, fecha_carga, estatus')
-      .gte('fecha_carga', sixMonthsAgo.toISOString())
-      .limit(5000);
-
-    if (error) throw error;
-
-    // Build month buckets
-    const months = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(1);
-      d.setMonth(d.getMonth() - i);
-      months.push({
-        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-        label: d.toLocaleDateString('es-MX', { month: 'short', year: '2-digit' }),
-        total: 0,
-        closed: 0,
-      });
-    }
-
-    if (data && data.length > 0) {
-      data.forEach(row => {
-        const ts = row.fecha_hora_inicio || row.fecha_carga;
-        if (!ts) return;
-        const d = new Date(ts);
-        if (isNaN(d)) return;
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        const bucket = months.find(m => m.key === key);
-        if (bucket) {
-          bucket.total += 1;
-          if (row.estatus && /cer/i.test(row.estatus)) bucket.closed += 1;
-        }
-      });
-    }
-
-    // Show canvas
-    document.getElementById(wrapId).style.display = 'none';
-    document.getElementById(containerId).style.display = 'block';
-
-    destroyChart('chart-monthly-trend');
-    const ctx = document.getElementById('chart-monthly-trend').getContext('2d');
-
-    // Gradient fill
-    const grad1 = ctx.createLinearGradient(0, 0, 0, 260);
-    grad1.addColorStop(0, 'rgba(99,102,241,0.4)');
-    grad1.addColorStop(1, 'rgba(99,102,241,0.0)');
-
-    const grad2 = ctx.createLinearGradient(0, 0, 0, 260);
-    grad2.addColorStop(0, 'rgba(6,182,212,0.35)');
-    grad2.addColorStop(1, 'rgba(6,182,212,0.0)');
-
-    _charts['chart-monthly-trend'] = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: months.map(m => m.label),
-        datasets: [
-          {
-            label: 'OTs Creadas',
-            data: months.map(m => m.total),
-            borderColor: '#6366f1',
-            backgroundColor: grad1,
-            borderWidth: 2.5,
-            pointRadius: 5,
-            pointHoverRadius: 8,
-            pointBackgroundColor: '#6366f1',
-            pointBorderColor: '#0f172a',
-            pointBorderWidth: 2,
-            tension: 0.4,
-            fill: true,
-          },
-          {
-            label: 'OTs Cerradas',
-            data: months.map(m => m.closed),
-            borderColor: '#06b6d4',
-            backgroundColor: grad2,
-            borderWidth: 2.5,
-            pointRadius: 5,
-            pointHoverRadius: 8,
-            pointBackgroundColor: '#06b6d4',
-            pointBorderColor: '#0f172a',
-            pointBorderWidth: 2,
-            tension: 0.4,
-            fill: true,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: {
-            position: CHART_DEFAULTS.legendPos,
-            labels: {
-              color: '#e2e8f0',
-              padding: 20,
-              font: { size: 12 },
-              usePointStyle: true,
-              pointStyleWidth: 10,
-            },
-          },
-          tooltip: {
-            backgroundColor: 'rgba(15,23,42,0.95)',
-            borderColor: 'rgba(99,102,241,0.4)',
-            borderWidth: 1,
-            titleColor: '#f1f5f9',
-            bodyColor: '#94a3b8',
-            padding: 12,
-          },
-        },
-        scales: {
-          x: {
-            grid: { color: CHART_DEFAULTS.gridColor },
-            ticks: { color: CHART_DEFAULTS.tickColor, font: { size: 12 } },
-          },
-          y: {
-            beginAtZero: true,
-            grid: { color: CHART_DEFAULTS.gridColor },
-            ticks: { color: CHART_DEFAULTS.tickColor, font: { size: 11 }, precision: 0 },
-          },
-        },
-      },
-    });
-
-  } catch (err) {
-    console.error('[loadMonthlyTrend] Error:', err);
-    showEmpty(wrapId, 'Sin datos disponibles');
-  }
-}
-
-// ============================================================
-// 9. CRITICAL INVENTORY TABLE
-// ============================================================
-
-async function loadCriticalInventory() {
-  const wrapId = 'inventory-wrap';
-
-  try {
-    // Single table query — stock columns now live directly on cat_refacciones
-    const { data, error } = await db
-      .from('cat_refacciones')
-      .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, ubicacion, costo_unitario')
-      .lt('stock_actual', 5)
-      .eq('activo', true)
-      .order('stock_actual', { ascending: true })
-      .limit(30);
-
-    if (error) throw error;
-
-    let rows = data || [];
-
-    if (rows.length === 0) {
-      document.getElementById(wrapId).innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">📦</div>
-          <div class="empty-state-text">Sin refacciones con stock bajo (&lt; 5 unidades).<br>El catálogo está en buen estado.</div>
-        </div>`;
-      return;
-    }
-
-    const tableRows = rows.map(item => {
-      const stock    = parseFloat(item.stock_actual) || 0;
-      const minimo   = parseFloat(item.stock_minimo) || 0;
-      const name     = item.nombre_articulo || item.codigo_articulo;
-      const familia  = item.familia || '—';
-      const uom      = item.unidad_medida || 'pza';
-      const ubicacion = item.ubicacion || '—';
-      const pctFill = minimo > 0 ? Math.min((stock / minimo) * 100, 100) : (stock > 0 ? 50 : 0);
-
-      let pillClass = 'pill-danger';
-      let severity = 'Crítico';
-      if (stock === 0) { pillClass = 'pill-danger'; severity = 'Sin Stock'; }
-      else if (stock < 2) { pillClass = 'pill-danger'; severity = 'Crítico'; }
-      else if (stock < 5) { pillClass = 'pill-warning'; severity = 'Bajo'; }
-
-      return `
-        <tr>
-          <td style="font-family:monospace;font-size:0.8rem;color:#94a3b8;">${item.codigo_articulo}</td>
-          <td style="font-weight:600;color:#e2e8f0;">${name}</td>
-          <td>${familia}</td>
-          <td>
-            <div class="inv-stock-bar">
-              <span style="font-weight:700;color:${stock === 0 ? '#ef4444' : stock < 2 ? '#f97316' : '#f59e0b'};min-width:36px;">
-                ${fmt1(stock)} ${uom}
-              </span>
-              <div class="inv-stock-track">
-                <div class="inv-stock-fill" style="width:${pctFill}%"></div>
-              </div>
-            </div>
-          </td>
-          <td style="color:var(--text-muted);">${fmt1(minimo)} ${uom}</td>
-          <td>${ubicacion}</td>
-          <td><span class="pill ${pillClass}">${severity}</span></td>
-        </tr>`;
-    }).join('');
-
-    document.getElementById(wrapId).innerHTML = `
-      <div class="data-table-wrapper">
-        <table class="data-table" id="table-critical-inventory" aria-label="Tabla de inventario crítico de refacciones">
-          <thead>
-            <tr>
-              <th>Código</th>
-              <th>Artículo</th>
-              <th>Familia</th>
-              <th>Stock Actual</th>
-              <th>Mínimo</th>
-              <th>Ubicación</th>
-              <th>Estatus</th>
-            </tr>
-          </thead>
-          <tbody>${tableRows}</tbody>
-        </table>
-      </div>`;
-
-  } catch (err) {
-    console.error('[loadCriticalInventory] Error:', err);
-    showEmpty(wrapId, 'Sin datos disponibles');
-  }
-}
-
-// ============================================================
-// 9B. CHECKLIST & ANOMALIES ANALYSIS
-// ============================================================
-
-async function loadChecklistAnalysis() {
-  const wrapId = 'checklist-chart-wrap';
-  const containerId = 'checklist-chart-container';
-  const anomaliesWrap = 'anomalies-wrap';
-
-  try {
-    let answers = [];
-
-    // 1. Try querying Supabase
-    try {
-      const { data, error } = await db
-        .from('respuestas_checklist_orden')
-        .select(`
-          id_respuesta,
-          id_orden,
-          respuesta,
-          comentario,
-          usuario_responde,
-          fecha_respuesta,
-          checklists_mantenimiento (
-            pregunta
-          )
-        `)
-        .order('fecha_respuesta', { ascending: false })
-        .limit(500);
-
-      if (!error && data) {
-        answers = data.map(r => ({
-          id: r.id_respuesta,
-          pregunta: r.checklists_mantenimiento?.pregunta || 'Pregunta de inspección',
-          respuesta: r.respuesta || '',
-          comentario: r.comentario || '',
-          usuario: r.usuario_responde || 'Técnico Real',
-          fecha: r.fecha_respuesta
-        }));
-      }
-    } catch (e) {
-      console.warn('Failed to query Supabase checklists, using local storage fallback:', e);
-    }
-
-    // 2. Local storage fallback if database returned nothing
-    if (answers.length === 0) {
-      const localResponses = JSON.parse(localStorage.getItem('TSMAI_dynamic_responses') || '[]');
-      localResponses.forEach(r => {
-        if (r.answers) {
-          r.answers.forEach(ans => {
-            answers.push({
-              id: r.id,
-              pregunta: ans.label || 'Inspección',
-              respuesta: ans.val || '',
-              comentario: ans.comment || '',
-              usuario: r.submittedBy || 'Técnico Demo',
-              fecha: r.date
-            });
-          });
-        }
-      });
-    }
-
-    if (answers.length === 0) {
-      showEmpty(wrapId, 'Sin respuestas de checklist registradas');
-      showEmpty(anomaliesWrap, 'Sin anomalías registradas');
-      return;
-    }
-
-    // 3. Count distribution
-    let compliant = 0;
-    let nonCompliant = 0;
-    let notApplicable = 0;
-    const anomalies = [];
-
-    answers.forEach(a => {
-      const respClean = (a.respuesta || '').trim().toLowerCase();
-      if (respClean === 'sí' || respClean === 'si' || respClean === 'yes' || respClean === 'conforme') {
-        compliant++;
-      } else if (respClean === 'no' || respClean === 'no conforme' || respClean === 'incorrecto') {
-        nonCompliant++;
-        anomalies.push(a);
-      } else {
-        notApplicable++;
-      }
-    });
-
-    // 4. Render Doughnut Chart
-    const chartWrapEl = document.getElementById(wrapId);
-    const chartContEl = document.getElementById(containerId);
-    if (chartWrapEl && chartContEl) {
-      chartWrapEl.style.display = 'none';
-      chartContEl.style.display = 'block';
-
-      destroyChart('chart-checklist-answers');
-      const ctx = document.getElementById('chart-checklist-answers').getContext('2d');
-
-      _charts['chart-checklist-answers'] = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Conforme (Sí)', 'No Conforme (No)', 'No Aplica (N/A)'],
-          datasets: [{
-            data: [compliant, nonCompliant, notApplicable],
-            backgroundColor: ['#10b981', '#ef4444', '#64748b'],
-            borderColor: '#0f172a',
-            borderWidth: 2,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '65%',
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { color: '#e2e8f0', boxWidth: 12, font: { size: 11 } }
-            },
-            tooltip: {
-              backgroundColor: 'rgba(15,23,42,0.95)',
-              borderWidth: 1,
-              titleColor: '#f1f5f9',
-              bodyColor: '#94a3b8'
-            }
-          }
-        }
-      });
-    }
-
-    // 5. Render Anomalies Table
-    const anomaliesWrapEl = document.getElementById(anomaliesWrap);
-    if (anomaliesWrapEl) {
-      if (anomalies.length === 0) {
-        anomaliesWrapEl.innerHTML = `
-          <div class="empty-state" style="padding: 3rem 1rem;">
-            <div class="empty-state-icon" style="color: #10b981; opacity: 0.8;">✅</div>
-            <div class="empty-state-text" style="color: #10b981; font-weight: 600;">Excelente: 0 anomalías activas encontradas.</div>
-          </div>`;
-      } else {
-        const anomalyRows = anomalies.map(a => `
-          <tr style="border-left: 3px solid #ef4444;">
-            <td style="font-weight: 600; color: #f87171;">${a.pregunta}</td>
-            <td>
-              <div style="color: #e2e8f0;">${a.comentario || '<span style="color: var(--text-muted); font-style: italic;">Sin comentario</span>'}</div>
-              <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Detectado por: ${a.usuario}</div>
-            </td>
-            <td style="font-size: 0.75rem; color: var(--text-muted); white-space: nowrap;">${new Date(a.fecha).toLocaleDateString('es-MX')}</td>
-          </tr>
-        `).join('');
-
-        anomaliesWrapEl.innerHTML = `
-          <div class="data-table-wrapper">
-            <table class="data-table" aria-label="Tabla de anomalías detectadas en checklists">
-              <thead>
-                <tr>
-                  <th>Punto Fallido</th>
-                  <th>Detalle / Técnico</th>
-                  <th>Fecha</th>
-                </tr>
-              </thead>
-              <tbody>${anomalyRows}</tbody>
-            </table>
-          </div>`;
-      }
-    }
-
-  } catch (err) {
-    console.error('[loadChecklistAnalysis] Error:', err);
-    showEmpty(wrapId, 'Sin datos de checklist disponibles');
-    showEmpty(anomaliesWrap, 'Sin datos de anomalías disponibles');
-  }
-}
-
-// ============================================================
-// 9.5. PRESUPUESTO ANUAL DE MANTENIMIENTO POR MES (KPI REFACCIONES)
-// ============================================================
-
-async function loadAnnualBudgetKPI() {
-  const elBudget = document.getElementById('kpi-annual-budget');
-  const elMeta = document.getElementById('kpi-annual-budget-meta');
-  if (!elBudget) return;
-
-  try {
-    const { data: refParts } = await db
-      .from('cat_refacciones')
-      .select('maquina_id, cantidad_estandar, costo_unitario, precio_costo_unitario');
-
-    const machineCostMap = {};
-    (refParts || []).forEach(r => {
-      const mId = r.maquina_id || 'GENERAL';
-      const qty = parseFloat(r.cantidad_estandar) || 1;
-      const price = parseFloat(r.costo_unitario || r.precio_costo_unitario) || 0;
-      machineCostMap[mId] = (machineCostMap[mId] || 0) + (qty * price);
-    });
-
-    let totalBaseRefacciones = 0;
-    for (const mId in machineCostMap) {
-      totalBaseRefacciones += machineCostMap[mId];
-    }
-
-    // Presupuesto mensual programado para los 3 calendarios (MP 100%, PDC 75%, MA 25%)
-    const monthlyPreventive = totalBaseRefacciones * 1.0;
-    const monthlyPredictive = totalBaseRefacciones * 0.75;
-    const monthlyAutonomous = totalBaseRefacciones * 0.25;
-
-    const monthlyBudget = Math.round(monthlyPreventive + monthlyPredictive + monthlyAutonomous);
-    const annualBudget = Math.round(monthlyBudget * 12);
-
-    elBudget.innerHTML = '';
-    animateCounter(elBudget, monthlyBudget, ' MXN/mes', 0);
-    if (elMeta) {
-      elMeta.innerHTML = `<span>$${annualBudget.toLocaleString('es-MX')} MXN</span> Anual (3 Calendarios MP, PDC, MA)`;
-    }
-  } catch (err) {
-    console.error('[loadAnnualBudgetKPI] Error:', err);
-    elBudget.textContent = '—';
-  }
-}
-
-// ============================================================
-// 10. MAIN ORCHESTRATOR
+// 3. MAIN DATA LOADER
 // ============================================================
 
 async function loadDashboard() {
-  console.log('[Dashboard] Loading all sections in parallel…');
+  console.log('[Dashboard] Loading Executive metrics from Supabase...');
 
-  await Promise.allSettled([
-    loadKPIs(),
-    loadAnnualBudgetKPI(),
-    loadTechChart(),
-    loadDeptChart(),
-    loadBottlenecks(),
-    loadChecklistAnalysis(),
-    loadMonthlyTrend(),
-    loadCriticalInventory(),
-  ]);
+  try {
+    // Show loaders
+    toggleLoaders(true);
 
-  console.log('[Dashboard] All sections loaded.');
+    // 1. Fetch standard catalogs & data in parallel
+    const [
+      { data: allOts, error: otErr },
+      { data: refParts, error: refErr },
+      { data: plans, error: planErr },
+      { data: logs, error: logErr },
+      { count: techCount, error: techErr }
+    ] = await Promise.all([
+      db.from('ordenes_trabajo').select('*'),
+      db.from('cat_refacciones').select('*'),
+      db.from('planes_mantenimiento_preventivo').select('*'),
+      db.from('bitacora_mantenimiento').select('*'),
+      db.from('cat_tecnicos').select('*', { count: 'exact', head: true }).eq('activo', true)
+    ]);
+
+    if (otErr) throw otErr;
+
+    // Helper maps
+    const refMap = {};
+    (refParts || []).forEach(p => {
+      refMap[p.codigo_articulo] = parseFloat(p.costo_unitario || p.precio_costo_unitario) || 0;
+    });
+
+    // 2. Render all dashboard elements
+    renderKPIs(allOts, techCount);
+    renderOTporCerrar(allOts);
+    renderAlerts(allOts);
+    renderCompliance(allOts);
+    renderBudgetVsReal(allOts, refParts, plans, logs, refMap);
+    renderDowntime(allOts);
+    renderTopMachines(allOts, refParts, logs, refMap);
+
+    toggleLoaders(false);
+  } catch (err) {
+    console.error('[loadDashboard] Error loading data:', err);
+    toggleLoaders(false);
+    showDashboardError();
+  }
+}
+
+function toggleLoaders(show) {
+  const elements = [
+    { loader: 'ot-cerrar-loading', content: 'chart-ot-cerrar' },
+    { loader: 'alerts-loading', content: 'alerts-container' },
+    { loader: 'cumplimiento-loading', content: 'compliance-container' },
+    { loader: 'presupuesto-loading', content: 'chart-budget-vs-real' },
+    { loader: 'downtime-loading', content: 'chart-downtime-dept' },
+    { loader: 'top-maquina-loading', content: 'top-maquina-container' }
+  ];
+
+  elements.forEach(item => {
+    const lEl = document.getElementById(item.loader);
+    const cEl = document.getElementById(item.content);
+    if (lEl) lEl.style.display = show ? 'flex' : 'none';
+    if (cEl) cEl.style.display = show ? 'none' : 'block';
+  });
+}
+
+function showDashboardError() {
+  ['kpi-ot-abiertas', 'kpi-ot-criticas', 'kpi-ot-vencidas', 'kpi-ot-espera', 'kpi-ot-nuevas'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '—';
+  });
 }
 
 // ============================================================
-// 11. BOOT
+// 4. RENDER MODULES
 // ============================================================
 
-/** Muestra la hora de la última actualización en la navbar */
+// --- 4.1 KPIs ---
+function renderKPIs(allOts, techCount) {
+  const activeOts = allOts.filter(o => 
+    !['CERRADA', 'Cerrada', 'cerrada'].includes(o.estatus) && 
+    !['SOLICITUD_RECIBIDA', 'Solicitud recibida'].includes(o.estatus)
+  );
+
+  const otAbiertas = activeOts.length;
+  
+  const otCriticas = activeOts.filter(o => 
+    ['CRÍTICO', 'CRITICA', 'CRITICAL', 'Alta'].includes(o.prioridad)
+  ).length;
+
+  // OT Vencida: Abierta hace más de 5 días
+  const today = new Date();
+  const otVencidas = activeOts.filter(o => {
+    const dateCarga = new Date(o.fecha_carga || o.fecha_hora_inicio);
+    const ageDays = (today - dateCarga) / (1000 * 60 * 60 * 24);
+    return ageDays > 5;
+  }).length;
+
+  const otEspera = activeOts.filter(o => o.estatus === 'EN_ESPERA').length;
+
+  const otNuevas = allOts.filter(o => 
+    ['SOLICITUD_RECIBIDA', 'Solicitud recibida'].includes(o.estatus)
+  ).length;
+
+  animateCounter(document.getElementById('kpi-ot-abiertas'), otAbiertas);
+  animateCounter(document.getElementById('kpi-ot-criticas'), otCriticas);
+  animateCounter(document.getElementById('kpi-ot-vencidas'), otVencidas);
+  animateCounter(document.getElementById('kpi-ot-espera'), otEspera);
+  animateCounter(document.getElementById('kpi-ot-nuevas'), otNuevas);
+}
+
+// --- 4.2 OT por Cerrar (Horizontal Bar Chart) ---
+function renderOTporCerrar(allOts) {
+  const activeOts = allOts.filter(o => 
+    !['CERRADA', 'Cerrada', 'cerrada'].includes(o.estatus) && 
+    !['SOLICITUD_RECIBIDA', 'Solicitud recibida'].includes(o.estatus)
+  );
+
+  document.getElementById('pending-ots-count').textContent = `${activeOts.length} abiertas`;
+
+  const today = new Date();
+  let range1_3 = 0;
+  let range4_7 = 0;
+  let range8_15 = 0;
+  let range15Plus = 0;
+
+  activeOts.forEach(o => {
+    const dateCarga = new Date(o.fecha_carga || o.fecha_hora_inicio);
+    const diffDays = (today - dateCarga) / (1000 * 60 * 60 * 24);
+    if (diffDays <= 3) range1_3++;
+    else if (diffDays <= 7) range4_7++;
+    else if (diffDays <= 15) range8_15++;
+    else range15Plus++;
+  });
+
+  destroyChart('chart-ot-cerrar');
+  const ctx = document.getElementById('chart-ot-cerrar').getContext('2d');
+
+  _charts['chart-ot-cerrar'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['1-3 Días', '4-7 Días', '8-15 Días', '15+ Días'],
+      datasets: [{
+        data: [range1_3, range4_7, range8_15, range15Plus],
+        backgroundColor: [PALETTE.blue, PALETTE.orange, PALETTE.red, PALETTE.darkRed],
+        borderWidth: 0,
+        borderRadius: 4,
+        barPercentage: 0.6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: {
+          grid: { color: PALETTE.gridColor },
+          ticks: { color: PALETTE.textSecondary, precision: 0 }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: '#f1f5f9', font: { weight: '600' } }
+        }
+      }
+    }
+  });
+}
+
+// --- 4.3 Alertas ---
+function renderAlerts(allOts) {
+  const activeOts = allOts.filter(o => 
+    !['CERRADA', 'Cerrada', 'cerrada'].includes(o.estatus) && 
+    !['SOLICITUD_RECIBIDA', 'Solicitud recibida'].includes(o.estatus)
+  );
+
+  const container = document.getElementById('alerts-container');
+  if (!container) return;
+
+  const alerts = [];
+
+  // Generate warning items based on active OTs
+  activeOts.forEach(o => {
+    if (o.prioridad === 'CRÍTICO' || o.prioridad === 'Alta') {
+      alerts.push({
+        type: 'danger',
+        icon: '🚨',
+        title: `Máquina: ${o.maquina_id || 'General'} fuera de servicio`,
+        desc: `${o.descripcion || 'Falla eléctrica o mecánica crítica detectada.'}`
+      });
+    } else if (o.estatus === 'EN_ESPERA') {
+      alerts.push({
+        type: 'warning',
+        icon: '⚠️',
+        title: `Máquina: ${o.maquina_id || 'General'} en espera`,
+        desc: `OT en espera por liberación de producción o refacciones.`
+      });
+    }
+  });
+
+  // Failures counter for recurrent warnings
+  const machineFails = {};
+  allOts.forEach(o => {
+    if (o.maquina_id) {
+      machineFails[o.maquina_id] = (machineFails[o.maquina_id] || 0) + 1;
+    }
+  });
+
+  Object.entries(machineFails).forEach(([machine, count]) => {
+    if (count >= 3) {
+      alerts.push({
+        type: 'info',
+        icon: '📢',
+        title: `Fallas Recurrentes: ${machine}`,
+        desc: `Registra ${count} fallas acumuladas recientemente.`
+      });
+    }
+  });
+
+  if (alerts.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 2rem 0;">
+        <div class="empty-state-icon" style="color:var(--success)">✅</div>
+        <div class="empty-state-text" style="color:var(--success); font-weight:600;">0 alertas activas en planta</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = alerts.map(a => `
+    <div class="alert-item alert-${a.type}">
+      <span class="alert-icon">${a.icon}</span>
+      <div class="alert-body">
+        <div class="alert-title">${a.title}</div>
+        <div class="alert-meta">${a.desc}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// --- 4.4 % Cumplimiento (Circular Progress Gauge) ---
+function renderCompliance(allOts) {
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+
+  const otsThisMonth = allOts.filter(o => {
+    const dateCarga = new Date(o.fecha_carga || o.fecha_hora_inicio);
+    return dateCarga.getMonth() === currentMonth && dateCarga.getFullYear() === currentYear;
+  });
+
+  const totalThisMonth = otsThisMonth.length;
+  const closedThisMonth = otsThisMonth.filter(o => 
+    ['CERRADA', 'Cerrada', 'cerrada'].includes(o.estatus)
+  ).length;
+
+  const pct = totalThisMonth > 0 ? Math.round((closedThisMonth / totalThisMonth) * 100) : 100;
+
+  document.getElementById('compliance-pct').textContent = `${pct}%`;
+
+  destroyChart('chart-compliance-gauge');
+  const ctx = document.getElementById('chart-compliance-gauge').getContext('2d');
+
+  _charts['chart-compliance-gauge'] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Completado', 'Pendiente'],
+      datasets: [{
+        data: [pct, 100 - pct],
+        backgroundColor: [PALETTE.green, 'rgba(255,255,255,0.08)'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '75%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false }
+      }
+    }
+  });
+}
+
+// --- 4.5 Pronóstico vs Presupuesto (USD -> MXN) ---
+function renderBudgetVsReal(allOts, refParts, plans, logs, refMap) {
+  // 1. Calculate standard monthly budget baseline
+  let totalBaseRefacciones = 0;
+  (refParts || []).forEach(r => {
+    const qty = parseFloat(r.cantidad_estandar) || 1;
+    const price = refMap[r.codigo_articulo] || 0;
+    totalBaseRefacciones += (qty * price);
+  });
+
+  // Calculate monthly planned preventives
+  const baseMonthlyBudget = Math.round(totalBaseRefacciones * 1.25);
+
+  // 2. Fetch actual costs by month (last 6 months)
+  const months = [];
+  const monthLabels = [];
+  const today = new Date();
+
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(today.getMonth() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    months.push({
+      key,
+      label: d.toLocaleDateString('es-MX', { month: 'short' }),
+      real: 0,
+      budget: baseMonthlyBudget
+    });
+    monthLabels.push(d.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase());
+  }
+
+  // Calculate from Supabase logs
+  (logs || []).forEach(l => {
+    const dateStr = l.fecha_hora_inicio || l.fecha_alta;
+    if (!dateStr) return;
+    const d = new Date(dateStr);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const bucket = months.find(m => m.key === key);
+
+    if (bucket) {
+      // Sum up used parts cost
+      let cost = 0;
+      try {
+        let partsUsed = [];
+        if (typeof l.refacciones_usadas === 'string') {
+          partsUsed = JSON.parse(l.refacciones_usadas);
+        } else if (Array.isArray(l.refacciones_usadas)) {
+          partsUsed = l.refacciones_usadas;
+        }
+
+        partsUsed.forEach(item => {
+          const uCost = refMap[item.partId] || 0;
+          cost += (uCost * (item.quantity || 1));
+        });
+      } catch (e) {}
+      bucket.real += cost;
+    }
+  });
+
+  destroyChart('chart-budget-vs-real');
+  const ctx = document.getElementById('chart-budget-vs-real').getContext('2d');
+
+  _charts['chart-budget-vs-real'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [
+        {
+          label: 'Pronóstico',
+          data: months.map(m => Math.round(m.real)),
+          backgroundColor: '#38bdf8', // Light blue
+          borderRadius: 4
+        },
+        {
+          label: 'Presupuesto Asignado',
+          data: months.map(m => m.budget),
+          backgroundColor: '#1d4ed8', // Dark blue
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: '#e2e8f0', usePointStyle: true }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` $${ctx.raw.toLocaleString('es-MX')} MXN`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: PALETTE.textSecondary } },
+        y: {
+          grid: { color: PALETTE.gridColor },
+          ticks: {
+            color: PALETTE.textSecondary,
+            callback: value => `$${value.toLocaleString('es-MX')}`
+          }
+        }
+      }
+    }
+  });
+}
+
+// --- 4.6 Horas Paro (Downtime) ---
+function renderDowntime(allOts) {
+  // Aggregate total downtime
+  let totalDowntimeMin = 0;
+  
+  // Group downtime hours by department
+  const depts = {
+    TF: { label: 'TIN (Tintorería)', data: [0, 0, 0, 0, 0, 0], color: '#f43f5e' },
+    PF: { label: 'TEJ (Tejido)', data: [0, 0, 0, 0, 0, 0], color: '#3b82f6' },
+    CF: { label: 'COS (Costura)', data: [0, 0, 0, 0, 0, 0], color: '#eab308' }
+  };
+
+  const today = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(today.getMonth() - i);
+    months.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: d.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase()
+    });
+  }
+
+  allOts.forEach(o => {
+    const mins = parseFloat(o.tiempo_atencion_min) || 0;
+    if (mins > 0) {
+      totalDowntimeMin += mins;
+      
+      const deptCode = o.departamento || '';
+      const matchedDept = depts[deptCode];
+      
+      if (matchedDept) {
+        const dateStr = o.fecha_carga || o.fecha_hora_inicio;
+        if (dateStr) {
+          const d = new Date(dateStr);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          const mIdx = months.findIndex(m => m.key === key);
+          if (mIdx !== -1) {
+            matchedDept.data[mIdx] += (mins / 60);
+          }
+        }
+      }
+    }
+  });
+
+  const totalDowntimeHours = Math.round(totalDowntimeMin / 60);
+  document.getElementById('total-downtime-hours').textContent = `TOTAL: ${totalDowntimeHours} HRS`;
+
+  destroyChart('chart-downtime-dept');
+  const ctx = document.getElementById('chart-downtime-dept').getContext('2d');
+
+  const datasets = Object.values(depts).map(d => ({
+    label: d.label,
+    data: d.data.map(val => parseFloat(val.toFixed(1))),
+    borderColor: d.color,
+    backgroundColor: 'transparent',
+    borderWidth: 2.5,
+    tension: 0.3,
+    pointRadius: 4
+  }));
+
+  _charts['chart-downtime-dept'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months.map(m => m.label),
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: '#e2e8f0', usePointStyle: true }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: PALETTE.textSecondary } },
+        y: {
+          grid: { color: PALETTE.gridColor },
+          ticks: { color: PALETTE.textSecondary, precision: 0 }
+        }
+      }
+    }
+  });
+}
+
+// --- 4.7 Top Máquina Falla / Costo ---
+function renderTopMachines(allOts, refParts, logs, refMap) {
+  const container = document.getElementById('top-maquina-tbody');
+  const wrap = document.getElementById('top-maquina-container');
+  if (!container) return;
+
+  const machines = {};
+
+  allOts.forEach(o => {
+    const mId = o.maquina_id;
+    if (!mId) return;
+    if (!machines[mId]) {
+      machines[mId] = {
+        id: mId,
+        area: o.departamento || 'Planta',
+        failures: 0,
+        cost: 0,
+        priority: 'NORMAL'
+      };
+    }
+    machines[mId].failures++;
+    if (['CRÍTICO', 'CRITICA', 'CRITICAL', 'Alta'].includes(o.prioridad)) {
+      machines[mId].priority = 'CRÍTICO';
+    }
+  });
+
+  // Calculate standard parts cost estimation for each machine
+  (logs || []).forEach(l => {
+    const mId = l.maquina_id;
+    if (!mId || !machines[mId]) return;
+
+    let partsCost = 0;
+    try {
+      let partsUsed = [];
+      if (typeof l.refacciones_usadas === 'string') {
+        partsUsed = JSON.parse(l.refacciones_usadas);
+      } else if (Array.isArray(l.refacciones_usadas)) {
+        partsUsed = l.refacciones_usadas;
+      }
+
+      partsUsed.forEach(item => {
+        const cost = refMap[item.partId] || 0;
+        partsCost += (cost * (item.quantity || 1));
+      });
+    } catch (e) {}
+
+    machines[mId].cost += partsCost;
+  });
+
+  const sorted = Object.values(machines)
+    .sort((a, b) => b.failures - a.failures || b.cost - a.cost)
+    .slice(0, 5);
+
+  if (sorted.length === 0) {
+    container.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Sin registros de fallas</td></tr>`;
+    return;
+  }
+
+  container.innerHTML = sorted.map(m => {
+    let pClass = 'badge-normal';
+    if (m.priority === 'CRÍTICO') pClass = 'badge-critico';
+    else if (m.id.includes('SEC') || m.id.includes('COMP')) pClass = 'badge-seguridad';
+
+    const areaName = m.area === 'TF' ? 'TF Tinte' : (m.area === 'CF' ? 'CF Costura' : 'PF Prod');
+
+    return `
+      <tr>
+        <td><strong>${areaName}</strong></td>
+        <td>${m.id}</td>
+        <td>$${m.cost.toLocaleString('es-MX')}</td>
+        <td>${m.failures}</td>
+        <td><span class="badge-priority ${pClass}">${m.priority}</span></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ============================================================
+// 5. INITIALIZATION & AUTO-POLLING
+// ============================================================
+
 function updateDashLastUpdate() {
   const el = document.getElementById('dash-last-update');
   if (el) {
@@ -1030,44 +657,48 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadDashboard();
   updateDashLastUpdate();
 
-  // B1: Polling automático cada 30 segundos — actualiza KPIs y gráficas sin recargar la página
+  // Auto-refresh every 30 seconds
   if (!window._dashboardInterval) {
     window._dashboardInterval = setInterval(async () => {
       try {
-        console.log('[Dashboard] Auto-refresh iniciado...');
-        await Promise.allSettled([
-          loadKPIs(),
-          loadAnnualBudgetKPI(),
-          loadTechChart(),
-          loadDeptChart(),
-          loadMonthlyTrend(),
-          loadCriticalInventory(),
-        ]);
+        console.log('[Dashboard] Auto-refreshing Executive dashboard...');
+        await loadDashboard();
         updateDashLastUpdate();
-        console.log('[Dashboard] Auto-refresh completado.');
       } catch (e) {
-        console.warn('[Dashboard] Error en refresh automático:', e);
+        console.warn('[Dashboard] Error during auto-refresh:', e);
       }
     }, 30000);
   }
 
-  // B2: Reconectar si se recupera la conexión a internet
+  // Network online sync
   window.addEventListener('online', async () => {
-    console.log('[Dashboard] Red recuperada. Recargando dashboard...');
+    console.log('[Dashboard] Network restored. Refreshing dashboard...');
     await loadDashboard();
     updateDashLastUpdate();
+    document.getElementById('conn-status-label').textContent = 'Sistema en Vivo';
+    document.querySelector('.system-status-indicator').classList.remove('offline');
   });
 
-  // Botón de refresh manual (ya existente en la navbar)
+  window.addEventListener('offline', () => {
+    document.getElementById('conn-status-label').textContent = 'Sin conexión';
+    document.querySelector('.system-status-indicator').classList.add('offline');
+  });
+
+  // Manual refresh button
   const btnRefresh = document.getElementById('btn-refresh-dashboard');
   if (btnRefresh) {
     btnRefresh.addEventListener('click', async () => {
-      btnRefresh.style.opacity = '0.5';
+      btnRefresh.classList.add('spinning');
       btnRefresh.disabled = true;
-      await loadDashboard();
-      updateDashLastUpdate();
-      btnRefresh.style.opacity = '';
-      btnRefresh.disabled = false;
+      try {
+        await loadDashboard();
+        updateDashLastUpdate();
+      } finally {
+        setTimeout(() => {
+          btnRefresh.classList.remove('spinning');
+          btnRefresh.disabled = false;
+        }, 800);
+      }
     });
   }
 });
