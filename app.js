@@ -1317,21 +1317,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 // --- ENRUTADOR DE VISTAS PRINCIPALES (SPA) ---
 function showView(viewId) {
   // Remover estilo de pre-carga in-head si existía
+  document.documentElement.classList.remove('preload-user-active');
   const preloadStyle = document.getElementById('preload-hide-public');
   if (preloadStyle) {
     try { preloadStyle.remove(); } catch(e) {}
   }
 
-  // Ocultar todas las secciones de vista principal
+  // Ocultar todas las secciones de vista principal limpiando inline styles
   document.querySelectorAll('.view-section').forEach(view => {
     view.classList.remove('active');
-    view.style.display = 'none';
+    view.style.display = '';
   });
   
-  // Mostrar la vista objetivo
+  // Mostrar la vista objetivo agregando la clase active
   const targetView = document.getElementById(`view-${viewId}`);
   if (targetView) {
-    targetView.style.display = 'block';
+    targetView.style.display = '';
     targetView.classList.add('active');
   }
 
