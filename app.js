@@ -1957,7 +1957,19 @@ async function quickLogin(role, techId) {
     if (role === 'admin') {
       let dbAdmin = null;
       if (useLiveDatabase) {
-        // Consultar primer administrador en Supabase
+        // Autenticar cuenta oficial demo admin para obtener token de sesión
+        try {
+          const { error: authErr } = await supabaseClient.auth.signInWithPassword({
+            email: 'admin@tsm-ai.com',
+            password: 'admin123'
+          });
+          if (authErr) {
+            console.warn('Fallo autenticación Supabase Demo Admin:', authErr.message);
+          }
+        } catch (authEx) {
+          console.warn('Excepción de autenticación:', authEx);
+        }
+
         const { data, error } = await supabaseClient
           .from('cat_usuarios_roles')
           .select('*')
@@ -2000,12 +2012,32 @@ async function quickLogin(role, techId) {
       // Técnico
       let dbUser = null;
       if (useLiveDatabase) {
-        // Consultar técnico por cve_tecnico en Supabase
+        // Determinar email de técnico demo
+        let techEmail = 'carlos@tsm-ai.com';
+        let techPass = 'tech123';
+        if (techId === 'T-02' || techId === 'T-3366' || (techId && techId.toLowerCase().includes('sofia'))) {
+          techEmail = 'sofia@tsm-ai.com';
+        } else if (techId === 'T-03' || (techId && techId.toLowerCase().includes('alejandro'))) {
+          techEmail = 'alejandro@tsm-ai.com';
+        }
+
+        try {
+          const { error: authErr } = await supabaseClient.auth.signInWithPassword({
+            email: techEmail,
+            password: techPass
+          });
+          if (authErr) {
+            console.warn('Fallo autenticación Supabase Demo Tech:', authErr.message);
+          }
+        } catch (authEx) {
+          console.warn('Excepción de autenticación:', authEx);
+        }
+
         const { data, error } = await supabaseClient
           .from('cat_usuarios_roles')
           .select('*')
           .eq('rol', 'MANTENIMIENTO')
-          .eq('cve_tecnico', techId)
+          .eq('correo', techEmail)
           .maybeSingle();
 
         if (!error && data) {
@@ -2103,6 +2135,7 @@ async function handleLoginSubmit(event) {
       
       if (authErr) {
         console.warn('Supabase Auth falló, intentando simulación local:', authErr.message);
+        showToast('❌ Acceso denegado: ' + authErr.message, 'error');
       } else if (authData && authData.user) {
         // Si el login es correcto, buscar sus roles y permisos
         const { data, error } = await supabaseClient
