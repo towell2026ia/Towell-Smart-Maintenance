@@ -4352,16 +4352,91 @@ function selectMonthAndSwitch(monthIndex) {
 }
 
 // --- BITÁCORAS GENERALES (ADMIN) ---
-async function renderAdminLogsTable() {
+function renderAdminLogsTable() {
+  return renderAdminBitacoraTable();
+}
+// --- TRANSICIÓN AUTOMÁTICA PULL DE OT A BITÁCORA (FASE 4) ---
+async function syncFinishedOTsToBitacora() {
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const finishedOrders = orders.filter(o => o.status === 'Pendiente de validación' || o.status === 'Terminada' || o.status === 'Cerrada' || o.status === 'Ejecutada');
+  let maintenanceLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
+
+  for (const o of finishedOrders) {
+    const otId = o.id || o.folio;
+    const existsInLocal = maintenanceLogs.some(l => l.id_orden === otId || l.otFolio === otId);
+    
+    let partsStr = 'Ninguna';
+    if (o.usedParts && o.usedParts.length > 0) {
+      partsStr = o.usedParts.map(p => `${p.name || p.partId} (x${p.quantity})`).join(', ');
+    }
+
+    const startTimeStr = o.fecha_hora_inicio ? new Date(o.fecha_hora_inicio).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const endTimeStr = o.fecha_hora_fin ? new Date(o.fecha_hora_fin).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const timeRangeStr = `${startTimeStr} - ${endTimeStr}`;
+
+    const logEntry = {
+      id_bitacora: `BIT-${otId}`,
+      id_orden: otId,
+      otFolio: otId,
+      maquina_id: o.machine || 'N/A',
+      area: o.area || 'General',
+      cve_tecnico: o.assignedTech || o.cve_atendio || 'TECH-01',
+      nombre_tecnico: o.techName || (currentUser ? currentUser.name : 'Técnico'),
+      fecha_hora_inicio: o.fecha_hora_inicio || o.createdAt || new Date().toISOString(),
+      fecha_hora_fin: o.fecha_hora_fin || new Date().toISOString(),
+      horario_rango: timeRangeStr,
+      descripcion_actividad: o.activity || o.description || 'Atención de mantenimiento',
+      refacciones_usadas: partsStr,
+      observaciones: o.observations || o.diagnosis || 'Sin observaciones',
+      date: o.fecha_hora_fin || o.dueDate || new Date().toISOString()
+    };
+
+    if (!existsInLocal) {
+      maintenanceLogs.push(logEntry);
+    }
+
+    if (supabaseClient) {
+      try {
+        const { data: existingDB } = await supabaseClient
+          .from('bitacora_mantenimiento')
+          .select('id_bitacora')
+          .eq('id_orden', otId)
+          .maybeSingle();
+
+        if (!existingDB) {
+          await supabaseClient
+            .from('bitacora_mantenimiento')
+            .insert([{
+              id_orden: otId,
+              maquina_id: o.machine || null,
+              area: o.area || 'General',
+              cve_tecnico: o.assignedTech || null,
+              nombre_tecnico: o.techName || (currentUser ? currentUser.name : 'Técnico'),
+              fecha_hora_inicio: o.fecha_hora_inicio || new Date().toISOString(),
+              fecha_hora_fin: o.fecha_hora_fin || new Date().toISOString(),
+              descripcion_actividad: o.activity || o.description || 'Mantenimiento',
+              refacciones_usadas: partsStr,
+              observaciones: o.observations || o.diagnosis || null
+            }]);
+        }
+      } catch (err) {
+        console.warn('Sync bitacora to DB warning:', err);
+      }
+    }
+  }
+
+  localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(maintenanceLogs));
+}
+
+// ── BITÁCORA GENERAL DE MANTENIMIENTO (ADMIN) ─────────────────────────
+async function renderAdminBitacoraTable() {
   const tbody = document.getElementById('table-admin-logs-body');
   if (!tbody) return;
 
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
-  const executedOrders = orders.filter(o => o.status === 'Cerrada' || o.status === 'Ejecutada');
+  await syncFinishedOTsToBitacora();
+
   let maintenanceLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
 
-  // Pull fresh bitacoras from Supabase
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient
@@ -4370,87 +4445,58 @@ async function renderAdminLogsTable() {
         .order('fecha_hora_inicio', { ascending: false })
         .limit(200);
       if (!error && data) {
-        maintenanceLogs = data.map(l => ({
-          id_bitacora: l.id_bitacora,
-          id_orden: l.id_orden,
-          cve_tecnico: l.cve_tecnico,
-          otFolio: l.id_orden ? 'OT-DB' : 'NO_APLICA',
-          area: l.area,
-          refacciones_usadas: l.refacciones_usadas || 'Ninguna',
-          fecha_hora_inicio: l.fecha_hora_inicio,
-          fecha_hora_fin: l.fecha_hora_fin,
-          descripcion_actividad: l.descripcion_actividad,
-          nombre_tecnico: l.nombre_tecnico,
-          observaciones: l.observaciones,
-          maquina_id: l.maquina_id,
-          date: l.fecha_alta,
-          db_synced: true
-        }));
+        maintenanceLogs = data.map(l => {
+          const sTime = l.fecha_hora_inicio ? new Date(l.fecha_hora_inicio).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+          const eTime = l.fecha_hora_fin ? new Date(l.fecha_hora_fin).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+          return {
+            id_bitacora: l.id_bitacora,
+            id_orden: l.id_orden || 'Autónomo',
+            otFolio: l.id_orden || 'Autónomo',
+            area: l.area || 'General',
+            maquina_id: l.maquina_id || 'N/A',
+            refacciones_usadas: l.refacciones_usadas || 'Ninguna',
+            fecha_hora_inicio: l.fecha_hora_inicio,
+            fecha_hora_fin: l.fecha_hora_fin,
+            horario_rango: `${sTime} - ${eTime}`,
+            descripcion_actividad: l.descripcion_actividad || 'Mantenimiento',
+            nombre_tecnico: l.nombre_tecnico || 'Técnico',
+            observaciones: l.observaciones || 'Sin observaciones',
+            date: l.fecha_hora_fin || l.fecha_alta || new Date().toISOString()
+          };
+        });
+        localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(maintenanceLogs));
       }
     } catch (err) {
       console.warn('Supabase bitacora fetch failed, using cache:', err);
     }
   }
 
-  const logsFromOrders = executedOrders.map(o => {
-    const tech = techs.find(t => t.id === o.assignedTech);
-    const techName = tech ? tech.name : 'Técnico';
-    const interventionStr = (o.interventionType || []).join(', ') || 'Mantenimiento';
-    let partsStr = 'Ninguna';
-    if (o.usedParts && o.usedParts.length > 0) {
-      partsStr = o.usedParts.map(p => `${p.name || p.partId} (x${p.quantity})`).join(', ');
-    }
-    return {
-      id: o.id,
-      tipo: interventionStr,
-      refacciones: partsStr,
-      diagnostico: o.diagnosis || 'N/A',
-      actividad: o.activity || 'N/A',
-      tecnico: techName,
-      fecha: o.dueDate ? new Date(o.dueDate) : new Date(),
-      id_bitacora: null
-    };
-  });
-
-  // Map maintenanceLogs (Supabase o caché) a estructura común de log
-  const logsFromMaint = maintenanceLogs.map(l => {
-    return {
-      id: l.otFolio !== 'NO_APLICA' ? l.otFolio : 'Autónomo',
-      tipo: `Actividad: ${l.area}`,
-      refacciones: l.refacciones_usadas || 'Ninguna',
-      diagnostico: `Horario: ${l.fecha_hora_inicio ? new Date(l.fecha_hora_inicio).toLocaleString() : '—'} - ${l.fecha_hora_fin ? new Date(l.fecha_hora_fin).toLocaleString() : '—'}`,
-      actividad: l.descripcion_actividad,
-      tecnico: l.nombre_tecnico,
-      fecha: l.date ? new Date(l.date) : new Date(),
-      id_bitacora: l.id_bitacora
-    };
-  });
-
-  const allLogs = [...logsFromOrders, ...logsFromMaint];
-
-  if (allLogs.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No hay bitácoras de trabajo guardadas aún.</td></tr>`;
+  if (maintenanceLogs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No hay registros en la bitácora de mantenimiento.</td></tr>`;
     return;
   }
 
-  // Sort by date descending
-  allLogs.sort((a, b) => b.fecha - a.fecha);
+  maintenanceLogs.sort((a, b) => new Date(b.date || b.fecha_hora_fin) - new Date(a.date || a.fecha_hora_fin));
 
-  tbody.innerHTML = allLogs.map(l => {
-    const formattedDate = l.fecha.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  tbody.innerHTML = maintenanceLogs.map(l => {
+    const fDate = new Date(l.date || l.fecha_hora_fin || new Date());
+    const formattedDate = fDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const sTime = l.fecha_hora_inicio ? new Date(l.fecha_hora_inicio).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const eTime = l.fecha_hora_fin ? new Date(l.fecha_hora_fin).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const horarioStr = l.horario_rango || `${sTime} - ${eTime}`;
+
     const actionsCell = l.id_bitacora
       ? `<button class="btn-table-action" onclick="openAdminEditBitacoraModal('${l.id_bitacora}')" style="background-color: var(--accent-cyan); border-color: var(--accent-cyan);">Editar</button>`
       : `<button class="btn-table-action" disabled style="opacity: 0.5; cursor: not-allowed;">—</button>`;
     
     return `
       <tr>
-        <td><strong>${l.id}</strong></td>
-        <td>${l.tipo}</td>
-        <td>${l.refacciones}</td>
-        <td style="max-width:200px;white-space:normal;font-size:0.85rem;">${l.diagnostico}</td>
-        <td style="max-width:250px;white-space:normal;font-size:0.85rem;">${l.actividad}</td>
-        <td>${l.tecnico}</td>
-        <td>${formattedDate}</td>
+        <td><strong>${formattedDate}</strong></td>
+        <td><strong>${l.id_orden || 'Autónomo'}</strong><br><span style="font-size:0.82rem;color:var(--text-secondary);">${l.descripcion_actividad || ''}</span></td>
+        <td>${l.area || 'General'} - <strong>${l.maquina_id || 'N/A'}</strong></td>
+        <td><span class="badge badge-status-asignada" style="font-size:0.78rem;">⏰ ${horarioStr}</span></td>
+        <td style="max-width:180px;white-space:normal;font-size:0.85rem;">${l.refacciones_usadas || 'Ninguna'}</td>
+        <td style="max-width:220px;white-space:normal;font-size:0.85rem;">${l.observaciones || 'Sin observaciones'}</td>
         <td>${actionsCell}</td>
       </tr>
     `;
@@ -6868,8 +6914,8 @@ function openTechOrderDetailModal(otId) {
     toggleSubtaskForm();
     renderTechSubtasksList(otId);
 
-    // Inicializar catálogo de refacciones en el selector
-    populateTechSparePartsSelect();
+    // Inicializar catálogo de refacciones en el selector (específicas de la máquina + genéricas)
+    populateTechSparePartsSelect(order.machine);
     
     // Cargar refacciones de la OT o autocargar receta sugerida por tipo de servicio
     if (order.usedParts && order.usedParts.length > 0) {
@@ -7287,14 +7333,28 @@ async function updateOrderStatus(otId, newStatus) {
 }
 
 // Cargar catálogo de refacciones en modal técnico
-function populateTechSparePartsSelect() {
+// Cargar catálogo de refacciones en modal técnico (Refacciones específicas de la máquina + Genéricas)
+function populateTechSparePartsSelect(machineId = null) {
   const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
   const select = document.getElementById('tech-part-select');
   if (!select) return;
 
+  const targetMach = machineId ? machineId.toUpperCase() : '';
+
+  const filteredParts = parts.filter(p => {
+    if (!targetMach) return true;
+    const pMach = (p.maquina || p.maquina_id || '').toUpperCase();
+    return pMach === targetMach || pMach === 'GENERICA' || pMach === 'TODAS' || pMach === 'GENERAL' || pMach === '';
+  });
+
   let html = '<option value="">Selecciona repuesto...</option>';
-  parts.forEach(p => {
-    html += `<option value="${p.id}">${p.name} (Stock: ${p.stock})</option>`;
+  filteredParts.forEach(p => {
+    const pMach = (p.maquina || p.maquina_id || '').toUpperCase();
+    const isGeneric = pMach === 'GENERICA' || pMach === 'TODAS' || pMach === 'GENERAL' || pMach === '';
+    const tag = isGeneric ? ' [Genérica]' : ` [Específica: ${p.maquina || p.maquina_id || targetMach}]`;
+    const costVal = p.cost || p.costo_unitario || 0;
+    const costStr = costVal > 0 ? ` - $${costVal.toLocaleString('es-MX')} MXN` : '';
+    html += `<option value="${p.id || p.codigo_articulo}">${p.name || p.nombre_articulo}${tag}${costStr}</option>`;
   });
   select.innerHTML = html;
 }
@@ -7303,7 +7363,7 @@ function populateTechSparePartsSelect() {
 function addPartToOTList() {
   const select = document.getElementById('tech-part-select');
   const partId = select.value;
-  const qty = parseInt(document.getElementById('tech-part-qty').value);
+  const qty = parseInt(document.getElementById('tech-part-qty').value) || 1;
 
   if (!partId || qty <= 0) {
     alert('Selecciona una refacción y define una cantidad válida.');
@@ -7311,13 +7371,8 @@ function addPartToOTList() {
   }
 
   const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
-  const part = parts.find(p => p.id === partId);
+  const part = parts.find(p => (p.id || p.codigo_articulo) === partId);
   if (!part) return;
-
-  if (qty > part.stock) {
-    alert(`Stock insuficiente. Solo quedan ${part.stock} unidades.`);
-    return;
-  }
 
   // Verificar si ya estaba agregada
   const existIndex = tempSelectedParts.findIndex(p => p.partId === partId);
@@ -7326,8 +7381,9 @@ function addPartToOTList() {
   } else {
     tempSelectedParts.push({
       partId: partId,
-      name: part.name,
-      quantity: qty
+      name: part.name || part.nombre_articulo,
+      quantity: qty,
+      costoUnitario: part.cost || part.costo_unitario || 0
     });
   }
 
@@ -8498,12 +8554,12 @@ async function renderTechBitacora() {
     logs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
   }
 
-  // Auto-sintetizar registros de bitácora para cualquier OT ejecutada o cerrada que aún no tenga log en lista
+  // Auto-sintetizar registros de bitácora para cualquier OT finalizada, en validación o cerrada
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const closedOrExecuted = orders.filter(o => o.status === 'Ejecutada' || o.status === 'Cerrada');
+  const closedOrExecuted = orders.filter(o => o.status === 'Pendiente de validación' || o.status === 'Terminada' || o.status === 'Cerrada' || o.status === 'Ejecutada');
   closedOrExecuted.forEach(o => {
     const otId = o.id || o.folio;
-    const hasLog = logs.some(l => l.otFolio === otId || (l.otUUID && l.otUUID === o.uuid));
+    const hasLog = logs.some(l => l.otFolio === otId || (l.otUUID && l.otUUID === o.uuid) || l.id_orden === otId);
     if (!hasLog) {
       const diagText = o.diagnosis ? `Diagnóstico: ${o.diagnosis}` : '';
       const actText = o.activity ? `Actividad: ${o.activity}` : '';
@@ -8521,12 +8577,12 @@ async function renderTechBitacora() {
         nombre_tecnico: techName,
         area: o.area || o.departamento || 'PF',
         maquina_id: o.machine || o.maquina_id || null,
-        fecha_hora_inicio: o.date || o.created_at || new Date().toISOString(),
-        fecha_hora_fin: o.closeDate || new Date().toISOString(),
+        fecha_hora_inicio: o.fecha_hora_inicio || o.date || o.created_at || new Date().toISOString(),
+        fecha_hora_fin: o.fecha_hora_fin || o.closeDate || new Date().toISOString(),
         descripcion_actividad: activityDesc,
         refacciones_usadas: o.usedParts && Array.isArray(o.usedParts) ? o.usedParts.map(p => `${p.name || p.partId} x${p.quantity || 1}`).join(', ') : (o.refacciones_usadas || 'Sin refacciones'),
-        observaciones: o.observations || `Orden ${otId} finalizada con éxito.`,
-        date: o.closeDate || new Date().toISOString(),
+        observaciones: o.observations || `Orden ${otId} atendida con éxito.`,
+        date: o.fecha_hora_fin || o.closeDate || new Date().toISOString(),
         status: o.status,
         db_synced: false
       };
@@ -8542,7 +8598,6 @@ async function renderTechBitacora() {
     const matchesEmail = l.cve_tecnico === currentUser.email;
     const matchesName = l.cve_tecnico === currentUser.name || l.nombre_tecnico === currentUser.name;
 
-    // Buscar si la OT correspondiente pertenece al técnico actual
     const foundOrder = orders.find(o => o.id === l.otFolio || o.uuid === l.otUUID || o.folio === l.otFolio);
     const matchesOrder = foundOrder && (
       foundOrder.assignedTech === currentUser.id ||
@@ -8561,29 +8616,26 @@ async function renderTechBitacora() {
     return;
   }
 
-  myLogs.sort((a, b) => new Date(b.date) - new Date(a.date));
+  myLogs.sort((a, b) => new Date(b.date || b.fecha_hora_fin) - new Date(a.date || a.fecha_hora_fin));
 
   tbody.innerHTML = myLogs.map(l => {
-    const formattedStart = l.fecha_hora_inicio ? new Date(l.fecha_hora_inicio).toLocaleString() : '—';
-    const formattedEnd = l.fecha_hora_fin ? new Date(l.fecha_hora_fin).toLocaleString() : '—';
+    const fDate = new Date(l.date || l.fecha_hora_fin || new Date());
+    const formattedDate = fDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    const sTime = l.fecha_hora_inicio ? new Date(l.fecha_hora_inicio).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const eTime = l.fecha_hora_fin ? new Date(l.fecha_hora_fin).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const horarioStr = `${sTime} - ${eTime}`;
+
+    const otLabel = l.otFolio && l.otFolio !== 'NO_APLICA' ? l.otFolio : (l.id_orden || 'Autónomo');
 
     return `
       <tr>
-        <td><strong>${new Date(l.date).toLocaleDateString()}</strong></td>
-        <td>
-          <div style="font-weight:700;color:var(--primary-dark);">${l.otFolio !== 'NO_APLICA' ? 'OT: ' + l.otFolio : 'Levantamiento Autónomo'}</div>
-          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">${l.descripcion_actividad}</div>
-        </td>
-        <td>
-          <div>Área: <strong>${l.area}</strong></div>
-          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Máquina: ${l.maquina_id || 'N/A'}</div>
-        </td>
-        <td style="font-size:0.8rem;">
-          <div>Inicio: ${formattedStart}</div>
-          <div>Fin: ${formattedEnd}</div>
-        </td>
-        <td style="font-size:0.8rem;max-width:150px;white-space:normal;">${l.refacciones_usadas}</td>
-        <td style="font-size:0.8rem;max-width:150px;white-space:normal;color:var(--text-muted);">${l.observaciones}</td>
+        <td><strong>${formattedDate}</strong></td>
+        <td><strong>${otLabel}</strong><br><span style="font-size:0.82rem;color:var(--text-secondary);">${l.descripcion_actividad || ''}</span></td>
+        <td>${l.area || 'General'} - <strong>${l.maquina_id || 'N/A'}</strong></td>
+        <td><span class="badge badge-status-asignada" style="font-size:0.78rem;">⏰ ${horarioStr}</span></td>
+        <td style="max-width:180px;white-space:normal;font-size:0.85rem;">${l.refacciones_usadas || 'Ninguna'}</td>
+        <td style="max-width:220px;white-space:normal;font-size:0.85rem;">${l.observaciones || 'Sin observaciones'}</td>
       </tr>
     `;
   }).join('');
@@ -9889,5 +9941,156 @@ async function renderExcelHistoryTable() {
     }
   }
   tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted);">No disponible offline.</td></tr>';
+}
+
+// --- MODAL DE REVISIÓN Y ACEPTACIÓN/RECHAZO POR SOLICITANTE / ADMIN (FASE 4) ---
+function openApplicantReviewModal(otId) {
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const order = orders.find(o => o.id === otId || o.folio === otId);
+  if (!order) return;
+
+  const targetId = order.id || order.folio;
+  document.getElementById('applicant-review-ot-id').value = targetId;
+  document.getElementById('applicant-review-title').innerText = `Revisión de Trabajo Terminado: ${targetId}`;
+
+  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const mach = machines.find(m => m.id === order.machine);
+
+  document.getElementById('app-rev-machine').innerText = mach ? `${mach.name} (${mach.id})` : (order.machine || 'N/A');
+  document.getElementById('app-rev-tech').innerText = order.techName || (currentUser ? currentUser.name : 'Técnico Asignado');
+  
+  let durationStr = '0 min';
+  if (order.tiempo_atencion_min) {
+    durationStr = `${order.tiempo_atencion_min} min (${(order.tiempo_atencion_min / 60).toFixed(1)} h)`;
+  } else if (order.fecha_hora_inicio && order.fecha_hora_fin) {
+    const mins = Math.max(1, Math.round((new Date(order.fecha_hora_fin) - new Date(order.fecha_hora_inicio)) / 60000));
+    durationStr = `${mins} min (${(mins / 60).toFixed(1)} h)`;
+  }
+  document.getElementById('app-rev-duration').innerText = durationStr;
+
+  let partsStr = 'Ninguna';
+  if (order.usedParts && order.usedParts.length > 0) {
+    partsStr = order.usedParts.map(p => `${p.name || p.partId} (x${p.quantity})`).join(', ');
+  } else if (order.refacciones_usadas) {
+    partsStr = order.refacciones_usadas;
+  }
+  document.getElementById('app-rev-parts').innerText = partsStr;
+
+  const diag = order.diagnosis || '';
+  const act = order.activity || order.description || 'Atención de trabajo técnico';
+  document.getElementById('app-rev-activity').innerText = diag ? `Diagnóstico: ${diag}\nActividad: ${act}` : act;
+
+  // Evidencia Inicial
+  const initBox = document.getElementById('app-rev-img-initial-box');
+  if (order.evidence) {
+    initBox.innerHTML = `
+      <a href="${order.evidence}" target="_blank" style="color: var(--accent-blue); font-weight: 500; font-size: 0.85rem; text-decoration: underline;">
+        🖼️ Ver Evidencia Inicial (${order.evidence})
+      </a>
+    `;
+  } else {
+    initBox.innerHTML = `<span style="color: var(--text-muted); font-size: 0.85rem;">Sin evidencia inicial cargada</span>`;
+  }
+
+  // Evidencia Final
+  const finalBox = document.getElementById('app-rev-img-final-box');
+  const finalEv = order.finalEvidence || order.evidence_final || order.file;
+  if (finalEv) {
+    finalBox.innerHTML = `
+      <a href="${finalEv}" target="_blank" style="color: var(--accent-green); font-weight: 600; font-size: 0.85rem; text-decoration: underline;">
+        ✅ Ver Evidencia Final (${finalEv})
+      </a>
+    `;
+  } else {
+    finalBox.innerHTML = `<span style="color: var(--accent-green); font-size: 0.85rem;">✅ Trabajo concluido conforme a especificación</span>`;
+  }
+
+  openModal('modal-applicant-review-ot');
+}
+
+async function acceptWorkOrderFromModal() {
+  const otId = document.getElementById('applicant-review-ot-id').value;
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const idx = orders.findIndex(o => o.id === otId || o.folio === otId);
+  if (idx === -1) return;
+
+  const nowISO = new Date().toISOString();
+  orders[idx].status = 'Terminada';
+  orders[idx].closeDate = nowISO;
+
+  if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
+  orders[idx].historyLogs.push({
+    date: nowISO,
+    status: 'Terminada',
+    user: currentUser ? currentUser.name : 'Solicitante',
+    comment: 'Trabajo aceptado y orden cerrada definitivamente.'
+  });
+
+  localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+
+  // Transición automática de pull a Bitácora
+  await syncFinishedOTsToBitacora();
+
+  if (supabaseClient) {
+    try {
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({ estatus: 'TERMINADA', fecha_hora_fin: nowISO })
+        .eq('folio', otId);
+    } catch (err) {
+      console.error('Error closing order in Supabase:', err);
+    }
+  }
+
+  closeModal('modal-applicant-review-ot');
+  showToast('✅ Trabajo aceptado y orden cerrada con éxito.');
+
+  // Refrescar vistas y tableros
+  if (typeof renderTechOrdersTable === 'function') renderTechOrdersTable();
+  if (typeof renderAdminDashboard === 'function') renderAdminDashboard();
+  if (typeof updateAdminKPIs === 'function') updateAdminKPIs();
+  if (typeof syncDatabases === 'function') await syncDatabases();
+  refreshActiveViewSilently();
+}
+
+async function rejectWorkOrderFromModal() {
+  const otId = document.getElementById('applicant-review-ot-id').value;
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const idx = orders.findIndex(o => o.id === otId || o.folio === otId);
+  if (idx === -1) return;
+
+  const reason = prompt('Especifica las observaciones o correcciones requeridas para el técnico:') || 'Revisión requerida por el solicitante.';
+
+  orders[idx].status = 'En proceso';
+  orders[idx].rejectionReason = reason;
+
+  if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
+  orders[idx].historyLogs.push({
+    date: new Date().toISOString(),
+    status: 'En proceso',
+    user: currentUser ? currentUser.name : 'Solicitante',
+    comment: `Trabajo rechazado por el solicitante: ${reason}`
+  });
+
+  localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+
+  if (supabaseClient) {
+    try {
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({ estatus: 'EN_PROCESO' })
+        .eq('folio', otId);
+    } catch (err) {
+      console.error('Error rejecting work order in Supabase:', err);
+    }
+  }
+
+  closeModal('modal-applicant-review-ot');
+  showToast('🔴 Orden devuelta al técnico en estado En proceso.');
+
+  if (typeof renderTechOrdersTable === 'function') renderTechOrdersTable();
+  if (typeof renderAdminDashboard === 'function') renderAdminDashboard();
+  if (typeof syncDatabases === 'function') await syncDatabases();
+  refreshActiveViewSilently();
 }
 
