@@ -6435,7 +6435,260 @@ function renderTechDashboard() {
   document.getElementById('kpi-tech-done-today').innerText = doneToday;
 }
 
-// Tabla de OTs de Técnico
+// --- LÓGICA DE SLA Y CUMPLIMIENTO DE FECHA COMPROMISO (FASE 3) ---
+function getOTStatusSLA(order) {
+  if (!order) return { code: 'pendiente', label: 'Pendiente', badgeClass: 'badge-status-asignada', statusText: 'Pendiente' };
+  const now = new Date();
+  const dueDate = order.dueDate ? new Date(order.dueDate) : null;
+  const finishDate = order.fecha_hora_fin ? new Date(order.fecha_hora_fin) : null;
+  const isFinished = order.status === 'Terminada' || order.status === 'Cerrada' || order.status === 'Pendiente de validación';
+
+  if (isFinished) {
+    if (!dueDate || !finishDate || finishDate <= dueDate) {
+      return { code: 'terminada_a_tiempo', label: '🟢 Terminada a tiempo', badgeClass: 'badge-status-ejecutada', statusText: 'Terminada a tiempo' };
+    } else {
+      return { code: 'terminada_fuera_de_tiempo', label: '🟠 Terminada fuera de tiempo', badgeClass: 'badge-priority-alta', statusText: 'Terminada fuera de tiempo' };
+    }
+  } else {
+    if (dueDate && now > dueDate && order.status !== 'Cancelada') {
+      return { code: 'vencida_sin_terminar', label: '🔴 Vencida sin terminar', badgeClass: 'badge-priority-crítica', statusText: 'Vencida sin terminar' };
+    }
+    const statusMap = {
+      'Asignada': 'Pendiente',
+      'Pendiente': 'Pendiente',
+      'En proceso': 'En proceso',
+      'En espera': 'En espera',
+      'Pendiente de validación': 'Pendiente de validación'
+    };
+    const label = statusMap[order.status] || order.status;
+    const badgeClass = order.status === 'En proceso' ? 'badge-status-proceso' : (order.status === 'En espera' ? 'badge-priority-alta' : 'badge-status-asignada');
+    return { code: (order.status || 'pendiente').toLowerCase(), label: label, badgeClass: badgeClass, statusText: label };
+  }
+}
+
+function updateTechActionButtons(order) {
+  const statusBadge = document.getElementById('tech-ot-lbl-status-badge');
+  const timerLabel = document.getElementById('tech-ot-lbl-timer');
+
+  const btnStart = document.getElementById('btn-tech-start-work');
+  const btnPause = document.getElementById('btn-tech-pause-work');
+  const btnResume = document.getElementById('btn-tech-resume-work');
+  const btnFinish = document.getElementById('btn-tech-finish-work');
+
+  if (!order) return;
+
+  const sla = getOTStatusSLA(order);
+  if (statusBadge) {
+    statusBadge.innerText = sla.label;
+    statusBadge.className = `badge ${sla.badgeClass}`;
+  }
+
+  let startTimeStr = 'Sin registrar';
+  let durationStr = '0 min';
+
+  if (order.fecha_hora_inicio) {
+    const sDate = new Date(order.fecha_hora_inicio);
+    startTimeStr = sDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+    const endDate = order.fecha_hora_fin ? new Date(order.fecha_hora_fin) : new Date();
+    const diffMs = endDate - sDate;
+    const diffMins = Math.max(0, Math.round(diffMs / 60000));
+    durationStr = `${diffMins} min (${(diffMins / 60).toFixed(1)} h)`;
+  }
+
+  if (timerLabel) {
+    const pauseNote = order.pauseReason ? ` | Pausa: ${order.pauseReason}` : '';
+    timerLabel.innerText = `⏱️ Inicio: ${startTimeStr} | Tiempo Trabajado: ${durationStr}${pauseNote}`;
+  }
+
+  if (btnStart) btnStart.style.display = 'none';
+  if (btnPause) btnPause.style.display = 'none';
+  if (btnResume) btnResume.style.display = 'none';
+  if (btnFinish) btnFinish.style.display = 'none';
+
+  const st = order.status || 'Pendiente';
+
+  if (st === 'Asignada' || st === 'Pendiente') {
+    if (btnStart) btnStart.style.display = 'inline-block';
+  } else if (st === 'En proceso') {
+    if (btnPause) btnPause.style.display = 'inline-block';
+    if (btnFinish) btnFinish.style.display = 'inline-block';
+  } else if (st === 'En espera') {
+    if (btnResume) btnResume.style.display = 'inline-block';
+    if (btnFinish) btnFinish.style.display = 'inline-block';
+  }
+}
+
+async function startWorkOnOT() {
+  const otId = document.getElementById('tech-ot-id').value;
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const idx = orders.findIndex(o => o.id === otId);
+  if (idx === -1) return;
+
+  const nowISO = new Date().toISOString();
+  orders[idx].status = 'En proceso';
+  orders[idx].fecha_hora_inicio = orders[idx].fecha_hora_inicio || nowISO;
+  
+  if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
+  orders[idx].historyLogs.push({
+    date: nowISO,
+    status: 'En proceso',
+    user: currentUser ? currentUser.name : 'Técnico',
+    comment: 'Trabajo iniciado por el técnico.'
+  });
+
+  localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+
+  if (supabaseClient) {
+    try {
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({
+          estatus: 'EN_PROCESO',
+          fecha_hora_inicio: orders[idx].fecha_hora_inicio
+        })
+        .eq('folio', otId);
+    } catch (err) {
+      console.error('Error updating start work in Supabase:', err);
+    }
+  }
+
+  showToast('🚀 Trabajo iniciado. El estado cambió a En proceso.');
+  updateTechActionButtons(orders[idx]);
+  renderTechOrdersTable();
+}
+
+async function pauseWorkOnOT() {
+  const otId = document.getElementById('tech-ot-id').value;
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const idx = orders.findIndex(o => o.id === otId);
+  if (idx === -1) return;
+
+  const reason = prompt('Motivo de la pausa (ej. Espera de refacción, Paro de línea):') || 'Espera de refacción/material';
+
+  orders[idx].status = 'En espera';
+  orders[idx].pauseReason = reason;
+
+  if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
+  orders[idx].historyLogs.push({
+    date: new Date().toISOString(),
+    status: 'En espera',
+    user: currentUser ? currentUser.name : 'Técnico',
+    comment: `Trabajo pausado: ${reason}`
+  });
+
+  localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+
+  if (supabaseClient) {
+    try {
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({ estatus: 'EN_ESPERA' })
+        .eq('folio', otId);
+    } catch (err) {
+      console.error('Error pausing work in Supabase:', err);
+    }
+  }
+
+  showToast('⏸️ Trabajo pausado (En espera).');
+  updateTechActionButtons(orders[idx]);
+  renderTechOrdersTable();
+}
+
+async function resumeWorkOnOT() {
+  const otId = document.getElementById('tech-ot-id').value;
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const idx = orders.findIndex(o => o.id === otId);
+  if (idx === -1) return;
+
+  orders[idx].status = 'En proceso';
+  orders[idx].pauseReason = null;
+
+  if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
+  orders[idx].historyLogs.push({
+    date: new Date().toISOString(),
+    status: 'En proceso',
+    user: currentUser ? currentUser.name : 'Técnico',
+    comment: 'Trabajo reanudado.'
+  });
+
+  localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+
+  if (supabaseClient) {
+    try {
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({ estatus: 'EN_PROCESO' })
+        .eq('folio', otId);
+    } catch (err) {
+      console.error('Error resuming work in Supabase:', err);
+    }
+  }
+
+  showToast('▶️ Trabajo reanudado (En proceso).');
+  updateTechActionButtons(orders[idx]);
+  renderTechOrdersTable();
+}
+
+async function finishWorkOnOT() {
+  const otId = document.getElementById('tech-ot-id').value;
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const idx = orders.findIndex(o => o.id === otId);
+  if (idx === -1) return;
+
+  const activity = document.getElementById('tech-activity')?.value.trim() || '';
+
+  if (!activity) {
+    alert('Por favor describe la actividad realizada antes de finalizar el trabajo.');
+    return;
+  }
+
+  const nowISO = new Date().toISOString();
+  orders[idx].fecha_hora_fin = nowISO;
+  orders[idx].status = 'Pendiente de validación';
+
+  let durationMins = 0;
+  if (orders[idx].fecha_hora_inicio) {
+    durationMins = Math.max(1, Math.round((new Date(nowISO) - new Date(orders[idx].fecha_hora_inicio)) / 60000));
+  }
+  orders[idx].tiempo_atencion_min = durationMins;
+
+  if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
+  orders[idx].historyLogs.push({
+    date: nowISO,
+    status: 'Pendiente de validación',
+    user: currentUser ? currentUser.name : 'Técnico',
+    comment: `Trabajo finalizado en ${durationMins} min. Pendiente de visto bueno por supervisor.`
+  });
+
+  localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+
+  // Guardar log en Bitácora automáticamente
+  await saveTechnicalLog();
+
+  if (supabaseClient) {
+    try {
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({
+          estatus: 'PENDIENTE_VALIDACION',
+          fecha_hora_fin: nowISO,
+          tiempo_atencion_min: durationMins
+        })
+        .eq('folio', otId);
+    } catch (err) {
+      console.error('Error finishing work in Supabase:', err);
+    }
+  }
+
+  closeModal('modal-tech-ot-detail');
+  showToast('✅ Trabajo finalizado. La OT cambió a Pendiente de validación.');
+
+  renderTechOrdersTable();
+  if (typeof syncDatabases === 'function') await syncDatabases();
+}
+
+// Tabla de OTs de Técnico (Filtrado estricto por técnico asignado)
 function renderTechOrdersTable() {
   if (!currentUser) return;
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
@@ -6443,10 +6696,22 @@ function renderTechOrdersTable() {
   const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
   const tbody = document.getElementById('table-tech-orders-body');
 
-  const myOrders = orders.filter(o => o.assignedTech === currentUser.id);
+  const techId = currentUser.id || currentUser.uuid;
+  const techName = (currentUser.name || '').toLowerCase();
+
+  const myOrders = orders.filter(o => 
+    o.assignedTech === techId || 
+    o.cve_atendio === techId || 
+    (o.techName && o.techName.toLowerCase() === techName)
+  );
   
   // Convertir subtareas activas del técnico a formato compatible con la tabla
-  const mySubtasks = subtasks.filter(s => (s.assignedTech === currentUser.id || s.assignedTech === currentUser.uuid) && s.status !== 'Terminada' && s.status !== 'Cancelada');
+  const mySubtasks = subtasks.filter(s => 
+    (s.assignedTech === techId || s.cve_atendio === techId) && 
+    s.status !== 'Terminada' && 
+    s.status !== 'Cancelada'
+  );
+
   const mappedSubtasks = mySubtasks.map(s => {
     const mainOT = orders.find(o => o.id === s.otId);
     return {
@@ -6468,7 +6733,7 @@ function renderTechOrdersTable() {
   ];
 
   if (activeOrders.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No tienes órdenes de trabajo pendientes asignadas. ¡Buen trabajo!</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No tienes órdenes de trabajo pendientes asignadas. ¡Buen trabajo!</td></tr>`;
     return;
   }
 
@@ -6477,6 +6742,7 @@ function renderTechOrdersTable() {
     const mach = machines.find(m => m.id === o.machine);
     const machineName = mach ? mach.name : o.machine;
     const formattedDueDate = new Date(o.dueDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const sla = getOTStatusSLA(o);
 
     html += `
       <tr>
@@ -6484,8 +6750,8 @@ function renderTechOrdersTable() {
         <td>${machineName}</td>
         <td>${o.area}</td>
         <td>${o.type}</td>
-        <td><span class="badge badge-priority-${o.urgency.toLowerCase()}">${o.urgency}</span></td>
-        <td><span class="badge badge-status-${o.status.toLowerCase().replace('ó', 'o')}">${o.status}</span></td>
+        <td><span class="badge badge-priority-${(o.urgency || 'Normal').toLowerCase()}">${o.urgency || 'Normal'}</span></td>
+        <td><span class="badge ${sla.badgeClass}">${sla.label}</span></td>
         <td>${formattedDueDate}</td>
         <td>
           <button class="btn-table-action" onclick="openTechOrderDetailModal('${o.id}')">Ver detalle</button>
@@ -6493,7 +6759,7 @@ function renderTechOrdersTable() {
       </tr>
     `;
   });
-  tbody.innerHTML = html;
+  if (tbody) tbody.innerHTML = html;
 }
 
 // --- MODAL DETALLE DE OT (TÉCNICO) ---
@@ -6636,6 +6902,9 @@ function openTechOrderDetailModal(otId) {
     // Reset temporal subtasks
     tempSubtasksToCreate = [];
     renderTechTempSubtasksList();
+
+    // Actualizar botones de acción y tiempos del técnico
+    updateTechActionButtons(order);
 
     openModal('modal-tech-ot-detail');
   }

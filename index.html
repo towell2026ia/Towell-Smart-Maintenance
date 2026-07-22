@@ -1882,6 +1882,24 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="tech-ot-id">
+
+        <!-- Barra de Control de Tiempos y Estado de la OT -->
+        <div class="tech-action-bar" style="display: flex; gap: 12px; margin-bottom: 20px; background: rgba(255,255,255,0.04); padding: 14px 18px; border-radius: 10px; align-items: center; justify-content: space-between; border: 1px solid var(--border-subtle); flex-wrap: wrap;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-weight: 700; font-size: 0.95rem;">Estado: </span>
+              <span id="tech-ot-lbl-status-badge" class="badge badge-status-asignada">Pendiente</span>
+            </div>
+            <div id="tech-ot-lbl-timer" style="font-size: 0.82rem; color: var(--accent-blue); margin-top: 6px; font-weight: 500;">⏱️ Inicio: Sin registrar | Duración: 0 min</div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="tech-action-buttons">
+            <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-start-work" onclick="startWorkOnOT()" style="background: var(--accent-green); color: white; padding: 8px 16px;">🚀 Iniciar Trabajo</button>
+            <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-pause-work" onclick="pauseWorkOnOT()" style="display: none; background: var(--color-warning); color: white; padding: 8px 16px;">⏸️ En Espera</button>
+            <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-resume-work" onclick="resumeWorkOnOT()" style="display: none; background: var(--accent-blue); color: white; padding: 8px 16px;">▶️ Reanudar Trabajo</button>
+            <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-finish-work" onclick="finishWorkOnOT()" style="display: none; background: #8b5cf6; color: white; padding: 8px 16px;">✅ Finalizar Trabajo</button>
+          </div>
+        </div>
+
         <h4 style="font-weight: 700; color: var(--accent-blue); font-size: 1rem; border-left: 3px solid var(--accent-blue); padding-left: 8px;">Datos Generales de la OT</h4>
         
         <div class="detail-grid">
