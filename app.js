@@ -2089,10 +2089,14 @@ async function handleLoginSubmit(event) {
     const splitPass = document.getElementById('split-login-password');
     email = splitEmail ? splitEmail.value.trim().toLowerCase() : '';
     password = splitPass ? splitPass.value.trim() : '';
-  } else {
+  }
+  
+  if (!email) {
     const origEmail = document.getElementById('login-email');
-    const origPass = document.getElementById('login-password');
     email = origEmail ? origEmail.value.trim().toLowerCase() : '';
+  }
+  if (!password) {
+    const origPass = document.getElementById('login-password');
     password = origPass ? origPass.value.trim() : '';
   }
 
