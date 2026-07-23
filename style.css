@@ -100,6 +100,9 @@ body {
   padding: 0 !important;
   overflow: hidden !important;
   flex-direction: row !important;
+  position: relative !important; /* Necesario para sidebar drawer absoluto */
+  height: 100dvh !important;
+  max-height: 100dvh !important;
 }
 
 /* ==========================================================================
@@ -1562,17 +1565,46 @@ body {
 
 /* ==========================================================================
    Responsive e Interacciones Especiales
-   ========================================================================== */
+/* Backdrop para cerrar sidebar en móviles */
+.sidebar-backdrop-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9980;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.sidebar-backdrop-overlay.show {
+  display: block;
+  opacity: 1;
+  pointer-events: auto;
+}
+
 @media (max-width: 1024px) {
   .sidebar {
-    position: absolute;
+    position: absolute !important;
     left: 0;
     top: 0;
     bottom: 0;
+    height: 100%;
+    width: 285px;
+    z-index: 9999;
     transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+    overflow-y: auto;
   }
   .sidebar.show {
     transform: translateX(0);
+    box-shadow: 4px 0 30px rgba(0, 0, 0, 0.6);
   }
   .menu-toggle {
     display: block;
@@ -1588,6 +1620,11 @@ body {
   .wb-horas-paro,
   .wb-top-maquina {
     grid-column: span 2;
+  }
+  /* El sidebar es absolute, el main-content ocupa todo el ancho */
+  .main-content {
+    width: 100% !important;
+    flex: 1;
   }
 }
 
@@ -1772,5 +1809,141 @@ body {
   }
   .split-right-login {
     padding: 30px 15px;
+  }
+}
+
+/* ==========================================================================
+   PWA & NAVEGACIÓN DINÁMICA MULTIPLATAFORMA (iOS, Android, PC, Tablets)
+   ========================================================================== */
+
+/* Optimizaciones táctiles para móviles y tablets */
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
+}
+
+/* Soporte para áreas seguras en iOS (iPhone Notch y Home Indicator) */
+body {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Botón flotante para instalar PWA */
+.pwa-install-banner {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  z-index: 9999;
+  background: linear-gradient(135deg, #2563eb, #06b6d4);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 30px;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: pwaPulse 2s infinite;
+}
+
+.pwa-install-banner:hover {
+  transform: scale(1.05);
+}
+
+@keyframes pwaPulse {
+  0% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.6); }
+  70% { box-shadow: 0 0 0 14px rgba(6, 182, 212, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
+}
+
+/* Barra de Navegación Inferior (Bottom Nav Bar) para Smartphones (iOS / Android) */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 9000;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.mobile-bottom-nav-items {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  flex: 1;
+}
+
+.mobile-nav-item .nav-icon {
+  font-size: 1.25rem;
+  margin-bottom: 2px;
+  transition: transform 0.2s ease;
+}
+
+.mobile-nav-item.active {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.mobile-nav-item.active .nav-icon {
+  transform: translateY(-2px) scale(1.1);
+}
+
+/* Ajustes Responsive para Móviles (< 768px) */
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: block;
+  }
+  .app-container {
+    padding-bottom: 70px;
+  }
+  .main-content {
+    padding: 16px 12px 80px 12px !important;
+  }
+  .topbar {
+    padding: 12px 16px !important;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+  }
+  .topbar-title {
+    font-size: 1.1rem !important;
+  }
+  .pwa-install-banner {
+    bottom: 75px;
+    right: 12px;
+    padding: 8px 14px;
+    font-size: 0.8rem;
   }
 }

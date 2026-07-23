@@ -1223,6 +1223,41 @@ function persistSessionUser(userObj) {
   }
 }
 
+function normalizeUserRole(rawRol) {
+  if (!rawRol) return 'public';
+  const r = String(rawRol).toUpperCase().trim();
+  if (['SUPER_ADMINISTRADOR', 'ADMINISTRADOR', 'SUPER_ADMIN', 'ADMIN', 'JEFE_MANTENIMIENTO', 'GERENTE', 'DIRECTOR'].includes(r)) {
+    return 'admin';
+  }
+  if (['MANTENIMIENTO', 'TECNICO', 'TECH', 'MECANICO', 'ELECTRICO'].includes(r)) {
+    return 'tech';
+  }
+  return 'public';
+}
+
+function switchToTechView() {
+  if (!currentUser) return;
+  if (!currentUser.cve_tecnico && !currentUser.id) {
+    currentUser.id = currentUser.cve_empleado || currentUser.uuid || '2025';
+    currentUser.cve_tecnico = currentUser.cve_empleado || '2025';
+  }
+  const pName = document.getElementById('tech-profile-name');
+  const pSpec = document.getElementById('tech-profile-specialty');
+  const pAvat = document.getElementById('tech-profile-avatar');
+  if (pName) pName.innerText = currentUser.name || currentUser.nombre_completo || 'Técnico';
+  if (pSpec) pSpec.innerText = currentUser.specialty || currentUser.observaciones || currentUser.department || 'Coordinador Mantenimiento';
+  if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
+
+  showView('tech');
+  switchTechPanel('dashboard');
+}
+
+function switchToAdminView() {
+  if (!currentUser) return;
+  showView('admin');
+  switchAdminPanel(activeAdminPanel || 'dashboard');
+}
+
 function restoreRouteFromHash() {
   // 1. Intentar recuperar usuario si no está en memoria
   if (!currentUser) {
@@ -1238,30 +1273,59 @@ function restoreRouteFromHash() {
   const viewId = parts[0] || '';
   const panelId = parts[1] || '';
 
-  // 2. Si hay usuario autenticado, PRIORIZAR su vista y panel correspondiente
+  // 2. Si hay usuario autenticado, enrutar según la vista solicitada en el hash
   if (currentUser) {
-    const isSuperAdmin = currentUser.role === 'admin' || currentUser.rol === 'SUPER_ADMINISTRADOR' || currentUser.role === 'SUPER_ADMINISTRADOR';
-    const isTech = currentUser.role === 'tech' || currentUser.rol === 'MANTENIMIENTO' || currentUser.role === 'MANTENIMIENTO';
-    const isPublic = currentUser.role === 'public' || currentUser.rol === 'SOLICITANTE_PUBLICO' || currentUser.role === 'SOLICITANTE';
+    const roleKey = normalizeUserRole(currentUser.role || currentUser.rol);
 
-    if (isSuperAdmin) {
-      const targetPanel = (viewId === 'admin' && panelId) ? panelId : (activeAdminPanel || 'dashboard');
-      showView('admin');
-      switchAdminPanel(targetPanel);
-      return true;
-    } else if (isTech) {
-      const targetPanel = (viewId === 'tech' && panelId) ? panelId : (activeTechPanel || 'dashboard');
+    // Si la URL solicita la vista técnica (#tech/...), PERMITIR el acceso tanto a técnicos como a administradores
+    if (viewId === 'tech') {
+      const targetPanel = (panelId === 'orders') ? 'dashboard' : (panelId || activeTechPanel || 'dashboard');
       const pName = document.getElementById('tech-profile-name');
       const pSpec = document.getElementById('tech-profile-specialty');
       const pAvat = document.getElementById('tech-profile-avatar');
       if (pName) pName.innerText = currentUser.name || currentUser.nombre_completo || 'Técnico';
-      if (pSpec) pSpec.innerText = currentUser.specialty || currentUser.observaciones || 'General';
+      if (pSpec) pSpec.innerText = currentUser.specialty || currentUser.observaciones || currentUser.department || 'General';
+      if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
+
+      const switchAdminBtn = document.getElementById('menu-tech-switch-admin');
+      if (switchAdminBtn) {
+        switchAdminBtn.style.display = (roleKey === 'admin') ? 'block' : 'none';
+      }
+
+      showView('tech');
+      switchTechPanel(targetPanel);
+      return true;
+    }
+
+    // Si la URL solicita la vista de administración (#admin/...)
+    if (viewId === 'admin') {
+      if (roleKey === 'admin') {
+        const targetPanel = panelId || activeAdminPanel || 'dashboard';
+        showView('admin');
+        switchAdminPanel(targetPanel);
+        return true;
+      }
+    }
+
+    // Si no hay vista explícita en la URL, usar el rol por defecto del usuario
+    if (roleKey === 'admin') {
+      const targetPanel = activeAdminPanel || 'dashboard';
+      showView('admin');
+      switchAdminPanel(targetPanel);
+      return true;
+    } else if (roleKey === 'tech') {
+      const targetPanel = activeTechPanel || 'dashboard';
+      const pName = document.getElementById('tech-profile-name');
+      const pSpec = document.getElementById('tech-profile-specialty');
+      const pAvat = document.getElementById('tech-profile-avatar');
+      if (pName) pName.innerText = currentUser.name || currentUser.nombre_completo || 'Técnico';
+      if (pSpec) pSpec.innerText = currentUser.specialty || currentUser.observaciones || currentUser.department || 'General';
       if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
 
       showView('tech');
       switchTechPanel(targetPanel);
       return true;
-    } else if (isPublic) {
+    } else if (roleKey === 'public') {
       showView('public-portal');
       showPublicPanel('home');
       return true;
@@ -1314,13 +1378,35 @@ document.addEventListener('DOMContentLoaded', async () => {
           .maybeSingle();
         
         if (dbUser) {
-          if (dbUser.rol === 'SUPER_ADMINISTRADOR') {
-            currentUser = { role: 'admin', name: dbUser.nombre_completo, email: dbUser.correo, uuid: dbUser.id_usuario };
-          } else if (dbUser.rol === 'MANTENIMIENTO') {
+          const roleKey = normalizeUserRole(dbUser.rol);
+          if (roleKey === 'admin') {
+            currentUser = { 
+              role: 'admin', 
+              rol: dbUser.rol, 
+              name: dbUser.nombre_completo, 
+              email: dbUser.correo, 
+              uuid: dbUser.id_usuario, 
+              id: dbUser.cve_tecnico || dbUser.id_usuario, 
+              cve_tecnico: dbUser.cve_tecnico, 
+              department: dbUser.departamento,
+              specialty: dbUser.observaciones || dbUser.departamento || 'Administrador'
+            };
+          } else if (roleKey === 'tech') {
             const techId = dbUser.cve_tecnico || dbUser.id_usuario;
-            currentUser = { role: 'tech', id: techId, uuid: dbUser.id_usuario, name: dbUser.nombre_completo, email: dbUser.correo, specialty: dbUser.observaciones || 'General', avatar: '👨‍🔧', department: dbUser.departamento };
-          } else if (dbUser.rol === 'SOLICITANTE_PUBLICO' || dbUser.rol === 'SOLICITANTE') {
-            currentUser = { role: 'public', name: dbUser.nombre_completo, email: dbUser.correo, uuid: dbUser.id_usuario };
+            currentUser = { 
+              role: 'tech', 
+              rol: dbUser.rol, 
+              id: techId, 
+              cve_tecnico: dbUser.cve_tecnico, 
+              uuid: dbUser.id_usuario, 
+              name: dbUser.nombre_completo, 
+              email: dbUser.correo, 
+              specialty: dbUser.observaciones || dbUser.departamento || 'General', 
+              avatar: '👨‍🔧', 
+              department: dbUser.departamento 
+            };
+          } else if (roleKey === 'public') {
+            currentUser = { role: 'public', rol: dbUser.rol, name: dbUser.nombre_completo, email: dbUser.correo, uuid: dbUser.id_usuario };
           }
           persistSessionUser(currentUser);
           restoreRouteFromHash();
@@ -1343,27 +1429,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (menu && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
       menu.classList.remove('show');
     }
+
+    const dbGroup = document.getElementById('menu-admin-database-group');
+    if (dbGroup && !dbGroup.contains(e.target)) {
+      closeDatabaseSubmenu();
+    }
   });
 
   window.addEventListener('hashchange', restoreRouteFromHash);
 
-  // A3: Listener popstate mejorado — protege sesión activa y no bloquea flujo de recovery
   window.addEventListener('popstate', (event) => {
     const hash = window.location.hash || '';
-    // No interferir con flujo de recuperación de contraseña
     if (hash.includes('type=recovery') || hash.includes('access_token')) {
       triggerRecoveryUI();
       return;
-    }
-    // Si hay sesión activa y el hash apunta fuera del área del usuario → bloquear retroceso accidental
-    if (currentUser) {
-      const isSuperAdmin = currentUser.role === 'admin' || currentUser.rol === 'SUPER_ADMINISTRADOR' || currentUser.role === 'SUPER_ADMINISTRADOR';
-      const role = isSuperAdmin ? 'admin' : 'tech';
-      if (!hash.startsWith(`#${role}/`)) {
-        const panel = isSuperAdmin ? (activeAdminPanel || 'dashboard') : (activeTechPanel || 'dashboard');
-        history.pushState(null, '', `#${role}/${panel}`);
-        return;
-      }
     }
     restoreRouteFromHash();
   });
@@ -1371,6 +1450,74 @@ document.addEventListener('DOMContentLoaded', async () => {
   triggerRecoveryUI();
   setupRealtimeSubscriptions();
 });
+
+function updateMobileBottomNav() {
+  const navContainer = document.getElementById('mobile-nav-items-container');
+  const bottomNav = document.getElementById('mobile-bottom-nav');
+  if (!navContainer || !bottomNav) return;
+
+  if (!currentUser) {
+    bottomNav.style.display = 'none';
+    return;
+  }
+
+  const isTechView = document.getElementById('view-tech')?.classList.contains('active');
+  const isAdminView = document.getElementById('view-admin')?.classList.contains('active');
+
+  if (isTechView) {
+    bottomNav.style.display = 'block';
+    const panel = activeTechPanel || 'dashboard';
+    navContainer.innerHTML = `
+      <div class="mobile-nav-item ${panel === 'dashboard' ? 'active' : ''}" onclick="switchTechPanel('dashboard')">
+        <span class="nav-icon">📋</span>
+        <span>Tablero</span>
+      </div>
+      <div class="mobile-nav-item ${panel === 'checklists' ? 'active' : ''}" onclick="switchTechPanel('checklists')">
+        <span class="nav-icon">⚡</span>
+        <span>Checklists</span>
+      </div>
+      <div class="mobile-nav-item ${panel === 'bitacora' ? 'active' : ''}" onclick="switchTechPanel('bitacora')">
+        <span class="nav-icon">📝</span>
+        <span>Bitácora</span>
+      </div>
+      <div class="mobile-nav-item ${panel === 'history' ? 'active' : ''}" onclick="switchTechPanel('history')">
+        <span class="nav-icon">⚙️</span>
+        <span>Histórico</span>
+      </div>
+      <div class="mobile-nav-item ${panel === 'profile' ? 'active' : ''}" onclick="switchTechPanel('profile')">
+        <span class="nav-icon">👤</span>
+        <span>Perfil</span>
+      </div>
+    `;
+  } else if (isAdminView) {
+    bottomNav.style.display = 'block';
+    const panel = activeAdminPanel || 'dashboard';
+    navContainer.innerHTML = `
+      <div class="mobile-nav-item ${panel === 'dashboard' ? 'active' : ''}" onclick="switchAdminPanel('dashboard')">
+        <span class="nav-icon">📊</span>
+        <span>Dashboard</span>
+      </div>
+      <div class="mobile-nav-item ${panel === 'requests' ? 'active' : ''}" onclick="switchAdminPanel('requests')">
+        <span class="nav-icon">📨</span>
+        <span>Solicitudes</span>
+      </div>
+      <div class="mobile-nav-item ${panel === 'orders' ? 'active' : ''}" onclick="switchAdminPanel('orders')">
+        <span class="nav-icon">📋</span>
+        <span>Órdenes</span>
+      </div>
+      <div class="mobile-nav-item ${panel === 'databases' ? 'active' : ''}" onclick="switchAdminPanel('databases')">
+        <span class="nav-icon">🗄️</span>
+        <span>Bases BD</span>
+      </div>
+      <div class="mobile-nav-item" onclick="toggleSidebar()">
+        <span class="nav-icon">☰</span>
+        <span>Menú</span>
+      </div>
+    `;
+  } else {
+    bottomNav.style.display = 'none';
+  }
+}
 
 // --- ENRUTADOR DE VISTAS PRINCIPALES (SPA) ---
 function showView(viewId) {
@@ -1403,6 +1550,8 @@ function showView(viewId) {
   } else if (viewId === 'public-portal') {
     route = `#public/${activePublicPanel || 'home'}`;
   }
+
+  updateMobileBottomNav();
 
   if (location.hash !== route) {
     history.pushState(null, '', route);
@@ -2144,37 +2293,33 @@ async function handleLoginSubmit(event) {
     useLiveDatabase = true;
     showToast('Conectado a Base de Datos Real de Planta.');
     
-    // Autenticar token administrativo global si el cliente Auth de Supabase quedó anónimo
-    if (supabaseClient) {
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (!session) {
-          await supabaseClient.auth.signInWithPassword({
-            email: 'admin@tsm-ai.com',
-            password: 'admin123'
-          });
-        }
-      } catch (e) {}
-    }
-
     await syncDatabases();
 
-    if (dbUser.rol === 'SUPER_ADMINISTRADOR') {
+    const roleKey = normalizeUserRole(dbUser.rol);
+
+    if (roleKey === 'admin') {
       currentUser = { 
         role: 'admin', 
+        rol: dbUser.rol,
         name: dbUser.nombre_completo, 
         email: dbUser.correo,
-        uuid: dbUser.id_usuario 
+        uuid: dbUser.id_usuario,
+        cve_tecnico: dbUser.cve_tecnico,
+        department: dbUser.departamento
       };
       persistSessionUser(currentUser);
-      showToast(`Sesión iniciada como Super Admin: ${dbUser.nombre_completo}`);
+      showToast(`Sesión iniciada como Admin: ${dbUser.nombre_completo}`);
+      
+      const targetPanel = activeAdminPanel || 'dashboard';
       showView('admin');
-      switchAdminPanel('dashboard');
-    } else if (dbUser.rol === 'MANTENIMIENTO') {
+      switchAdminPanel(targetPanel);
+    } else if (roleKey === 'tech') {
       const techId = dbUser.cve_tecnico || dbUser.id_usuario;
       currentUser = { 
         role: 'tech', 
+        rol: dbUser.rol,
         id: techId,
+        cve_tecnico: dbUser.cve_tecnico,
         uuid: dbUser.id_usuario,
         name: dbUser.nombre_completo, 
         email: dbUser.correo,
@@ -2192,11 +2337,13 @@ async function handleLoginSubmit(event) {
       if (pSpec) pSpec.innerText = dbUser.observaciones || 'General';
       if (pAvat) pAvat.innerText = '👨‍🔧';
       
+      const targetPanel = activeTechPanel || 'orders';
       showView('tech');
-      switchTechPanel('dashboard');
-    } else if (dbUser.rol === 'SOLICITANTE_PUBLICO' || dbUser.rol === 'SOLICITANTE') {
+      switchTechPanel(targetPanel);
+    } else if (roleKey === 'public') {
       currentUser = { 
         role: 'public', 
+        rol: dbUser.rol,
         name: dbUser.nombre_completo, 
         email: dbUser.correo,
         uuid: dbUser.id_usuario 
@@ -2205,8 +2352,6 @@ async function handleLoginSubmit(event) {
       showToast(`Sesión iniciada como Solicitante: ${dbUser.nombre_completo}`);
       showView('public-portal');
       showPublicPanel('home');
-    } else {
-      alert(`El rol del usuario (${dbUser.rol}) no está configurado para acceso directo.`);
     }
     return;
   }
@@ -2216,17 +2361,37 @@ async function handleLoginSubmit(event) {
 }
 
 function logout() {
+  currentUser = null;
   persistSessionUser(null);
+  localStorage.removeItem('TSMAI_current_user');
+  localStorage.removeItem('TSMAI_current_route');
   useLiveDatabase = false;
+  
   if (supabaseClient) {
     supabaseClient.auth.signOut().catch(err => console.warn('Supabase signOut error:', err));
   }
+
+  try {
+    history.pushState('', document.title, window.location.pathname + window.location.search);
+  } catch (e) {
+    window.location.hash = '';
+  }
+
   showView('public-portal');
   showPublicPanel('home');
   showToast('Sesión cerrada correctamente.');
 }
 
 // --- PANEL SUPER ADMINISTRADOR ---
+function closeDatabaseSubmenu() {
+  const submenu = document.getElementById('admin-database-submenu');
+  const arrow = document.querySelector('#menu-admin-database-group .arrow');
+  if (submenu) {
+    submenu.style.display = 'none';
+    if (arrow) arrow.innerText = '▼';
+  }
+}
+
 // Alternar visualización del submenú de base de datos
 function toggleDatabaseSubmenu(event) {
   if (event) {
@@ -2236,7 +2401,7 @@ function toggleDatabaseSubmenu(event) {
   const submenu = document.getElementById('admin-database-submenu');
   const arrow = document.querySelector('#menu-admin-database-group .arrow');
   if (submenu) {
-    const isHidden = submenu.style.display === 'none' || submenu.style.display === '';
+    const isHidden = submenu.style.display === 'none' || submenu.style.display === '' || getComputedStyle(submenu).display === 'none';
     submenu.style.display = isHidden ? 'block' : 'none';
     if (arrow) arrow.innerText = isHidden ? '▲' : '▼';
   }
@@ -2249,7 +2414,12 @@ function switchAdminPanel(panelId) {
     history.pushState(null, '', route);
   }
   localStorage.setItem('TSMAI_current_route', route);
+  closeSidebarOnMobile();
+  updateMobileBottomNav();
   
+  // Ocultar siempre el submenú desplegable al seleccionar una opción
+  closeDatabaseSubmenu();
+
   // Cambiar pestaña activa de la barra lateral
   document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
     item.classList.remove('active');
@@ -2261,22 +2431,15 @@ function switchAdminPanel(panelId) {
   const activeMenuItem = document.getElementById(`menu-admin-${panelId}`);
   if (activeMenuItem) activeMenuItem.classList.add('active');
 
-  // Si pertenece al grupo de base de datos (catálogos o tablas operacionales), asegurar que esté expandido
   const dbPanels = [
-    'machines', 'parts', 'inventory', 'suppliers', 'tecnicos', 'empleados',
+    'databases', 'machines', 'parts', 'inventory', 'suppliers', 'tecnicos', 'empleados',
     'departamentos', 'turnos', 'servicios', 'tiposfalla', 'categfalla', 'criticidad',
     'componentes', 'estatusot', 'users', 'logs', 'laborcosts', 'alertrules',
     'notificaciones', 'fallas', 'telegram', 'costosot', 'evidencias', 'refmaquina', 'histprecios', 'cierres', 'respchk',
     'preventive', 'checklists', 'downtime'
   ];
-  if (dbPanels.includes(panelId)) {
-    if (dbGroup) dbGroup.classList.add('active');
-    const submenu = document.getElementById('admin-database-submenu');
-    const arrow = document.querySelector('#menu-admin-database-group .arrow');
-    if (submenu) {
-      submenu.style.display = 'block';
-      if (arrow) arrow.innerText = '▲';
-    }
+  if (dbPanels.includes(panelId) && dbGroup) {
+    dbGroup.classList.add('active');
   }
 
   // Cambiar paneles visibles
@@ -2289,6 +2452,7 @@ function switchAdminPanel(panelId) {
   // Configurar título de Topbar
   const titleLabels = {
     dashboard: '📊 Dashboard Ejecutivo',
+    databases: '🗄️ Centro de Bases de Datos & Catálogos',
     requests: '📨 Bandeja de Solicitudes Nuevas',
     orders: '📋 Control General de Órdenes de Trabajo',
     calendar: '📅 Calendario Mensual de Mantenimiento',
@@ -5025,12 +5189,16 @@ function openAdminUserModal(userId = null) {
     document.getElementById('admin-user-name').value = u.nombre_completo || '';
     document.getElementById('admin-user-email').value = u.correo || '';
     document.getElementById('admin-user-phone').value = u.telefono || '';
-    roleSelect.value = u.rol || 'SOLICITANTE_PUBLICO';
+    roleSelect.value = u.rol || 'SOLICITANTE';
     codeInput.value = u.cve_empleado || '';
     document.getElementById('admin-user-tech-code').value = u.cve_tecnico || '';
     document.getElementById('admin-user-dept').value = u.departamento || '';
     document.getElementById('admin-user-shift').value = u.turno || '1';
     document.getElementById('admin-user-obs').value = u.observaciones || '';
+    const puestoEl = document.getElementById('admin-user-puesto');
+    if (puestoEl) puestoEl.value = u.puesto || '';
+    const areaEl = document.getElementById('admin-user-area');
+    if (areaEl) areaEl.value = u.area || u.departamento || '';
 
     // Checkboxes
     document.getElementById('perm-create-req').checked = !!u.puede_crear_solicitud;
@@ -5051,12 +5219,16 @@ function openAdminUserModal(userId = null) {
     document.getElementById('admin-user-name').value = '';
     document.getElementById('admin-user-email').value = '';
     document.getElementById('admin-user-phone').value = '';
-    roleSelect.value = 'SOLICITANTE_PUBLICO';
+    roleSelect.value = 'SOLICITANTE';
     codeInput.value = '';
     document.getElementById('admin-user-tech-code').value = '';
     document.getElementById('admin-user-dept').value = '';
     document.getElementById('admin-user-shift').value = '1';
     document.getElementById('admin-user-obs').value = '';
+    const puestoEl2 = document.getElementById('admin-user-puesto');
+    if (puestoEl2) puestoEl2.value = '';
+    const areaEl2 = document.getElementById('admin-user-area');
+    if (areaEl2) areaEl2.value = 'General';
 
     // Checkboxes defaults
     document.getElementById('perm-create-req').checked = true;
@@ -5089,6 +5261,8 @@ async function saveAdminUser() {
   const departamento = document.getElementById('admin-user-dept').value.trim();
   const shift = document.getElementById('admin-user-shift').value;
   const observaciones = document.getElementById('admin-user-obs').value.trim();
+  const puesto = (document.getElementById('admin-user-puesto')?.value || '').trim();
+  const area = (document.getElementById('admin-user-area')?.value || '').trim() || 'General';
 
   // Permisos
   const puedeCrear = document.getElementById('perm-create-req').checked;
@@ -5111,14 +5285,16 @@ async function saveAdminUser() {
     alert('Por favor ingresa el correo electrónico.');
     return;
   }
-  if (rol === 'MANTENIMIENTO' && !cveEmpleado) {
-    alert('Por favor ingresa la clave de empleado.');
+
+  const finalEmpCode = cveEmpleado || (cveTecnico ? cveTecnico : null);
+  const finalTechCode = (rol === 'MANTENIMIENTO' || cveTecnico) ? (cveTecnico || cveEmpleado || null) : null;
+  const tempPass = 'TSM' + Math.floor(100000 + Math.random() * 900000);
+
+  if (rol === 'MANTENIMIENTO' && !finalEmpCode && !finalTechCode) {
+    alert('Por favor ingresa la clave de empleado o técnico.');
     return;
   }
 
-  const supervisorId = document.getElementById('admin-user-supervisor')?.value || null;
-
-  // Si es mantenimiento (técnico), forzar que NO pueda crear solicitudes
   const finalCanCreate = rol === 'MANTENIMIENTO' ? false : puedeCrear;
 
   const userObj = {
@@ -5126,19 +5302,17 @@ async function saveAdminUser() {
     correo: correo,
     telefono: telefono || null,
     rol: rol,
+    puesto: puesto || null,
+    area: area || 'General',
     cve_empleado: finalEmpCode,
     cve_tecnico: finalTechCode,
     departamento: departamento || null,
-    departamento_codigo: departamento || null,
-    id_supervisor: supervisorId,
     turno: shift ? parseInt(shift) : null,
-    turno_id: shift ? parseInt(shift) : null,
-    especialidad: observaciones || null,
     puede_crear_solicitud: finalCanCreate,
-    puede_ver_ordenes_asignadas: puedeVerAsignadas,
+    puede_ver_ordenes_asignadas: (rol === 'MANTENIMIENTO') ? true : puedeVerAsignadas,
     puede_ver_todas_ordenes: puedeVerTodas,
-    puede_atender_orden: puedeAtender,
-    puede_cerrar_orden: puedeCerrar,
+    puede_atender_orden: (rol === 'MANTENIMIENTO') ? true : puedeAtender,
+    puede_cerrar_orden: (rol === 'MANTENIMIENTO') ? true : puedeCerrar,
     puede_validar_cierre: puedeValidar,
     puede_editar_catalogos: puedeEditar,
     puede_ver_dashboards: puedeVerDash,
@@ -5161,7 +5335,7 @@ async function saveAdminUser() {
 
   if (supabaseClient) {
     try {
-      // 1. Asegurar la clave de empleado y técnico en sus respectivos catálogos para evitar violaciones de clave foránea
+      // 1. Asegurar la clave de empleado en cat_empleados si existe
       if (finalEmpCode) {
         showToast('Sincronizando catálogo de empleados...');
         const { error: empErr } = await supabaseClient
@@ -5174,10 +5348,11 @@ async function saveAdminUser() {
             activo: activo,
             fecha_actualizacion: new Date().toISOString()
           }], { onConflict: 'cve_empleado' });
-        if (empErr) throw empErr;
+        if (empErr) console.warn('Aviso en cat_empleados:', empErr);
       }
 
-      if (rol === 'MANTENIMIENTO' && finalTechCode) {
+      // 2. Si el rol es MANTENIMIENTO o tiene clave de técnico, asegurar registro en cat_tecnicos
+      if ((rol === 'MANTENIMIENTO' || finalTechCode) && finalTechCode) {
         showToast('Sincronizando catálogo de técnicos...');
         const { error: techErr } = await supabaseClient
           .from('cat_tecnicos')
@@ -5187,13 +5362,13 @@ async function saveAdminUser() {
             correo: correo,
             telefono: telefono || null,
             activo: activo,
-            especialidad: observaciones || 'General',
+            especialidad: observaciones || departamento || 'Mantenimiento General',
             fecha_actualizacion: new Date().toISOString()
           }], { onConflict: 'cve_tecnico' });
-        if (techErr) throw techErr;
+        if (techErr) console.warn('Aviso en cat_tecnicos:', techErr);
       }
 
-      // 2. Excluir contraseña en el envío a la tabla cat_usuarios_roles
+      // 3. Actualizar la tabla principal cat_usuarios_roles
       const dbPayload = { ...userObj };
       delete dbPayload.contrasenia;
 
@@ -5203,13 +5378,13 @@ async function saveAdminUser() {
           .update(dbPayload)
           .eq('id_usuario', id);
         if (error) throw error;
-        showToast('Usuario actualizado en base de datos.');
+        showToast('✅ Usuario actualizado con éxito en Supabase.');
       } else {
         const { error } = await supabaseClient
           .from('cat_usuarios_roles')
           .insert([dbPayload]);
         if (error) throw error;
-        showToast('Usuario creado en base de datos.');
+        showToast('✅ Usuario creado con éxito en Supabase.');
         shouldShowEmail = true;
       }
     } catch (err) {
@@ -5219,6 +5394,16 @@ async function saveAdminUser() {
     }
   } else {
     showToast('Guardado localmente (Offline).');
+  }
+
+  // Sincronizar sesión en memoria si el usuario editado es el usuario actual logueado
+  if (currentUser && (currentUser.uuid === id || currentUser.email === correo)) {
+    currentUser.rol = rol;
+    currentUser.role = normalizeUserRole(rol);
+    currentUser.name = nombre;
+    currentUser.cve_tecnico = finalTechCode;
+    currentUser.id = finalTechCode || currentUser.uuid;
+    persistSessionUser(currentUser);
   }
 
   if (supabaseClient) {
@@ -5234,7 +5419,6 @@ async function saveAdminUser() {
     }
     localStorage.setItem('TSMAI_users', JSON.stringify(localUsers));
     
-    // Si es técnico, actualizar catálogo de técnicos
     const localTechs = localUsers.filter(u => u.rol === 'MANTENIMIENTO').map(t => ({
       id: t.cve_tecnico || t.id_usuario,
       uuid: t.id_usuario,
@@ -5247,7 +5431,6 @@ async function saveAdminUser() {
   }
 
   if (shouldShowEmail) {
-    // Mostrar correo electrónico simulado
     showSimulatedEmail(
       correo,
       '🔑 Tu contraseña temporal de acceso a TSM-AI',
@@ -6530,12 +6713,15 @@ function parseExcelDate(value) {
 
 // --- PANEL DE EQUIPO TÉCNICO (MANTENIMIENTO) ---
 function switchTechPanel(panelId) {
+  if (!panelId || panelId === 'orders') panelId = 'dashboard';
   activeTechPanel = panelId;
   const route = `#tech/${panelId}`;
   if (location.hash !== route) {
     history.pushState(null, '', route);
   }
   localStorage.setItem('TSMAI_current_route', route);
+  closeSidebarOnMobile();
+  updateMobileBottomNav();
 
   document.querySelectorAll('#view-tech .sidebar-menu .menu-item').forEach(item => {
     item.classList.remove('active');
@@ -6577,8 +6763,20 @@ function renderTechDashboard() {
   const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
   
   // Filtrar OTs y Subtareas asignadas a este técnico
-  const myOrders = orders.filter(o => o.assignedTech === currentUser.id);
-  const mySubtasks = subtasks.filter(s => s.assignedTech === currentUser.id || s.assignedTech === currentUser.uuid);
+  const techId = currentUser.id || currentUser.uuid || currentUser.cve_tecnico;
+  const techName = (currentUser.name || '').toLowerCase();
+  const myOrders = orders.filter(o => 
+    o.assignedTech === techId || 
+    o.assignedTech === currentUser.uuid || 
+    o.cve_atendio === techId || 
+    o.cve_atendio === currentUser.cve_tecnico ||
+    (o.techName && o.techName.toLowerCase() === techName)
+  );
+  const mySubtasks = subtasks.filter(s => 
+    s.assignedTech === techId || 
+    s.assignedTech === currentUser.uuid ||
+    s.cve_atendio === techId
+  );
 
   const assigned = myOrders.filter(o => o.status === 'Asignada').length + mySubtasks.filter(s => s.status === 'Asignada').length;
   const process = myOrders.filter(o => o.status === 'En proceso').length + mySubtasks.filter(s => s.status === 'En proceso').length;
@@ -6886,18 +7084,23 @@ function renderTechOrdersTable() {
   const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
   const tbody = document.getElementById('table-tech-orders-body');
 
-  const techId = currentUser.id || currentUser.uuid;
+  const techId = currentUser.id || currentUser.uuid || currentUser.cve_tecnico;
+  const techUuid = currentUser.uuid;
+  const techCve = currentUser.cve_tecnico;
   const techName = (currentUser.name || '').toLowerCase();
 
   const myOrders = orders.filter(o => 
     o.assignedTech === techId || 
+    o.assignedTech === techUuid ||
+    o.assignedTech === techCve ||
     o.cve_atendio === techId || 
+    o.cve_atendio === techCve ||
     (o.techName && o.techName.toLowerCase() === techName)
   );
   
   // Convertir subtareas activas del técnico a formato compatible con la tabla
   const mySubtasks = subtasks.filter(s => 
-    (s.assignedTech === techId || s.cve_atendio === techId) && 
+    (s.assignedTech === techId || s.assignedTech === techUuid || s.assignedTech === techCve || s.cve_atendio === techId || s.cve_atendio === techCve) && 
     s.status !== 'Terminada' && 
     s.status !== 'Cancelada'
   );
@@ -8982,11 +9185,24 @@ async function loadPublicEmployeesList() {
   }
 }
 
+function closeSidebarOnMobile() {
+  document.querySelectorAll('.sidebar').forEach(sb => sb.classList.remove('show'));
+  const overlay = document.getElementById('sidebar-backdrop-overlay');
+  if (overlay) overlay.classList.remove('show');
+}
+
 // Toggle para colapsar / expandir barra lateral en móviles
 function toggleSidebar() {
-  const sidebar = document.querySelector('.sidebar');
+  const activeView = document.querySelector('.view-section.active');
+  const sidebar = activeView ? (activeView.querySelector('.sidebar') || document.querySelector('.sidebar')) : document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebar-backdrop-overlay');
+
   if (sidebar) {
-    sidebar.classList.toggle('show');
+    const isShow = sidebar.classList.toggle('show');
+    if (overlay) {
+      if (isShow) overlay.classList.add('show');
+      else overlay.classList.remove('show');
+    }
   }
 }
 

@@ -2,7 +2,13 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TSM-AI">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.json">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -14,7 +20,8 @@
       try {
         const u = JSON.parse(localStorage.getItem('TSMAI_current_user') || 'null');
         const h = window.location.hash || '';
-        if (u || h.includes('admin') || h.includes('tech')) {
+        const isStaff = u && (u.role === 'admin' || u.role === 'tech' || u.rol === 'SUPER_ADMINISTRADOR' || u.rol === 'MANTENIMIENTO');
+        if (isStaff || h.includes('#admin/') || h.includes('#tech/')) {
           const st = document.createElement('style');
           st.id = 'preload-hide-public';
           st.textContent = '#view-public-portal { display: none !important; }';
@@ -41,6 +48,9 @@
 </head>
 <body>
 
+  <!-- Overlay de Fondo para cerrar la barra lateral en móviles -->
+  <div id="sidebar-backdrop-overlay" class="sidebar-backdrop-overlay" onclick="closeSidebarOnMobile()"></div>
+
   <!-- ==========================================================================
        1. PORTAL PÚBLICO (Portal del Solicitante - Sin Login)
        ========================================================================== -->
@@ -57,10 +67,7 @@
         </button>
       </div>
       <nav class="nav-links" style="display: flex; align-items: center; gap: 16px;">
-        <!-- Acceso Directo de Usuarios y Demos -->
-        <a class="nav-link-item" onclick="openLogin('users')" style="cursor: pointer; color: white; font-weight: 600; text-decoration: none; font-size: 1rem; transition: color 0.2s;" onmouseover="this.style.color='#38bdf8'" onmouseout="this.style.color='white'">Acceso</a>
-        <span style="color: #475569; font-weight: 300; font-size: 1rem;">|</span>
-        <a class="nav-link-item" onclick="openLogin('demo')" style="cursor: pointer; color: #94a3b8; font-weight: 500; text-decoration: none; font-size: 1rem; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#94a3b8'">Demo</a>
+        <a class="nav-link-item" onclick="openLogin('users')" style="cursor: pointer; color: white; font-weight: 600; text-decoration: none; font-size: 1rem; transition: color 0.2s;" onmouseover="this.style.color='#38bdf8'" onmouseout="this.style.color='white'">Acceso al Sistema</a>
       </nav>
     </header>
 
@@ -79,17 +86,17 @@
         <!-- Lado Derecho: Blanco / Crema -->
         <div class="split-right-login">
           <div class="split-login-card">
-            <!-- Selector de Pestañas (Tabs) -->
-            <div class="split-login-tabs">
-              <button type="button" id="tab-btn-users" onclick="switchLoginTab('users')" style="flex: 1; border: none; background: white; color: #0f172a; font-weight: 600; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">Iniciar Sesión</button>
-              <button type="button" id="tab-btn-demo" onclick="switchLoginTab('demo')" style="flex: 1; border: none; background: transparent; color: #64748b; font-weight: 500; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.95rem;">Demo de Prueba</button>
+            <!-- Título de Acceso Oficial -->
+            <div style="margin-bottom: 20px; text-align: center;">
+              <h3 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Acceso a Plataforma</h3>
+              <p style="font-size: 0.85rem; color: #64748b; margin: 0;">Ingresa con tus credenciales de planta registradas.</p>
             </div>
 
             <!-- Formulario de Iniciar Sesión (Acceso) -->
             <form id="split-form-login" onsubmit="handleSplitLoginSubmit(event)" style="display: block;">
               <div class="form-group" style="margin-bottom: 18px;">
-                <label for="split-login-email" style="display: block; font-weight: 600; font-size: 0.9rem; color: #334155; margin-bottom: 8px;">Correo</label>
-                <input type="email" id="split-login-email" class="form-control" placeholder="usuario@tsm-ai.com" required style="width:100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem;">
+                <label for="split-login-email" style="display: block; font-weight: 600; font-size: 0.9rem; color: #334155; margin-bottom: 8px;">Correo Electrónico</label>
+                <input type="email" id="split-login-email" class="form-control" placeholder="usuario@towell.com.mx" required style="width:100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem;">
               </div>
               <div class="form-group" style="margin-bottom: 24px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -362,10 +369,13 @@
       </div>
 
       <ul class="sidebar-menu">
+        <li class="menu-item" id="menu-admin-switch-tech" onclick="switchToTechView()" style="background: rgba(56, 189, 248, 0.12); border-left: 3px solid #38bdf8; margin-bottom: 8px;">
+          <a style="color: #38bdf8 !important; font-weight: 700; display: flex; align-items: center; gap: 8px;">👨‍🔧 Abrir Mi Tablero Técnico</a>
+        </li>
         <li class="menu-item active" id="menu-admin-dashboard" onclick="switchAdminPanel('dashboard')">
           <a>📊 Dashboard Ejecutivo</a>
         </li>
-        <li class="menu-item" id="menu-admin-analytics" onclick="window.open('dashboard.html', '_blank')">
+        <li class="menu-item" id="menu-admin-analytics" onclick="switchAdminPanel('dashboard')">
           <a style="display: flex; align-items: center; gap: 8px; color: var(--accent-cyan) !important;">📈 Analítica de Planta 🚀</a>
         </li>
         <li class="menu-item" id="menu-admin-requests" onclick="switchAdminPanel('requests')">
@@ -379,6 +389,9 @@
         </li>
         <li class="menu-item" id="menu-admin-calendar" onclick="switchAdminPanel('calendar')">
           <a>📅 Calendario de Mantenimiento</a>
+        </li>
+        <li class="menu-item" id="menu-admin-databases" onclick="switchAdminPanel('databases')">
+          <a>🗄️ Centro de Bases de Datos</a>
         </li>
         <!-- Grupo de Bases de Datos (Collapsible Submenu) -->
         <li class="menu-item-group" id="menu-admin-database-group" style="list-style: none; padding: 0; margin: 0;">
@@ -586,6 +599,150 @@
                   <!-- Generado en app.js -->
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel Admin: Centro de Bases de Datos y Catálogos -->
+        <div id="panel-admin-databases" class="admin-panel-content" style="display: none;">
+          <div style="margin-bottom: 24px;">
+            <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin-bottom: 6px;">🗄️ Centro de Bases de Datos & Catálogos de Planta</h3>
+            <p style="color: #64748b; font-size: 0.95rem;">Acceso directo en tiempo real a las 25 tablas relacionales y catálogos maestros de la plataforma Supabase.</p>
+          </div>
+
+          <!-- Catálogos Maestros -->
+          <div style="margin-bottom: 32px;">
+            <h4 style="font-size: 1.1rem; font-weight: 700; color: #334155; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+              📁 Catálogos Maestros (Maquinaria, Refacciones y Personal)
+            </h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;">
+              <div onclick="switchAdminPanel('machines')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">⚙️</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Equipos y Máquinas</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Catálogo de telares y maquinaria industrial.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('parts')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">📦</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Refacciones e Inventario</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Control de repuestos y costos de stock.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('tecnicos')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🛠️</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Técnicos de Mantenimiento</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Personal operativo y especialidades.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('users')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">👥</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Usuarios y Permisos</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">cat_usuarios_roles y permisos RLS.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('empleados')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">👷</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Empleados de Planta</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Personal general del sistema.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('departamentos')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🏢</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Departamentos</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Áreas operacionales (PF, CF, TF, AF).</p>
+              </div>
+
+              <div onclick="switchAdminPanel('turnos')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🕐</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Turnos de Trabajo</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Turnos rotativos de producción.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('servicios')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🔩</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Servicios de Mantenimiento</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Tipos de servicios técnicos.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('tiposfalla')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">⚡</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Tipos de Falla</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Clasificación de fallas de equipos.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('categfalla')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🗂️</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Categorías de Falla</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Agrupación por categoría de paro.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('criticidad')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🚨</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Criticidad de Máquinas</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Niveles A/B/C de prioridad.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('logs')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">📝</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Bitácoras de Trabajo</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Registros históricos de mantenimiento.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tablas Operacionales -->
+          <div>
+            <h4 style="font-size: 1.1rem; font-weight: 700; color: #334155; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+              📊 Tablas Operacionales y Registros de Planta
+            </h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;">
+              <div onclick="switchAdminPanel('fallas')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">💥</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Fallas por Máquina</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Histórico de 108,000+ paros y fallas.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('analysis')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🔬</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Análisis de Repetibilidad</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Fallas reincidentes e IA predictiva.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('telegram')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">📨</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Histórico Telegram</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">7,400+ reportes de fallas por chat.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('costosot')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">💵</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Costos por OT</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Mano de obra y consumo de refacciones.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('cierres')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">✅</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Cierres de OT</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Validaciones de entrega y cierre.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('preventive')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">📅</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Mantenimiento Preventivo</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Planes programados de mantenimiento.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('checklists')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">✅</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Checklists y Formatos</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Plantillas de inspección autónoma.</p>
+              </div>
+
+              <div onclick="switchAdminPanel('downtime')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+                <div style="font-size: 2rem; margin-bottom: 10px;">⏱️</div>
+                <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Paros de Máquina</h5>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Tiempos improductivos acumulados.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -1381,6 +1538,9 @@
         </li>
         <li class="menu-item" id="menu-tech-profile" onclick="switchTechPanel('profile')">
           <a>👤 Mi Perfil</a>
+        </li>
+        <li class="menu-item" id="menu-tech-switch-admin" onclick="switchToAdminView()" style="background: rgba(99, 102, 241, 0.12); border-left: 3px solid #6366f1; margin-top: 10px; display: none;">
+          <a style="color: #818cf8 !important; font-weight: 700; display: flex; align-items: center; gap: 8px;">👑 Cambiar a Panel Administrador</a>
         </li>
       </ul>
 
@@ -2458,7 +2618,6 @@
             <label for="admin-user-role">Rol Principal *</label>
             <select id="admin-user-role" class="form-control" onchange="toggleAdminUserRoleFields()">
               <option value="SUPER_ADMINISTRADOR">Super Administrador</option>
-              <option value="SUPERVISOR">Supervisor / Responsable de Área</option>
               <option value="MANTENIMIENTO">Mantenimiento (Técnico)</option>
               <option value="SOLICITANTE">Solicitante (Producción / Operación)</option>
             </select>
@@ -2490,11 +2649,13 @@
               <option value="4">Mixto / Administrativo (08:00 - 17:00)</option>
             </select>
           </div>
-          <div class="form-group full-width" id="admin-user-supervisor-group">
-            <label for="admin-user-supervisor">Supervisor / Responsable Directo</label>
-            <select id="admin-user-supervisor" class="form-control">
-              <option value="">Sin supervisor asignado</option>
-            </select>
+          <div class="form-group">
+            <label for="admin-user-puesto">Puesto / Cargo</label>
+            <input type="text" id="admin-user-puesto" class="form-control" placeholder="Ej. Técnico de Mantenimiento, Jefe de Planta">
+          </div>
+          <div class="form-group">
+            <label for="admin-user-area">Área General</label>
+            <input type="text" id="admin-user-area" class="form-control" placeholder="Ej. General, Producción, Mantenimiento, Calidad">
           </div>
           <div class="form-group full-width">
             <label for="admin-user-obs">Observaciones / Especialidad</label>
@@ -3331,9 +3492,56 @@
     <span id="toast-text">Notificación exitosa!</span>
   </div>
 
+  <!-- Barra de Navegación Inferior Móvil (Bottom Bar para iOS y Android) -->
+  <nav class="mobile-bottom-nav" id="mobile-bottom-nav" style="display: none;">
+    <div class="mobile-bottom-nav-items" id="mobile-nav-items-container">
+      <!-- Se genera dinámicamente en app.js según el rol del usuario -->
+    </div>
+  </nav>
+
+  <!-- Botón Flotante para Instalar PWA -->
+  <div id="pwa-install-banner" class="pwa-install-banner" onclick="triggerPwaInstall()" style="display: none;">
+    <span>📲 Instalar App</span>
+  </div>
+
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
   <script src="seed.js?v=2.2.0"></script>
   <script src="app.js?v=2.2.0"></script>
   <script src="dashboard.js?v=2.2.0"></script>
+
+  <!-- Registro de Service Worker PWA y Manejador de Instalación -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
+          .catch(err => console.warn('⚠️ ServiceWorker error:', err));
+      });
+    }
+
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('pwa-install-banner');
+      if (btn) btn.style.display = 'flex';
+    });
+
+    function triggerPwaInstall() {
+      if (!deferredPrompt) {
+        showToast('📱 TSM-AI ya está lista o instalada en tu dispositivo.');
+        return;
+      }
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          showToast('🎉 App instalada con éxito en tu dispositivo.');
+        }
+        deferredPrompt = null;
+        const btn = document.getElementById('pwa-install-banner');
+        if (btn) btn.style.display = 'none';
+      });
+    }
+  </script>
 </body>
 </html>
