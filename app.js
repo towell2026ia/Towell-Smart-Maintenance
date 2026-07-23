@@ -2081,6 +2081,21 @@ async function handleLoginSubmit(event) {
   const roleInput = document.getElementById('login-role-target');
   const role = roleInput ? roleInput.value : 'users';
   
+  let email = '';
+  let password = '';
+  
+  if (isSplitActive) {
+    const splitEmail = document.getElementById('split-login-email');
+    const splitPass = document.getElementById('split-login-password');
+    email = splitEmail ? splitEmail.value.trim().toLowerCase() : '';
+    password = splitPass ? splitPass.value.trim() : '';
+  } else {
+    const origEmail = document.getElementById('login-email');
+    const origPass = document.getElementById('login-password');
+    email = origEmail ? origEmail.value.trim().toLowerCase() : '';
+    password = origPass ? origPass.value.trim() : '';
+  }
+
   let dbUser = null;
 
   // 1. Intentar autenticación por Supabase Auth o consulta directa a la base de datos real
