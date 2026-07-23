@@ -5145,32 +5145,46 @@ async function syncAdminUsersManual() {
 function toggleAdminUserRoleFields() {
   const role = document.getElementById('admin-user-role').value;
   const techGroup = document.getElementById('admin-user-tech-code-group');
-  if (techGroup) {
-    const empInput = document.getElementById('admin-user-emp-code');
-    const techInput = document.getElementById('admin-user-tech-code');
-    
-    if (role === 'MANTENIMIENTO') {
-      techGroup.style.display = 'block';
-      if (empInput && techInput) {
-        techInput.value = empInput.value;
-        techInput.disabled = true; // El código de empleado manda
-        
-        // Sincronizar en tiempo real cuando escriben
-        if (!empInput.dataset.hasSyncListener) {
-          empInput.dataset.hasSyncListener = 'true';
-          empInput.addEventListener('input', () => {
-            if (document.getElementById('admin-user-role').value === 'MANTENIMIENTO') {
-              document.getElementById('admin-user-tech-code').value = empInput.value;
-            }
-          });
-        }
+  const deptGroup = document.getElementById('admin-user-dept-group');
+  const shiftGroup = document.getElementById('admin-user-shift-group');
+  const puestoGroup = document.getElementById('admin-user-puesto-group');
+  const areaGroup = document.getElementById('admin-user-area-group');
+  const empInput = document.getElementById('admin-user-emp-code');
+  const techInput = document.getElementById('admin-user-tech-code');
+
+  if (role === 'MANTENIMIENTO') {
+    // Al registrar técnicos: Ocultar Departamento, Turno, Puesto y Área General (información no relevante para técnicos)
+    if (deptGroup) deptGroup.style.display = 'none';
+    if (shiftGroup) shiftGroup.style.display = 'none';
+    if (puestoGroup) puestoGroup.style.display = 'none';
+    if (areaGroup) areaGroup.style.display = 'none';
+
+    if (techGroup) techGroup.style.display = 'block';
+    if (empInput && techInput) {
+      techInput.value = empInput.value;
+      techInput.disabled = true; // El código de empleado manda
+      
+      // Sincronizar en tiempo real cuando escriben
+      if (!empInput.dataset.hasSyncListener) {
+        empInput.dataset.hasSyncListener = 'true';
+        empInput.addEventListener('input', () => {
+          if (document.getElementById('admin-user-role').value === 'MANTENIMIENTO') {
+            document.getElementById('admin-user-tech-code').value = empInput.value;
+          }
+        });
       }
-    } else {
-      techGroup.style.display = 'none';
-      if (techInput) {
-        techInput.value = '';
-        techInput.disabled = false;
-      }
+    }
+  } else {
+    // Mostrar Departamento, Turno, Puesto y Área General para otros roles
+    if (deptGroup) deptGroup.style.display = 'block';
+    if (shiftGroup) shiftGroup.style.display = 'block';
+    if (puestoGroup) puestoGroup.style.display = 'block';
+    if (areaGroup) areaGroup.style.display = 'block';
+
+    if (techGroup) techGroup.style.display = 'none';
+    if (techInput) {
+      techInput.value = '';
+      techInput.disabled = false;
     }
   }
 }
@@ -5256,13 +5270,14 @@ async function saveAdminUser() {
   const correo = document.getElementById('admin-user-email').value.trim();
   const telefono = document.getElementById('admin-user-phone').value.trim();
   const rol = document.getElementById('admin-user-role').value;
+  const isTech = rol === 'MANTENIMIENTO';
   const cveEmpleado = document.getElementById('admin-user-emp-code').value.trim();
   const cveTecnico = document.getElementById('admin-user-tech-code').value.trim();
-  const departamento = document.getElementById('admin-user-dept').value.trim();
-  const shift = document.getElementById('admin-user-shift').value;
+  const departamento = isTech ? 'MANTENIMIENTO' : document.getElementById('admin-user-dept').value.trim();
+  const shift = isTech ? null : document.getElementById('admin-user-shift').value;
   const observaciones = document.getElementById('admin-user-obs').value.trim();
-  const puesto = (document.getElementById('admin-user-puesto')?.value || '').trim();
-  const area = (document.getElementById('admin-user-area')?.value || '').trim() || 'General';
+  const puesto = isTech ? 'Técnico de Mantenimiento' : (document.getElementById('admin-user-puesto')?.value || '').trim();
+  const area = isTech ? 'Mantenimiento' : ((document.getElementById('admin-user-area')?.value || '').trim() || 'General');
 
   // Permisos
   const puedeCrear = document.getElementById('perm-create-req').checked;
