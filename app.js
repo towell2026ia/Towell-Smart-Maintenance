@@ -1943,47 +1943,60 @@ async function handleSplitLoginSubmit(event) {
 }
 
 async function quickLogin(role, techId) {
+  currentUser = null;
+  localStorage.removeItem('TSMAI_current_user');
   showToast('🔑 Iniciando sesión rápida...');
   
+  let email = 'admin@tsm-ai.com';
+  let password = 'admin123';
+  
+  if (role === 'admin') {
+    email = 'admin@tsm-ai.com';
+    password = 'admin123';
+  } else if (role === 'tech') {
+    if (techId === 'T-02' || techId === 'T-3366' || (techId && techId.toLowerCase().includes('sofia'))) {
+      email = 'sofia@tsm-ai.com';
+      password = 'tech123';
+    } else if (techId === 'T-03' || (techId && techId.toLowerCase().includes('alejandro'))) {
+      email = 'alejandro@tsm-ai.com';
+      password = 'tech123';
+    } else {
+      email = 'carlos@tsm-ai.com';
+      password = 'tech123';
+    }
+  }
+
   if (supabaseClient) {
     useLiveDatabase = true;
-    console.log('[TSMAI] Live Database mode activated via Quick Login.');
+    try {
+      await supabaseClient.auth.signOut();
+      const { error: authErr } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (authErr) {
+        console.warn('Fallo autenticación Supabase Demo:', authErr.message);
+      }
+    } catch (authEx) {
+      console.warn('Excepción de autenticación en quickLogin:', authEx);
+    }
   } else {
     useLiveDatabase = false;
-    console.log('[TSMAI] Demo Mode activated via Quick Login.');
   }
 
   try {
     if (role === 'admin') {
       let dbAdmin = null;
       if (useLiveDatabase) {
-        // Autenticar cuenta oficial demo admin para obtener token de sesión
-        try {
-          const { error: authErr } = await supabaseClient.auth.signInWithPassword({
-            email: 'admin@tsm-ai.com',
-            password: 'admin123'
-          });
-          if (authErr) {
-            console.warn('Fallo autenticación Supabase Demo Admin:', authErr.message);
-          }
-        } catch (authEx) {
-          console.warn('Excepción de autenticación:', authEx);
-        }
-
         const { data, error } = await supabaseClient
           .from('cat_usuarios_roles')
           .select('*')
-          .eq('rol', 'SUPER_ADMINISTRADOR')
-          .order('fecha_alta', { ascending: true })
-          .limit(1);
+          .eq('correo', email)
+          .maybeSingle();
           
-        if (!error && data && data.length > 0) {
-          dbAdmin = data[0];
+        if (!error && data) {
+          dbAdmin = data;
         }
       }
 
       if (!dbAdmin) {
-        // Fallback a caché local
         const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
         dbAdmin = users.find(u => u.rol === 'SUPER_ADMINISTRADOR');
       }
@@ -2012,32 +2025,10 @@ async function quickLogin(role, techId) {
       // Técnico
       let dbUser = null;
       if (useLiveDatabase) {
-        // Determinar email de técnico demo
-        let techEmail = 'carlos@tsm-ai.com';
-        let techPass = 'tech123';
-        if (techId === 'T-02' || techId === 'T-3366' || (techId && techId.toLowerCase().includes('sofia'))) {
-          techEmail = 'sofia@tsm-ai.com';
-        } else if (techId === 'T-03' || (techId && techId.toLowerCase().includes('alejandro'))) {
-          techEmail = 'alejandro@tsm-ai.com';
-        }
-
-        try {
-          const { error: authErr } = await supabaseClient.auth.signInWithPassword({
-            email: techEmail,
-            password: techPass
-          });
-          if (authErr) {
-            console.warn('Fallo autenticación Supabase Demo Tech:', authErr.message);
-          }
-        } catch (authEx) {
-          console.warn('Excepción de autenticación:', authEx);
-        }
-
         const { data, error } = await supabaseClient
           .from('cat_usuarios_roles')
           .select('*')
-          .eq('rol', 'MANTENIMIENTO')
-          .eq('correo', techEmail)
+          .eq('correo', email)
           .maybeSingle();
 
         if (!error && data) {
@@ -2046,7 +2037,6 @@ async function quickLogin(role, techId) {
       }
 
       if (!dbUser) {
-        // Fallback a caché local
         const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
         dbUser = users.find(u => u.rol === 'MANTENIMIENTO' && (u.cve_tecnico === techId || u.id_usuario === techId));
       }
@@ -2075,25 +2065,6 @@ async function quickLogin(role, techId) {
         showView('tech');
         switchTechPanel('dashboard');
         return;
-      }
-
-      // Fallback secundario a técnicos demo locales
-      const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
-      const tech = techs.find(t => t.id === techId);
-      if (tech) {
-        currentUser = { role: 'tech', ...tech };
-        persistSessionUser(currentUser);
-        showToast(`Sesión iniciada como Técnico: ${tech.name}`);
-        
-        document.getElementById('tech-profile-name').innerText = tech.name;
-        document.getElementById('tech-profile-specialty').innerText = tech.specialty;
-        document.getElementById('tech-profile-avatar').innerText = tech.avatar;
-
-        if (useLiveDatabase) {
-          await syncDatabases();
-        }
-        showView('tech');
-        switchTechPanel('dashboard');
       }
     }
   } catch (err) {
@@ -2131,6 +2102,7 @@ async function handleLoginSubmit(event) {
   if (supabaseClient) {
     try {
       showToast('Autenticando...');
+      try { await supabaseClient.auth.signOut(); } catch (e) {}
       const { data: authData, error: authErr } = await supabaseClient.auth.signInWithPassword({ email, password });
       
       if (authErr) {
@@ -11010,8 +10982,6 @@ async function handleGenerateCalendarProposal(event) {
 }
 
 // 3. Renderizar Tabla de Propuestas (Lista de Propuestas)
-let currentCalendarTab = 'preventivo';
-
 async function renderAdminCalendars() {
   const tbody = document.getElementById('table-calendar-tbody');
   const thead = document.getElementById('table-calendar-thead');
