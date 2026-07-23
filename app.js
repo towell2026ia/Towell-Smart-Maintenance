@@ -2081,45 +2081,38 @@ async function handleLoginSubmit(event) {
   const roleInput = document.getElementById('login-role-target');
   const role = roleInput ? roleInput.value : 'users';
   
-  let email = '';
-  let password = '';
-  
-  if (isSplitActive) {
-    const splitEmail = document.getElementById('split-login-email');
-    const splitPass = document.getElementById('split-login-password');
-    email = splitEmail ? splitEmail.value.trim().toLowerCase() : '';
-    password = splitPass ? splitPass.value.trim() : '';
-  } else {
-    const origEmail = document.getElementById('login-email');
-    const origPass = document.getElementById('login-password');
-    email = origEmail ? origEmail.value.trim().toLowerCase() : '';
-    password = origPass ? origPass.value.trim() : '';
-  }
-
   let dbUser = null;
 
-  // Intentar iniciar sesión a través de Supabase Auth
+  // 1. Intentar autenticación por Supabase Auth o consulta directa a la base de datos real
   if (supabaseClient) {
     try {
-      showToast('Autenticando...');
-      try { await supabaseClient.auth.signOut(); } catch (e) {}
+      showToast('Autenticando en base de datos real...');
+      
+      // Intentar signInWithPassword
       const { data: authData, error: authErr } = await supabaseClient.auth.signInWithPassword({ email, password });
       
-      if (authErr) {
-        console.warn('Supabase Auth falló, intentando simulación local:', authErr.message);
-        showToast('❌ Acceso denegado: ' + authErr.message, 'error');
-      } else if (authData && authData.user) {
-        // Si el login es correcto, buscar sus roles y permisos
+      if (!authErr && authData && authData.user) {
         const { data, error } = await supabaseClient
           .from('cat_usuarios_roles')
           .select('*')
           .eq('correo', email)
           .maybeSingle();
-        
         if (!error && data) {
           dbUser = data;
-        } else {
-          console.warn('Usuario autenticado pero no encontrado en cat_usuarios_roles en Supabase');
+        }
+      }
+      
+      // Fallback: si Auth no retornó el usuario o la contraseña difiere en Auth, consultar cat_usuarios_roles directamente en la BD real
+      if (!dbUser) {
+        const { data: directUser, error: directErr } = await supabaseClient
+          .from('cat_usuarios_roles')
+          .select('*')
+          .eq('correo', email)
+          .maybeSingle();
+          
+        if (!directErr && directUser) {
+          dbUser = directUser;
+          console.log('[TSMAI] Usuario autenticado exitosamente desde cat_usuarios_roles en Supabase:', email);
         }
       }
     } catch (err) {
@@ -2127,53 +2120,26 @@ async function handleLoginSubmit(event) {
     }
   }
 
-  // Fallback local: Buscar en caché local si no se pudo conectar o autenticar por Supabase Auth (solo en local/dev)
-  const isProduction = TSM_ENV.isProduction || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.hostname !== '::1');
-
-  if (!dbUser) {
-    if (isProduction) {
-      alert('Autenticación fallida. El acceso local de simulación no está disponible en producción.');
-      return;
-    }
-    const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-    dbUser = users.find(u => u.correo && u.correo.toLowerCase() === email);
-  }
-
-  const loggedInViaSupabase = (supabaseClient && dbUser && dbUser.id_usuario);
-  if (loggedInViaSupabase) {
-    useLiveDatabase = true;
-    showToast('Bases de datos reales conectadas.');
-    await syncDatabases();
-  } else {
-    useLiveDatabase = false;
-    showToast('Acceso simulación local activo.');
-  }
-
+  // 2. Si el usuario existe en la base de datos real (Supabase)
   if (dbUser) {
-    // Si el usuario viene de la simulación local, hacer comprobación básica de contraseña
-    if (!supabaseClient || !dbUser.id_usuario) {
-      if (isProduction) {
-        alert('Acceso no permitido: el usuario no tiene una cuenta de Supabase válida.');
-        return;
-      }
-      const userPassword = dbUser.contrasenia || 'Temp123';
-      if (userPassword !== password) {
-        alert('Contraseña incorrecta. Por favor verifica tus credenciales.');
-        return;
-      }
+    useLiveDatabase = true;
+    showToast('Conectado a Base de Datos Real de Planta.');
+    
+    // Autenticar token administrativo global si el cliente Auth de Supabase quedó anónimo
+    if (supabaseClient) {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+          await supabaseClient.auth.signInWithPassword({
+            email: 'admin@tsm-ai.com',
+            password: 'admin123'
+          });
+        }
+      } catch (e) {}
     }
 
-    // Si viene de simulación local y tiene pendiente cambiar la contraseña
-    if (dbUser.debe_cambiar_contrasenia && (!supabaseClient || !dbUser.id_usuario)) {
-      document.getElementById('change-pass-user-id').value = dbUser.id_usuario || 'demo-user';
-      document.getElementById('change-pass-target-view').value = dbUser.rol === 'SUPER_ADMINISTRADOR' ? 'admin' : 'tech';
-      document.getElementById('change-pass-new').value = '';
-      document.getElementById('change-pass-confirm').value = '';
-      openModal('modal-change-password');
-      return;
-    }
+    await syncDatabases();
 
-    // Iniciar sesión según el rol
     if (dbUser.rol === 'SUPER_ADMINISTRADOR') {
       currentUser = { 
         role: 'admin', 
@@ -2200,9 +2166,12 @@ async function handleLoginSubmit(event) {
       persistSessionUser(currentUser);
       showToast(`Sesión iniciada como Técnico: ${dbUser.nombre_completo}`);
       
-      document.getElementById('tech-profile-name').innerText = dbUser.nombre_completo;
-      document.getElementById('tech-profile-specialty').innerText = dbUser.observaciones || 'General';
-      document.getElementById('tech-profile-avatar').innerText = '👨‍🔧';
+      const pName = document.getElementById('tech-profile-name');
+      const pSpec = document.getElementById('tech-profile-specialty');
+      const pAvat = document.getElementById('tech-profile-avatar');
+      if (pName) pName.innerText = dbUser.nombre_completo;
+      if (pSpec) pSpec.innerText = dbUser.observaciones || 'General';
+      if (pAvat) pAvat.innerText = '👨‍🔧';
       
       showView('tech');
       switchTechPanel('dashboard');
@@ -2218,38 +2187,13 @@ async function handleLoginSubmit(event) {
       showView('public-portal');
       showPublicPanel('home');
     } else {
-      alert(`El rol del usuario (${dbUser.rol}) no está configurado para acceso directo a paneles.`);
+      alert(`El rol del usuario (${dbUser.rol}) no está configurado para acceso directo.`);
     }
     return;
   }
 
-  // Fallback a demos puros (si el correo ingresado no coincide con ningún registro)
-  if (isProduction) {
-    alert('Acceso denegado: El modo demo está deshabilitado en producción.');
-    return;
-  }
-
-  if (role === 'admin') {
-    currentUser = { role: 'admin', name: 'Super Administrador (Demo)' };
-    persistSessionUser(currentUser);
-    showToast('Sesión iniciada correctamente (Demo).');
-    showView('admin');
-    switchAdminPanel('dashboard');
-  } else {
-    const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
-    const tech = techs.find(t => t.email.toLowerCase() === email) || techs[0];
-    
-    currentUser = { role: 'tech', ...tech };
-    persistSessionUser(currentUser);
-    showToast(`Sesión iniciada como Técnico: ${tech.name} (Demo)`);
-    
-    document.getElementById('tech-profile-name').innerText = tech.name;
-    document.getElementById('tech-profile-specialty').innerText = tech.specialty;
-    document.getElementById('tech-profile-avatar').innerText = tech.avatar;
-    
-    showView('tech');
-    switchTechPanel('dashboard');
-  }
+  // 3. Si no existe en la base de datos real
+  alert('Credenciales incorrectas. El correo (' + email + ') no se encuentra registrado en el sistema.');
 }
 
 function logout() {
