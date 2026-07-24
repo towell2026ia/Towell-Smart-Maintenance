@@ -1851,26 +1851,40 @@
       <!-- Paneles Solicitante -->
       <div class="content-body" style="padding: 24px;">
 
-        <!-- Panel 1: Nueva Solicitud (Área fijada automáticamente por perfil) -->
+        <!-- Panel 1: Nueva Solicitud (Datos Automáticos, Tipo, Máquina/Ubicación y Riesgo) -->
         <div id="panel-solic-new" class="solic-panel-content">
-          <div style="background: white; padding: 28px; border-radius: 12px; border: 1px solid #cbd5e1; max-width: 750px; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <div style="background: white; padding: 28px; border-radius: 12px; border: 1px solid #cbd5e1; max-width: 800px; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+            
+            <!-- Datos Obtenidos Automáticamente (Lectura únicamente) -->
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 20px;">
+              <h4 style="margin: 0 0 10px 0; font-size: 0.95rem; font-weight: 700; color: #334155;">📌 Datos del Perfil (Cargados Automáticamente)</h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; font-size: 0.85rem;">
+                <div><span style="color: #64748b; display: block;">Solicitante:</span><strong id="solic-auto-applicant">Juan Pérez</strong></div>
+                <div><span style="color: #64748b; display: block;">Área:</span><strong id="solic-auto-area" style="color: var(--accent-blue);">CF</strong></div>
+                <div><span style="color: #64748b; display: block;">Departamento:</span><strong id="solic-auto-dept">Costura</strong></div>
+                <div><span style="color: #64748b; display: block;">Fecha:</span><strong id="solic-auto-date">24/07/2026</strong></div>
+                <div><span style="color: #64748b; display: block;">Hora:</span><strong id="solic-auto-time">09:35</strong></div>
+              </div>
+            </div>
+
             <div style="margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
-              <h3 style="margin: 0; font-weight: 700; color: #0f172a; font-size: 1.3rem;">📨 Nueva Solicitud de Mantenimiento</h3>
-              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.88rem;">Genera un ticket de atención directamente para las máquinas asignadas a tu área.</p>
+              <h3 style="margin: 0; font-weight: 700; color: #0f172a; font-size: 1.3rem;">📨 Registro de Necesidad de Mantenimiento</h3>
+              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.88rem;">Completa los detalles de captura para generar el ticket a mantenimiento.</p>
             </div>
 
             <form id="form-solic-new-request" onsubmit="event.preventDefault(); submitSolicitanteNewRequest();" style="display: flex; flex-direction: column; gap: 16px;">
               
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div class="form-group">
-                  <label for="solic-req-area">1. Área Asignada (Perfil Autenticado) *</label>
-                  <select id="solic-req-area" class="form-control" disabled style="background-color: #f1f5f9; font-weight: 700; color: #334155;">
-                    <option value="CF">CF - Costura</option>
-                    <option value="PRF">PRF - Producción / Tejido</option>
-                    <option value="AF">AF - Servicios Auxiliares / Planta</option>
-                    <option value="TF">TF - Tintorería</option>
+                  <label for="solic-req-type">1. Tipo de Solicitud *</label>
+                  <select id="solic-req-type" class="form-control" required>
+                    <option value="Correctivo">Correctivo (Fallo o paro)</option>
+                    <option value="Infraestructura">Infraestructura (Edificio, naves, luces)</option>
+                    <option value="Instalación">Instalación (Nuevos equipos)</option>
+                    <option value="Mejora">Mejora / Modificación</option>
+                    <option value="Servicio">Servicio General</option>
+                    <option value="Otro">Otro</option>
                   </select>
-                  <span style="font-size: 0.75rem; color: #64748b;">🔒 Determinado automáticamente por tu perfil. No editable.</span>
                 </div>
 
                 <div class="form-group">
@@ -1885,53 +1899,73 @@
               </div>
 
               <div class="form-group">
-                <label for="solic-req-machine">3. Máquina / Equipo de tu Área *</label>
-                <select id="solic-req-machine" class="form-control" onchange="onSolicitanteMachineChange(this.value)" required>
+                <label for="solic-req-machine">3. Máquina de tu Área *</label>
+                <select id="solic-req-machine" class="form-control" onchange="onSolicitanteMachineSelectChange(this.value)" required>
                   <option value="">Selecciona máquina...</option>
                 </select>
               </div>
 
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <!-- Campo Ubicación (Requerido solo cuando Máquina = NO_APLICA) -->
+              <div class="form-group" id="solic-group-location" style="display: none; background: #fff7ed; padding: 12px; border-radius: 8px; border: 1px solid #ffedd5;">
+                <label for="solic-req-location" style="color: #c2410c; font-weight: 700;">📍 Ubicación Específica (Requerido para Infraestructura / Sin Máquina) *</label>
+                <input type="text" id="solic-req-location" class="form-control" placeholder="Ej: Edificio A, Nave 2, Baños generales, Subestación 3...">
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                 <div class="form-group">
-                  <label for="solic-req-stopped">4. ¿La máquina está detenida? *</label>
+                  <label for="solic-req-stopped">4. ¿Máquina Detenida? *</label>
                   <select id="solic-req-stopped" class="form-control" required>
-                    <option value="No">No (Operando con falla o síntoma)</option>
-                    <option value="Sí">Sí (Máquina totalmente PARADA)</option>
+                    <option value="No">No (Operando con fallo)</option>
+                    <option value="Sí">Sí (PARADA TOTAL)</option>
                   </select>
                 </div>
 
                 <div class="form-group">
-                  <label for="solic-req-urgency">5. Urgencia Sugerida *</label>
+                  <label for="solic-req-urgency">5. Urgencia *</label>
                   <select id="solic-req-urgency" class="form-control" required>
-                    <option value="Media">Media (Atención estándar)</option>
-                    <option value="Alta">Alta (Riesgo de paro)</option>
-                    <option value="Crítica">Crítica (Paro total o emergencia)</option>
-                    <option value="Baja">Baja (Mantenimiento preventivo / ajuste)</option>
+                    <option value="Media">Media (Estándar)</option>
+                    <option value="Alta">Alta (Riesgo)</option>
+                    <option value="Crítica">Crítica (Emergencia)</option>
+                    <option value="Baja">Baja (Menor)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="solic-req-risk">6. Nivel de Riesgo *</label>
+                  <select id="solic-req-risk" class="form-control" required>
+                    <option value="Bajo">Bajo</option>
+                    <option value="Medio">Medio</option>
+                    <option value="Alto">Alto</option>
                   </select>
                 </div>
               </div>
 
               <div class="form-group">
-                <label for="solic-req-description">6. Descripción del Fallo o Trabajo Requerido *</label>
-                <textarea id="solic-req-description" class="form-control" rows="3" placeholder="Describe ruidos anormales, fuga de aceite, códigos de error, fallos eléctricos o ajustes solicitados..." required></textarea>
+                <label for="solic-req-description">7. Descripción del Problema / Requerimiento *</label>
+                <textarea id="solic-req-description" class="form-control" rows="3" placeholder="Describe síntomas, ruidos, fugas, códigos de error o la actividad requerida..." required></textarea>
               </div>
 
               <div class="form-group">
-                <label>7. Evidencia Fotográfica (Opcional)</label>
+                <label for="solic-req-file">8. Evidencia (Fotografía / Celular)</label>
                 <input type="file" id="solic-req-file" class="form-control" accept="image/*">
               </div>
 
-              <button type="submit" class="btn-action-primary" style="margin-top: 8px; padding: 12px; font-weight: 700; font-size: 1rem;">🚀 Enviar Solicitud a Mantenimiento</button>
+              <div class="form-group">
+                <label for="solic-req-observations">9. Observaciones (Opcional)</label>
+                <textarea id="solic-req-observations" class="form-control" rows="2" placeholder="Notas adicionales o instrucciones específicas..."></textarea>
+              </div>
+
+              <button type="submit" class="btn-action-primary" style="margin-top: 8px; padding: 12px; font-weight: 700; font-size: 1rem;">🚀 Registrar Solicitud de Mantenimiento</button>
             </form>
           </div>
         </div>
 
-        <!-- Panel 2: Seguimiento de Solicitudes -->
+        <!-- Panel 2: Seguimiento de Solicitudes (Aislamiento Estricto por Usuario) -->
         <div id="panel-solic-tracking" class="solic-panel-content" style="display: none;">
           <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
             <div>
-              <h3 style="margin: 0; font-weight: 700;">📋 Seguimiento de Solicitudes y Órdenes</h3>
-              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;" id="solic-tracking-subtitle">Monitoreo en tiempo real para las solicitudes del Área: CF</p>
+              <h3 style="margin: 0; font-weight: 700;">📋 Mis Solicitudes Generadas</h3>
+              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;" id="solic-tracking-subtitle">Consulta exclusivamente las solicitudes generadas por tu usuario.</p>
             </div>
             <button class="btn-nav btn-nav-primary" onclick="renderSolicitanteTracking()">↻ Recargar</button>
           </div>
@@ -1940,30 +1974,50 @@
             <table class="custom-table">
               <thead>
                 <tr>
-                  <th>Folio Solicitud / OT</th>
-                  <th>Máquina</th>
-                  <th>Tipo</th>
-                  <th>Urgencia</th>
-                  <th>Máq. Detenida</th>
-                  <th>Estado del Servicio</th>
-                  <th>Fecha Registro</th>
+                  <th>Folio</th>
+                  <th>Fecha</th>
+                  <th>Área</th>
+                  <th>Máquina / Ubicación</th>
+                  <th>Descripción Resumida</th>
+                  <th>Prioridad / Urgencia</th>
+                  <th>Estado</th>
+                  <th>OT Relacionada</th>
+                  <th>Técnico Asignado</th>
+                  <th>Fecha Compromiso</th>
                 </tr>
               </thead>
               <tbody id="tbody-solic-tracking">
-                <tr><td colspan="7" style="text-align:center; padding: 30px; color: #64748b;">Cargando solicitudes de tu área...</td></tr>
+                <tr><td colspan="10" style="text-align:center; padding: 30px; color: #64748b;">Cargando tus solicitudes...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <!-- Panel 3: Calendario por Área -->
+        <!-- Panel 3: Calendario por Área (Vistas y Filtros Sin Prompts Internos IA) -->
         <div id="panel-solic-calendar" class="solic-panel-content" style="display: none;">
-          <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
             <div>
               <h3 style="margin: 0; font-weight: 700;">📅 Calendario de Mantenimientos por Área</h3>
-              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;" id="solic-calendar-subtitle">Programación de intervenciones y mantenimientos preventivos para el Área: CF</p>
+              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;" id="solic-calendar-subtitle">Programación de actividades aprobadas para tu Área (Solo lectura).</p>
             </div>
-            <button class="btn-nav btn-nav-primary" onclick="renderSolicitanteCalendar()">↻ Recargar</button>
+            
+            <!-- Controles de Vista y Filtro -->
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <div style="display: flex; background: #e2e8f0; border-radius: 6px; padding: 2px;">
+                <button type="button" class="btn-nav btn-nav-secondary active" id="btn-solic-cal-view-month" onclick="switchSolicitanteCalendarView('month')">Mes</button>
+                <button type="button" class="btn-nav btn-nav-secondary" id="btn-solic-cal-view-week" onclick="switchSolicitanteCalendarView('week')">Semana</button>
+                <button type="button" class="btn-nav btn-nav-secondary" id="btn-solic-cal-view-day" onclick="switchSolicitanteCalendarView('day')">Día</button>
+              </div>
+
+              <select id="filter-solic-cal-type" class="form-control" style="width: 150px; font-size: 0.85rem;" onchange="renderSolicitanteCalendar()">
+                <option value="ALL">TODOS</option>
+                <option value="MP">PREVENTIVO</option>
+                <option value="PRED">PREDICTIVO</option>
+                <option value="AUTONOMO">AUTÓNOMO</option>
+              </select>
+
+              <button class="btn-nav btn-nav-primary" onclick="renderSolicitanteCalendar()">↻ Recargar</button>
+            </div>
           </div>
 
           <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #cbd5e1;">
@@ -1973,12 +2027,12 @@
           </div>
         </div>
 
-        <!-- Panel 4: Cierre y Calificación de Órdenes de Trabajo -->
+        <!-- Panel 4: Cierre, Validación y Calificación de Órdenes de Trabajo -->
         <div id="panel-solic-validation" class="solic-panel-content" style="display: none;">
           <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
             <div>
-              <h3 style="margin: 0; font-weight: 700;">✅ Cierre, Validación y Calificación de OTs</h3>
-              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;" id="solic-validation-subtitle">Valida el trabajo realizado por los técnicos en tu Área, aprueba o solicita rechazo/retrabajo y califica la atención.</p>
+              <h3 style="margin: 0; font-weight: 700;">✅ Cierre y Validación de Mis Órdenes</h3>
+              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;" id="solic-validation-subtitle">Valida el trabajo realizado en tus solicitudes en estatus PENDIENTE DE VALIDACIÓN.</p>
             </div>
             <button class="btn-nav btn-nav-primary" onclick="renderSolicitanteValidations()">↻ Recargar</button>
           </div>
@@ -1996,15 +2050,15 @@
                 <thead>
                   <tr>
                     <th>Folio OT</th>
-                    <th>Máquina</th>
+                    <th>Máquina / Ubicación</th>
                     <th>Técnico Responsable</th>
                     <th>Diagnóstico / Trabajo Realizado</th>
                     <th>Fecha Término</th>
-                    <th>Acciones de Validación</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-solic-pending-val">
-                  <tr><td colspan="6" style="text-align:center; padding: 30px; color: #64748b;">No hay órdenes pendientes de validación en tu área.</td></tr>
+                  <tr><td colspan="6" style="text-align:center; padding: 30px; color: #64748b;">No hay órdenes pendientes de validación asociadas a tus solicitudes.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -2021,7 +2075,7 @@
                     <th>Validado Por</th>
                     <th>Estatus Cierre</th>
                     <th>Calificación</th>
-                    <th>Comentario de Calidad</th>
+                    <th>Comentario de Calidad / Motivo Corrección</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-solic-history-val">
@@ -2031,6 +2085,157 @@
             </div>
           </div>
         </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODALES DEL SOLICITANTE (Detalle, Aceptar Trabajo y Solicitar Corrección)
+       ========================================================================== -->
+  
+  <!-- Modal Detalle de Cierre para Validación -->
+  <div class="modal-overlay" id="modal-solic-detail-view" style="display: none;">
+    <div class="modal-card" style="max-width: 750px;">
+      <div class="modal-header">
+        <h3 style="margin: 0; font-weight: 700;" id="solic-detail-modal-title">🔍 Detalle de Trabajo Realizado — OT</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-solic-detail-view')">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+        
+        <!-- Bloque 1: Solicitud Original -->
+        <div style="background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #cbd5e1;">
+          <h4 style="margin: 0 0 8px 0; color: #1e293b; font-size: 0.95rem; font-weight: 700;">📨 Solicitud Original</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
+            <div><strong>Folio:</strong> <span id="solic-detail-req-id">-</span></div>
+            <div><strong>Fecha:</strong> <span id="solic-detail-req-date">-</span></div>
+            <div><strong>Máquina / Ubicación:</strong> <span id="solic-detail-req-machine">-</span></div>
+            <div><strong>Descripción Original:</strong> <span id="solic-detail-req-desc">-</span></div>
+          </div>
+        </div>
+
+        <!-- Bloque 2: Orden de Trabajo -->
+        <div style="background: #f0f9ff; padding: 14px; border-radius: 8px; border: 1px solid #bae6fd;">
+          <h4 style="margin: 0 0 8px 0; color: #0369a1; font-size: 0.95rem; font-weight: 700;">⚙️ Orden de Trabajo</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
+            <div><strong>Folio OT:</strong> <span id="solic-detail-ot-id">-</span></div>
+            <div><strong>Técnico Responsable:</strong> <span id="solic-detail-ot-tech">-</span></div>
+            <div><strong>Fecha Inicio / Fin:</strong> <span id="solic-detail-ot-dates">-</span></div>
+            <div><strong>Tiempo de Intervención:</strong> <span id="solic-detail-ot-duration">-</span></div>
+          </div>
+        </div>
+
+        <!-- Bloque 3: Trabajo Realizado y Refacciones -->
+        <div style="background: #fdf4ff; padding: 14px; border-radius: 8px; border: 1px solid #f5d0fe;">
+          <h4 style="margin: 0 0 8px 0; color: #86198f; font-size: 0.95rem; font-weight: 700;">🛠️ Trabajo Realizado y Refacciones</h4>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem;">
+            <div><strong>Diagnóstico Técnico:</strong> <span id="solic-detail-ot-diag">-</span></div>
+            <div><strong>Actividad Realizada:</strong> <span id="solic-detail-ot-act">-</span></div>
+            <div><strong>Observaciones:</strong> <span id="solic-detail-ot-obs">-</span></div>
+            <div><strong>Refacciones Utilizadas:</strong> <span id="solic-detail-ot-parts">-</span></div>
+          </div>
+        </div>
+
+        <!-- Evidencias Fotográficas -->
+        <div>
+          <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; font-weight: 700;">📷 Evidencias Fotográficas</h4>
+          <div id="solic-detail-evidences" style="display: flex; gap: 12px; overflow-x: auto; padding: 4px;">
+            <span style="font-size: 0.85rem; color: #64748b;">Sin evidencias fotográficas adjuntas.</span>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; gap: 12px; padding: 16px; border-top: 1px solid #e2e8f0;">
+        <button type="button" class="btn-action-secondary" onclick="closeModal('modal-solic-detail-view')">Cerrar</button>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn-tech-status btn-tech-subtask" style="background:#ef4444; border-color:#ef4444;" id="btn-solic-modal-reject">SOLICITAR CORRECCIÓN</button>
+          <button type="button" class="btn-tech-status btn-tech-start" id="btn-solic-modal-accept">ACEPTAR TRABAJO</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Formulario de Aceptación y Calificación (1 a 5 Estrellas) -->
+  <div class="modal-overlay" id="modal-solic-accept-work" style="display: none;">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 style="margin: 0; font-weight: 700;">⭐ Aceptar Trabajo y Calificar Atención</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-solic-accept-work')">✕</button>
+      </div>
+      <form id="form-solic-accept-rating" onsubmit="event.preventDefault(); submitSolicitanteAcceptWork();" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+        <input type="hidden" id="solic-accept-ot-id">
+        
+        <div class="form-group">
+          <label style="font-weight: 700;">1. Calificación de la Atención (1 a 5 Estrellas) *</label>
+          <select id="solic-accept-stars" class="form-control" required style="font-size: 1.1rem; font-weight: 700;">
+            <option value="5">⭐⭐⭐⭐⭐ 5 ★ — Excelente</option>
+            <option value="4">⭐⭐⭐⭐ 4 ★ — Bueno</option>
+            <option value="3">⭐⭐⭐ 3 ★ — Regular</option>
+            <option value="2">⭐⭐ 2 ★ — Malo</option>
+            <option value="1">⭐ 1 ★ — Muy malo</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="solic-accept-comments">2. Comentarios de Calidad (Opcional)</label>
+          <textarea id="solic-accept-comments" class="form-control" rows="3" placeholder="Comentarios sobre el tiempo de respuesta, limpieza o atención del técnico..."></textarea>
+        </div>
+
+        <div style="background: #f0fdf4; padding: 12px; border-radius: 6px; border: 1px solid #bbf7d0; font-size: 0.85rem; color: #166534;">
+          <strong>Confirmación de Cierre:</strong> ¿Confirma que el trabajo fue realizado satisfactoriamente? Al continuar, la orden cambiará a estatus <strong>CERRADA</strong>.
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn-action-secondary" onclick="closeModal('modal-solic-accept-work')">Cancelar</button>
+          <button type="submit" class="btn-action-primary" style="background: #16a34a; border-color: #16a34a;">Confirmar y Cerrar OT</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Solicitar Corrección (Motivo Obligatorio y Retrabajo) -->
+  <div class="modal-overlay" id="modal-solic-request-correction" style="display: none;">
+    <div class="modal-card" style="max-width: 550px;">
+      <div class="modal-header" style="background: #fef2f2; border-bottom: 1px solid #fecaca;">
+        <h3 style="margin: 0; font-weight: 700; color: #991b1b;">⚠️ Solicitar Corrección / Retrabajo</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-solic-request-correction')">✕</button>
+      </div>
+      <form id="form-solic-correction" onsubmit="event.preventDefault(); submitSolicitanteCorrection();" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+        <input type="hidden" id="solic-correct-ot-id">
+        
+        <div class="form-group">
+          <label for="solic-correct-reason" style="font-weight: 700;">1. Motivo de la Corrección *</label>
+          <select id="solic-correct-reason" class="form-control" required>
+            <option value="La falla continúa">La falla continúa</option>
+            <option value="Trabajo incompleto">Trabajo incompleto</option>
+            <option value="El problema no fue solucionado">El problema no fue solucionado</option>
+            <option value="El equipo continúa presentando anomalías">El equipo continúa presentando anomalías</option>
+            <option value="Falta alguna actividad">Falta alguna actividad</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="solic-correct-comments" style="font-weight: 700;">2. Detalle de la Corrección Requerida *</label>
+          <textarea id="solic-correct-comments" class="form-control" rows="3" placeholder="Explica exactamente qué falta por resolver o qué síntoma sigue presente para que el técnico lo corrija..." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="solic-correct-file">3. Evidencia Fotográfica (Opcional)</label>
+          <input type="file" id="solic-correct-file" class="form-control" accept="image/*">
+        </div>
+
+        <div style="background: #fff1f2; padding: 12px; border-radius: 6px; border: 1px solid #fecdd3; font-size: 0.85rem; color: #9f1239;">
+          <strong>Nota de Flujo:</strong> La orden cambiará a estatus <strong>REQUIERE CORRECCIÓN</strong> devolviéndose al técnico asignado sin generar una nueva OT.
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn-action-secondary" onclick="closeModal('modal-solic-request-correction')">Cancelar</button>
+          <button type="submit" class="btn-action-primary" style="background: #dc2626; border-color: #dc2626;">Solicitar Corrección</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
       </div>
     </div>

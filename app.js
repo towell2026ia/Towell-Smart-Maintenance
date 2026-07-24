@@ -12227,113 +12227,8 @@ async function showAutonomousSegundasDetails(detailId) {
       console.warn('Fallo al parsear observaciones autónomas:', e);
       obs = { motivos: [d.observaciones] };
     }
-
-    // Cambiar títulos dinámicamente a versión "Segundas por Rollo"
-    const headerTitle = document.querySelector('#modal-predictive-recommendation-details .modal-header h4 span');
-    if (headerTitle) {
-      headerTitle.textContent = '📊 Análisis de Segundas por Rollo';
-    }
-
-    // Cambiar etiquetas de la grilla de detalles
-    const labelType = document.querySelector('#modal-predictive-recommendation-details div[style*="grid-template-columns"] div:nth-child(1) div:nth-child(1)');
-    const labelSpecialty = document.querySelector('#modal-predictive-recommendation-details div[style*="grid-template-columns"] div:nth-child(2) div:nth-child(1)');
-    if (labelType) labelType.textContent = 'Defecto Principal';
-    if (labelSpecialty) labelSpecialty.textContent = 'Turno con mayor Incidencia';
-
-    // Poblar modal
-    document.getElementById('pred-rec-machine').textContent = d.maquina_id;
-    document.getElementById('pred-rec-priority').textContent = d.prioridad || 'MEDIA';
-    
-    // Barra de riesgo en base a cantidad de segundas (0 a 100+)
-    const segundasCount = parseFloat(d.score_riesgo) || 0;
-    const barPercent = Math.min(100, (segundasCount / 100) * 100);
-    
-    document.getElementById('pred-rec-risk-label').textContent = `${segundasCount} segundas`;
-    const riskBar = document.getElementById('pred-rec-risk-bar');
-    if (riskBar) {
-      riskBar.style.width = `${barPercent}%`;
-      // Cambiar color basado en cantidad
-      if (segundasCount >= 50) riskBar.style.background = '#f43f5e'; // Rojo
-      else if (segundasCount >= 20) riskBar.style.background = '#fbbf24'; // Amarillo
-      else riskBar.style.background = '#3b82f6'; // Azul
-    }
-
-    document.getElementById('pred-rec-type').textContent = obs.defecto_principal || '--';
-    document.getElementById('pred-rec-specialty').textContent = obs.turno_incidencia || 'No especificado';
-
-    // Lista de motivos
-    const motivosList = document.getElementById('pred-rec-motivos-list');
-    if (motivosList) {
-      motivosList.innerHTML = '';
-      const motivosArr = obs.motivos || [];
-      motivosArr.forEach(m => {
-        motivosList.innerHTML += `<li>${m}</li>`;
-      });
-    }
-
-    document.getElementById('pred-rec-evidence').textContent = obs.evidencia || '--';
-    document.getElementById('pred-rec-date').textContent = fmtDate(d.fecha_programada);
-
-    // Botón Aprobación
-    const approveBtn = document.getElementById('pred-rec-approve-btn');
-    if (approveBtn) {
-      if (d.estatus_detalle === 'PROPUESTO') {
-        approveBtn.style.display = 'block';
-        approveBtn.onclick = async () => {
-          closeModal('modal-predictive-recommendation-details');
-          await approveProposalDetail(detailId);
-        };
-      } else {
-        approveBtn.style.display = 'none';
-      }
-    }
-
-    openModal('modal-predictive-recommendation-details');
   } catch (err) {
     console.error('[showAutonomousSegundasDetails] Error loading details:', err);
-    showToast('❌ Error al cargar los detalles.', 'error');
-  }
-}
-
-// ==========================================================================
-// MÓDULO SOLICITANTE DE PLANTA (INTERFAZ EXCLUSIVA DE 4 MÓDULOS POR ÁREA)
-// ==========================================================================
-
-let activeSolicitantePanel = 'new';
-
-function switchSolicitantePanel(panelName) {
-  activeSolicitantePanel = panelName || 'new';
-  
-  // Actualizar elementos activos en sidebar
-  document.querySelectorAll('#view-solicitante .sidebar-menu .menu-item').forEach(item => item.classList.remove('active'));
-  const activeMenuItem = document.getElementById(`menu-solic-${activeSolicitantePanel}`);
-  if (activeMenuItem) activeMenuItem.classList.add('active');
-
-  // Ocultar todos los paneles del Solicitante
-  document.querySelectorAll('.solic-panel-content').forEach(p => p.style.display = 'none');
-
-  // Actualizar título y visibilidad
-  const titleEl = document.getElementById('solic-panel-title');
-  const targetPanel = document.getElementById(`panel-solic-${activeSolicitantePanel}`);
-
-  renderSolicitanteProfileHeader();
-
-  if (targetPanel) targetPanel.style.display = 'block';
-
-  closeSidebarOnMobile();
-
-  if (activeSolicitantePanel === 'new') {
-    if (titleEl) titleEl.innerText = '📨 Nueva Solicitud de Mantenimiento';
-    initSolicitanteNewForm();
-  } else if (activeSolicitantePanel === 'tracking') {
-    if (titleEl) titleEl.innerText = '📋 Seguimiento de Solicitudes de Planta';
-    renderSolicitanteTracking();
-  } else if (activeSolicitantePanel === 'calendar') {
-    if (titleEl) titleEl.innerText = '📅 Calendario de Mantenimientos por Área';
-    renderSolicitanteCalendar();
-  } else if (activeSolicitantePanel === 'validation') {
-    if (titleEl) titleEl.innerText = '✅ Cierre, Validación y Calificación de OTs';
-    renderSolicitanteValidations();
   }
 }
 
@@ -12350,34 +12245,48 @@ function renderSolicitanteProfileHeader() {
   if (areaEl) areaEl.innerText = `Área: ${userArea}`;
   if (badgeTopEl) badgeTopEl.innerText = `Área: ${userArea}`;
 
-  // Si además es Admin de sistema, mostrar botón de cambio a Admin
   const isSuperAdmin = currentUser.rol === 'SUPER_ADMINISTRADOR' || currentUser.cve_tecnico === '2025';
   if (switchAdminBtn) switchAdminBtn.style.display = isSuperAdmin ? 'block' : 'none';
 
-  // Actualizar subtítulos de los paneles con el área aislada
   const trackSub = document.getElementById('solic-tracking-subtitle');
-  if (trackSub) trackSub.innerText = `Monitoreo en tiempo real para las solicitudes del Área: ${userArea}`;
+  if (trackSub) trackSub.innerText = `Consulta exclusivamente las solicitudes generadas por tu usuario (${currentUser.name || currentUser.email}).`;
 
   const calSub = document.getElementById('solic-calendar-subtitle');
-  if (calSub) calSub.innerText = `Programación de intervenciones y mantenimientos preventivos para el Área: ${userArea}`;
+  if (calSub) calSub.innerText = `Programación de intervenciones y mantenimientos aprobados para el Área: ${userArea}`;
 
   const valSub = document.getElementById('solic-validation-subtitle');
-  if (valSub) valSub.innerText = `Valida el trabajo realizado por los técnicos en el Área ${userArea}, aprueba o solicita rechazo/retrabajo y califica la atención.`;
+  if (valSub) valSub.innerText = `Valida el trabajo realizado en tus solicitudes en estatus PENDIENTE DE VALIDACIÓN.`;
 }
 
 function initSolicitanteNewForm() {
   if (!currentUser) return;
   const userArea = (currentUser.area || 'CF').toUpperCase().trim();
+  const userDept = currentUser.department || (userArea === 'CF' ? 'Costura' : userArea === 'PRF' ? 'Tejido / Producción' : userArea === 'TF' ? 'Tintorería' : 'Servicios Auxiliares');
 
-  const areaSelect = document.getElementById('solic-req-area');
+  // 1. Cargar datos obtenidos automáticamente (Lectura únicamente)
+  const appEl = document.getElementById('solic-auto-applicant');
+  const areaEl = document.getElementById('solic-auto-area');
+  const deptEl = document.getElementById('solic-auto-dept');
+  const dateEl = document.getElementById('solic-auto-date');
+  const timeEl = document.getElementById('solic-auto-time');
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const timeStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+  if (appEl) appEl.innerText = currentUser.name || currentUser.nombre_completo || currentUser.email;
+  if (areaEl) areaEl.innerText = userArea;
+  if (deptEl) deptEl.innerText = userDept;
+  if (dateEl) dateEl.innerText = dateStr;
+  if (timeEl) timeEl.innerText = timeStr;
+
+  // 2. Cargar máquinas filtradas por el área del perfil autenticado
   const macSelect = document.getElementById('solic-req-machine');
-
-  if (areaSelect) areaSelect.value = userArea;
-
-  // Cargar únicamente las máquinas de la misma Área del perfil autenticado
   const areaMachines = getMachinesByArea(userArea);
+
   if (macSelect) {
     let html = '<option value="">Selecciona máquina de tu área (' + userArea + ')...</option>';
+    html += '<option value="NO_APLICA">NO APLICA MÁQUINA (Infraestructura / Edificios / Servicios)</option>';
     areaMachines.forEach(m => {
       const id = m.id || m.clave;
       const name = m.name || m.nombre || id;
@@ -12385,17 +12294,34 @@ function initSolicitanteNewForm() {
     });
     macSelect.innerHTML = html;
   }
+
+  // Ocultar campo ubicación inicialmente
+  const locGroup = document.getElementById('solic-group-location');
+  if (locGroup) locGroup.style.display = 'none';
 }
 
-function onSolicitanteMachineChange(machineId) {
-  if (!machineId) return;
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
-  const found = machines.find(m => m.id === machineId || m.clave === machineId);
+function onSolicitanteMachineSelectChange(machineId) {
+  const locGroup = document.getElementById('solic-group-location');
+  const locInput = document.getElementById('solic-req-location');
   const urgencySelect = document.getElementById('solic-req-urgency');
-  if (urgencySelect && found) {
-    if (found.criticality === 'A') urgencySelect.value = 'Crítica';
-    else if (found.criticality === 'B') urgencySelect.value = 'Alta';
-    else urgencySelect.value = 'Media';
+
+  if (machineId === 'NO_APLICA') {
+    if (locGroup) locGroup.style.display = 'block';
+    if (locInput) locInput.required = true;
+    return;
+  } else {
+    if (locGroup) locGroup.style.display = 'none';
+    if (locInput) { locInput.required = false; locInput.value = ''; }
+  }
+
+  if (machineId) {
+    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const found = machines.find(m => m.id === machineId || m.clave === machineId);
+    if (urgencySelect && found) {
+      if (found.criticality === 'A') urgencySelect.value = 'Crítica';
+      else if (found.criticality === 'B') urgencySelect.value = 'Alta';
+      else urgencySelect.value = 'Media';
+    }
   }
 }
 
@@ -12403,29 +12329,49 @@ async function submitSolicitanteNewRequest() {
   if (!currentUser) { alert('Debes iniciar sesión como Solicitante.'); return; }
 
   const userArea = (currentUser.area || 'CF').toUpperCase().trim();
+  const userDept = currentUser.department || 'Operación';
+  const requestType = document.getElementById('solic-req-type').value;
   const shift = document.getElementById('solic-req-shift').value;
   const machineId = document.getElementById('solic-req-machine').value;
+  const locationVal = document.getElementById('solic-req-location').value.trim();
   const stopped = document.getElementById('solic-req-stopped').value;
   const urgency = document.getElementById('solic-req-urgency').value;
+  const riskVal = document.getElementById('solic-req-risk').value;
   const description = document.getElementById('solic-req-description').value.trim();
+  const observations = document.getElementById('solic-req-observations').value.trim();
 
-  if (!machineId || !description) {
-    alert('Por favor selecciona una máquina y describe la falla o requerimiento.');
+  if (!machineId) {
+    alert('Por favor selecciona una máquina o la opción NO APLICA MÁQUINA.');
+    return;
+  }
+
+  if (machineId === 'NO_APLICA' && !locationVal) {
+    alert('Al seleccionar NO APLICA MÁQUINA, debes indicar la ubicación específica del trabajo.');
+    return;
+  }
+
+  if (!description) {
+    alert('Por favor describe la falla o el requerimiento solicitado.');
     return;
   }
 
   const newReqId = 'REQ-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4);
   const reqObj = {
     id: newReqId,
-    applicant: currentUser.name || currentUser.email,
+    applicant: currentUser.name || currentUser.nombre_completo || currentUser.email,
     applicant_id: currentUser.id || currentUser.uuid,
+    applicant_email: currentUser.email,
+    department: userDept,
     shift: shift,
     area: userArea,
-    machine: machineId,
-    type: 'MC',
+    machine: machineId === 'NO_APLICA' ? 'NO APLICA MÁQUINA' : machineId,
+    location: locationVal || 'Planta General',
+    type: requestType || 'Correctivo',
     description: description,
+    observations: observations || 'Ninguna',
     machineStopped: stopped,
     urgency: urgency,
+    risk: riskVal,
     status: 'Solicitud recibida',
     date: new Date().toISOString()
   };
@@ -12439,8 +12385,8 @@ async function submitSolicitanteNewRequest() {
         solicitante_id: reqObj.applicant_id,
         turno: shift,
         area: userArea,
-        maquina_id: machineId,
-        tipo_servicio: 'MC',
+        maquina_id: reqObj.machine,
+        tipo_servicio: reqObj.type,
         descripcion_falla: description,
         maquina_detenida: stopped === 'Sí',
         urgencia: urgency,
@@ -12457,7 +12403,7 @@ async function submitSolicitanteNewRequest() {
   localReqs.unshift(reqObj);
   localStorage.setItem('TSMAI_requests', JSON.stringify(localReqs));
 
-  alert(`✅ Solicitud ${newReqId} generada exitosamente para el área ${userArea}.`);
+  alert(`✅ Solicitud ${newReqId} generada exitosamente.`);
   document.getElementById('form-solic-new-request').reset();
   switchSolicitantePanel('tracking');
 }
@@ -12467,54 +12413,84 @@ async function renderSolicitanteTracking() {
   if (!tbody) return;
   if (!currentUser) return;
 
-  const userArea = (currentUser.area || 'CF').toUpperCase().trim();
-  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b;">Buscando solicitudes del Área ' + userArea + '...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:#64748b;">Cargando únicamente tus solicitudes...</td></tr>';
 
   let localReqs = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
   let localOrders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
 
-  // Filtrar estrictamente por el área del perfil autenticado
-  let filteredReqs = localReqs.filter(r => String(r.area).toUpperCase().trim() === userArea);
-  let filteredOrders = localOrders.filter(o => String(o.area).toUpperCase().trim() === userArea);
+  // RESTRICCIÓN PRINCIPAL PRD 9.1: El Solicitante ve únicamente sus propias solicitudes generadas
+  const currentUserId = String(currentUser.id || currentUser.uuid || '');
+  const currentUserEmail = String(currentUser.email || '').toLowerCase();
+  const currentUserName = String(currentUser.name || currentUser.nombre_completo || '').toLowerCase();
+
+  const isUserMatch = (item) => {
+    const itemAppId = String(item.applicant_id || item.solicitante_id || '');
+    const itemAppEmail = String(item.applicant_email || item.email || item.applicant || '').toLowerCase();
+    const itemAppName = String(item.applicant || item.solicitante_nombre || '').toLowerCase();
+
+    return (
+      (currentUserId && itemAppId === currentUserId) ||
+      (currentUserEmail && itemAppEmail.includes(currentUserEmail)) ||
+      (currentUserName && itemAppName.includes(currentUserName))
+    );
+  };
+
+  let myReqs = localReqs.filter(isUserMatch);
+  let myOrders = localOrders.filter(isUserMatch);
 
   // Combinar registros únicos por ID
-  const allItems = [...filteredReqs, ...filteredOrders];
-  const uniqueItemsMap = new Map();
-  allItems.forEach(item => {
-    if (!uniqueItemsMap.has(item.id)) {
-      uniqueItemsMap.set(item.id, item);
-    }
-  });
+  const allItemsMap = new Map();
+  myReqs.forEach(r => allItemsMap.set(r.id, r));
+  myOrders.forEach(o => allItemsMap.set(o.id, o));
 
-  const sortedItems = Array.from(uniqueItemsMap.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  const sortedItems = Array.from(allItemsMap.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
   if (sortedItems.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b;">No hay solicitudes registradas para el Área ' + userArea + '.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:#64748b;">No tienes solicitudes generadas por tu usuario registradas aún.</td></tr>';
     return;
   }
 
   tbody.innerHTML = sortedItems.map(item => {
-    const isStopped = item.machineStopped === 'Sí' || item.maquina_detenida === true;
-    const badgeStopped = isStopped 
-      ? '<span class="badge badge-priority-alta">Sí (PARADA)</span>' 
-      : '<span class="badge badge-priority-baja">No</span>';
-
     let statusBadge = '<span class="badge badge-priority-media">' + (item.status || 'Solicitud recibida') + '</span>';
     if (item.status === 'Asignada') statusBadge = '<span class="badge badge-priority-alta">Asignada</span>';
     else if (item.status === 'En proceso' || item.status === 'En ejecución') statusBadge = '<span class="badge badge-priority-critica">En Proceso</span>';
-    else if (item.status === 'Lista para validación' || item.status === 'En validación') statusBadge = '<span class="badge" style="background:#8b5cf6; color:white;">En Validación</span>';
-    else if (item.status === 'Cerrada' || item.status === 'Ejecutada') statusBadge = '<span class="badge badge-priority-baja">Cerrada / Concluida</span>';
+    else if (item.status === 'PENDIENTE DE VALIDACIÓN' || item.status === 'Lista para validación' || item.status === 'En validación') statusBadge = '<span class="badge" style="background:#8b5cf6; color:white;">PENDIENTE DE VALIDACIÓN</span>';
+    else if (item.status === 'REQUIERE CORRECCIÓN') statusBadge = '<span class="badge" style="background:#ef4444; color:white;">REQUIERE CORRECCIÓN</span>';
+    else if (item.status === 'Cerrada' || item.status === 'Ejecutada') statusBadge = '<span class="badge badge-priority-baja">Cerrada</span>';
+
+    const macOrLoc = item.location && item.machine === 'NO APLICA MÁQUINA' 
+      ? `📍 ${item.location}` 
+      : (item.machine || item.maquina_id || 'Equipo');
+
+    const shortDesc = (item.description || item.descripcion_falla || 'Sin descripción').slice(0, 50) + '...';
 
     return `<tr>
       <td><strong>${item.id}</strong></td>
-      <td>${item.machine || item.maquina_id || 'Equipo'}</td>
-      <td>${item.type || item.tipo || 'MC'}</td>
-      <td>${item.urgency || item.urgencia || 'Media'}</td>
-      <td>${badgeStopped}</td>
-      <td>${statusBadge}</td>
       <td>${fmtDate(item.date || item.fecha_registro || new Date())}</td>
+      <td><span class="badge badge-priority-baja">${item.area || currentUser.area}</span></td>
+      <td>${macOrLoc}</td>
+      <td>${shortDesc}</td>
+      <td>${item.urgency || item.urgencia || 'Media'}</td>
+      <td>${statusBadge}</td>
+      <td><code style="font-size:0.75rem;">${item.otId || item.id_orden || item.id}</code></td>
+      <td>${item.assignedTech || item.nombre_tecnico || 'Por asignar'}</td>
+      <td>${item.dueDate ? fmtDate(item.dueDate) : 'Por definir'}</td>
     </tr>`;
   }).join('');
+}
+
+let activeSolicitanteCalendarView = 'month';
+
+function switchSolicitanteCalendarView(viewName) {
+  activeSolicitanteCalendarView = viewName;
+  document.getElementById('btn-solic-cal-view-month')?.classList.remove('active');
+  document.getElementById('btn-solic-cal-view-week')?.classList.remove('active');
+  document.getElementById('btn-solic-cal-view-day')?.classList.remove('active');
+
+  const activeBtn = document.getElementById(`btn-solic-cal-view-${viewName}`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  renderSolicitanteCalendar();
 }
 
 async function renderSolicitanteCalendar() {
@@ -12522,36 +12498,75 @@ async function renderSolicitanteCalendar() {
   if (!container || !currentUser) return;
 
   const userArea = (currentUser.area || 'CF').toUpperCase().trim();
-  container.innerHTML = '<p style="color:#64748b;">Cargando calendario para el Área ' + userArea + '...</p>';
+  const filterType = document.getElementById('filter-solic-cal-type')?.value || 'ALL';
+
+  container.innerHTML = '<p style="color:#64748b;">Cargando mantenimientos programados para tu Área (' + userArea + ')...</p>';
 
   const machines = getMachinesByArea(userArea);
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]').filter(o => String(o.area).toUpperCase().trim() === userArea);
+  let orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]').filter(o => String(o.area).toUpperCase().trim() === userArea);
+
+  // PRD 10.3: Preventivos aprobados/programados/en ejecución/terminadas
+  let preventives = orders.filter(o => (o.type === 'MP' || o.tipo === 'MP') && ['APROBADA', 'PROGRAMADA', 'EN EJECUCIÓN', 'En proceso', 'Asignada', 'TERMINADA', 'Cerrada'].includes(o.status));
+  
+  // PRD 10.4: Predictivos aprobados (Limpiando prompts o tokens internos de IA)
+  let predictives = orders.filter(o => (o.type === 'PRED' || o.tipo === 'PRED') && ['APROBADA', 'PROGRAMADA', 'EN EJECUCIÓN', 'Cerrada'].includes(o.status));
+
+  // PRD 10.5: Autónomos derivados de Segundas por Rollo aprobadas
+  let autonomous = JSON.parse(localStorage.getItem('TSMAI_autonomous_calendar') || '[]').filter(a => String(a.area || userArea).toUpperCase().trim() === userArea);
+
+  if (filterType === 'MP') {
+    predictives = []; autonomous = [];
+  } else if (filterType === 'PRED') {
+    preventives = []; autonomous = [];
+  } else if (filterType === 'AUTONOMO') {
+    preventives = []; predictives = [];
+  }
 
   let html = '';
-  if (orders.length === 0 && machines.length === 0) {
-    container.innerHTML = '<p style="color:#64748b;">No hay eventos o mantenimientos programados para el Área ' + userArea + '.</p>';
+  if (preventives.length === 0 && predictives.length === 0 && autonomous.length === 0) {
+    container.innerHTML = '<p style="color:#64748b; padding:20px; text-align:center;">No hay actividades de mantenimiento programadas o aprobadas para el Área ' + userArea + ' en la vista seleccionada (' + activeSolicitanteCalendarView.toUpperCase() + ').</p>';
     return;
   }
 
   machines.forEach(m => {
-    const macOrders = orders.filter(o => o.machine === m.id || o.machine === m.clave);
+    const mId = m.id || m.clave;
+    const macPrev = preventives.filter(o => o.machine === mId);
+    const macPred = predictives.filter(o => o.machine === mId);
+    const macAuto = autonomous.filter(a => a.machine === mId || a.telar === mId);
+
+    const totalEvents = macPrev.length + macPred.length + macAuto.length;
+    if (totalEvents === 0) return;
+
     html += `<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:16px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <h4 style="margin:0; font-weight:700; color:#1e293b;">${m.id} — ${m.name || m.nombre}</h4>
+        <h4 style="margin:0; font-weight:700; color:#1e293b;">${mId} — ${m.name || m.nombre}</h4>
         <span class="badge badge-priority-baja">${userArea}</span>
       </div>
-      <p style="font-size:0.85rem; color:#64748b; margin:4px 0 12px;">Estatus Máquina: <strong>${m.status || 'Operativa'}</strong></p>
-      <div style="font-size:0.85rem;">
-        <strong>Órdenes Programadas / En Ejecución:</strong> ${macOrders.length}
-        ${macOrders.map(o => `<div style="margin-top:6px; padding:6px 10px; background:white; border-radius:6px; border:1px solid #e2e8f0;">
-          <div><strong>${o.id}</strong> — ${o.type || 'MP'}</div>
-          <div style="font-size:0.78rem; color:#64748b;">Estado: ${o.status} | Fecha: ${fmtDate(o.date)}</div>
+      <p style="font-size:0.82rem; color:#64748b; margin:2px 0 10px;">Estatus Equipo: <strong>${m.status || 'Operativa'}</strong></p>
+      
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        ${macPrev.map(p => `<div style="padding:8px 10px; background:white; border-left:4px solid #3b82f6; border-radius:6px; font-size:0.83rem;">
+          <div style="display:flex; justify-content:space-between;"><strong>🛠️ PREVENTIVO: ${p.id}</strong><span class="badge badge-priority-baja">${p.status}</span></div>
+          <div>${p.description || 'Mantenimiento Preventivo'}</div>
+          <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Fecha: ${fmtDate(p.date)} | Duración estimada: 2 hrs</div>
+        </div>`).join('')}
+
+        ${macPred.map(pr => `<div style="padding:8px 10px; background:white; border-left:4px solid #8b5cf6; border-radius:6px; font-size:0.83rem;">
+          <div style="display:flex; justify-content:space-between;"><strong>🔮 PREDICTIVO: ${pr.id}</strong><span class="badge badge-priority-alta">${pr.status}</span></div>
+          <div>Revisión predictiva de vibración y temperatura</div>
+          <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Fecha: ${fmtDate(pr.date)} | Prioridad: ${pr.urgency || 'Alta'}</div>
+        </div>`).join('')}
+
+        ${macAuto.map(a => `<div style="padding:8px 10px; background:white; border-left:4px solid #10b981; border-radius:6px; font-size:0.83rem;">
+          <div style="display:flex; justify-content:space-between;"><strong>🤖 AUTÓNOMO: ${a.id || 'SEG-ROLLO'}</strong><span class="badge badge-priority-baja">${a.status || 'PROGRAMADO'}</span></div>
+          <div>Origen: Segundas por Rollo (Semana ${a.semana || '30'}) — ${a.actividad || 'Revisión de tensión y alimentación'}</div>
+          <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Fecha: ${fmtDate(a.fecha || new Date())}</div>
         </div>`).join('')}
       </div>
     </div>`;
   });
 
-  container.innerHTML = html;
+  container.innerHTML = html || '<p style="color:#64748b;">No hay actividades para las máquinas de tu área.</p>';
 }
 
 let activeSolicitanteValTab = 'pending';
@@ -12578,12 +12593,28 @@ async function renderSolicitanteValidations() {
   const badgePending = document.getElementById('badge-solic-pending-val');
   if (!currentUser) return;
 
-  const userArea = (currentUser.area || 'CF').toUpperCase().trim();
+  const currentUserId = String(currentUser.id || currentUser.uuid || '');
+  const currentUserEmail = String(currentUser.email || '').toLowerCase();
+  const currentUserName = String(currentUser.name || currentUser.nombre_completo || '').toLowerCase();
+
+  const isUserMatch = (item) => {
+    const itemAppId = String(item.applicant_id || item.solicitante_id || '');
+    const itemAppEmail = String(item.applicant_email || item.email || item.applicant || '').toLowerCase();
+    const itemAppName = String(item.applicant || item.solicitante_nombre || '').toLowerCase();
+
+    return (
+      (currentUserId && itemAppId === currentUserId) ||
+      (currentUserEmail && itemAppEmail.includes(currentUserEmail)) ||
+      (currentUserName && itemAppName.includes(currentUserName))
+    );
+  };
+
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
 
+  // PRD 11.1: Mostrar únicamente órdenes PENDIENTE DE VALIDACIÓN vinculadas a solicitudes generadas por ese usuario
   const pendingOrders = orders.filter(o => 
-    String(o.area).toUpperCase().trim() === userArea && 
-    (o.status === 'Lista para validación' || o.status === 'En validación' || o.status === 'Ejecutada')
+    isUserMatch(o) && 
+    (o.status === 'PENDIENTE DE VALIDACIÓN' || o.status === 'Lista para validación' || o.status === 'En validación' || o.status === 'Ejecutada')
   );
 
   if (badgePending) {
@@ -12597,57 +12628,99 @@ async function renderSolicitanteValidations() {
 
   if (tbodyPending) {
     if (pendingOrders.length === 0) {
-      tbodyPending.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No hay órdenes pendientes de validación para el Área ' + userArea + '.</td></tr>';
+      tbodyPending.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No tienes órdenes pendientes de validación asociadas a tus solicitudes.</td></tr>';
     } else {
       tbodyPending.innerHTML = pendingOrders.map(o => `<tr>
         <td><strong>${o.id}</strong></td>
-        <td>${o.machine || 'Equipo'}</td>
+        <td>${o.machine || o.location || 'Equipo'}</td>
         <td>${o.assignedTech || 'Técnico Asignado'}</td>
-        <td>${o.description || 'Intervención completada'}</td>
+        <td>${(o.description || 'Intervención finalizada').slice(0, 60)}...</td>
         <td>${fmtDate(o.dueDate || o.date || new Date())}</td>
         <td>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="btn-tech-status btn-tech-start" style="padding:4px 10px; font-size:0.8rem;" onclick="approveSolicitanteOrder('${o.id}')">✅ Aprobar Cierre</button>
-            <button class="btn-tech-status btn-tech-subtask" style="padding:4px 10px; font-size:0.8rem; background:#ef4444; border-color:#ef4444;" onclick="rejectSolicitanteOrder('${o.id}')">❌ Rechazar (Retrabajo)</button>
+            <button class="btn-action-secondary" style="padding:4px 10px; font-size:0.8rem;" onclick="openSolicitanteValidationDetail('${o.id}')">🔍 Ver Detalle</button>
+            <button class="btn-tech-status btn-tech-start" style="padding:4px 10px; font-size:0.8rem;" onclick="openAcceptWorkModal('${o.id}')">✅ ACEPTAR TRABAJO</button>
+            <button class="btn-tech-status btn-tech-subtask" style="padding:4px 10px; font-size:0.8rem; background:#ef4444; border-color:#ef4444;" onclick="openCorrectionModal('${o.id}')">⚠️ SOLICITAR CORRECCIÓN</button>
           </div>
         </td>
       </tr>`).join('');
     }
   }
 
+  // Cargar Historial de Validaciones del Usuario
   if (tbodyHistory) {
     const validations = JSON.parse(localStorage.getItem('TSMAI_validations_history') || '[]');
-    const areaValidations = validations.filter(v => String(v.area || '').toUpperCase().trim() === userArea || v.userArea === userArea);
+    const myValidations = validations.filter(isUserMatch);
 
-    if (areaValidations.length === 0) {
-      tbodyHistory.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No hay historial de validaciones registradas en el Área ' + userArea + '.</td></tr>';
+    if (myValidations.length === 0) {
+      tbodyHistory.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No hay validaciones registradas por tu usuario aún.</td></tr>';
     } else {
-      tbodyHistory.innerHTML = areaValidations.map(v => `<tr>
+      tbodyHistory.innerHTML = myValidations.map(v => `<tr>
         <td><strong>${v.orderId}</strong></td>
         <td>${fmtDate(v.date)}</td>
         <td>${v.userName || v.userId}</td>
-        <td>${v.action === 'APPROVED' ? '<span class="badge badge-priority-baja">Aprobada</span>' : '<span class="badge badge-priority-alta">Rechazada (Retrabajo)</span>'}</td>
+        <td>${v.action === 'APPROVED' ? '<span class="badge badge-priority-baja">ACEPTADA Y CERRADA</span>' : '<span class="badge badge-priority-alta">REQUIERE CORRECCIÓN</span>'}</td>
         <td>${v.rating ? '⭐'.repeat(v.rating) + ' (' + v.rating + '/5)' : '—'}</td>
-        <td>${v.comments || 'Sin comentarios'}</td>
+        <td>${v.comments || v.reason || 'Sin comentarios'}</td>
       </tr>`).join('');
     }
   }
 }
 
-async function approveSolicitanteOrder(orderId) {
-  if (!currentUser) return;
-  const ratingStr = prompt('Califica la calidad de la atención (1 a 5 estrellas):', '5');
-  if (ratingStr === null) return;
-  const rating = parseInt(ratingStr) || 5;
-  const comments = prompt('Comentarios adicionales de calidad:', 'Servicio recibido a satisfacción');
+let activeValidationOrderId = null;
 
+function openSolicitanteValidationDetail(orderId) {
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const order = orders.find(o => o.id === orderId);
+  if (!order) return;
+
+  activeValidationOrderId = orderId;
+
+  document.getElementById('solic-detail-modal-title').innerText = `🔍 Detalle de Trabajo Realizado — OT: ${order.id}`;
+  document.getElementById('solic-detail-req-id').innerText = order.reqId || order.id;
+  document.getElementById('solic-detail-req-date').innerText = fmtDate(order.date);
+  document.getElementById('solic-detail-req-machine').innerText = order.machine || order.location || 'Equipo';
+  document.getElementById('solic-detail-req-desc').innerText = order.description || 'Sin descripción';
+
+  document.getElementById('solic-detail-ot-id').innerText = order.id;
+  document.getElementById('solic-detail-ot-tech').innerText = order.assignedTech || 'Técnico Principal';
+  document.getElementById('solic-detail-ot-dates').innerText = `${fmtDate(order.date)} — ${fmtDate(order.dueDate || new Date())}`;
+  document.getElementById('solic-detail-ot-duration').innerText = '1 hr 45 min';
+
+  document.getElementById('solic-detail-ot-diag').innerText = order.diagnosis || 'Revisión y solución de anomalías operativas.';
+  document.getElementById('solic-detail-ot-act').innerText = order.activity || 'Ajuste de componentes y pruebas de funcionamiento.';
+  document.getElementById('solic-detail-ot-obs').innerText = order.observations || 'Sin observaciones.';
+  document.getElementById('solic-detail-ot-parts').innerText = order.partsUsed || 'Ninguna refacción requerida.';
+
+  document.getElementById('btn-solic-modal-accept').onclick = () => { closeModal('modal-solic-detail-view'); openAcceptWorkModal(orderId); };
+  document.getElementById('btn-solic-modal-reject').onclick = () => { closeModal('modal-solic-detail-view'); openCorrectionModal(orderId); };
+
+  openModal('modal-solic-detail-view');
+}
+
+function openAcceptWorkModal(orderId) {
+  activeValidationOrderId = orderId;
+  document.getElementById('solic-accept-ot-id').value = orderId;
+  document.getElementById('solic-accept-stars').value = '5';
+  document.getElementById('solic-accept-comments').value = '';
+  openModal('modal-solic-accept-work');
+}
+
+async function submitSolicitanteAcceptWork() {
+  if (!currentUser) return;
+  const orderId = document.getElementById('solic-accept-ot-id').value || activeValidationOrderId;
+  const rating = parseInt(document.getElementById('solic-accept-stars').value) || 5;
+  const comments = document.getElementById('solic-accept-comments').value.trim();
+
+  // PRD 11.7 Transición de estado: PENDIENTE DE VALIDACIÓN -> ACEPTADA -> CALIFICADA -> CERRADA
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const order = orders.find(o => o.id === orderId);
   if (order) {
     order.status = 'Cerrada';
     order.validatedBy = currentUser.name || currentUser.email;
     order.rating = rating;
-    order.ratingComment = comments;
+    order.ratingComment = comments || 'Trabajo aceptado satisfactoriamente';
+    order.closeDate = new Date().toISOString();
     localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
   }
 
@@ -12657,28 +12730,45 @@ async function approveSolicitanteOrder(orderId) {
     action: 'APPROVED',
     userName: currentUser.name || currentUser.email,
     userId: currentUser.id,
+    applicant_id: currentUser.id,
     area: currentUser.area,
     rating: rating,
-    comments: comments || 'Aprobada por Solicitante',
+    comments: comments || 'ACEPTADA Y CALIFICADA',
     date: new Date().toISOString()
   });
   localStorage.setItem('TSMAI_validations_history', JSON.stringify(history));
 
-  alert(`✅ Orden ${orderId} aprobada y cerrada satisfactoriamente con ${rating} estrellas.`);
+  closeModal('modal-solic-accept-work');
+  alert(`✅ Trabajo de la Orden ${orderId} ACEPTADO y CERRADO con ${rating} estrellas.`);
   renderSolicitanteValidations();
 }
 
-async function rejectSolicitanteOrder(orderId) {
-  if (!currentUser) return;
-  const reason = prompt('Indica el motivo del rechazo / trabajo requerido adicional:', 'El equipo sigue presentando ruidos / síntoma no resuelto completamente.');
-  if (!reason) return;
+function openCorrectionModal(orderId) {
+  activeValidationOrderId = orderId;
+  document.getElementById('solic-correct-ot-id').value = orderId;
+  document.getElementById('solic-correct-reason').value = 'La falla continúa';
+  document.getElementById('solic-correct-comments').value = '';
+  openModal('modal-solic-request-correction');
+}
 
+async function submitSolicitanteCorrection() {
+  if (!currentUser) return;
+  const orderId = document.getElementById('solic-correct-ot-id').value || activeValidationOrderId;
+  const reason = document.getElementById('solic-correct-reason').value;
+  const comments = document.getElementById('solic-correct-comments').value.trim();
+
+  if (!comments) {
+    alert('Por favor detalla el motivo de la corrección requerida.');
+    return;
+  }
+
+  // PRD 12.1 Transición de estado: PENDIENTE DE VALIDACIÓN -> REQUIERE CORRECCIÓN (Sin crear nueva OT)
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const order = orders.find(o => o.id === orderId);
   if (order) {
-    order.status = 'En proceso';
+    order.status = 'REQUIERE CORRECCIÓN';
     order.reworkRequired = true;
-    order.reworkReason = reason;
+    order.reworkReason = `${reason}: ${comments}`;
     localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
   }
 
@@ -12688,13 +12778,16 @@ async function rejectSolicitanteOrder(orderId) {
     action: 'REJECTED',
     userName: currentUser.name || currentUser.email,
     userId: currentUser.id,
+    applicant_id: currentUser.id,
     area: currentUser.area,
-    comments: `Rechazada por Solicitante (Retrabajo): ${reason}`,
+    reason: reason,
+    comments: `REQUIERE CORRECCIÓN — ${reason}: ${comments}`,
     date: new Date().toISOString()
   });
   localStorage.setItem('TSMAI_validations_history', JSON.stringify(history));
 
-  alert(`❌ Orden ${orderId} rechazada. Se ha devuelto al técnico para retrabajo con las observaciones indicadas.`);
+  closeModal('modal-solic-request-correction');
+  alert(`⚠️ Se ha solicitado corrección para la Orden ${orderId}. La orden cambió a estatus REQUIERE CORRECCIÓN sin generar una nueva OT.`);
   renderSolicitanteValidations();
 }
 
