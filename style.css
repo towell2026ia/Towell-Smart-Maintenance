@@ -353,6 +353,8 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .public-navbar {
@@ -1729,6 +1731,8 @@ body {
   display: flex;
   width: 100%;
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .split-left-hero {
@@ -1738,7 +1742,8 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 80px;
+  align-items: center;
+  padding: 40px;
   box-shadow: inset -20px 0 30px -10px rgba(0, 0, 0, 0.15);
 }
 
@@ -1748,7 +1753,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 30px;
+  overflow-y: auto;
 }
 
 .split-login-card {
