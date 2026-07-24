@@ -6063,23 +6063,32 @@ function renderAdminFormsList() {
 
   let html = '';
   forms.forEach(f => {
+    const submissions = JSON.parse(localStorage.getItem(`TSMAI_df_responses_${f.id}`) || '[]');
+    const typeBadge = f.type === 'Checklist' ? '📋 Checklist' : (f.type === 'Bitácora' ? '📝 Bitácora' : '🛠️ Formulario Dinámico');
+
     html += `
-      <div style="background-color: white; border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
-        <div>
-          <div style="font-weight: 700; font-size: 0.95rem; color: var(--primary-dark);">${f.name}</div>
-          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Área: <strong>${f.area || 'General'}</strong> | Campos: ${f.fields.length}</div>
+      <div style="background-color: white; border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div style="font-weight: 700; font-size: 0.95rem; color: var(--primary-dark);">${f.name}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
+              Tipo: <strong>${typeBadge}</strong> | Área: <strong>${f.area || 'General'}</strong> | Campos: <strong>${f.fields ? f.fields.length : 0}</strong>
+            </div>
+          </div>
+          <span class="badge badge-priority-baja" style="background: #e0f2fe; color: #0369a1; font-weight: 600;">${submissions.length} Registros</span>
         </div>
-        <div style="display: flex; gap: 8px; margin-top: 4px;">
-          <button type="button" class="btn-table-action" onclick="openTechChecklistRunModal('${f.id}')" style="padding: 4px 8px; font-size: 0.75rem; background-color: var(--primary-color); border-color: var(--primary-color);">📋 Llenar</button>
-          <button type="button" class="btn-table-action" onclick="editDynamicForm('${f.id}')" style="padding: 4px 8px; font-size: 0.75rem; background-color: #f59e0b; border-color: #f59e0b;">✏️ Editar</button>
-          <button type="button" class="btn-table-action" onclick="deleteDynamicForm('${f.id}')" style="padding: 4px 8px; font-size: 0.75rem; background-color: #ef4444; border-color: #ef4444;">❌ Eliminar</button>
+        <div style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap;">
+          <button type="button" class="btn-table-action" onclick="openDynamicFormFillModal('${f.id}')" style="padding: 5px 10px; font-size: 0.75rem; background-color: #0284c7; border-color: #0284c7; color: white;">📋 Llenar / Capturar</button>
+          <button type="button" class="btn-table-action" onclick="openDynamicFormFillModal('${f.id}'); switchDynamicFormModalTab('data');" style="padding: 5px 10px; font-size: 0.75rem; background-color: #10b981; border-color: #10b981; color: white;">📊 Ver BD (${submissions.length})</button>
+          <button type="button" class="btn-table-action" onclick="editDynamicForm('${f.id}')" style="padding: 5px 10px; font-size: 0.75rem; background-color: #f59e0b; border-color: #f59e0b; color: white;">✏️ Editar</button>
+          <button type="button" class="btn-table-action" onclick="deleteDynamicForm('${f.id}')" style="padding: 5px 10px; font-size: 0.75rem; background-color: #ef4444; border-color: #ef4444; color: white;">❌ Eliminar</button>
         </div>
       </div>
     `;
   });
   
   if (html === '') {
-    html = `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 12px;">No hay checklists guardados.</div>`;
+    html = `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 16px; background: white; border: 1px dashed #cbd5e1; border-radius: 8px;">No hay formularios o checklists guardados. Precarga uno desde Excel arriba.</div>`;
   }
   container.innerHTML = html;
 }
@@ -6142,9 +6151,358 @@ async function deleteDynamicForm(formId) {
   renderAdminFormsList();
 }
 
+// --- PROCESAMIENTO E INGESTIÓN DE FORMULARIOS Y BASES DE DATOS DINÁMICAS DESDE EXCEL ---
+async function processDynamicExcelFormIngestion(filename, jsonData, templateConf) {
+  if (!jsonData || jsonData.length === 0) {
+    showToast('El archivo Excel está vacío.');
+    return;
+  }
+
+  const sampleRow = jsonData[0];
+  const keys = Object.keys(sampleRow);
+  if (keys.length === 0) {
+    showToast('No se detectaron columnas en el archivo Excel.');
+    return;
+  }
+
+  const formTitle = filename.replace(/\.[^/.]+$/, "") + ` (${templateConf.formType || 'Dinámico'})`;
+  const formId = `F-EXCEL-${Date.now().toString(36).toUpperCase()}`;
+
+  // Auto-detectar tipos de datos de cada columna
+  const fields = keys.map(key => {
+    const sampleVal = sampleRow[key];
+    let type = 'text';
+    if (typeof sampleVal === 'number') {
+      type = 'number';
+    } else if (typeof sampleVal === 'boolean' || String(sampleVal).toLowerCase() === 'si' || String(sampleVal).toLowerCase() === 'no') {
+      type = 'checkbox';
+    } else if (sampleVal instanceof Date || /^\d{4}-\d{2}-\d{2}/.test(String(sampleVal))) {
+      type = 'date';
+    }
+    return {
+      name: key.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+      label: key,
+      type: type,
+      required: false
+    };
+  });
+
+  const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  const newForm = {
+    id: formId,
+    name: formTitle,
+    area: 'General',
+    type: templateConf.formType || 'Personalizado',
+    fields: fields,
+    createdAt: new Date().toISOString()
+  };
+
+  forms.push(newForm);
+  localStorage.setItem('TSMAI_dynamic_forms', JSON.stringify(forms));
+
+  // Almacenar filas ingestadas en la base de datos de respuestas del formulario
+  const submissionsKey = `TSMAI_df_responses_${formId}`;
+  const existingSubmissions = JSON.parse(localStorage.getItem(submissionsKey) || '[]');
+  
+  const newEntries = jsonData.map((row, idx) => ({
+    id_respuesta: `RESP-${Date.now()}-${idx + 1}`,
+    id_formulario: formId,
+    valores: row,
+    usuario: currentUser ? currentUser.name : 'Ingesta Excel',
+    fecha: new Date().toISOString()
+  }));
+
+  const allSubmissions = [...existingSubmissions, ...newEntries];
+  localStorage.setItem(submissionsKey, JSON.stringify(allSubmissions));
+
+  // Guardar estructura en Supabase si está disponible
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      showToast('Creando base de datos dinámica en Supabase...');
+      await supabaseClient.from('cat_servicios_mantenimiento').upsert([{
+        codigo_servicio: formId,
+        nombre_servicio: formTitle,
+        tipo_servicio: templateConf.formType || 'Autónomo',
+        activo: true,
+        observaciones: `Formulario precargado desde Excel: ${filename}`
+      }], { onConflict: 'codigo_servicio' });
+
+      const questions = fields.map((f, idx) => ({
+        codigo_servicio: formId,
+        codigo_pregunta: f.name,
+        pregunta: f.label,
+        tipo_respuesta: f.type === 'checkbox' ? 'si_no' : (f.type === 'number' ? 'numerico' : 'texto'),
+        obligatorio: false,
+        orden: idx + 1,
+        activo: true
+      }));
+      await supabaseClient.from('checklists_mantenimiento').insert(questions);
+
+    } catch (dbErr) {
+      console.warn('Registrado en almacenamiento dinámico local:', dbErr);
+    }
+  }
+
+  showToast(`🎉 ¡Formulario "${formTitle}" y su base de datos de ${jsonData.length} registros fueron creados con éxito!`);
+  renderAdminFormsList();
+  
+  // Abrir modal interactivo en la pestaña de base de datos
+  switchAdminPanel('forms');
+  openDynamicFormFillModal(formId);
+  switchDynamicFormModalTab('data');
+}
+
+async function importFormFromExcel(event) {
+  event.preventDefault();
+  let files;
+  if (event.dataTransfer) files = event.dataTransfer.files;
+  else if (event.target) files = event.target.files;
+
+  if (!files || files.length === 0) return;
+  const file = files[0];
+  const filename = file.name;
+
+  showToast(`Analizando columnas de Excel: ${filename}...`);
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheet = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheet];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      if (!jsonData || jsonData.length === 0) {
+        alert('El archivo Excel no contiene filas de datos o cabeceras válidas.');
+        return;
+      }
+
+      await processDynamicExcelFormIngestion(filename, jsonData, {
+        formType: 'Personalizado',
+        label: 'Formulario Excel'
+      });
+    } catch (err) {
+      console.error('Error importando Excel:', err);
+      alert('Error leyendo el archivo Excel: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+let activeModalFormId = null;
+
+function openDynamicFormFillModal(formId) {
+  const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  const form = forms.find(f => f.id === formId);
+  if (!form) {
+    alert('Formulario no encontrado.');
+    return;
+  }
+
+  activeModalFormId = formId;
+  document.getElementById('df-current-form-id').value = formId;
+  document.getElementById('df-modal-title').innerText = `📋 ${form.name}`;
+  document.getElementById('df-modal-subtitle').innerText = `Completa los datos de este formulario (${form.type || 'Formulario'}).`;
+
+  // Renderizar campos de captura dinámicamente
+  const fieldsContainer = document.getElementById('df-form-fields-container');
+  let fieldsHtml = '';
+  (form.fields || []).forEach(f => {
+    const fieldId = `df-input-${f.name}`;
+    if (f.type === 'checkbox') {
+      fieldsHtml += `
+        <div class="form-group full-width" style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+          <input type="checkbox" id="${fieldId}" style="width: 18px; height: 18px; cursor: pointer;">
+          <label for="${fieldId}" style="margin: 0; cursor: pointer; font-weight: 600;">${f.label}</label>
+        </div>
+      `;
+    } else if (f.type === 'select') {
+      const opts = (f.options || []).map(o => `<option value="${o}">${o}</option>`).join('');
+      fieldsHtml += `
+        <div class="form-group">
+          <label for="${fieldId}">${f.label}</label>
+          <select id="${fieldId}" class="form-control">
+            <option value="">Seleccionar...</option>
+            ${opts}
+          </select>
+        </div>
+      `;
+    } else {
+      const inputType = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text'));
+      fieldsHtml += `
+        <div class="form-group">
+          <label for="${fieldId}">${f.label}</label>
+          <input type="${inputType}" id="${fieldId}" class="form-control" placeholder="Ingresa ${f.label.toLowerCase()}...">
+        </div>
+      `;
+    }
+  });
+  fieldsContainer.innerHTML = fieldsHtml;
+
+  // Cargar registros existentes de la base de datos
+  renderDynamicFormDataTable(formId, form);
+
+  switchDynamicFormModalTab('fill');
+  openModal('modal-fill-dynamic-form');
+}
+
+function switchDynamicFormModalTab(tab) {
+  const fillTabBtn = document.getElementById('df-tab-fill-btn');
+  const dataTabBtn = document.getElementById('df-tab-data-btn');
+  const fillContent = document.getElementById('df-tab-fill-content');
+  const dataContent = document.getElementById('df-tab-data-content');
+
+  if (!fillTabBtn || !dataTabBtn || !fillContent || !dataContent) return;
+
+  if (tab === 'fill') {
+    fillTabBtn.className = 'btn-nav btn-nav-primary';
+    dataTabBtn.className = 'btn-nav btn-nav-outline';
+    fillContent.style.display = 'block';
+    dataContent.style.display = 'none';
+  } else {
+    fillTabBtn.className = 'btn-nav btn-nav-outline';
+    dataTabBtn.className = 'btn-nav btn-nav-primary';
+    fillContent.style.display = 'none';
+    dataContent.style.display = 'block';
+  }
+}
+
+function renderDynamicFormDataTable(formId, formObj) {
+  const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  const form = formObj || forms.find(f => f.id === formId);
+  if (!form) return;
+
+  const submissions = JSON.parse(localStorage.getItem(`TSMAI_df_responses_${formId}`) || '[]');
+  const countSpan = document.getElementById('df-submissions-count');
+  if (countSpan) countSpan.innerText = submissions.length;
+
+  const thead = document.getElementById('df-data-table-thead');
+  const tbody = document.getElementById('df-data-table-tbody');
+  if (!thead || !tbody) return;
+
+  // Cabeceras basadas en los campos del formulario
+  let headHtml = '<tr><th>Fecha / Hora</th><th>Registrado Por</th>';
+  (form.fields || []).forEach(f => {
+    headHtml += `<th>${f.label}</th>`;
+  });
+  headHtml += '</tr>';
+  thead.innerHTML = headHtml;
+
+  // Filas de la base de datos de respuestas
+  let bodyHtml = '';
+  submissions.forEach(sub => {
+    const formattedDate = new Date(sub.fecha).toLocaleString('es-ES');
+    bodyHtml += `<tr><td>${formattedDate}</td><td><strong>${sub.usuario || 'Agente / Sistema'}</strong></td>`;
+    (form.fields || []).forEach(f => {
+      let val = sub.valores ? (sub.valores[f.name] !== undefined ? sub.valores[f.name] : sub.valores[f.label]) : '';
+      if (typeof val === 'boolean') val = val ? '✅ Sí' : '❌ No';
+      bodyHtml += `<td>${val !== undefined && val !== null ? val : '-'}</td>`;
+    });
+    bodyHtml += '</tr>';
+  });
+
+  if (submissions.length === 0) {
+    bodyHtml = `<tr><td colspan="${(form.fields ? form.fields.length : 0) + 2}" style="text-align: center; color: var(--text-muted); padding: 16px;">No hay registros grabados en esta base de datos.</td></tr>`;
+  }
+  tbody.innerHTML = bodyHtml;
+}
+
+function submitDynamicFormResponse(e) {
+  e.preventDefault();
+  const formId = activeModalFormId;
+  const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  const form = forms.find(f => f.id === formId);
+  if (!form) return;
+
+  const responseValues = {};
+  (form.fields || []).forEach(f => {
+    const el = document.getElementById(`df-input-${f.name}`);
+    if (el) {
+      if (f.type === 'checkbox') {
+        responseValues[f.name] = el.checked;
+      } else {
+        responseValues[f.name] = el.value;
+      }
+    }
+  });
+
+  const submissionsKey = `TSMAI_df_responses_${formId}`;
+  const existingSubmissions = JSON.parse(localStorage.getItem(submissionsKey) || '[]');
+  const newSubmission = {
+    id_respuesta: `RESP-${Date.now()}`,
+    id_formulario: formId,
+    valores: responseValues,
+    usuario: currentUser ? currentUser.name : 'Técnico / Operador',
+    fecha: new Date().toISOString()
+  };
+
+  existingSubmissions.unshift(newSubmission);
+  localStorage.setItem(submissionsKey, JSON.stringify(existingSubmissions));
+
+  showToast('✅ Registro guardado con éxito en la base de datos.');
+  renderDynamicFormDataTable(formId, form);
+  switchDynamicFormModalTab('data');
+}
+
+function exportDynamicFormDataToExcel() {
+  const formId = activeModalFormId;
+  if (!formId) return;
+  const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  const form = forms.find(f => f.id === formId);
+  const submissions = JSON.parse(localStorage.getItem(`TSMAI_df_responses_${formId}`) || '[]');
+
+  if (submissions.length === 0) {
+    alert('No hay registros guardados para exportar.');
+    return;
+  }
+
+  const exportRows = submissions.map(s => {
+    const row = {
+      Fecha: new Date(s.fecha).toLocaleString('es-ES'),
+      Usuario: s.usuario || 'Agente / Sistema'
+    };
+    if (form && form.fields) {
+      form.fields.forEach(f => {
+        let val = s.valores ? (s.valores[f.name] !== undefined ? s.valores[f.name] : s.valores[f.label]) : '';
+        row[f.label] = val;
+      });
+    }
+    return row;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(exportRows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Registros');
+  const filename = `${form ? form.name : 'Formulario'}_${Date.now()}.xlsx`;
+  XLSX.writeFile(workbook, filename);
+  showToast(`📥 Exportando datos a ${filename}...`);
+}
+
 // --- EXCEL SIMULATION ---
 // --- REAL EXCEL UPLOAD & INGESTION ---
 const EXCEL_TEMPLATE_MAP = {
+  dynamic_checklist: {
+    stagingTable: 'stg_formularios_dinamicos',
+    cleanTable: 'cat_formularios_dinamicos',
+    label: 'Plantilla de Checklist / Inspección Dinámica',
+    isDynamic: true,
+    formType: 'Checklist'
+  },
+  dynamic_bitacora: {
+    stagingTable: 'stg_formularios_dinamicos',
+    cleanTable: 'cat_formularios_dinamicos',
+    label: 'Plantilla de Bitácora Operativa Dinámica',
+    isDynamic: true,
+    formType: 'Bitácora'
+  },
+  dynamic_custom: {
+    stagingTable: 'stg_formularios_dinamicos',
+    cleanTable: 'cat_formularios_dinamicos',
+    label: 'Formulario / Tabla Dinámica (Auto-Detectar Columnas Excel)',
+    isDynamic: true,
+    formType: 'Personalizado'
+  },
   machines: {
     stagingTable: 'stg_maquinas_excel',
     validationView: 'vw_validacion_maquinas_excel',
@@ -6504,6 +6862,11 @@ async function handleRealExcelUpload(event) {
       const { sheetName, range: headerRange } = findBestSheetAndRange(workbook, selectedTemplate);
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { range: headerRange });
+      
+      if (templateConf && templateConf.isDynamic) {
+        await processDynamicExcelFormIngestion(filename, jsonData, templateConf);
+        return;
+      }
       
       console.log('--- EXCEL DEBUG LOGS ---');
       console.log('Template:', selectedTemplate);
