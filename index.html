@@ -1788,6 +1788,250 @@
           </div>
         </div>
 
+  </div>
+
+  <!-- ==========================================================================
+       4.5. VISTA SOLICITANTE (Perfil de Planta con Aislamiento por Área)
+       ========================================================================== -->
+  <div id="view-solicitante" class="app-container view-section">
+    <!-- Sidebar Solicitante -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-text">TSM-AI</span>
+      </div>
+
+      <div class="user-profile-badge">
+        <span class="avatar" id="solic-profile-avatar">👤</span>
+        <div class="user-profile-info">
+          <span class="name" id="solic-profile-name">Solicitante de Planta</span>
+          <span class="role" id="solic-profile-area" style="color: var(--accent-cyan); font-weight: 700;">Área: CF</span>
+        </div>
+      </div>
+
+      <ul class="sidebar-menu">
+        <li class="menu-item active" id="menu-solic-new" onclick="switchSolicitantePanel('new')">
+          <a>📨 1. Nueva Solicitud</a>
+        </li>
+        <li class="menu-item" id="menu-solic-tracking" onclick="switchSolicitantePanel('tracking')">
+          <a>📋 2. Seguimiento de Solicitudes</a>
+        </li>
+        <li class="menu-item" id="menu-solic-calendar" onclick="switchSolicitantePanel('calendar')">
+          <a>📅 3. Calendario por Área</a>
+        </li>
+        <li class="menu-item" id="menu-solic-validation" onclick="switchSolicitantePanel('validation')">
+          <a>✅ 4. Cierre y Calificación OTs <span id="badge-solic-pending-val" class="badge-count" style="display:none;">0</span></a>
+        </li>
+        <li class="menu-item" id="menu-solic-switch-admin" onclick="switchToAdminView()" style="background: rgba(99, 102, 241, 0.12); border-left: 3px solid #6366f1; margin-top: 10px; display: none;">
+          <a style="color: #818cf8 !important; font-weight: 700; display: flex; align-items: center; gap: 8px;">👑 Cambiar a Panel Administrador</a>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <button class="btn-logout" onclick="logout()">🚪 Cerrar Sesión</button>
+      </div>
+    </aside>
+
+    <!-- Contenedor Principal Solicitante -->
+    <div class="main-content">
+      <!-- TopBar Solicitante -->
+      <header class="topbar">
+        <div class="topbar-title-section">
+          <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+          <h2 class="topbar-title" id="solic-panel-title">Portal del Solicitante</h2>
+        </div>
+        <div class="topbar-actions">
+          <div class="conn-indicator" id="conn-indicator-solic">
+            <span class="dot"></span>
+            <span class="text">En línea (BD Real)</span>
+          </div>
+          <span style="font-size: 0.85rem; background: #e2e8f0; padding: 4px 12px; border-radius: 20px; font-weight: 600;" id="solic-topbar-area-badge">Área: CF</span>
+        </div>
+      </header>
+
+      <!-- Paneles Solicitante -->
+      <div class="content-body" style="padding: 24px;">
+
+        <!-- Panel 1: Nueva Solicitud (Área fijada automáticamente por perfil) -->
+        <div id="panel-solic-new" class="solic-panel-content">
+          <div style="background: white; padding: 28px; border-radius: 12px; border: 1px solid #cbd5e1; max-width: 750px; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+            <div style="margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+              <h3 style="margin: 0; font-weight: 700; color: #0f172a; font-size: 1.3rem;">📨 Nueva Solicitud de Mantenimiento</h3>
+              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.88rem;">Genera un ticket de atención directamente para las máquinas asignadas a tu área.</p>
+            </div>
+
+            <form id="form-solic-new-request" onsubmit="event.preventDefault(); submitSolicitanteNewRequest();" style="display: flex; flex-direction: column; gap: 16px;">
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                  <label for="solic-req-area">1. Área Asignada (Perfil Autenticado) *</label>
+                  <select id="solic-req-area" class="form-control" disabled style="background-color: #f1f5f9; font-weight: 700; color: #334155;">
+                    <option value="CF">CF - Costura</option>
+                    <option value="PRF">PRF - Producción / Tejido</option>
+                    <option value="AF">AF - Servicios Auxiliares / Planta</option>
+                    <option value="TF">TF - Tintorería</option>
+                  </select>
+                  <span style="font-size: 0.75rem; color: #64748b;">🔒 Determinado automáticamente por tu perfil. No editable.</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="solic-req-shift">2. Turno *</label>
+                  <select id="solic-req-shift" class="form-control" required>
+                    <option value="Turno Mañana">Turno Mañana</option>
+                    <option value="Turno Tarde">Turno Tarde</option>
+                    <option value="Turno Nocturno">Turno Nocturno</option>
+                    <option value="Turno Mixto">Turno Mixto</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="solic-req-machine">3. Máquina / Equipo de tu Área *</label>
+                <select id="solic-req-machine" class="form-control" onchange="onSolicitanteMachineChange(this.value)" required>
+                  <option value="">Selecciona máquina...</option>
+                </select>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                  <label for="solic-req-stopped">4. ¿La máquina está detenida? *</label>
+                  <select id="solic-req-stopped" class="form-control" required>
+                    <option value="No">No (Operando con falla o síntoma)</option>
+                    <option value="Sí">Sí (Máquina totalmente PARADA)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="solic-req-urgency">5. Urgencia Sugerida *</label>
+                  <select id="solic-req-urgency" class="form-control" required>
+                    <option value="Media">Media (Atención estándar)</option>
+                    <option value="Alta">Alta (Riesgo de paro)</option>
+                    <option value="Crítica">Crítica (Paro total o emergencia)</option>
+                    <option value="Baja">Baja (Mantenimiento preventivo / ajuste)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="solic-req-description">6. Descripción del Fallo o Trabajo Requerido *</label>
+                <textarea id="solic-req-description" class="form-control" rows="3" placeholder="Describe ruidos anormales, fuga de aceite, códigos de error, fallos eléctricos o ajustes solicitados..." required></textarea>
+              </div>
+
+              <div class="form-group">
+                <label>7. Evidencia Fotográfica (Opcional)</label>
+                <input type="file" id="solic-req-file" class="form-control" accept="image/*">
+              </div>
+
+              <button type="submit" class="btn-action-primary" style="margin-top: 8px; padding: 12px; font-weight: 700; font-size: 1rem;">🚀 Enviar Solicitud a Mantenimiento</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Panel 2: Seguimiento de Solicitudes -->
+        <div id="panel-solic-tracking" class="solic-panel-content" style="display: none;">
+          <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <h3 style="margin: 0; font-weight: 700;">📋 Seguimiento de Solicitudes y Órdenes</h3>
+              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;" id="solic-tracking-subtitle">Monitoreo en tiempo real para las solicitudes del Área: CF</p>
+            </div>
+            <button class="btn-nav btn-nav-primary" onclick="renderSolicitanteTracking()">↻ Recargar</button>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Folio Solicitud / OT</th>
+                  <th>Máquina</th>
+                  <th>Tipo</th>
+                  <th>Urgencia</th>
+                  <th>Máq. Detenida</th>
+                  <th>Estado del Servicio</th>
+                  <th>Fecha Registro</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-solic-tracking">
+                <tr><td colspan="7" style="text-align:center; padding: 30px; color: #64748b;">Cargando solicitudes de tu área...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Panel 3: Calendario por Área -->
+        <div id="panel-solic-calendar" class="solic-panel-content" style="display: none;">
+          <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <h3 style="margin: 0; font-weight: 700;">📅 Calendario de Mantenimientos por Área</h3>
+              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;" id="solic-calendar-subtitle">Programación de intervenciones y mantenimientos preventivos para el Área: CF</p>
+            </div>
+            <button class="btn-nav btn-nav-primary" onclick="renderSolicitanteCalendar()">↻ Recargar</button>
+          </div>
+
+          <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #cbd5e1;">
+            <div id="solic-calendar-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+              <!-- Tarjetas de eventos de calendario por área -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 4: Cierre y Calificación de Órdenes de Trabajo -->
+        <div id="panel-solic-validation" class="solic-panel-content" style="display: none;">
+          <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <h3 style="margin: 0; font-weight: 700;">✅ Cierre, Validación y Calificación de OTs</h3>
+              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;" id="solic-validation-subtitle">Valida el trabajo realizado por los técnicos en tu Área, aprueba o solicita rechazo/retrabajo y califica la atención.</p>
+            </div>
+            <button class="btn-nav btn-nav-primary" onclick="renderSolicitanteValidations()">↻ Recargar</button>
+          </div>
+
+          <!-- Pestañas internas de validación -->
+          <div style="display: flex; gap: 12px; margin-bottom: 16px; border-bottom: 2px solid #e2e8f0;">
+            <button type="button" class="btn-nav btn-nav-secondary active" id="tab-solic-val-pending" onclick="switchSolicitanteValTab('pending')">⏳ Pendientes de Validar</button>
+            <button type="button" class="btn-nav btn-nav-secondary" id="tab-solic-val-history" onclick="switchSolicitanteValTab('history')">📜 Historial de Validaciones</button>
+          </div>
+
+          <!-- Pestaña Pendientes -->
+          <div id="solic-val-content-pending">
+            <div style="overflow-x: auto;">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Folio OT</th>
+                    <th>Máquina</th>
+                    <th>Técnico Responsable</th>
+                    <th>Diagnóstico / Trabajo Realizado</th>
+                    <th>Fecha Término</th>
+                    <th>Acciones de Validación</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-solic-pending-val">
+                  <tr><td colspan="6" style="text-align:center; padding: 30px; color: #64748b;">No hay órdenes pendientes de validación en tu área.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Pestaña Historial -->
+          <div id="solic-val-content-history" style="display: none;">
+            <div style="overflow-x: auto;">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Folio OT</th>
+                    <th>Fecha Validación</th>
+                    <th>Validado Por</th>
+                    <th>Estatus Cierre</th>
+                    <th>Calificación</th>
+                    <th>Comentario de Calidad</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-solic-history-val">
+                  <tr><td colspan="6" style="text-align:center; padding: 30px; color: #64748b;">No hay validaciones registradas aún.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

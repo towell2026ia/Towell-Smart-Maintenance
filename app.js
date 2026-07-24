@@ -1232,6 +1232,9 @@ function normalizeUserRole(rawRol) {
   if (['MANTENIMIENTO', 'TECNICO', 'TECH', 'MECANICO', 'ELECTRICO'].includes(r)) {
     return 'tech';
   }
+  if (['SOLICITANTE', 'SOLICITANTE_PUBLICO', 'SOLICITANTE_PLANTA', 'SOLICITANTE_PRODUCCION'].includes(r)) {
+    return 'solicitante';
+  }
   return 'public';
 }
 
@@ -1322,8 +1325,9 @@ function restoreRouteFromHash() {
       if (pSpec) pSpec.innerText = currentUser.specialty || currentUser.observaciones || currentUser.department || 'General';
       if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
 
-      showView('tech');
-      switchTechPanel(targetPanel);
+    } else if (roleKey === 'solicitante') {
+      showView('solicitante');
+      switchSolicitantePanel(panelId || activeSolicitantePanel || 'new');
       return true;
     } else if (roleKey === 'public') {
       showView('public-portal');
@@ -2445,6 +2449,25 @@ async function handleLoginSubmit(event) {
       const targetPanel = activeTechPanel || 'orders';
       showView('tech');
       switchTechPanel(targetPanel);
+    } else if (roleKey === 'solicitante') {
+      const userArea = (dbUser.area || dbUser.departamento_codigo || 'CF').toUpperCase().trim();
+      currentUser = { 
+        role: 'solicitante', 
+        rol: 'SOLICITANTE',
+        id: dbUser.id_usuario,
+        uuid: dbUser.id_usuario,
+        name: dbUser.nombre_completo, 
+        email: dbUser.correo,
+        area: ['CF', 'PRF', 'AF', 'TF'].includes(userArea) ? userArea : 'CF',
+        department: dbUser.departamento || 'Operación',
+        supervisor: dbUser.id_supervisor || null,
+        active: dbUser.activo !== false
+      };
+      persistSessionUser(currentUser);
+      showToast(`Sesión iniciada como Solicitante (${currentUser.area}): ${dbUser.nombre_completo}`);
+      
+      showView('solicitante');
+      switchSolicitantePanel('new');
     } else if (roleKey === 'public') {
       currentUser = { 
         role: 'public', 
@@ -2454,7 +2477,7 @@ async function handleLoginSubmit(event) {
         uuid: dbUser.id_usuario 
       };
       persistSessionUser(currentUser);
-      showToast(`Sesión iniciada como Solicitante: ${dbUser.nombre_completo}`);
+      showToast(`Sesión iniciada: ${dbUser.nombre_completo}`);
       showView('public-portal');
       showPublicPanel('home');
     }
@@ -12270,6 +12293,409 @@ async function showAutonomousSegundasDetails(detailId) {
     console.error('[showAutonomousSegundasDetails] Error loading details:', err);
     showToast('❌ Error al cargar los detalles.', 'error');
   }
+}
+
+// ==========================================================================
+// MÓDULO SOLICITANTE DE PLANTA (INTERFAZ EXCLUSIVA DE 4 MÓDULOS POR ÁREA)
+// ==========================================================================
+
+let activeSolicitantePanel = 'new';
+
+function switchSolicitantePanel(panelName) {
+  activeSolicitantePanel = panelName || 'new';
+  
+  // Actualizar elementos activos en sidebar
+  document.querySelectorAll('#view-solicitante .sidebar-menu .menu-item').forEach(item => item.classList.remove('active'));
+  const activeMenuItem = document.getElementById(`menu-solic-${activeSolicitantePanel}`);
+  if (activeMenuItem) activeMenuItem.classList.add('active');
+
+  // Ocultar todos los paneles del Solicitante
+  document.querySelectorAll('.solic-panel-content').forEach(p => p.style.display = 'none');
+
+  // Actualizar título y visibilidad
+  const titleEl = document.getElementById('solic-panel-title');
+  const targetPanel = document.getElementById(`panel-solic-${activeSolicitantePanel}`);
+
+  renderSolicitanteProfileHeader();
+
+  if (targetPanel) targetPanel.style.display = 'block';
+
+  closeSidebarOnMobile();
+
+  if (activeSolicitantePanel === 'new') {
+    if (titleEl) titleEl.innerText = '📨 Nueva Solicitud de Mantenimiento';
+    initSolicitanteNewForm();
+  } else if (activeSolicitantePanel === 'tracking') {
+    if (titleEl) titleEl.innerText = '📋 Seguimiento de Solicitudes de Planta';
+    renderSolicitanteTracking();
+  } else if (activeSolicitantePanel === 'calendar') {
+    if (titleEl) titleEl.innerText = '📅 Calendario de Mantenimientos por Área';
+    renderSolicitanteCalendar();
+  } else if (activeSolicitantePanel === 'validation') {
+    if (titleEl) titleEl.innerText = '✅ Cierre, Validación y Calificación de OTs';
+    renderSolicitanteValidations();
+  }
+}
+
+function renderSolicitanteProfileHeader() {
+  if (!currentUser) return;
+  const userArea = (currentUser.area || 'CF').toUpperCase().trim();
+
+  const nameEl = document.getElementById('solic-profile-name');
+  const areaEl = document.getElementById('solic-profile-area');
+  const badgeTopEl = document.getElementById('solic-topbar-area-badge');
+  const switchAdminBtn = document.getElementById('menu-solic-switch-admin');
+
+  if (nameEl) nameEl.innerText = currentUser.name || currentUser.nombre_completo || 'Solicitante';
+  if (areaEl) areaEl.innerText = `Área: ${userArea}`;
+  if (badgeTopEl) badgeTopEl.innerText = `Área: ${userArea}`;
+
+  // Si además es Admin de sistema, mostrar botón de cambio a Admin
+  const isSuperAdmin = currentUser.rol === 'SUPER_ADMINISTRADOR' || currentUser.cve_tecnico === '2025';
+  if (switchAdminBtn) switchAdminBtn.style.display = isSuperAdmin ? 'block' : 'none';
+
+  // Actualizar subtítulos de los paneles con el área aislada
+  const trackSub = document.getElementById('solic-tracking-subtitle');
+  if (trackSub) trackSub.innerText = `Monitoreo en tiempo real para las solicitudes del Área: ${userArea}`;
+
+  const calSub = document.getElementById('solic-calendar-subtitle');
+  if (calSub) calSub.innerText = `Programación de intervenciones y mantenimientos preventivos para el Área: ${userArea}`;
+
+  const valSub = document.getElementById('solic-validation-subtitle');
+  if (valSub) valSub.innerText = `Valida el trabajo realizado por los técnicos en el Área ${userArea}, aprueba o solicita rechazo/retrabajo y califica la atención.`;
+}
+
+function initSolicitanteNewForm() {
+  if (!currentUser) return;
+  const userArea = (currentUser.area || 'CF').toUpperCase().trim();
+
+  const areaSelect = document.getElementById('solic-req-area');
+  const macSelect = document.getElementById('solic-req-machine');
+
+  if (areaSelect) areaSelect.value = userArea;
+
+  // Cargar únicamente las máquinas de la misma Área del perfil autenticado
+  const areaMachines = getMachinesByArea(userArea);
+  if (macSelect) {
+    let html = '<option value="">Selecciona máquina de tu área (' + userArea + ')...</option>';
+    areaMachines.forEach(m => {
+      const id = m.id || m.clave;
+      const name = m.name || m.nombre || id;
+      html += `<option value="${id}">${id} - ${name}</option>`;
+    });
+    macSelect.innerHTML = html;
+  }
+}
+
+function onSolicitanteMachineChange(machineId) {
+  if (!machineId) return;
+  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const found = machines.find(m => m.id === machineId || m.clave === machineId);
+  const urgencySelect = document.getElementById('solic-req-urgency');
+  if (urgencySelect && found) {
+    if (found.criticality === 'A') urgencySelect.value = 'Crítica';
+    else if (found.criticality === 'B') urgencySelect.value = 'Alta';
+    else urgencySelect.value = 'Media';
+  }
+}
+
+async function submitSolicitanteNewRequest() {
+  if (!currentUser) { alert('Debes iniciar sesión como Solicitante.'); return; }
+
+  const userArea = (currentUser.area || 'CF').toUpperCase().trim();
+  const shift = document.getElementById('solic-req-shift').value;
+  const machineId = document.getElementById('solic-req-machine').value;
+  const stopped = document.getElementById('solic-req-stopped').value;
+  const urgency = document.getElementById('solic-req-urgency').value;
+  const description = document.getElementById('solic-req-description').value.trim();
+
+  if (!machineId || !description) {
+    alert('Por favor selecciona una máquina y describe la falla o requerimiento.');
+    return;
+  }
+
+  const newReqId = 'REQ-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4);
+  const reqObj = {
+    id: newReqId,
+    applicant: currentUser.name || currentUser.email,
+    applicant_id: currentUser.id || currentUser.uuid,
+    shift: shift,
+    area: userArea,
+    machine: machineId,
+    type: 'MC',
+    description: description,
+    machineStopped: stopped,
+    urgency: urgency,
+    status: 'Solicitud recibida',
+    date: new Date().toISOString()
+  };
+
+  // Guardar en Supabase
+  if (supabaseClient) {
+    try {
+      await supabaseClient.from('solicitudes_mantenimiento').insert([{
+        folio_solicitud: newReqId,
+        solicitante_nombre: reqObj.applicant,
+        solicitante_id: reqObj.applicant_id,
+        turno: shift,
+        area: userArea,
+        maquina_id: machineId,
+        tipo_servicio: 'MC',
+        descripcion_falla: description,
+        maquina_detenida: stopped === 'Sí',
+        urgencia: urgency,
+        estatus: 'Solicitud recibida',
+        fecha_registro: reqObj.date
+      }]);
+    } catch (err) {
+      console.error('Error insertando solicitud en Supabase:', err);
+    }
+  }
+
+  // Guardar localmente
+  const localReqs = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  localReqs.unshift(reqObj);
+  localStorage.setItem('TSMAI_requests', JSON.stringify(localReqs));
+
+  alert(`✅ Solicitud ${newReqId} generada exitosamente para el área ${userArea}.`);
+  document.getElementById('form-solic-new-request').reset();
+  switchSolicitantePanel('tracking');
+}
+
+async function renderSolicitanteTracking() {
+  const tbody = document.getElementById('tbody-solic-tracking');
+  if (!tbody) return;
+  if (!currentUser) return;
+
+  const userArea = (currentUser.area || 'CF').toUpperCase().trim();
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b;">Buscando solicitudes del Área ' + userArea + '...</td></tr>';
+
+  let localReqs = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  let localOrders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+
+  // Filtrar estrictamente por el área del perfil autenticado
+  let filteredReqs = localReqs.filter(r => String(r.area).toUpperCase().trim() === userArea);
+  let filteredOrders = localOrders.filter(o => String(o.area).toUpperCase().trim() === userArea);
+
+  // Combinar registros únicos por ID
+  const allItems = [...filteredReqs, ...filteredOrders];
+  const uniqueItemsMap = new Map();
+  allItems.forEach(item => {
+    if (!uniqueItemsMap.has(item.id)) {
+      uniqueItemsMap.set(item.id, item);
+    }
+  });
+
+  const sortedItems = Array.from(uniqueItemsMap.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  if (sortedItems.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b;">No hay solicitudes registradas para el Área ' + userArea + '.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sortedItems.map(item => {
+    const isStopped = item.machineStopped === 'Sí' || item.maquina_detenida === true;
+    const badgeStopped = isStopped 
+      ? '<span class="badge badge-priority-alta">Sí (PARADA)</span>' 
+      : '<span class="badge badge-priority-baja">No</span>';
+
+    let statusBadge = '<span class="badge badge-priority-media">' + (item.status || 'Solicitud recibida') + '</span>';
+    if (item.status === 'Asignada') statusBadge = '<span class="badge badge-priority-alta">Asignada</span>';
+    else if (item.status === 'En proceso' || item.status === 'En ejecución') statusBadge = '<span class="badge badge-priority-critica">En Proceso</span>';
+    else if (item.status === 'Lista para validación' || item.status === 'En validación') statusBadge = '<span class="badge" style="background:#8b5cf6; color:white;">En Validación</span>';
+    else if (item.status === 'Cerrada' || item.status === 'Ejecutada') statusBadge = '<span class="badge badge-priority-baja">Cerrada / Concluida</span>';
+
+    return `<tr>
+      <td><strong>${item.id}</strong></td>
+      <td>${item.machine || item.maquina_id || 'Equipo'}</td>
+      <td>${item.type || item.tipo || 'MC'}</td>
+      <td>${item.urgency || item.urgencia || 'Media'}</td>
+      <td>${badgeStopped}</td>
+      <td>${statusBadge}</td>
+      <td>${fmtDate(item.date || item.fecha_registro || new Date())}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function renderSolicitanteCalendar() {
+  const container = document.getElementById('solic-calendar-container');
+  if (!container || !currentUser) return;
+
+  const userArea = (currentUser.area || 'CF').toUpperCase().trim();
+  container.innerHTML = '<p style="color:#64748b;">Cargando calendario para el Área ' + userArea + '...</p>';
+
+  const machines = getMachinesByArea(userArea);
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]').filter(o => String(o.area).toUpperCase().trim() === userArea);
+
+  let html = '';
+  if (orders.length === 0 && machines.length === 0) {
+    container.innerHTML = '<p style="color:#64748b;">No hay eventos o mantenimientos programados para el Área ' + userArea + '.</p>';
+    return;
+  }
+
+  machines.forEach(m => {
+    const macOrders = orders.filter(o => o.machine === m.id || o.machine === m.clave);
+    html += `<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h4 style="margin:0; font-weight:700; color:#1e293b;">${m.id} — ${m.name || m.nombre}</h4>
+        <span class="badge badge-priority-baja">${userArea}</span>
+      </div>
+      <p style="font-size:0.85rem; color:#64748b; margin:4px 0 12px;">Estatus Máquina: <strong>${m.status || 'Operativa'}</strong></p>
+      <div style="font-size:0.85rem;">
+        <strong>Órdenes Programadas / En Ejecución:</strong> ${macOrders.length}
+        ${macOrders.map(o => `<div style="margin-top:6px; padding:6px 10px; background:white; border-radius:6px; border:1px solid #e2e8f0;">
+          <div><strong>${o.id}</strong> — ${o.type || 'MP'}</div>
+          <div style="font-size:0.78rem; color:#64748b;">Estado: ${o.status} | Fecha: ${fmtDate(o.date)}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+let activeSolicitanteValTab = 'pending';
+
+function switchSolicitanteValTab(tab) {
+  activeSolicitanteValTab = tab;
+  document.getElementById('tab-solic-val-pending')?.classList.remove('active');
+  document.getElementById('tab-solic-val-history')?.classList.remove('active');
+  document.getElementById('solic-val-content-pending').style.display = 'none';
+  document.getElementById('solic-val-content-history').style.display = 'none';
+
+  if (tab === 'pending') {
+    document.getElementById('tab-solic-val-pending')?.classList.add('active');
+    document.getElementById('solic-val-content-pending').style.display = 'block';
+  } else {
+    document.getElementById('tab-solic-val-history')?.classList.add('active');
+    document.getElementById('solic-val-content-history').style.display = 'block';
+  }
+}
+
+async function renderSolicitanteValidations() {
+  const tbodyPending = document.getElementById('tbody-solic-pending-val');
+  const tbodyHistory = document.getElementById('tbody-solic-history-val');
+  const badgePending = document.getElementById('badge-solic-pending-val');
+  if (!currentUser) return;
+
+  const userArea = (currentUser.area || 'CF').toUpperCase().trim();
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+
+  const pendingOrders = orders.filter(o => 
+    String(o.area).toUpperCase().trim() === userArea && 
+    (o.status === 'Lista para validación' || o.status === 'En validación' || o.status === 'Ejecutada')
+  );
+
+  if (badgePending) {
+    if (pendingOrders.length > 0) {
+      badgePending.innerText = pendingOrders.length;
+      badgePending.style.display = 'inline-block';
+    } else {
+      badgePending.style.display = 'none';
+    }
+  }
+
+  if (tbodyPending) {
+    if (pendingOrders.length === 0) {
+      tbodyPending.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No hay órdenes pendientes de validación para el Área ' + userArea + '.</td></tr>';
+    } else {
+      tbodyPending.innerHTML = pendingOrders.map(o => `<tr>
+        <td><strong>${o.id}</strong></td>
+        <td>${o.machine || 'Equipo'}</td>
+        <td>${o.assignedTech || 'Técnico Asignado'}</td>
+        <td>${o.description || 'Intervención completada'}</td>
+        <td>${fmtDate(o.dueDate || o.date || new Date())}</td>
+        <td>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="btn-tech-status btn-tech-start" style="padding:4px 10px; font-size:0.8rem;" onclick="approveSolicitanteOrder('${o.id}')">✅ Aprobar Cierre</button>
+            <button class="btn-tech-status btn-tech-subtask" style="padding:4px 10px; font-size:0.8rem; background:#ef4444; border-color:#ef4444;" onclick="rejectSolicitanteOrder('${o.id}')">❌ Rechazar (Retrabajo)</button>
+          </div>
+        </td>
+      </tr>`).join('');
+    }
+  }
+
+  if (tbodyHistory) {
+    const validations = JSON.parse(localStorage.getItem('TSMAI_validations_history') || '[]');
+    const areaValidations = validations.filter(v => String(v.area || '').toUpperCase().trim() === userArea || v.userArea === userArea);
+
+    if (areaValidations.length === 0) {
+      tbodyHistory.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No hay historial de validaciones registradas en el Área ' + userArea + '.</td></tr>';
+    } else {
+      tbodyHistory.innerHTML = areaValidations.map(v => `<tr>
+        <td><strong>${v.orderId}</strong></td>
+        <td>${fmtDate(v.date)}</td>
+        <td>${v.userName || v.userId}</td>
+        <td>${v.action === 'APPROVED' ? '<span class="badge badge-priority-baja">Aprobada</span>' : '<span class="badge badge-priority-alta">Rechazada (Retrabajo)</span>'}</td>
+        <td>${v.rating ? '⭐'.repeat(v.rating) + ' (' + v.rating + '/5)' : '—'}</td>
+        <td>${v.comments || 'Sin comentarios'}</td>
+      </tr>`).join('');
+    }
+  }
+}
+
+async function approveSolicitanteOrder(orderId) {
+  if (!currentUser) return;
+  const ratingStr = prompt('Califica la calidad de la atención (1 a 5 estrellas):', '5');
+  if (ratingStr === null) return;
+  const rating = parseInt(ratingStr) || 5;
+  const comments = prompt('Comentarios adicionales de calidad:', 'Servicio recibido a satisfacción');
+
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const order = orders.find(o => o.id === orderId);
+  if (order) {
+    order.status = 'Cerrada';
+    order.validatedBy = currentUser.name || currentUser.email;
+    order.rating = rating;
+    order.ratingComment = comments;
+    localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+  }
+
+  const history = JSON.parse(localStorage.getItem('TSMAI_validations_history') || '[]');
+  history.unshift({
+    orderId: orderId,
+    action: 'APPROVED',
+    userName: currentUser.name || currentUser.email,
+    userId: currentUser.id,
+    area: currentUser.area,
+    rating: rating,
+    comments: comments || 'Aprobada por Solicitante',
+    date: new Date().toISOString()
+  });
+  localStorage.setItem('TSMAI_validations_history', JSON.stringify(history));
+
+  alert(`✅ Orden ${orderId} aprobada y cerrada satisfactoriamente con ${rating} estrellas.`);
+  renderSolicitanteValidations();
+}
+
+async function rejectSolicitanteOrder(orderId) {
+  if (!currentUser) return;
+  const reason = prompt('Indica el motivo del rechazo / trabajo requerido adicional:', 'El equipo sigue presentando ruidos / síntoma no resuelto completamente.');
+  if (!reason) return;
+
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const order = orders.find(o => o.id === orderId);
+  if (order) {
+    order.status = 'En proceso';
+    order.reworkRequired = true;
+    order.reworkReason = reason;
+    localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+  }
+
+  const history = JSON.parse(localStorage.getItem('TSMAI_validations_history') || '[]');
+  history.unshift({
+    orderId: orderId,
+    action: 'REJECTED',
+    userName: currentUser.name || currentUser.email,
+    userId: currentUser.id,
+    area: currentUser.area,
+    comments: `Rechazada por Solicitante (Retrabajo): ${reason}`,
+    date: new Date().toISOString()
+  });
+  localStorage.setItem('TSMAI_validations_history', JSON.stringify(history));
+
+  alert(`❌ Orden ${orderId} rechazada. Se ha devuelto al técnico para retrabajo con las observaciones indicadas.`);
+  renderSolicitanteValidations();
 }
 
 
