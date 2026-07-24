@@ -2237,7 +2237,208 @@
     </div>
   </div>
 
+  <!-- ==========================================================================
+       MODAL AUDITORÍA INTEGRAL 360° DE OT Y SUBTAREAS (SUPER ADMINISTRADOR)
+       ========================================================================== -->
+  <div class="modal-overlay" id="modal-ot-360-audit" style="display: none;">
+    <div class="modal-card" style="max-width: 950px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
+      
+      <!-- Encabezado del Modal -->
+      <div class="modal-header" style="background: #0f172a; color: white; padding: 18px 24px; border-top-left-radius: 12px; border-top-right-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <h3 style="margin: 0; font-weight: 700; color: white; font-size: 1.25rem;" id="ot360-header-title">🔍 Auditoría 360° de OT</h3>
+          <p style="margin: 2px 0 0; color: #94a3b8; font-size: 0.82rem;" id="ot360-header-subtitle">Inspección integral de diagnóstico, subtareas, refacciones, fotografías y validación.</p>
+        </div>
+        <button class="btn-close-modal" onclick="closeModal('modal-ot-360-audit')" style="color: white; background: transparent; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
       </div>
+
+      <!-- Navegación por Pestañas del Modal 360° -->
+      <div style="display: flex; gap: 4px; background: #1e293b; padding: 8px 16px 0; overflow-x: auto; border-bottom: 1px solid #334155;">
+        <button type="button" class="btn-nav btn-nav-secondary active" id="tab-btn-ot360-general" onclick="switchAdmin360Tab('general')" style="color: white; border-radius: 8px 8px 0 0;">📌 General y Fallas</button>
+        <button type="button" class="btn-nav btn-nav-secondary" id="tab-btn-ot360-diag" onclick="switchAdmin360Tab('diag')" style="color: white; border-radius: 8px 8px 0 0;">🩺 Diagnóstico y Solución</button>
+        <button type="button" class="btn-nav btn-nav-secondary" id="tab-btn-ot360-subtasks" onclick="switchAdmin360Tab('subtasks')" style="color: white; border-radius: 8px 8px 0 0;">📋 Subtareas y Bitácora</button>
+        <button type="button" class="btn-nav btn-nav-secondary" id="tab-btn-ot360-parts" onclick="switchAdmin360Tab('parts')" style="color: white; border-radius: 8px 8px 0 0;">🔧 Refacciones y Costos</button>
+        <button type="button" class="btn-nav btn-nav-secondary" id="tab-btn-ot360-gallery" onclick="switchAdmin360Tab('gallery')" style="color: white; border-radius: 8px 8px 0 0;">📷 Galería de Fotos</button>
+        <button type="button" class="btn-nav btn-nav-secondary" id="tab-btn-ot360-validation" onclick="switchAdmin360Tab('validation')" style="color: white; border-radius: 8px 8px 0 0;">⭐ Cierre y Validación</button>
+      </div>
+
+      <!-- Cuerpo del Modal (Contenido de Pestañas) -->
+      <div class="modal-body" style="padding: 24px; overflow-y: auto; flex: 1;">
+
+        <!-- Pestaña 1: General y Clasificación de Falla -->
+        <div id="tab-content-ot360-general" class="ot360-tab-panel">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <span style="font-size: 0.78rem; color: #64748b; font-weight: 600;">FOLIO DE ORDEN</span>
+              <div style="font-size: 1.1rem; font-weight: 700; color: #0f172a;" id="ot360-info-folio">-</div>
+            </div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <span style="font-size: 0.78rem; color: #64748b; font-weight: 600;">MÁQUINA / EQUIPO</span>
+              <div style="font-size: 1.1rem; font-weight: 700; color: #0369a1;" id="ot360-info-machine">-</div>
+            </div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <span style="font-size: 0.78rem; color: #64748b; font-weight: 600;">ÁREA Y TURNO</span>
+              <div style="font-size: 1.1rem; font-weight: 700; color: #1e293b;" id="ot360-info-area-shift">-</div>
+            </div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <span style="font-size: 0.78rem; color: #64748b; font-weight: 600;">ESTATUS Y PRIORIDAD</span>
+              <div style="font-size: 1.1rem; font-weight: 700;" id="ot360-info-status">-</div>
+            </div>
+          </div>
+
+          <!-- Clasificación Técnica del Fallo -->
+          <div style="background: #fff7ed; padding: 18px; border-radius: 10px; border: 1px solid #ffedd5; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 12px 0; color: #c2410c; font-size: 1rem; font-weight: 700;">⚠️ Clasificación Técnica del Fallo (`cat_tipos_falla`)</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.88rem;">
+              <div><strong>Tipo de Falla:</strong> <span id="ot360-fault-type">Mecánica / Eléctrica</span></div>
+              <div><strong>Categoría de Falla:</strong> <span id="ot360-fault-cat">Desgaste natural / Operativa</span></div>
+              <div><strong>Componente Afectado:</strong> <span id="ot360-fault-component">Rodamiento / Motor / Banda</span></div>
+              <div><strong>¿Máquina Detenida?:</strong> <span id="ot360-fault-stopped" class="badge badge-priority-alta">Sí (Paro Total)</span></div>
+            </div>
+          </div>
+
+          <!-- Información del Solicitante -->
+          <div style="background: #f0f9ff; padding: 16px; border-radius: 8px; border: 1px solid #bae6fd;">
+            <h4 style="margin: 0 0 8px 0; color: #0369a1; font-size: 0.95rem; font-weight: 700;">👤 Origen y Solicitante</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; font-size: 0.85rem;">
+              <div><strong>Solicitante:</strong> <span id="ot360-applicant-name">-</span></div>
+              <div><strong>Folio Solicitud:</strong> <span id="ot360-applicant-folio">-</span></div>
+              <div><strong>Fecha Registro:</strong> <span id="ot360-applicant-date">-</span></div>
+              <div><strong>Ubicación / Planta:</strong> <span id="ot360-applicant-location">-</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pestaña 2: Diagnóstico y Solución -->
+        <div id="tab-content-ot360-diag" class="ot360-tab-panel" style="display: none;">
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #cbd5e1;">
+              <h4 style="margin: 0 0 8px 0; color: #0f172a; font-weight: 700;">📝 Descripción Inicial del Problema</h4>
+              <p id="ot360-diag-initial-desc" style="margin: 0; font-size: 0.9rem; color: #334155; white-space: pre-wrap;">-</p>
+            </div>
+
+            <div style="background: #fefce8; padding: 16px; border-radius: 8px; border: 1px solid #fef08a;">
+              <h4 style="margin: 0 0 8px 0; color: #854d0e; font-weight: 700;">🩺 Diagnóstico Técnico y Causa Raíz</h4>
+              <p id="ot360-diag-tech-root" style="margin: 0; font-size: 0.9rem; color: #713f12; white-space: pre-wrap;">-</p>
+            </div>
+
+            <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; border: 1px solid #bbf7d0;">
+              <h4 style="margin: 0 0 8px 0; color: #166534; font-weight: 700;">🛠️ Solución Aplicada y Actividades Realizadas</h4>
+              <p id="ot360-diag-solution" style="margin: 0; font-size: 0.9rem; color: #14532d; white-space: pre-wrap;">-</p>
+            </div>
+
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #cbd5e1;">
+              <h4 style="margin: 0 0 8px 0; color: #475569; font-weight: 700;">⏱️ Registro de Tiempos e Intervención</h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; font-size: 0.85rem;">
+                <div><strong>Fecha Asignación:</strong> <span id="ot360-time-assigned">-</span></div>
+                <div><strong>Inicio de Intervención:</strong> <span id="ot360-time-start">-</span></div>
+                <div><strong>Término de Trabajo:</strong> <span id="ot360-time-end">-</span></div>
+                <div><strong>Duración Total:</strong> <span id="ot360-time-duration" style="font-weight: 700; color: #0284c7;">-</span></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Pestaña 3: Subtareas y Bitácora Operativa -->
+        <div id="tab-content-ot360-subtasks" class="ot360-tab-panel" style="display: none;">
+          <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="margin: 0; font-weight: 700; color: #0f172a;">📋 Listado de Subtareas (`subtareas_orden_trabajo`)</h4>
+            <span class="badge badge-priority-media" id="ot360-subtasks-count">0 Subtareas</span>
+          </div>
+
+          <div id="ot360-subtasks-accordion" style="display: flex; flex-direction: column; gap: 12px;">
+            <p style="color: #64748b; text-align: center; padding: 20px;">Cargando subtareas e historial de la orden...</p>
+          </div>
+        </div>
+
+        <!-- Pestaña 4: Refacciones y Costos Consumidos -->
+        <div id="tab-content-ot360-parts" class="ot360-tab-panel" style="display: none;">
+          <div style="margin-bottom: 16px;">
+            <h4 style="margin: 0 0 6px 0; font-weight: 700; color: #0f172a;">🔧 Refacciones Utilizadas en la OT y Subtareas</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Consumo registrado en `refacciones_usadas_subtarea` y `costos_orden_trabajo`.</p>
+          </div>
+
+          <div style="overflow-x: auto; margin-bottom: 20px;">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Código Refacción</th>
+                  <th>Nombre de Refacción</th>
+                  <th>Subtarea / Origen</th>
+                  <th>Cantidad Usada</th>
+                  <th>Costo Unitario</th>
+                  <th>Costo Total</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-ot360-parts">
+                <tr><td colspan="6" style="text-align: center; padding: 20px; color: #64748b;">No hay refacciones registradas para esta orden.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Resumen de Costos -->
+          <div style="background: #f8fafc; padding: 18px; border-radius: 10px; border: 1px solid #cbd5e1; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; font-size: 0.9rem;">
+            <div><strong>Costo Refacciones:</strong> <span id="ot360-cost-parts" style="display: block; font-size: 1.1rem; font-weight: 700; color: #1e293b;">$0.00 MXN</span></div>
+            <div><strong>Costo Mano de Obra:</strong> <span id="ot360-cost-labor" style="display: block; font-size: 1.1rem; font-weight: 700; color: #1e293b;">$0.00 MXN</span></div>
+            <div><strong>Costo Total OT:</strong> <span id="ot360-cost-total" style="display: block; font-size: 1.25rem; font-weight: 700; color: #16a34a;">$0.00 MXN</span></div>
+          </div>
+        </div>
+
+        <!-- Pestaña 5: Galería Completa de Evidencias Fotografías -->
+        <div id="tab-content-ot360-gallery" class="ot360-tab-panel" style="display: none;">
+          <div style="margin-bottom: 16px;">
+            <h4 style="margin: 0 0 4px 0; font-weight: 700; color: #0f172a;">📷 Galería de Evidencias Fotografías</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Evidencias de Solicitud (Antes), Ejecución (Durante), Conclusión (Después) y Subtareas.</p>
+          </div>
+
+          <div id="ot360-gallery-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;">
+            <p style="color: #64748b; text-align: center; grid-column: 1 / -1; padding: 30px;">Cargando evidencias fotográficas...</p>
+          </div>
+        </div>
+
+        <!-- Pestaña 6: Cierre, Calificación e Historial de Validaciones -->
+        <div id="tab-content-ot360-validation" class="ot360-tab-panel" style="display: none;">
+          
+          <div style="background: #f8fafc; padding: 18px; border-radius: 10px; border: 1px solid #cbd5e1; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 12px 0; color: #0f172a; font-size: 1rem; font-weight: 700;">⭐ Estado de Validación del Solicitante</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.88rem;">
+              <div><strong>Validado Por:</strong> <span id="ot360-val-user">-</span></div>
+              <div><strong>Estatus de Cierre:</strong> <span id="ot360-val-status">-</span></div>
+              <div><strong>Calificación Otorgada:</strong> <span id="ot360-val-rating" style="font-size: 1.1rem; color: #eab308;">-</span></div>
+              <div><strong>Comentarios de Calidad:</strong> <span id="ot360-val-comments">-</span></div>
+            </div>
+          </div>
+
+          <h4 style="margin: 0 0 10px 0; font-weight: 700; color: #0f172a;">📜 Historial de Eventos de Validación (`validaciones_historial`)</h4>
+          <div style="overflow-x: auto;">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Usuario</th>
+                  <th>Acción</th>
+                  <th>Calificación</th>
+                  <th>Comentarios / Motivo Retrabajo</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-ot360-val-history">
+                <tr><td colspan="5" style="text-align: center; padding: 20px; color: #64748b;">No hay eventos de validación registrados.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Pie del Modal -->
+      <div class="modal-footer" style="background: #f1f5f9; padding: 16px 24px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+        <span style="font-size: 0.82rem; color: #64748b;">🔒 Vista de Auditoría 360° para Súper Administrador.</span>
+        <button type="button" class="btn-action-primary" onclick="closeModal('modal-ot-360-audit')">Cerrar Auditoría</button>
+      </div>
+
     </div>
   </div>
 
