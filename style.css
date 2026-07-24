@@ -306,11 +306,38 @@ body {
 }
 
 .menu-toggle {
-  display: none;
-  font-size: 1.5rem;
-  background: none;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--primary-dark);
   cursor: pointer;
+  transition: all 0.2s ease;
+  margin-right: 12px;
+}
+
+.menu-toggle:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+/* Colapso de Barra Lateral en Escritorio (PC / Laptop >= 1025px) */
+@media (min-width: 1025px) {
+  .sidebar {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+  }
+  .sidebar.collapsed {
+    width: 0px !important;
+    padding: 0 !important;
+    margin-left: -280px !important;
+    overflow: hidden !important;
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 .topbar-actions {

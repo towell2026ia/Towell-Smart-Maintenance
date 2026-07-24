@@ -9564,23 +9564,36 @@ async function loadPublicEmployeesList() {
 }
 
 function closeSidebarOnMobile() {
-  document.querySelectorAll('.sidebar').forEach(sb => sb.classList.remove('show'));
-  const overlay = document.getElementById('sidebar-backdrop-overlay');
-  if (overlay) overlay.classList.remove('show');
+  if (window.innerWidth <= 1024) {
+    document.querySelectorAll('.sidebar').forEach(sb => sb.classList.remove('show'));
+    const overlay = document.getElementById('sidebar-backdrop-overlay');
+    if (overlay) overlay.classList.remove('show');
+  }
 }
 
-// Toggle para colapsar / expandir barra lateral en móviles
+// Toggle para colapsar / expandir barra lateral en cualquier dispositivo (PC, Laptop, Tablet, Celular)
 function toggleSidebar() {
   const activeView = document.querySelector('.view-section.active');
   const sidebar = activeView ? (activeView.querySelector('.sidebar') || document.querySelector('.sidebar')) : document.querySelector('.sidebar');
   const overlay = document.getElementById('sidebar-backdrop-overlay');
 
-  if (sidebar) {
+  if (!sidebar) return;
+
+  const isMobile = window.innerWidth <= 1024;
+
+  if (isMobile) {
+    // Celulares y Tablets: Drawer desplegable deslizante con fondo oscurecido
     const isShow = sidebar.classList.toggle('show');
+    sidebar.classList.remove('collapsed');
     if (overlay) {
       if (isShow) overlay.classList.add('show');
       else overlay.classList.remove('show');
     }
+  } else {
+    // Escritorio / Laptops: Colapsar o expandir barra lateral a pantalla completa
+    sidebar.classList.toggle('collapsed');
+    sidebar.classList.remove('show');
+    if (overlay) overlay.classList.remove('show');
   }
 }
 
