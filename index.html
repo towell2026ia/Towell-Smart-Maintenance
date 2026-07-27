@@ -6,9 +6,13 @@
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="TSM-AI">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="manifest" href="manifest.json">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json?v=2.5.0">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -3812,12 +3816,297 @@
                 <tr>
                   <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 16px;">No hay fuentes registradas para esta propuesta.</td>
                 </tr>
-              </tbody>
+          </tbody>
             </table>
           </div>
         </div>
 
-        <!-- Refacciones sugeridas -->
+        <!-- Modal Levantamiento Técnico Predictivo (Flujo 2: 4 Bloques) -->
+  <div class="modal-overlay" id="modal-levantamiento-predictivo" style="display: none;">
+    <div class="modal-card" style="max-width: 850px; width: 94%;">
+      <div class="modal-header" style="background: #0f172a; border-bottom: 1px solid #1e293b;">
+        <h3 style="color: #06b6d4; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+          <span>🔍</span> Levantamiento Técnico Predictivo (PF)
+        </h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-levantamiento-predictivo')">×</button>
+      </div>
+      <div class="modal-body" style="max-height: 78vh; overflow-y: auto; padding: 20px; background: #0b1329;">
+        <input type="hidden" id="lev-pred-id">
+        <input type="hidden" id="lev-pred-maquina-id">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; background: #1e293b; padding: 12px; border-radius: 8px;">
+          <div><span style="color:#94a3b8; font-size:0.8rem;">Folio:</span> <strong id="lev-pred-folio" style="color:white; font-size:0.9rem;">--</strong></div>
+          <div><span style="color:#94a3b8; font-size:0.8rem;">Máquina:</span> <strong id="lev-pred-maquina" style="color:white; font-size:0.9rem;">--</strong></div>
+          <div><span style="color:#94a3b8; font-size:0.8rem;">Fecha:</span> <strong id="lev-pred-fecha" style="color:white; font-size:0.9rem;">--</strong></div>
+        </div>
+
+        <form id="form-levantamiento-predictivo" onsubmit="saveLevantamientoPredictivo(event)">
+          <!-- Bloque 1: Electrónico -->
+          <fieldset style="border: 1px solid #334155; border-radius: 8px; padding: 14px; margin-bottom: 16px; background: rgba(15,23,42,0.6);">
+            <legend style="color: #38bdf8; font-weight: 700; padding: 0 8px;">⚡ 1. Bloque Electrónico</legend>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Sensores</label>
+                <select id="pred-elec-sensores" class="form-control"><option value="NORMAL">Normal</option><option value="FALLA">Anormal / Falla</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Conexiones</label>
+                <select id="pred-elec-conexiones" class="form-control"><option value="NORMAL">Normal</option><option value="FLOJAS">Flojas / Sueltas</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Señales</label>
+                <select id="pred-elec-senales" class="form-control"><option value="NORMAL">Estables</option><option value="ININTERRUMPIDAS">Intermitentes</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Control</label>
+                <select id="pred-elec-control" class="form-control"><option value="NORMAL">OK</option><option value="ERROR">Error PLC/Control</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Componentes</label>
+                <select id="pred-elec-componentes" class="form-control"><option value="NORMAL">Buen estado</option><option value="DAÑADO">Dañado</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Alarmas</label>
+                <select id="pred-elec-alarmas" class="form-control"><option value="NORMAL">Sin alarmas</option><option value="ACTIVAS">Alarmas Activas</option></select>
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Bloque 2: Mecánico -->
+          <fieldset style="border: 1px solid #334155; border-radius: 8px; padding: 14px; margin-bottom: 16px; background: rgba(15,23,42,0.6);">
+            <legend style="color: #38bdf8; font-weight: 700; padding: 0 8px;">⚙️ 2. Bloque Mecánico</legend>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Holguras</label>
+                <select id="pred-mec-holguras" class="form-control"><option value="NORMAL">Normal</option><option value="EXCESIVA">Holgura Excesiva</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Rodamientos</label>
+                <select id="pred-mec-rodamientos" class="form-control"><option value="NORMAL">Buen estado</option><option value="RUIDO">Ruido / Desgaste</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Alineación</label>
+                <select id="pred-mec-alineacion" class="form-control"><option value="NORMAL">Alineado</option><option value="DESALINEADO">Desalineado</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Transmisión</label>
+                <select id="pred-mec-transmision" class="form-control"><option value="NORMAL">OK</option><option value="DESGASTE">Banda/Cadena desgastada</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Desgaste General</label>
+                <select id="pred-mec-desgaste" class="form-control"><option value="NORMAL">Normal</option><option value="CRITICO">Crítico</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Ajustes</label>
+                <select id="pred-mec-ajustes" class="form-control"><option value="NORMAL">Correctos</option><option value="REQUIERE_REAJUSTE">Requiere Reajuste</option></select>
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Bloque 3: Limpieza -->
+          <fieldset style="border: 1px solid #334155; border-radius: 8px; padding: 14px; margin-bottom: 16px; background: rgba(15,23,42,0.6);">
+            <legend style="color: #38bdf8; font-weight: 700; padding: 0 8px;">🧹 3. Bloque Limpieza</legend>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Acumulaciones de Pelusa/Residuos</label>
+                <select id="pred-limp-acumulaciones" class="form-control"><option value="CONFORME">Limpio / Conforme</option><option value="ACUMULACION">Acumulaciones detectadas</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Contaminación en Zonas Críticas</label>
+                <select id="pred-limp-zonas" class="form-control"><option value="CONFORME">Sin contaminación</option><option value="CONTAMINADO">Contaminado</option></select>
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Bloque 4: Lubricación -->
+          <fieldset style="border: 1px solid #334155; border-radius: 8px; padding: 14px; margin-bottom: 16px; background: rgba(15,23,42,0.6);">
+            <legend style="color: #38bdf8; font-weight: 700; padding: 0 8px;">🛢️ 4. Bloque Lubricación</legend>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Nivel de Aceite/Grasa</label>
+                <select id="pred-lub-nivel" class="form-control"><option value="CORRECTO">Correcto</option><option value="BAJO">Bajo</option><option value="ALTO">Excesivo</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Estado del Lubricante</label>
+                <select id="pred-lub-estado" class="form-control"><option value="BUENO">Limpio / Bueno</option><option value="DEGRADADO">Quemado / Degradado</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Fugas</label>
+                <select id="pred-lub-fugas" class="form-control"><option value="SIN_FUGAS">Sin Fugas</option><option value="FUGA_DETECTADA">Fuga Detectada</option></select>
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Hallazgos y Clasificación de Acción -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px;">
+            <div>
+              <label style="color:#cbd5e1; font-size:0.85rem; font-weight:600;">Condición Encontrada y Hallazgos:</label>
+              <textarea id="pred-hallazgos" class="form-control" rows="3" placeholder="Describe los hallazgos técnicos en el telar..."></textarea>
+            </div>
+            <div>
+              <label style="color:#cbd5e1; font-size:0.85rem; font-weight:600;">Recomendación Técnica:</label>
+              <textarea id="pred-recomendacion" class="form-control" rows="3" placeholder="Acciones recomendadas para corregir causa raíz..."></textarea>
+            </div>
+          </div>
+
+          <div style="margin-top: 14px;">
+            <label style="color:#f59e0b; font-size:0.85rem; font-weight:700;">Acción Sugerida / Resultado del Levantamiento:</label>
+            <select id="pred-accion-sugerida" class="form-control" style="background:#1e293b; color:white; font-weight:700;">
+              <option value="SIN_ACCION">✅ Sin Acción (Operación Normal)</option>
+              <option value="SEGUIMIENTO">🔍 Requiere Seguimiento en Próximo Ciclo</option>
+              <option value="AJUSTE_MENOR">🔧 Ajuste Menor Realizado en el Lugar</option>
+              <option value="REQUIERE_CORRECTIVO">⚠️ Requiere Orden de Trabajo Correctiva (OT)</option>
+              <option value="REVISION_ESPECIALIZADA">🚨 Requiere Revisión Especializada / Proveedor</option>
+            </select>
+          </div>
+
+          <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn-action-secondary" onclick="closeModal('modal-levantamiento-predictivo')">Cancelar</button>
+            <button type="submit" class="btn-action-primary" style="background:#06b6d4; color:white;">💾 Finalizar Levantamiento</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Levantamiento Técnico Autónomo (Flujo 2: 5 Bloques con Mediciones Numéricas) -->
+  <div class="modal-overlay" id="modal-levantamiento-autonomo" style="display: none;">
+    <div class="modal-card" style="max-width: 850px; width: 94%;">
+      <div class="modal-header" style="background: #0f172a; border-bottom: 1px solid #1e293b;">
+        <h3 style="color: #10b981; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+          <span>🛠️</span> Levantamiento Técnico Autónomo (Inspección Física)
+        </h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-levantamiento-autonomo')">×</button>
+      </div>
+      <div class="modal-body" style="max-height: 78vh; overflow-y: auto; padding: 20px; background: #0b1329;">
+        <input type="hidden" id="lev-auto-id">
+        <input type="hidden" id="lev-auto-maquina-id">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; background: #1e293b; padding: 12px; border-radius: 8px;">
+          <div><span style="color:#94a3b8; font-size:0.8rem;">Folio:</span> <strong id="lev-auto-folio" style="color:white; font-size:0.9rem;">--</strong></div>
+          <div><span style="color:#94a3b8; font-size:0.8rem;">Máquina:</span> <strong id="lev-auto-maquina" style="color:white; font-size:0.9rem;">--</strong></div>
+          <div><span style="color:#94a3b8; font-size:0.8rem;">Fecha:</span> <strong id="lev-auto-fecha" style="color:white; font-size:0.9rem;">--</strong></div>
+        </div>
+
+        <form id="form-levantamiento-autonomo" onsubmit="saveLevantamientoAutonomo(event)">
+          <!-- 1. Vibración (Medición mm/s, Hz) -->
+          <fieldset style="border: 1px solid #334155; border-radius: 8px; padding: 14px; margin-bottom: 16px; background: rgba(15,23,42,0.6);">
+            <legend style="color: #34d399; font-weight: 700; padding: 0 8px;">📳 1. Vibración</legend>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Estado</label>
+                <select id="auto-vib-estado" class="form-control"><option value="NORMAL">Normal</option><option value="ANORMAL">Anormal</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Medición (mm/s)</label>
+                <input type="number" step="0.1" id="auto-vib-mms" class="form-control" placeholder="Ej. 2.5">
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Frecuencia (Hz)</label>
+                <input type="number" step="1" id="auto-vib-hz" class="form-control" placeholder="Ej. 60">
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- 2. Limpieza -->
+          <fieldset style="border: 1px solid #334155; border-radius: 8px; padding: 14px; margin-bottom: 16px; background: rgba(15,23,42,0.6);">
+            <legend style="color: #34d399; font-weight: 700; padding: 0 8px;">🧹 2. Limpieza</legend>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Condición General</label>
+                <select id="auto-limp-estado" class="form-control"><option value="CONFORME">Conforme / Limpio</option><option value="NO_CONFORME">No Conforme / Sucio</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Observaciones de Limpieza</label>
+                <input type="text" id="auto-limp-obs" class="form-control" placeholder="Detalles de acumulación...">
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- 3. Lubricación -->
+          <fieldset style="border: 1px solid #334155; border-radius: 8px; padding: 14px; margin-bottom: 16px; background: rgba(15,23,42,0.6);">
+            <legend style="color: #34d399; font-weight: 700; padding: 0 8px;">🛢️ 3. Lubricación</legend>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Estado</label>
+                <select id="auto-lub-estado" class="form-control"><option value="CORRECTO">Correcto</option><option value="DEFICIENTE">Deficiente</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Nivel</label>
+                <select id="auto-lub-nivel" class="form-control"><option value="NORMAL">Normal</option><option value="BAJO">Bajo</option></select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Fugas</label>
+                <select id="auto-lub-fugas" class="form-control"><option value="SIN_FUGAS">Sin Fugas</option><option value="CON_FUGAS">Con Fugas</option></select>
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- 4. Temperatura (OBLIGATORIA °C) -->
+          <fieldset style="border: 1px solid #10b981; border-radius: 8px; padding: 14px; margin-bottom: 16px; background: rgba(16,185,129,0.1);">
+            <legend style="color: #10b981; font-weight: 800; padding: 0 8px;">🌡️ 4. Temperatura (°C - Medición Obligatoria)</legend>
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; align-items: center;">
+              <div>
+                <label style="color:#cbd5e1; font-size:0.85rem; font-weight:700;">Temperatura (°C): *</label>
+                <input type="number" step="0.5" id="auto-temp-c" class="form-control" style="background:#0f172a; color:#10b981; font-size:1.1rem; font-weight:800;" placeholder="Ej. 65.5" required>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.85rem;">Observaciones Térmicas:</label>
+                <input type="text" id="auto-temp-obs" class="form-control" placeholder="Punto de medición (ej. Chumaceras motor principal)...">
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- 5. Cableado -->
+          <fieldset style="border: 1px solid #334155; border-radius: 8px; padding: 14px; margin-bottom: 16px; background: rgba(15,23,42,0.6);">
+            <legend style="color: #34d399; font-weight: 700; padding: 0 8px;">🔌 5. Cableado</legend>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Estado del Cableado</label>
+                <select id="auto-cab-estado" class="form-control">
+                  <option value="CORRECTO">Correcto</option>
+                  <option value="FLOJO">Flojo / Suelto</option>
+                  <option value="DAÑADO">Dañado / Aislamiento roto</option>
+                  <option value="EXPUESTO">Expuesto</option>
+                  <option value="SOBRECALENTADO">Sobrecalentado / Marcas de quemadura</option>
+                </select>
+              </div>
+              <div>
+                <label style="color:#cbd5e1; font-size:0.8rem;">Observaciones de Cableado</label>
+                <input type="text" id="auto-cab-obs" class="form-control" placeholder="Detalles de inspección eléctrica...">
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Hallazgos y Recomendación -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px;">
+            <div>
+              <label style="color:#cbd5e1; font-size:0.85rem; font-weight:600;">Hallazgos de Inspección:</label>
+              <textarea id="auto-hallazgos" class="form-control" rows="3" placeholder="Resultados generales de la inspección autónoma..."></textarea>
+            </div>
+            <div>
+              <label style="color:#cbd5e1; font-size:0.85rem; font-weight:600;">Recomendación Técnica:</label>
+              <textarea id="auto-recomendacion" class="form-control" rows="3" placeholder="Acciones preventivas sugeridas..."></textarea>
+            </div>
+          </div>
+
+          <div style="margin-top: 14px;">
+            <label style="color:#f59e0b; font-size:0.85rem; font-weight:700;">Acción Sugerida / Resultado:</label>
+            <select id="auto-accion-sugerida" class="form-control" style="background:#1e293b; color:white; font-weight:700;">
+              <option value="SIN_ACCION">✅ Sin Acción (Condición Operativa Normal)</option>
+              <option value="AJUSTE_MENOR">🔧 Ajuste / Limpieza Menor Realizada</option>
+              <option value="REQUIERE_CORRECTIVO">⚠️ Requiere Generación de OT Correctiva</option>
+            </select>
+          </div>
+
+          <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn-action-secondary" onclick="closeModal('modal-levantamiento-autonomo')">Cancelar</button>
+            <button type="submit" class="btn-action-primary" style="background:#10b981; color:white;">💾 Finalizar Levantamiento Autónomo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notificaciones Generales -->
         <div>
           <h4 style="font-weight: 700; margin-bottom: 8px; font-size: 0.95rem;">🔧 Refacciones Sugeridas para la Intervención</h4>
           <div class="responsive-table-wrapper" style="border: 1px solid #cbd5e1; border-radius: 6px;">
@@ -4252,7 +4541,7 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
+        navigator.serviceWorker.register('./sw.js?v=2.5.0')
           .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
           .catch(err => console.warn('⚠️ ServiceWorker error:', err));
       });

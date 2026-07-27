@@ -1,13 +1,16 @@
 {
   "name": "Towell Smart Maintenance AI",
   "short_name": "TSM-AI",
+  "id": "tsmai-pwa-app",
   "description": "Sistema Inteligente de Control y Gestión de Mantenimiento Industrial de Planta Towell",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "orientation": "any",
-  "scope": "./",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "icons/icon-192.png",

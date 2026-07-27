@@ -11971,38 +11971,73 @@ async function approveProposalDetail(detailId) {
       .eq('nombre_tecnico', detailData.responsable_sugerido)
       .maybeSingle();
 
-    const orderRecord = {
-      orden_trabajo: detailData.tipo_mantenimiento === 'PREVENTIVO' ? 'MP' : (detailData.tipo_mantenimiento === 'PREDICTIVO' ? 'MC' : 'MA'),
-      origen: 'App',
-      estatus: 'asignada',
-      fecha_inicio: detailData.fecha_programada,
-      fecha_hora_inicio: `${detailData.fecha_programada}T08:00:00`,
-      maquina_id: detailData.maquina_id,
-      descripcion: detailData.actividad_sugerida,
-      nombre_solicitante: 'Generador de Calendarios AI',
-      cve_atendio: techData ? techData.cve_tecnico : null,
-      nombre_atendio: techData ? techData.nombre_tecnico : null,
-      prioridad: detailData.prioridad || 'Media',
-      id_plan: detailData.id_plan
-    };
+    if (detailData.tipo_mantenimiento === 'PREVENTIVO') {
+      // FLUJO 1: OT NORMAL
+      const orderRecord = {
+        orden_trabajo: 'MP',
+        origen: 'App',
+        estatus: 'asignada',
+        fecha_inicio: detailData.fecha_programada,
+        fecha_hora_inicio: `${detailData.fecha_programada}T08:00:00`,
+        maquina_id: detailData.maquina_id,
+        descripcion: detailData.actividad_sugerida,
+        nombre_solicitante: 'Generador de Calendarios AI',
+        cve_atendio: techData ? techData.cve_tecnico : null,
+        nombre_atendio: techData ? techData.nombre_tecnico : null,
+        prioridad: detailData.prioridad || 'Media',
+        id_plan: detailData.id_plan
+      };
 
-    // 1. Insertar orden de trabajo
-    const { data: otData, error: otErr } = await supabaseClient
-      .from('ordenes_trabajo')
-      .insert([orderRecord])
-      .select();
+      const { data: otData, error: otErr } = await supabaseClient
+        .from('ordenes_trabajo')
+        .insert([orderRecord])
+        .select();
 
-    if (otErr) throw otErr;
-    const newOT = otData[0];
+      if (otErr) throw otErr;
+      const newOT = otData[0];
 
-    // 2. Actualizar propuesta vinculándola a la orden generada
-    await supabaseClient
-      .from('calendario_mantenimiento_detalle')
-      .update({
-        estatus_detalle: 'APROBADO',
-        id_orden_generada: newOT.id_orden
-      })
-      .eq('id_detalle', detailId);
+      await supabaseClient
+        .from('calendario_mantenimiento_detalle')
+        .update({
+          estatus_detalle: 'APROBADO',
+          id_orden_generada: newOT.id_orden
+        })
+        .eq('id_detalle', detailId);
+
+    } else {
+      // FLUJO 2: LEVANTAMIENTO PREDICTIVO / AUTÓNOMO
+      const prefix = detailData.tipo_mantenimiento === 'PREDICTIVO' ? 'LEV-PRED' : 'LEV-AUTO';
+      const yearStr = new Date().getFullYear();
+      const randomId = Math.floor(1000 + Math.random() * 9000);
+      const folioLev = `${prefix}-${yearStr}-${randomId}`;
+
+      const levRecord = {
+        id_detalle_calendario: detailId,
+        folio_levantamiento: folioLev,
+        maquina_id: detailData.maquina_id,
+        tipo_mantenimiento: detailData.tipo_mantenimiento,
+        estatus: techData ? 'ASIGNADA' : 'PENDIENTE_ASIGNACION',
+        prioridad: detailData.prioridad || 'MEDIA',
+        tecnico_id: techData ? techData.nombre_tecnico : null,
+        fecha_programada: detailData.fecha_programada,
+        motivo_seleccion: detailData.actividad_sugerida,
+        observaciones: detailData.observaciones
+      };
+
+      const { data: levData, error: levErr } = await supabaseClient
+        .from('levantamientos_mantenimiento')
+        .insert([levRecord])
+        .select();
+
+      if (levErr) throw levErr;
+
+      await supabaseClient
+        .from('calendario_mantenimiento_detalle')
+        .update({
+          estatus_detalle: 'APROBADO'
+        })
+        .eq('id_detalle', detailId);
+    }
 
     // 3. Obtener checklist asociado e insertarlo en respuestas
     if (detailData.id_plan) {
