@@ -85,6 +85,12 @@ function showEmpty(containerId, message = 'Sin datos disponibles') {
 // ============================================================
 
 async function loadDashboard() {
+  const adminView = document.getElementById('view-admin');
+  const kpiEl = document.getElementById('kpi-ot-abiertas');
+  if (!adminView || !kpiEl) {
+    return;
+  }
+
   console.log('[Dashboard] Loading Executive metrics from Supabase...');
 
   try {
@@ -201,7 +207,8 @@ function renderOTporCerrar(allOts) {
     !['SOLICITUD_RECIBIDA', 'Solicitud recibida'].includes(o.estatus)
   );
 
-  document.getElementById('pending-ots-count').textContent = `${activeOts.length} abiertas`;
+  const pendingEl = document.getElementById('pending-ots-count');
+  if (pendingEl) pendingEl.textContent = `${activeOts.length} abiertas`;
 
   const today = new Date();
   let range1_3 = 0;
@@ -341,10 +348,13 @@ function renderCompliance(allOts) {
 
   const pct = totalThisMonth > 0 ? Math.round((closedThisMonth / totalThisMonth) * 100) : 100;
 
-  document.getElementById('compliance-pct').textContent = `${pct}%`;
+  const pctEl = document.getElementById('compliance-pct');
+  if (pctEl) pctEl.textContent = `${pct}%`;
 
   destroyChart('chart-compliance-gauge');
-  const ctx = document.getElementById('chart-compliance-gauge').getContext('2d');
+  const canvasEl = document.getElementById('chart-compliance-gauge');
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext('2d');
 
   _charts['chart-compliance-gauge'] = new Chart(ctx, {
     type: 'doughnut',
@@ -522,11 +532,13 @@ function renderDowntime(allOts) {
     }
   });
 
-  const totalDowntimeHours = Math.round(totalDowntimeMin / 60);
-  document.getElementById('total-downtime-hours').textContent = `TOTAL: ${totalDowntimeHours} HRS`;
+  const totalDtEl = document.getElementById('total-downtime-hours');
+  if (totalDtEl) totalDtEl.textContent = `TOTAL: ${totalDowntimeHours} HRS`;
 
   destroyChart('chart-downtime-dept');
-  const ctx = document.getElementById('chart-downtime-dept').getContext('2d');
+  const canvasDt = document.getElementById('chart-downtime-dept');
+  if (!canvasDt) return;
+  const ctx = canvasDt.getContext('2d');
 
   const datasets = Object.values(depts).map(d => ({
     label: d.label,
