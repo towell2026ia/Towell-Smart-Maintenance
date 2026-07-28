@@ -12474,6 +12474,23 @@ function renderSolicitanteProfileHeader() {
 
   const valSub = document.getElementById('solic-validation-subtitle');
   if (valSub) valSub.innerText = `Valida el trabajo realizado en tus solicitudes en estatus PENDIENTE DE VALIDACIÓN.`;
+
+  // Conteos en vivo para los cuadrantes
+  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  const userRequests = requests.filter(r => (r.applicant === currentUser.name || r.applicant === currentUser.email || r.created_by === currentUser.uuid));
+  const activeRequestsCount = userRequests.filter(r => r.status !== 'Atendida' && r.status !== 'Rechazada').length;
+  const trackCountEl = document.getElementById('badge-solic-tracking-count');
+  if (trackCountEl) trackCountEl.innerText = `${activeRequestsCount} Activa${activeRequestsCount === 1 ? '' : 's'}`;
+
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const pendingVal = orders.filter(o => o.status === 'PENDIENTE DE VALIDACIÓN' && (o.applicant === currentUser.name || o.applicant === currentUser.email || o.area === userArea));
+  const valCountEl = document.getElementById('badge-solic-validation-count');
+  const valSidebarBadge = document.getElementById('badge-solic-pending-val');
+  if (valCountEl) valCountEl.innerText = `${pendingVal.length} Pendiente${pendingVal.length === 1 ? '' : 's'}`;
+  if (valSidebarBadge) {
+    valSidebarBadge.innerText = pendingVal.length;
+    valSidebarBadge.style.display = pendingVal.length > 0 ? 'inline-block' : 'none';
+  }
 }
 
 function initSolicitanteNewForm() {

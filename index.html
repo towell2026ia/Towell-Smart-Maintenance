@@ -1846,6 +1846,49 @@
       <!-- Paneles Solicitante -->
       <div class="content-body" style="padding: 24px;">
 
+        <!-- Grid de 4 Cuadrantes (Menú Principal Solicitante) -->
+        <div class="solic-quadrants-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; max-width: 1000px; margin-left: auto; margin-right: auto;">
+          
+          <!-- Cuadrante 1: Nueva Solicitud -->
+          <div class="quadrant-card" onclick="switchSolicitantePanel('new')" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15); border: 1px solid #334155;">
+            <div style="font-size: 2.2rem; margin-bottom: 8px;">📨</div>
+            <h3 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: #f8fafc;">1. Nueva Solicitud</h3>
+            <p style="margin: 0; font-size: 0.8rem; color: #94a3b8; line-height: 1.4;">Registra reportes de fallas, mantenimiento correctivo o infraestructura.</p>
+            <div style="margin-top: 14px; font-size: 0.8rem; font-weight: 700; color: #38bdf8;">Registrar Ticket ➔</div>
+          </div>
+
+          <!-- Cuadrante 2: Seguimiento de Solicitudes -->
+          <div class="quadrant-card" onclick="switchSolicitantePanel('tracking')" style="background: white; border: 1px solid #cbd5e1; padding: 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 2.2rem; margin-bottom: 8px;">📋</div>
+            <h3 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: #0f172a;">2. Seguimiento</h3>
+            <p style="margin: 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">Consulta avance en tiempo real, técnico asignado y estatus de reportes.</p>
+            <div style="margin-top: 14px; display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-size: 0.8rem; font-weight: 700; color: #2563eb;">Ver Estado ➔</span>
+              <span id="badge-solic-tracking-count" style="background: #eff6ff; color: #1d4ed8; padding: 2px 8px; border-radius: 12px; font-size: 0.76rem; font-weight: 700;">0 Activas</span>
+            </div>
+          </div>
+
+          <!-- Cuadrante 3: Calendario por Área -->
+          <div class="quadrant-card" onclick="switchSolicitantePanel('calendar')" style="background: white; border: 1px solid #cbd5e1; padding: 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 2.2rem; margin-bottom: 8px;">📅</div>
+            <h3 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: #0f172a;">3. Calendario por Área</h3>
+            <p style="margin: 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">Revisa preventivos y mantenimientos autónomos agendados en tu área.</p>
+            <div style="margin-top: 14px; font-size: 0.8rem; font-weight: 700; color: #059669;">Ver Calendario ➔</div>
+          </div>
+
+          <!-- Cuadrante 4: Cierre y Calificación -->
+          <div class="quadrant-card" onclick="switchSolicitantePanel('validation')" style="background: white; border: 1px solid #cbd5e1; padding: 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 2.2rem; margin-bottom: 8px;">✅</div>
+            <h3 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: #0f172a;">4. Cierre y Calificación</h3>
+            <p style="margin: 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">Valida trabajos terminados, otorga firma de conformidad y califica el servicio.</p>
+            <div style="margin-top: 14px; display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-size: 0.8rem; font-weight: 700; color: #d97706;">Validar ➔</span>
+              <span id="badge-solic-validation-count" style="background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 12px; font-size: 0.76rem; font-weight: 700;">0 Pendientes</span>
+            </div>
+          </div>
+
+        </div>
+
         <!-- Panel 1: Nueva Solicitud (Datos Automáticos, Tipo, Máquina/Ubicación y Riesgo) -->
         <div id="panel-solic-new" class="solic-panel-content">
           <div style="background: white; padding: 28px; border-radius: 12px; border: 1px solid #cbd5e1; max-width: 800px; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
