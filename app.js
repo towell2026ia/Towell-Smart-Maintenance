@@ -4464,15 +4464,24 @@ function resolveMachineArea(machineId, currentArea) {
   }
   if (!machineId) return 'PF';
   const u = String(machineId).toUpperCase();
-  if (u.includes('TINT') || u.includes('JET') || u.includes('BARC') || u.includes('RAMA') || u.includes('SECA') || u.includes('POZO') || u.includes('OVERF')) {
-    return 'TF';
-  }
-  if (u.includes('COST') || u.includes('CONF') || u.includes('RECT') || u.includes('CORT') || u.includes('SELL') || u.includes('SUBL') || u.includes('PLAN') || u.includes('CORBAT') || u.includes('OVERCO') || u.includes('OVERJ')) {
-    return 'CF';
-  }
-  if (u.includes('AUX') || u.includes('SUB') || u.includes('CHIL') || u.includes('CALD') || u.includes('AGUA') || u.includes('ESTA')) {
+
+  if (u.includes('SUBL')) return 'CF';
+
+  // 1. SERVICIOS AUXILIARES (AF): Subestaciones, Compresores, Chillers
+  if (u.includes('SUBEST') || u.includes('SUBESTACION') || u.includes('COMP') || u.includes('COM') || u.includes('CHIL')) {
     return 'AF';
   }
+
+  // 2. TINTORERÍA (TF): Incluye Tratamiento de Agua (AGUA, POZO), Calderas (CALD), Overflow, Jets, Ramas, Secadoras
+  if (u.includes('TINT') || u.includes('JET') || u.includes('BARC') || u.includes('RAMA') || u.includes('SECA') || u.includes('POZO') || u.includes('OVERF') || u.includes('AGUA') || u.includes('CALD')) {
+    return 'TF';
+  }
+
+  // 3. CONFECCIÓN / COSTURA (CF): Rectilíneas, Planas, Cortadoras, Selladoras, Sublimadoras, Overlock de Costura
+  if (u.includes('COST') || u.includes('CONF') || u.includes('RECT') || u.includes('CORT') || u.includes('SELL') || u.includes('PLAN') || u.includes('CORBAT') || u.includes('OVERCO') || u.includes('OVERJ')) {
+    return 'CF';
+  }
+
   return 'PF';
 }
 
