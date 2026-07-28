@@ -902,8 +902,7 @@ async function syncDatabases() {
 
       const localForms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
       const dbFormList = Object.values(groupedForms);
-      const dbDynamicForms = dbFormList.filter(f => f.id.startsWith('F-'));
-      const dbDynamicFormIds = new Set(dbDynamicForms.map(f => f.id));
+      const dbDynamicFormIds = new Set(dbFormList.map(f => f.id));
 
       for (let lf of localForms) {
         if (!dbDynamicFormIds.has(lf.id)) {
@@ -943,34 +942,32 @@ async function syncDatabases() {
       const finalGrouped = {};
       (finalChecklists || []).forEach(c => {
         const sId = c.codigo_servicio;
-        if (sId.startsWith('F-')) {
-          if (!finalGrouped[sId]) {
-            finalGrouped[sId] = {
-              id: sId,
-              name: serviceMap[sId] || `Checklist ${sId}`,
-              area: serviceAreaMap[sId] || 'Planta',
-              fields: []
-            };
-          }
-          let options = [];
-          if (c.observaciones && c.observaciones.startsWith('[')) {
-            try {
-              options = JSON.parse(c.observaciones);
-            } catch (e) {}
-          }
-          finalGrouped[sId].fields.push({
-            id: c.id_checklist,
-            id_pregunta: c.id_checklist,
-            label: c.pregunta,
-            type: c.tipo_respuesta === 'si_no' ? 'checkbox' : 
-                  (c.tipo_respuesta === 'numerico' ? 'number' : 
-                  (c.tipo_respuesta === 'seleccion' || c.tipo_respuesta === 'select' ? 'select' :
-                  (c.tipo_respuesta === 'fecha' ? 'date' : 
-                  (c.tipo_respuesta === 'hora' ? 'time' : 'text')))),
-            required: c.obligatorio || false,
-            options: options
-          });
+        if (!finalGrouped[sId]) {
+          finalGrouped[sId] = {
+            id: sId,
+            name: serviceMap[sId] || `Checklist ${sId}`,
+            area: serviceAreaMap[sId] || (sId.startsWith('F-') ? 'Planta' : 'General'),
+            fields: []
+          };
         }
+        let options = [];
+        if (c.observaciones && c.observaciones.startsWith('[')) {
+          try {
+            options = JSON.parse(c.observaciones);
+          } catch (e) {}
+        }
+        finalGrouped[sId].fields.push({
+          id: c.id_checklist,
+          id_pregunta: c.id_checklist,
+          label: c.pregunta,
+          type: c.tipo_respuesta === 'si_no' ? 'checkbox' : 
+                (c.tipo_respuesta === 'numerico' ? 'number' : 
+                (c.tipo_respuesta === 'seleccion' || c.tipo_respuesta === 'select' ? 'select' :
+                (c.tipo_respuesta === 'fecha' ? 'date' : 
+                (c.tipo_respuesta === 'hora' ? 'time' : 'text')))),
+          required: c.obligatorio || false,
+          options: options
+        });
       });
 
       const syncedForms = Object.values(finalGrouped);
