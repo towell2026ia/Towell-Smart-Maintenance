@@ -2,6 +2,37 @@
    Towell Smart Maintenance AI (TSM-AI) - Lógica de Aplicación (Vanilla JS)
    ========================================================================== */
 
+// --- FUNCIONES SEGURAS DE MANIPULACIÓN DEL DOM (PREVIENEN EXCEPCIONES SI EL ELEMENTO ES NULL) ---
+function safeSetText(id, text) {
+  const el = typeof id === 'string' ? document.getElementById(id) : id;
+  if (el) el.innerText = (text !== undefined && text !== null) ? text : '';
+}
+
+function safeSetContent(id, text) {
+  const el = typeof id === 'string' ? document.getElementById(id) : id;
+  if (el) el.textContent = (text !== undefined && text !== null) ? text : '';
+}
+
+function safeSetHTML(id, html) {
+  const el = typeof id === 'string' ? document.getElementById(id) : id;
+  if (el) el.innerHTML = (html !== undefined && html !== null) ? html : '';
+}
+
+function safeSetVal(id, val) {
+  const el = typeof id === 'string' ? document.getElementById(id) : id;
+  if (el) el.value = (val !== undefined && val !== null) ? val : '';
+}
+
+function safeSetStyle(id, styleProp, val) {
+  const el = typeof id === 'string' ? document.getElementById(id) : id;
+  if (el && el.style) el.style[styleProp] = val;
+}
+
+function safeSetDisplay(id, displayVal) {
+  const el = typeof id === 'string' ? document.getElementById(id) : id;
+  if (el && el.style) el.style.display = displayVal;
+}
+
 // --- CONFIGURACIÓN DE ENTORNO TSM-AI ---
 const TSM_ENV = {
   isProduction: false // Cambiar a true para producción para deshabilitar simulación y fallbacks locales
@@ -12069,10 +12100,10 @@ function switchCalendarTab(tab) {
 
 // 5. Reprogramación de fecha individual
 function openEditProposalDateModal(detailId, machineId, serviceCode, currentDateStr) {
-  document.getElementById('edit-proposal-detail-id').value = detailId;
-  document.getElementById('edit-proposal-machine').textContent = machineId;
-  document.getElementById('edit-proposal-service').textContent = serviceCode;
-  document.getElementById('edit-proposal-new-date').value = currentDateStr;
+  safeSetVal('edit-proposal-detail-id', detailId);
+  safeSetContent('edit-proposal-machine', machineId);
+  safeSetContent('edit-proposal-service', serviceCode);
+  safeSetVal('edit-proposal-new-date', currentDateStr);
   openModal('modal-edit-proposal-date');
 }
 
@@ -12351,15 +12382,15 @@ async function showPredictiveRecommendation(detailId) {
     if (labelSpecialty) labelSpecialty.textContent = 'Especialidad Requerida';
 
     // Poblar modal
-    document.getElementById('pred-rec-machine').textContent = d.maquina_id;
-    document.getElementById('pred-rec-priority').textContent = d.prioridad || 'MEDIA';
+    safeSetContent('pred-rec-machine', d.maquina_id);
+    safeSetContent('pred-rec-priority', d.prioridad || 'MEDIA');
     
     // Calcular porcentaje de barra de riesgo
     const scoreStr = (obs.riesgo_estimado || '0').split('/')[0];
     const scoreVal = parseFloat(scoreStr) || 0;
     const barPercent = Math.min(100, scoreVal * 10);
     
-    document.getElementById('pred-rec-risk-label').textContent = `${scoreVal}/10`;
+    safeSetContent('pred-rec-risk-label', `${scoreVal}/10`);
     const riskBar = document.getElementById('pred-rec-risk-bar');
     if (riskBar) {
       riskBar.style.width = `${barPercent}%`;
@@ -12369,8 +12400,8 @@ async function showPredictiveRecommendation(detailId) {
       else riskBar.style.background = '#3b82f6'; // Azul
     }
 
-    document.getElementById('pred-rec-type').textContent = obs.tipo_revision || 'Inspección Predictiva General';
-    document.getElementById('pred-rec-specialty').textContent = obs.especialidad || 'Electromecánico';
+    safeSetContent('pred-rec-type', obs.tipo_revision || 'Inspección Predictiva General');
+    safeSetContent('pred-rec-specialty', obs.especialidad || 'Electromecánico');
 
     // Lista de motivos
     const motivosList = document.getElementById('pred-rec-motivos-list');
@@ -12386,8 +12417,8 @@ async function showPredictiveRecommendation(detailId) {
       }
     }
 
-    document.getElementById('pred-rec-evidence').textContent = obs.evidencia || 'Sin evidencias externas registradas.';
-    document.getElementById('pred-rec-date').textContent = fmtDate(d.fecha_programada);
+    safeSetContent('pred-rec-evidence', obs.evidencia || 'Sin evidencias externas registradas.');
+    safeSetContent('pred-rec-date', fmtDate(d.fecha_programada));
 
     // Botón Aprobación
     const approveBtn = document.getElementById('pred-rec-approve-btn');
