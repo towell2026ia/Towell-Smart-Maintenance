@@ -1343,15 +1343,19 @@ function restoreRouteFromHash() {
     }
   }
 
-  // 3. Si NO hay usuario autenticado, dirigir al portal público
+  // 3. Si NO hay usuario autenticado, dirigir a la Pantalla de Login para ingresar credenciales
+  if (viewId === 'solicitante' || viewId === 'admin' || viewId === 'tech' || viewId === 'login') {
+    showView('login');
+    return true;
+  }
+
   if (viewId === 'public' && panelId) {
     showView('public-portal');
     showPublicPanel(panelId);
     return true;
   }
 
-  showView('public-portal');
-  showPublicPanel('home');
+  showView('login');
   return true;
 }
 
@@ -2220,6 +2224,9 @@ async function quickLogin(role, techId) {
   if (role === 'admin') {
     email = 'admin@tsm-ai.com';
     password = 'admin123';
+  } else if (role === 'solicitante') {
+    email = 'sgc@towelmex.com';
+    password = 'solicitante123';
   } else if (role === 'tech') {
     if (techId === 'T-02' || techId === 'T-3366' || (techId && techId.toLowerCase().includes('sofia'))) {
       email = 'sofia@tsm-ai.com';
@@ -2288,6 +2295,48 @@ async function quickLogin(role, techId) {
       showView('admin');
       switchAdminPanel('dashboard');
 
+    } else if (role === 'solicitante') {
+      let dbUser = null;
+      if (useLiveDatabase) {
+        const { data, error } = await supabaseClient
+          .from('cat_usuarios_roles')
+          .select('*')
+          .eq('correo', email)
+          .maybeSingle();
+
+        if (!error && data) {
+          dbUser = data;
+        }
+      }
+
+      if (!dbUser) {
+        const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+        dbUser = users.find(u => u.rol === 'SOLICITANTE');
+      }
+
+      if (dbUser) {
+        const userArea = (dbUser.area || dbUser.departamento_codigo || 'AF').toUpperCase().trim();
+        currentUser = {
+          role: 'solicitante',
+          rol: 'SOLICITANTE',
+          id: dbUser.id_usuario,
+          uuid: dbUser.id_usuario,
+          name: dbUser.nombre_completo,
+          email: dbUser.correo,
+          area: ['PF', 'CF', 'AF', 'TF'].includes(userArea) ? userArea : 'AF',
+          department: dbUser.departamento || 'Servicios Auxiliares',
+          supervisor: dbUser.id_supervisor || null
+        };
+        persistSessionUser(currentUser);
+        showToast(`Sesión iniciada como Solicitante (${currentUser.area}): ${dbUser.nombre_completo}`);
+        
+        if (useLiveDatabase) {
+          await syncDatabases();
+        }
+        showView('solicitante');
+        switchSolicitantePanel('new');
+        return;
+      }
     } else {
       // Técnico
       let dbUser = null;

@@ -24,8 +24,8 @@
       try {
         const u = JSON.parse(localStorage.getItem('TSMAI_current_user') || 'null');
         const h = window.location.hash || '';
-        const isStaff = u && (u.role === 'admin' || u.role === 'tech' || u.rol === 'SUPER_ADMINISTRADOR' || u.rol === 'MANTENIMIENTO');
-        if (isStaff || h.includes('#admin/') || h.includes('#tech/')) {
+        const isStaff = u && (u.role === 'admin' || u.role === 'tech' || u.role === 'solicitante' || u.rol === 'SUPER_ADMINISTRADOR' || u.rol === 'MANTENIMIENTO' || u.rol === 'SOLICITANTE');
+        if (isStaff || h.includes('#admin') || h.includes('#tech') || h.includes('#solicitante')) {
           const st = document.createElement('style');
           st.id = 'preload-hide-public';
           st.textContent = '#view-public-portal { display: none !important; }';
@@ -316,6 +316,7 @@
         <p>Acceso rápido de prueba:</p>
         <div class="demo-buttons-grid">
           <button class="btn-demo-role" onclick="quickLogin('admin')">👑 Super Admin</button>
+          <button class="btn-demo-role" onclick="quickLogin('solicitante')">📨 Solicitante (SGC)</button>
           <button class="btn-demo-role" onclick="quickLogin('tech', 'T-01')">👨‍🔧 Técnico Carlos</button>
           <button class="btn-demo-role" onclick="quickLogin('tech', 'T-02')">👩‍🔧 Técnico Sofía</button>
           <button class="btn-demo-role" onclick="quickLogin('tech', 'T-03')">👨‍🔧 Técnico Alejandro</button>
