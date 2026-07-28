@@ -6276,14 +6276,18 @@ async function saveDynamicForm() {
 }
 
 function renderAdminFormsList() {
-  const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  let forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  // Filtrar formularios demo (F-01, F-02) para conservar solo checklists reales
+  forms = forms.filter(f => f.id !== 'F-01' && f.id !== 'F-02');
+  localStorage.setItem('TSMAI_dynamic_forms', JSON.stringify(forms));
+
   const container = document.getElementById('admin-forms-saved-list');
   if (!container) return;
 
   let html = '';
   forms.forEach(f => {
     const submissions = JSON.parse(localStorage.getItem(`TSMAI_df_responses_${f.id}`) || '[]');
-    const typeBadge = f.type === 'Checklist' ? '📋 Checklist' : (f.type === 'Bitácora' ? '📝 Bitácora' : '🛠️ Formulario Dinámico');
+    const typeBadge = f.type === 'Checklist' ? '📋 Checklist' : (f.type === 'Bitácora' ? '📝 Bitácora' : '🛠️ Checklist');
 
     html += `
       <div style="background-color: white; border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
@@ -6291,7 +6295,7 @@ function renderAdminFormsList() {
           <div>
             <div style="font-weight: 700; font-size: 0.95rem; color: var(--primary-dark);">${f.name}</div>
             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
-              Tipo: <strong>${typeBadge}</strong> | Área: <strong>${f.area || 'General'}</strong> | Campos: <strong>${f.fields ? f.fields.length : 0}</strong>
+              Código: <strong>${f.id}</strong> | Área: <strong>${f.area || 'General'}</strong> | Campos: <strong>${f.fields ? f.fields.length : 0}</strong>
             </div>
           </div>
           <span class="badge badge-priority-baja" style="background: #e0f2fe; color: #0369a1; font-weight: 600;">${submissions.length} Registros</span>
@@ -6300,6 +6304,7 @@ function renderAdminFormsList() {
           <button type="button" class="btn-table-action" onclick="openDynamicFormFillModal('${f.id}')" style="padding: 5px 10px; font-size: 0.75rem; background-color: #0284c7; border-color: #0284c7; color: white;">📋 Llenar / Capturar</button>
           <button type="button" class="btn-table-action" onclick="openDynamicFormFillModal('${f.id}'); switchDynamicFormModalTab('data');" style="padding: 5px 10px; font-size: 0.75rem; background-color: #10b981; border-color: #10b981; color: white;">📊 Ver BD (${submissions.length})</button>
           <button type="button" class="btn-table-action" onclick="editDynamicForm('${f.id}')" style="padding: 5px 10px; font-size: 0.75rem; background-color: #f59e0b; border-color: #f59e0b; color: white;">✏️ Editar</button>
+          <button type="button" class="btn-table-action" onclick="duplicateDynamicForm('${f.id}')" style="padding: 5px 10px; font-size: 0.75rem; background-color: #8b5cf6; border-color: #8b5cf6; color: white;">📄 Duplicar</button>
           <button type="button" class="btn-table-action" onclick="deleteDynamicForm('${f.id}')" style="padding: 5px 10px; font-size: 0.75rem; background-color: #ef4444; border-color: #ef4444; color: white;">❌ Eliminar</button>
         </div>
       </div>
@@ -6310,6 +6315,78 @@ function renderAdminFormsList() {
     html = `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 16px; background: white; border: 1px dashed #cbd5e1; border-radius: 8px;">No hay formularios o checklists guardados. Precarga uno desde Excel arriba.</div>`;
   }
   container.innerHTML = html;
+}
+
+async function duplicateDynamicForm(formId) {
+  const forms = JSON.parse(localStorage.getItem('TSMAI_dynamic_forms') || '[]');
+  const sourceForm = forms.find(f => f.id === formId);
+  if (!sourceForm) {
+    showToast('No se encontró el formulario original.', 'warning');
+    return;
+  }
+
+  const promptCode = prompt(`Ingresa el nuevo Código/ID de Servicio para el checklist duplicado (ej. MPE_MECA_SALON_02):`, `${sourceForm.id}_SALON2`);
+  if (!promptCode || !promptCode.trim()) return;
+
+  const cleanCode = promptCode.trim().toUpperCase().replace(/\s+/g, '_');
+  const promptName = prompt(`Ingresa el Nombre del nuevo Checklist:`, `${sourceForm.name} - Salón 2`);
+  const newName = (promptName && promptName.trim()) ? promptName.trim() : `${sourceForm.name} (Copia)`;
+
+  if (forms.some(f => f.id === cleanCode)) {
+    alert(`El código de servicio "${cleanCode}" ya existe. Elige un código diferente.`);
+    return;
+  }
+
+  const duplicatedForm = {
+    id: cleanCode,
+    name: newName,
+    area: sourceForm.area || 'PF',
+    fields: (sourceForm.fields || []).map((f, idx) => ({
+      ...f,
+      id_pregunta: `PREG_${cleanCode}_${idx + 1}`
+    }))
+  };
+
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      showToast('Duplicando checklist en base de datos...');
+      await supabaseClient.from('cat_servicios_mantenimiento').upsert([{
+        codigo_servicio: cleanCode,
+        nombre_servicio: newName,
+        tipo_servicio: 'Preventivo',
+        activo: true
+      }], { onConflict: 'codigo_servicio' });
+
+      const questions = duplicatedForm.fields.map((f, idx) => ({
+        codigo_servicio: cleanCode,
+        codigo_pregunta: f.id_pregunta || `PREG_${cleanCode}_${idx + 1}`,
+        pregunta: f.label || f.pregunta,
+        tipo_respuesta: f.type === 'checkbox' ? 'si_no' :
+                        (f.type === 'number' ? 'numerico' :
+                        (f.type === 'select' ? 'seleccion' :
+                        (f.type === 'date' ? 'fecha' :
+                        (f.type === 'time' ? 'hora' : 'texto')))),
+        obligatorio: f.required || false,
+        orden: idx + 1,
+        activo: true
+      }));
+
+      const { error: insErr } = await supabaseClient.from('checklists_mantenimiento').insert(questions);
+      if (insErr) throw insErr;
+    } catch (err) {
+      console.error('Error duplicating checklist in Supabase:', err);
+      alert('Error al duplicar en Supabase: ' + err.message);
+      return;
+    }
+  }
+
+  forms.push(duplicatedForm);
+  localStorage.setItem('TSMAI_dynamic_forms', JSON.stringify(forms));
+  renderAdminFormsList();
+  showToast(`Checklist "${cleanCode}" duplicado exitosamente.`);
+  if (useLiveDatabase) {
+    syncDatabases().catch(e => console.warn(e));
+  }
 }
 
 function editDynamicForm(formId) {

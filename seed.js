@@ -171,30 +171,8 @@ const DEFAULT_ORDERS = [
   }
 ];
 
-const DEFAULT_DYNAMIC_FORMS = [
-  {
-    id: 'F-01',
-    name: 'Checklist Preventivo Semanal - Hiladoras',
-    area: 'PF',
-    fields: [
-      { type: 'checkbox', label: '¿Limpieza de boquillas y aspiración realizada?', required: true },
-      { type: 'checkbox', label: '¿Lubricación de guías de rodamiento hecha?', required: true },
-      { type: 'select', label: 'Estado de bandas dentadas', options: ['Excelente', 'Bueno (Desgaste menor)', 'Requiere cambio inmediato'], required: true },
-      { type: 'text', label: 'Medición de temperatura del motor (°C)', placeholder: 'Normal: 50-70°C', required: true }
-    ]
-  },
-  {
-    id: 'F-02',
-    name: 'Inspección de Seguridad - Compresores',
-    area: 'AF',
-    fields: [
-      { type: 'checkbox', label: 'Válvula de seguridad manual purgada', required: true },
-      { type: 'checkbox', label: 'Lectura de manómetro dentro de rango (8-10 bar)', required: true },
-      { type: 'text', label: 'Presión máxima registrada (bar)', placeholder: 'Ej. 9.5', required: true },
-      { type: 'select', label: 'Nivel de aceite en visor', options: ['Adecuado', 'Bajo', 'Crítico / Fuga'], required: true }
-    ]
-  }
-];
+const DEFAULT_DYNAMIC_FORMS = [];
+
 
 // Dashboard static config representing the whiteboard
 const WHITEBOARD_STATIC_DATA = {
