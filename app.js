@@ -11899,23 +11899,27 @@ async function renderAdminCalendars() {
       if (d.estatus_detalle === 'PROPUESTO') {
         let iaBtn = '';
         if (d.tipo_mantenimiento === 'PREDICTIVO' && d.observaciones) {
-          iaBtn = `<button class="btn-table-action" onclick="showPredictiveRecommendation('${d.id_detalle}')" style="background:#0284c7; color:white; border:none; margin-right:4px;">🔬 Ver Recomendación IA</button>`;
+          iaBtn = `<button class="btn-table-action" onclick="showPredictiveRecommendation('${d.id_detalle}')" style="background:#0284c7; color:white; border:none; margin-right:4px;">🔬 Recomendación IA</button>`;
         } else if (d.tipo_mantenimiento === 'AUTONOMO' && d.observaciones) {
-          iaBtn = `<button class="btn-table-action" onclick="showAutonomousSegundasDetails('${d.id_detalle}')" style="background:#0284c7; color:white; border:none; margin-right:4px;">📊 Ver Análisis de Segundas</button>`;
+          iaBtn = `<button class="btn-table-action" onclick="showAutonomousSegundasDetails('${d.id_detalle}')" style="background:#0284c7; color:white; border:none; margin-right:4px;">📊 Análisis Segundas</button>`;
         }
         actions = `
           ${iaBtn}
-          <button class="btn-table-action" onclick="approveProposalDetail('${d.id_detalle}')" style="background:#22c55e; color:white; border:none; margin-right:4px;">Aprobar</button>
+          <button class="btn-table-action" onclick="approveProposalDetail('${d.id_detalle}')" style="background:#22c55e; color:white; border:none; margin-right:4px; font-weight:700;">🛠️ Generar OT</button>
+          <button class="btn-table-action" onclick="openMachine360Report('${d.maquina_id}', '${d.id_orden_generada || ''}')" style="background:#0f172a; color:white; border:none; margin-right:4px;">🔍 Informe 360°</button>
           <button class="btn-table-action" onclick="openEditProposalDateModal('${d.id_detalle}', '${d.maquina_id}', '${d.actividad_sugerida}', '${d.fecha_programada}')" style="margin-right:4px;">Reprogramar</button>
           <button class="btn-table-action" onclick="deleteProposalDetail('${d.id_detalle}')" style="background:#ef4444; color:white; border:none;">Eliminar</button>
         `;
       } else {
-        actions = `<span style="color:#22c55e;font-weight:700;">OT Generada (${d.id_orden_generada ? 'Sincronizada' : 'Pendiente'})</span>`;
+        actions = `
+          <span style="color:#22c55e;font-weight:700;margin-right:6px;">OT Generada</span>
+          <button class="btn-table-action" onclick="openMachine360Report('${d.maquina_id}', '${d.id_orden_generada || ''}')" style="background:#0f172a; color:white; border:none;">🔍 Informe 360°</button>
+        `;
       }
 
       html += `
         <tr>
-          <td><strong>${d.maquina_id}</strong></td>
+          <td><a href="javascript:void(0)" onclick="openMachine360Report('${d.maquina_id}', '${d.id_orden_generada || ''}')" style="color:#0284c7; font-weight:700; text-decoration:underline;">${d.maquina_id}</a></td>
           <td>${d.tipo_mantenimiento}</td>
           <td>${d.actividad_sugerida}</td>
           <td>${fmtDate(d.fecha_programada)}</td>
@@ -11928,22 +11932,23 @@ async function renderAdminCalendars() {
 
     tbody.innerHTML = html;
 
-    // Agregar botón de aprobación masiva en el header si hay propuestas
-    const hasProposals = details.some(d => d.estatus_detalle === 'PROPUESTO');
+    // Mostrar banner informativo sin botón de detonación masiva forzada
     const headerActions = document.querySelector('#calendar-view-table-mode .responsive-table-wrapper');
     if (headerActions) {
-      let bulkBtn = document.getElementById('btn-bulk-approve-calendar');
-      if (hasProposals) {
-        if (!bulkBtn) {
-          const btnDiv = document.createElement('div');
-          btnDiv.style.margin = '12px 0';
-          btnDiv.id = 'btn-bulk-approve-wrapper';
-          btnDiv.innerHTML = `<button class="btn-nav btn-nav-primary" id="btn-bulk-approve-calendar" onclick="approveCalendar()" style="background:#22c55e; color:white;">🎯 Aprobar Todo el Calendario y Generar OTs</button>`;
-          headerActions.parentNode.insertBefore(btnDiv, headerActions);
-        }
-      } else {
-        const wrapper = document.getElementById('btn-bulk-approve-wrapper');
-        if (wrapper) wrapper.remove();
+      let wrapper = document.getElementById('btn-bulk-approve-wrapper');
+      if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'btn-bulk-approve-wrapper';
+        wrapper.style.margin = '12px 0';
+        wrapper.style.padding = '10px 14px';
+        wrapper.style.background = '#e0f2fe';
+        wrapper.style.border = '1px solid #7dd3fc';
+        wrapper.style.borderRadius = '8px';
+        wrapper.style.fontSize = '0.85rem';
+        wrapper.style.color = '#0369a1';
+        wrapper.style.fontWeight = '600';
+        wrapper.innerHTML = `💡 Haz clic en <strong>'🛠️ Generar OT'</strong> en cada máquina para detonar su mantenimiento individualmente, o haz clic en <strong>'🔍 Informe 360°'</strong> para consultar el expediente completo de la máquina.`;
+        headerActions.parentNode.insertBefore(wrapper, headerActions);
       }
     }
   } catch (err) {
@@ -12925,6 +12930,39 @@ function switchAdmin360Tab(tabId) {
   const activePanel = document.getElementById(`tab-content-ot360-${tabId}`);
   if (activeBtn) activeBtn.classList.add('active');
   if (activePanel) activePanel.style.display = 'block';
+}
+
+async function openMachine360Report(machineId, orderId) {
+  if (orderId && orderId !== 'null' && orderId !== 'undefined' && orderId !== '') {
+    return openAdmin360OTAuditModal(orderId);
+  }
+
+  // Buscar última OT o registro de mantenimiento para esta máquina en local o Supabase
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const machineOrder = orders.find(o => (o.machine === machineId || o.maquina_id === machineId));
+  if (machineOrder) {
+    return openAdmin360OTAuditModal(machineOrder.id);
+  }
+
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      const { data } = await supabaseClient
+        .from('ordenes_trabajo')
+        .select('id')
+        .eq('maquina_id', machineId)
+        .order('fecha_carga', { ascending: false })
+        .limit(1);
+
+      if (data && data.length > 0) {
+        return openAdmin360OTAuditModal(data[0].id);
+      }
+    } catch (e) {
+      console.warn('Error al buscar OT para máquina:', e);
+    }
+  }
+
+  // Fallback para abrir informe 360° indicando equipo
+  openAdmin360OTAuditModal(machineId);
 }
 
 async function openAdmin360OTAuditModal(orderId) {
