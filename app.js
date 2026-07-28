@@ -1267,7 +1267,7 @@ function restoreRouteFromHash() {
     }
   }
 
-  const hash = window.location.hash || localStorage.getItem('TSMAI_current_route') || '';
+  const hash = window.location.hash || '';
   const cleanHash = hash.replace('#', '');
   const parts = cleanHash.split('/');
   const viewId = parts[0] || '';
@@ -12443,14 +12443,19 @@ async function showAutonomousSegundasDetails(detailId) {
 let activeSolicitantePanel = 'new';
 
 function switchSolicitantePanel(panelId) {
-  activeSolicitantePanel = panelId || 'new';
+  const validPanels = ['new', 'tracking', 'calendar', 'validation'];
+  let target = String(panelId || '').toLowerCase().trim();
+  if (!validPanels.includes(target)) {
+    target = 'new';
+  }
+  activeSolicitantePanel = target;
 
   // 1. Ocultar todos los paneles de contenido del solicitante
   document.querySelectorAll('.solic-panel-content').forEach(panel => {
     panel.style.display = 'none';
   });
 
-  // 2. Mostrar el panel activo
+  // 2. Mostrar el panel activo (Garantizado existente 'panel-solic-new', etc.)
   const targetPanel = document.getElementById(`panel-solic-${activeSolicitantePanel}`);
   if (targetPanel) {
     targetPanel.style.display = 'block';
