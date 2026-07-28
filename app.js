@@ -4458,6 +4458,24 @@ function populateTechFilters() {
   filterSelect.innerHTML = html;
 }
 
+function resolveMachineArea(machineId, currentArea) {
+  if (currentArea && currentArea !== 'null' && currentArea !== 'undefined' && currentArea !== 'NULL' && currentArea !== '') {
+    return currentArea;
+  }
+  if (!machineId) return 'PF';
+  const u = String(machineId).toUpperCase();
+  if (u.includes('TINT') || u.includes('JET') || u.includes('BARC') || u.includes('RAMA') || u.includes('SECA') || u.includes('POZO') || u.includes('OVERF')) {
+    return 'TF';
+  }
+  if (u.includes('COST') || u.includes('CONF') || u.includes('RECT') || u.includes('CORT') || u.includes('SELL') || u.includes('SUBL') || u.includes('PLAN') || u.includes('CORBAT') || u.includes('OVERCO') || u.includes('OVERJ')) {
+    return 'CF';
+  }
+  if (u.includes('AUX') || u.includes('SUB') || u.includes('CHIL') || u.includes('CALD') || u.includes('AGUA') || u.includes('ESTA')) {
+    return 'AF';
+  }
+  return 'PF';
+}
+
 function renderAdminOrdersTable(filteredOrders) {
   const orders = filteredOrders || JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
@@ -4477,12 +4495,13 @@ function renderAdminOrdersTable(filteredOrders) {
     const techName = tech ? tech.name : 'Sin asignar';
     const formattedDueDate = new Date(o.dueDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     const progress = getOTProgressSync(o.id, o.status);
+    const resolvedArea = resolveMachineArea(o.machine || o.maquina_id, o.area);
 
     html += `
       <tr>
         <td><strong>${o.id}</strong></td>
         <td>${machineName}</td>
-        <td>${o.area}</td>
+        <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">${resolvedArea}</span></td>
         <td>${o.type}</td>
         <td><span class="badge badge-priority-${o.urgency.toLowerCase()}">${o.urgency}</span></td>
         <td>${techName}</td>
@@ -7815,7 +7834,7 @@ function renderTechOrdersTable() {
       <tr>
         <td><strong>${o.id}</strong></td>
         <td>${machineName}</td>
-        <td>${o.area}</td>
+        <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">${resolveMachineArea(o.machine || o.maquina_id, o.area)}</span></td>
         <td>${o.type}</td>
         <td><span class="badge badge-priority-${(o.urgency || 'Normal').toLowerCase()}">${o.urgency || 'Normal'}</span></td>
         <td><span class="badge ${sla.badgeClass}">${sla.label}</span></td>
