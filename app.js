@@ -4465,9 +4465,11 @@ function resolveMachineArea(machineId, currentArea) {
   if (!machineId) return 'PF';
   const u = String(machineId).toUpperCase();
 
+  if (u.includes('DETMET')) return 'CF';
+  if (u.includes('BOMCIST') || (u.includes('SELL') && u.includes('-PT'))) return 'AF';
   if (u.includes('SUBL')) return 'CF';
 
-  // 1. SERVICIOS AUXILIARES (AF): Subestaciones, Compresores, Chillers
+  // 1. SERVICIOS AUXILIARES (AF): Subestaciones, Compresores, Chillers, Bombas, Selladoras PT
   if (u.includes('SUBEST') || u.includes('SUBESTACION') || u.includes('COMP') || u.includes('COM') || u.includes('CHIL')) {
     return 'AF';
   }
@@ -4477,7 +4479,7 @@ function resolveMachineArea(machineId, currentArea) {
     return 'TF';
   }
 
-  // 3. CONFECCIÓN / COSTURA (CF): Rectilíneas, Planas, Cortadoras, Selladoras, Sublimadoras, Overlock de Costura
+  // 3. CONFECCIÓN / COSTURA (CF): Rectilíneas, Planas, Cortadoras, Selladoras Costura, Sublimadoras, Overlock de Costura
   if (u.includes('COST') || u.includes('CONF') || u.includes('RECT') || u.includes('CORT') || u.includes('SELL') || u.includes('PLAN') || u.includes('CORBAT') || u.includes('OVERCO') || u.includes('OVERJ')) {
     return 'CF';
   }
