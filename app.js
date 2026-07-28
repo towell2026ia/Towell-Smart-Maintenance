@@ -1307,6 +1307,14 @@ function restoreRouteFromHash() {
       }
     }
 
+    // Si la URL solicita la vista de solicitante (#solicitante/...)
+    if (viewId === 'solicitante') {
+      const targetPanel = panelId || activeSolicitantePanel || 'new';
+      showView('solicitante');
+      switchSolicitantePanel(targetPanel);
+      return true;
+    }
+
     // Si no hay vista explícita en la URL, usar el rol por defecto del usuario
     if (roleKey === 'admin') {
       const targetPanel = activeAdminPanel || 'dashboard';
@@ -1321,7 +1329,9 @@ function restoreRouteFromHash() {
       if (pName) pName.innerText = currentUser.name || currentUser.nombre_completo || 'Técnico';
       if (pSpec) pSpec.innerText = currentUser.specialty || currentUser.observaciones || currentUser.department || 'General';
       if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
-
+      showView('tech');
+      switchTechPanel(targetPanel);
+      return true;
     } else if (roleKey === 'solicitante') {
       showView('solicitante');
       switchSolicitantePanel(panelId || activeSolicitantePanel || 'new');
@@ -1615,6 +1625,8 @@ function showView(viewId) {
         }
       }).catch(err => console.error('Error in background sync for tech view:', err));
     }
+  } else if (viewId === 'solicitante') {
+    renderSolicitanteView();
   }
 }
 
@@ -12377,6 +12389,65 @@ async function showAutonomousSegundasDetails(detailId) {
   } catch (err) {
     console.error('[showAutonomousSegundasDetails] Error loading details:', err);
   }
+}
+
+let activeSolicitantePanel = 'new';
+
+function switchSolicitantePanel(panelId) {
+  activeSolicitantePanel = panelId || 'new';
+
+  // 1. Ocultar todos los paneles de contenido del solicitante
+  document.querySelectorAll('.solic-panel-content').forEach(panel => {
+    panel.style.display = 'none';
+  });
+
+  // 2. Mostrar el panel activo
+  const targetPanel = document.getElementById(`panel-solic-${activeSolicitantePanel}`);
+  if (targetPanel) {
+    targetPanel.style.display = 'block';
+  }
+
+  // 3. Actualizar menú de la barra lateral
+  document.querySelectorAll('#view-solicitante .sidebar-menu .menu-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  const activeMenuItem = document.getElementById(`menu-solic-${activeSolicitantePanel}`);
+  if (activeMenuItem) {
+    activeMenuItem.classList.add('active');
+  }
+
+  // 4. Actualizar título de la barra superior
+  const titleEl = document.getElementById('solic-panel-title');
+  if (titleEl) {
+    if (activeSolicitantePanel === 'new') titleEl.innerText = '📨 1. Nueva Solicitud de Mantenimiento';
+    else if (activeSolicitantePanel === 'tracking') titleEl.innerText = '📋 2. Seguimiento de Solicitudes';
+    else if (activeSolicitantePanel === 'calendar') titleEl.innerText = '📅 3. Calendario por Área';
+    else if (activeSolicitantePanel === 'validation') titleEl.innerText = '✅ 4. Cierre y Calificación OTs';
+  }
+
+  // 5. Cargar datos del panel seleccionado
+  renderSolicitanteProfileHeader();
+  if (activeSolicitantePanel === 'new') {
+    initSolicitanteNewForm();
+  } else if (activeSolicitantePanel === 'tracking') {
+    renderSolicitanteTracking();
+  } else if (activeSolicitantePanel === 'calendar') {
+    renderSolicitanteCalendar();
+  } else if (activeSolicitantePanel === 'validation') {
+    renderSolicitanteValidations();
+  }
+
+  // 6. Actualizar ruta en la URL
+  const route = `#solicitante/${activeSolicitantePanel}`;
+  if (location.hash !== route) {
+    history.pushState(null, '', route);
+  }
+  localStorage.setItem('TSMAI_current_route', route);
+}
+
+function renderSolicitanteView() {
+  renderSolicitanteProfileHeader();
+  switchSolicitantePanel(activeSolicitantePanel || 'new');
 }
 
 function renderSolicitanteProfileHeader() {
