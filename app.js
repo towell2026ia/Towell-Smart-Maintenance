@@ -1304,12 +1304,34 @@ function restoreRouteFromHash() {
   const viewId = parts[0] || '';
   const panelId = parts[1] || '';
 
-  // 2. Si hay usuario autenticado, enrutar según la vista solicitada en el hash
-  if (currentUser) {
-    const roleKey = normalizeUserRole(currentUser.role || currentUser.rol);
+  // 2. Si hay vista explícita en la URL (#solicitante, #admin, #tech)
+  if (viewId === 'solicitante') {
+    if (currentUser) {
+      const validPanels = ['new', 'tracking', 'calendar', 'validation'];
+      const targetPanel = validPanels.includes(panelId) ? panelId : (activeSolicitantePanel || 'new');
+      showView('solicitante');
+      switchSolicitantePanel(targetPanel);
+      return true;
+    } else {
+      showView('login');
+      return true;
+    }
+  }
 
-    // Si la URL solicita la vista técnica (#tech/...), PERMITIR el acceso tanto a técnicos como a administradores
-    if (viewId === 'tech') {
+  if (viewId === 'admin') {
+    if (currentUser && normalizeUserRole(currentUser.role || currentUser.rol) === 'admin') {
+      const targetPanel = panelId || activeAdminPanel || 'dashboard';
+      showView('admin');
+      switchAdminPanel(targetPanel);
+      return true;
+    } else {
+      showView('login');
+      return true;
+    }
+  }
+
+  if (viewId === 'tech') {
+    if (currentUser) {
       const targetPanel = (panelId === 'orders') ? 'dashboard' : (panelId || activeTechPanel || 'dashboard');
       const pName = document.getElementById('tech-profile-name');
       const pSpec = document.getElementById('tech-profile-specialty');
@@ -1320,66 +1342,19 @@ function restoreRouteFromHash() {
 
       const switchAdminBtn = document.getElementById('menu-tech-switch-admin');
       if (switchAdminBtn) {
-        switchAdminBtn.style.display = (roleKey === 'admin') ? 'block' : 'none';
+        switchAdminBtn.style.display = (normalizeUserRole(currentUser.role || currentUser.rol) === 'admin') ? 'block' : 'none';
       }
 
       showView('tech');
       switchTechPanel(targetPanel);
       return true;
-    }
-
-    // Si la URL solicita la vista de administración (#admin/...)
-    if (viewId === 'admin') {
-      if (roleKey === 'admin') {
-        const targetPanel = panelId || activeAdminPanel || 'dashboard';
-        showView('admin');
-        switchAdminPanel(targetPanel);
-        return true;
-      }
-    }
-
-    // Si la URL solicita la vista de solicitante (#solicitante/...)
-    if (viewId === 'solicitante') {
-      const targetPanel = panelId || activeSolicitantePanel || 'new';
-      showView('solicitante');
-      switchSolicitantePanel(targetPanel);
-      return true;
-    }
-
-    // Si no hay vista explícita en la URL, usar el rol por defecto del usuario
-    if (roleKey === 'admin') {
-      const targetPanel = activeAdminPanel || 'dashboard';
-      showView('admin');
-      switchAdminPanel(targetPanel);
-      return true;
-    } else if (roleKey === 'tech') {
-      const targetPanel = activeTechPanel || 'dashboard';
-      const pName = document.getElementById('tech-profile-name');
-      const pSpec = document.getElementById('tech-profile-specialty');
-      const pAvat = document.getElementById('tech-profile-avatar');
-      if (pName) pName.innerText = currentUser.name || currentUser.nombre_completo || 'Técnico';
-      if (pSpec) pSpec.innerText = currentUser.specialty || currentUser.observaciones || currentUser.department || 'General';
-      if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
-      showView('tech');
-      switchTechPanel(targetPanel);
-      return true;
-    } else if (roleKey === 'solicitante') {
-      showView('solicitante');
-      switchSolicitantePanel(panelId || activeSolicitantePanel || 'new');
-      return true;
-    } else if (roleKey === 'public') {
-      showView('public-portal');
-      showPublicPanel('home');
+    } else {
+      showView('login');
       return true;
     }
   }
 
-  // 3. Si NO hay usuario autenticado, dirigir a la Pantalla de Login para ingresar credenciales
-  if (viewId === 'solicitante' || viewId === 'admin' || viewId === 'tech' || viewId === 'login') {
-    showView('login');
-    return true;
-  }
-
+  // 3. Si la URL es la raíz (""), #login o #public, dirigir siempre a la Pantalla de Login / Inicio
   if (viewId === 'public' && panelId) {
     showView('public-portal');
     showPublicPanel(panelId);
