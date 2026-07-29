@@ -4222,32 +4222,44 @@ function renderAdminRequestsTable() {
   const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
   const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
   const tbody = document.getElementById('table-admin-requests-body');
-  
-  // Mostrar solo las nuevas en esta bandeja
-  const newRequests = requests.filter(r => r.status === 'Solicitud recibida');
+  if (!tbody) return;
+
+  // Mostrar solo las nuevas en esta bandeja (Solicitud recibida)
+  const newRequests = requests.filter(r => r && (r.status === 'Solicitud recibida' || r.status === 'RECIBIDA'));
 
   if (newRequests.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No hay solicitudes nuevas por revisar.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">No hay solicitudes nuevas por revisar.</td></tr>`;
     return;
   }
 
   let html = '';
   newRequests.forEach(r => {
-    const mach = machines.find(m => m.id === r.machine);
-    const machineName = mach ? mach.name : r.machine;
-    const formattedDate = new Date(r.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const mach = machines.find(m => m && (m.id === r.machine || m.equipo_towell === r.machine));
+    const machineName = mach ? (mach.name || mach.id) : (r.machine || r.location || 'Planta General');
+    const urgencyVal = r.urgency || 'Media';
+    const areaVal = r.area || 'Planta';
+    const typeVal = r.type || 'Correctivo';
+    
+    let formattedDate = '-';
+    if (r.date) {
+      try {
+        formattedDate = new Date(r.date).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      } catch (e) {
+        formattedDate = r.date;
+      }
+    }
 
     html += `
       <tr>
         <td><strong>${r.id}</strong></td>
         <td>${formattedDate}</td>
-        <td>${r.area}</td>
+        <td><span class="badge" style="background: #e2e8f0; color: #1e293b;">${areaVal}</span></td>
         <td>${machineName}</td>
-        <td>${r.type}</td>
-        <td><span class="badge badge-priority-${r.urgency.toLowerCase()}">${r.urgency}</span></td>
-        <td><span class="badge badge-status-recibida">Recibida</span></td>
+        <td>${typeVal}</td>
+        <td><span class="badge badge-priority-${urgencyVal.toLowerCase()}">${urgencyVal}</span></td>
+        <td><span class="badge badge-status-recibida">RECIBIDA</span></td>
         <td>
-          <button class="btn-table-action" onclick="openReviewModal('${r.id}')">Revisar</button>
+          <button class="btn-table-action" onclick="openReviewModal('${r.id}')">Revisar / Convertir en OT</button>
         </td>
       </tr>
     `;
@@ -12676,20 +12688,47 @@ async function submitSolicitanteNewRequest() {
     return;
   }
 
-  const newReqId = 'REQ-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4);
-  const reqObj = {
+  // Generar Folio Estándar de Planta (Prefijo del Área + Consecutivo de 5 dígitos, ej: CF00005)
+  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const combinedList = [...requests, ...orders];
+
+  const prefix = userArea || 'CF';
+  let nextConsecutive = 1;
+
+  // Extraer el número más alto existente para este prefijo
+  combinedList.forEach(item => {
+    if (!item || !item.id) return;
+    const cleanId = String(item.id).trim().toUpperCase();
+    if (cleanId.startsWith(prefix)) {
+      const numPart = cleanId.replace(prefix, '');
+      const num = parseInt(numPart, 10);
+      if (!isNaN(num) && num >= nextConsecutive) {
+        nextConsecutive = num + 1;
+      }
+    }
+  });
+
+  let newReqId = `${prefix}${String(nextConsecutive).padStart(5, '0')}`;
+  while (combinedList.some(o => o && o.id === newReqId)) {
+    nextConsecutive++;
+    newReqId = `${prefix}${String(nextConsecutive).padStart(5, '0')}`;
+  }
+
+  const applicantName = currentUser.name || currentUser.nombre_completo || currentUser.email;
+
+  const newRequest = {
     id: newReqId,
-    applicant: currentUser.name || currentUser.nombre_completo || currentUser.email,
+    applicant: applicantName,
     applicant_id: currentUser.id || currentUser.uuid,
     applicant_email: currentUser.email,
-    department: userDept,
     shift: shift,
     area: userArea,
-    machine: machineId === 'NO_APLICA' ? 'NO APLICA MÁQUINA' : machineId,
+    department: userDept,
+    machine: machineId === 'NO_APLICA' ? (locationVal ? `📍 ${locationVal}` : 'NO APLICA MÁQUINA') : machineId,
     location: locationVal || 'Planta General',
     type: requestType || 'Correctivo',
-    description: description,
-    observations: observations || 'Ninguna',
+    description: description + (observations ? ` (Obs: ${observations})` : ''),
     machineStopped: stopped,
     urgency: urgency,
     risk: riskVal,
@@ -12697,34 +12736,14 @@ async function submitSolicitanteNewRequest() {
     date: new Date().toISOString()
   };
 
-  // Guardar en Supabase
-  if (supabaseClient) {
-    try {
-      await supabaseClient.from('solicitudes_mantenimiento').insert([{
-        folio_solicitud: newReqId,
-        solicitante_nombre: reqObj.applicant,
-        solicitante_id: reqObj.applicant_id,
-        turno: shift,
-        area: userArea,
-        maquina_id: reqObj.machine,
-        tipo_servicio: reqObj.type,
-        descripcion_falla: description,
-        maquina_detenida: stopped === 'Sí',
-        urgencia: urgency,
-        estatus: 'Solicitud recibida',
-        fecha_registro: reqObj.date
-      }]);
-    } catch (err) {
-      console.error('Error insertando solicitud en Supabase:', err);
-    }
-  }
+  // Insertar en Supabase (ordenes_trabajo) y sincronizar localmente
+  await dbInsertRequest(newRequest);
 
-  // Guardar localmente
-  const localReqs = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-  localReqs.unshift(reqObj);
-  localStorage.setItem('TSMAI_requests', JSON.stringify(localReqs));
+  // Actualizar indicadores del administrador
+  updateRequestsBadge();
+  if (typeof renderAdminRequestsTable === 'function') renderAdminRequestsTable();
 
-  alert(`✅ Solicitud ${newReqId} generada exitosamente.`);
+  alert(`✅ Solicitud con Folio Oficial ${newReqId} generada exitosamente. Se ha enviado al Administrador.`);
   document.getElementById('form-solic-new-request').reset();
   switchSolicitantePanel('tracking');
 }
