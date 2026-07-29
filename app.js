@@ -1304,34 +1304,12 @@ function restoreRouteFromHash() {
   const viewId = parts[0] || '';
   const panelId = parts[1] || '';
 
-  // 2. Si hay vista explícita en la URL (#solicitante, #admin, #tech)
-  if (viewId === 'solicitante') {
-    if (currentUser) {
-      const validPanels = ['new', 'tracking', 'calendar', 'validation'];
-      const targetPanel = validPanels.includes(panelId) ? panelId : (activeSolicitantePanel || 'new');
-      showView('solicitante');
-      switchSolicitantePanel(targetPanel);
-      return true;
-    } else {
-      showView('login');
-      return true;
-    }
-  }
+  // 2. Si hay usuario autenticado
+  if (currentUser) {
+    const roleKey = normalizeUserRole(currentUser.role || currentUser.rol);
 
-  if (viewId === 'admin') {
-    if (currentUser && normalizeUserRole(currentUser.role || currentUser.rol) === 'admin') {
-      const targetPanel = panelId || activeAdminPanel || 'dashboard';
-      showView('admin');
-      switchAdminPanel(targetPanel);
-      return true;
-    } else {
-      showView('login');
-      return true;
-    }
-  }
-
-  if (viewId === 'tech') {
-    if (currentUser) {
+    // Si la URL solicita una vista específica
+    if (viewId === 'tech') {
       const targetPanel = (panelId === 'orders') ? 'dashboard' : (panelId || activeTechPanel || 'dashboard');
       const pName = document.getElementById('tech-profile-name');
       const pSpec = document.getElementById('tech-profile-specialty');
@@ -1342,26 +1320,78 @@ function restoreRouteFromHash() {
 
       const switchAdminBtn = document.getElementById('menu-tech-switch-admin');
       if (switchAdminBtn) {
-        switchAdminBtn.style.display = (normalizeUserRole(currentUser.role || currentUser.rol) === 'admin') ? 'block' : 'none';
+        switchAdminBtn.style.display = (roleKey === 'admin') ? 'block' : 'none';
       }
 
       showView('tech');
       switchTechPanel(targetPanel);
       return true;
-    } else {
+    }
+
+    if (viewId === 'admin' && roleKey === 'admin') {
+      const targetPanel = panelId || activeAdminPanel || 'dashboard';
+      showView('admin');
+      switchAdminPanel(targetPanel);
+      return true;
+    }
+
+    if (viewId === 'solicitante') {
+      const validPanels = ['new', 'tracking', 'calendar', 'validation'];
+      const targetPanel = validPanels.includes(panelId) ? panelId : (activeSolicitantePanel || 'new');
+      showView('solicitante');
+      switchSolicitantePanel(targetPanel);
+      return true;
+    }
+
+    if (viewId === 'login') {
       showView('login');
+      return true;
+    }
+
+    if (viewId === 'public') {
+      showView('public-portal');
+      showPublicPanel(panelId || 'home');
+      return true;
+    }
+
+    // Sin vista explícita en el hash: usar rol por defecto del usuario
+    if (roleKey === 'admin') {
+      const targetPanel = activeAdminPanel || 'dashboard';
+      showView('admin');
+      switchAdminPanel(targetPanel);
+      return true;
+    } else if (roleKey === 'tech') {
+      const targetPanel = activeTechPanel || 'dashboard';
+      showView('tech');
+      switchTechPanel(targetPanel);
+      return true;
+    } else if (roleKey === 'solicitante') {
+      showView('solicitante');
+      switchSolicitantePanel(panelId || activeSolicitantePanel || 'new');
       return true;
     }
   }
 
-  // 3. Si la URL es la raíz (""), #login o #public, dirigir siempre a la Pantalla de Login / Inicio
+  // 3. Si NO hay usuario autenticado:
+  if (viewId === 'login') {
+    showView('login');
+    return true;
+  }
+
+  if (viewId === 'solicitante' || viewId === 'admin' || viewId === 'tech') {
+    showView('login');
+    return true;
+  }
+
   if (viewId === 'public' && panelId) {
     showView('public-portal');
     showPublicPanel(panelId);
     return true;
   }
 
-  showView('login');
+  // Por defecto para visitantes públicos sin sesión: Portal Público Home
+  showView('public-portal');
+  showPublicPanel('home');
   return true;
 }
 
