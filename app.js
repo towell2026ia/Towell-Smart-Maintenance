@@ -2208,40 +2208,9 @@ function openLogin(mode) {
 function switchLoginTab(tab) {
   const usersForm = document.getElementById('split-form-login');
   const demoBox = document.getElementById('split-demo-box');
-  const btnUsers = document.getElementById('tab-btn-users');
-  const btnDemo = document.getElementById('tab-btn-demo');
 
-  if (!usersForm || !demoBox || !btnUsers || !btnDemo) return;
-
-  if (tab === 'users') {
-    usersForm.style.display = 'block';
-    demoBox.style.display = 'none';
-    
-    // Activo
-    btnUsers.style.background = 'white';
-    btnUsers.style.color = '#0f172a';
-    btnUsers.style.fontWeight = '600';
-    btnUsers.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-    
-    btnDemo.style.background = 'transparent';
-    btnDemo.style.color = '#64748b';
-    btnDemo.style.fontWeight = '500';
-    btnDemo.style.boxShadow = 'none';
-  } else {
-    usersForm.style.display = 'none';
-    demoBox.style.display = 'block';
-
-    // Activo
-    btnDemo.style.background = 'white';
-    btnDemo.style.color = '#0f172a';
-    btnDemo.style.fontWeight = '600';
-    btnDemo.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-    
-    btnUsers.style.background = 'transparent';
-    btnUsers.style.color = '#64748b';
-    btnUsers.style.fontWeight = '500';
-    btnUsers.style.boxShadow = 'none';
-  }
+  if (usersForm) usersForm.style.display = 'block';
+  if (demoBox) demoBox.style.display = 'block';
 }
 
 async function handleSplitLoginSubmit(event) {
