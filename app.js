@@ -1598,6 +1598,8 @@ function showView(viewId) {
     route = `#admin/${activeAdminPanel || 'dashboard'}`;
   } else if (viewId === 'tech') {
     route = `#tech/${activeTechPanel || 'dashboard'}`;
+  } else if (viewId === 'solicitante') {
+    route = `#solicitante/${activeSolicitantePanel || 'new'}`;
   } else if (viewId === 'public-portal') {
     route = `#public/${activePublicPanel || 'home'}`;
   }
