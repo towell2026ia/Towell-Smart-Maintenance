@@ -113,18 +113,13 @@
             </form>
 
             <!-- Formulario de Acceso Rápido (Demo) -->
-            <div id="split-demo-box" style="display: none;">
-              <p style="font-size: 0.85rem; color: #64748b; margin-top: 0; margin-bottom: 16px; font-weight: 500;">Acceso rápido de prueba para roles de usuario:</p>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-                <button class="btn-demo-role" onclick="quickLogin('admin')" style="padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.85rem;">👑 Admin</button>
-                <button class="btn-demo-role" onclick="quickLogin('tech', 'T-01')" style="padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.85rem;">👨‍🔧 Tec Carlos</button>
-                <button class="btn-demo-role" onclick="quickLogin('tech', 'T-02')" style="padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.85rem;">👩‍🔧 Tec Sofía</button>
-                <button class="btn-demo-role" onclick="quickLogin('tech', 'T-03')" style="padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.85rem;">👨‍🔧 Tec Alejandro</button>
-              </div>
-              <div style="background: #f1f5f9; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.8rem; color: #475569; line-height: 1.4; text-align: left;">
-                <strong>Cuentas demo (contraseña: Demo1234!)</strong><br>
-                • Solicitante: <code>solicitante@demo.com</code><br>
-                • Administrador: <code>admin@demo.com</code>
+            <div id="split-demo-box" style="display: block !important; margin-top: 20px; border-top: 1px dashed #cbd5e1; padding-top: 16px;">
+              <p style="font-size: 0.85rem; color: #64748b; margin-top: 0; margin-bottom: 12px; font-weight: 600; text-align: center;">⚡ Acceso Rápido de Prueba (1 Clic):</p>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                <button class="btn-demo-role" onclick="quickLogin('admin')" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 4px;">👑 Super Admin</button>
+                <button class="btn-demo-role" onclick="quickLogin('solicitante')" style="padding: 10px; border: 1px solid #0284c7; border-radius: 8px; background: #f0f9ff; color: #0369a1; font-weight: 700; cursor: pointer; transition: all 0.15s; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 4px;">📨 Solicitante SGC</button>
+                <button class="btn-demo-role" onclick="quickLogin('tech', 'T-01')" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 4px;">👨‍🔧 Tec Carlos</button>
+                <button class="btn-demo-role" onclick="quickLogin('tech', 'T-02')" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 4px;">👩‍🔧 Tec Sofía</button>
               </div>
             </div>
 
