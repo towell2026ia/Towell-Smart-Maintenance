@@ -1397,14 +1397,14 @@ function restoreRouteFromHash() {
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Restaurar usuario guardado localmente e iniciar la UI de inmediato de forma síncrona
-  const savedUserStr = localStorage.getItem('TSMAI_current_user');
-  if (savedUserStr) {
-    try { currentUser = JSON.parse(savedUserStr); } catch (e) {}
-  }
+  // 1. SIEMPRE arrancar en el portal público/login — nunca saltar directo a una vista protegida
+  //    La sesión se verificará en segundo plano con Supabase antes de redirigir.
+  //    Limpiar currentUser en memoria para que restoreRouteFromHash lo trate como visitante.
+  currentUser = null;
 
-  // 2. Restaurar ruta al instante (previene cualquier parpadeo de pantalla inicial)
-  restoreRouteFromHash();
+  // Mostrar portal público inmediatamente — el usuario siempre llega al inicio
+  showView('public-portal');
+  showPublicPanel('home');
 
   // Asegurar que el seed de datos esté cargado
   if (typeof initLocalStorage === 'function') {
@@ -1415,7 +1415,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   populateTectSelects();
   loadPublicEmployeesList();
 
-  // 3. En segundo plano: Validar sesión de Supabase y sincronizar bases de datos silenciosamente
+  // 2. En segundo plano: Validar sesión activa de Supabase.
+  //    Solo si hay sesión válida en el servidor, restauramos la ruta del hash.
   if (supabaseClient) {
     try {
       const { data: { session } } = await supabaseClient.auth.getSession();
@@ -1456,15 +1457,25 @@ document.addEventListener('DOMContentLoaded', async () => {
               avatar: '👨‍🔧', 
               department: dbUser.departamento 
             };
-          } else if (roleKey === 'public') {
-            currentUser = { role: 'public', rol: dbUser.rol, name: dbUser.nombre_completo, email: dbUser.correo, uuid: dbUser.id_usuario };
+          } else if (roleKey === 'solicitante' || roleKey === 'public') {
+            currentUser = { 
+              role: 'solicitante', 
+              rol: dbUser.rol, 
+              name: dbUser.nombre_completo, 
+              email: dbUser.correo, 
+              uuid: dbUser.id_usuario,
+              area: dbUser.area || dbUser.departamento || 'CF'
+            };
           }
           persistSessionUser(currentUser);
+          // Solo ahora que hay sesión validada, restaurar la ruta del hash
           restoreRouteFromHash();
         }
       }
+      // Si NO hay sesión en Supabase: permanece en portal público (ya fue mostrado arriba)
     } catch (e) {
       console.warn('No active Supabase session recovered:', e);
+      // En caso de error, permanece en portal público
     }
   }
   
