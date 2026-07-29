@@ -1103,13 +1103,15 @@ body {
 /* ==========================================================================
    Vista de Login
    ========================================================================== */
+#view-login.view-section.active,
 .login-view {
-  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%) !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
 }
 
 .login-card {

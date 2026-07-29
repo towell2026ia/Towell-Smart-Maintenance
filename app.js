@@ -1336,8 +1336,8 @@ function restoreRouteFromHash() {
     }
 
     if (viewId === 'solicitante') {
-      const validPanels = ['new', 'tracking', 'calendar', 'validation'];
-      const targetPanel = validPanels.includes(panelId) ? panelId : (activeSolicitantePanel || 'new');
+      const validPanels = ['home', 'new', 'tracking', 'calendar', 'validation'];
+      const targetPanel = validPanels.includes(panelId) ? panelId : (activeSolicitantePanel || 'home');
       showView('solicitante');
       switchSolicitantePanel(targetPanel);
       return true;
@@ -1367,7 +1367,7 @@ function restoreRouteFromHash() {
       return true;
     } else if (roleKey === 'solicitante') {
       showView('solicitante');
-      switchSolicitantePanel(panelId || activeSolicitantePanel || 'new');
+      switchSolicitantePanel(panelId || activeSolicitantePanel || 'home');
       return true;
     }
   }
@@ -1741,11 +1741,11 @@ function toggleAccesoInternoMenu() {
 function getMachinesByArea(areaCode) {
   const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
   if (!areaCode || areaCode === '' || areaCode === 'ALL' || areaCode === 'General') {
-    return machines.filter(m => m.activo !== false);
+    return machines.filter(m => m && m.activo !== false);
   }
   const cleanArea = String(areaCode).toUpperCase().trim();
   return machines.filter(m => {
-    if (m.activo === false) return false;
+    if (!m || m.activo === false) return false;
     const mArea = String(m.area || m.departamento_codigo || m.departamento || '').toUpperCase().trim();
     return mArea === cleanArea || mArea.includes(cleanArea) || cleanArea.includes(mArea);
   });
@@ -12526,52 +12526,56 @@ function renderSolicitanteView() {
 
 function renderSolicitanteProfileHeader() {
   if (!currentUser) return;
-  const userArea = (currentUser.area || 'CF').toUpperCase().trim();
-  const userName = currentUser.name || currentUser.nombre_completo || 'Solicitante';
+  try {
+    const userArea = (currentUser.area || 'CF').toUpperCase().trim();
+    const userName = currentUser.name || currentUser.nombre_completo || 'Solicitante';
 
-  // Sidebar
-  const nameEl = document.getElementById('solic-profile-name');
-  const areaEl = document.getElementById('solic-profile-area');
-  const badgeTopEl = document.getElementById('solic-topbar-area-badge');
-  const switchAdminBtn = document.getElementById('menu-solic-switch-admin');
+    // Sidebar
+    const nameEl = document.getElementById('solic-profile-name');
+    const areaEl = document.getElementById('solic-profile-area');
+    const badgeTopEl = document.getElementById('solic-topbar-area-badge');
+    const switchAdminBtn = document.getElementById('menu-solic-switch-admin');
 
-  if (nameEl) nameEl.innerText = userName;
-  if (areaEl) areaEl.innerText = `Área: ${userArea}`;
-  if (badgeTopEl) badgeTopEl.innerText = `Área: ${userArea}`;
+    if (nameEl) nameEl.innerText = userName;
+    if (areaEl) areaEl.innerText = `Área: ${userArea}`;
+    if (badgeTopEl) badgeTopEl.innerText = `Área: ${userArea}`;
 
-  // Cabecera del panel Home
-  const homeNameEl = document.getElementById('solic-home-name');
-  const homeAreaEl = document.getElementById('solic-home-area-code');
-  if (homeNameEl) homeNameEl.innerText = userName.split(' ')[0]; // Solo primer nombre
-  if (homeAreaEl) homeAreaEl.innerText = userArea;
+    // Cabecera del panel Home
+    const homeNameEl = document.getElementById('solic-home-name');
+    const homeAreaEl = document.getElementById('solic-home-area-code');
+    if (homeNameEl) homeNameEl.innerText = userName.split(' ')[0]; // Solo primer nombre
+    if (homeAreaEl) homeAreaEl.innerText = userArea;
 
-  const isSuperAdmin = currentUser.rol === 'SUPER_ADMINISTRADOR' || currentUser.cve_tecnico === '2025';
-  if (switchAdminBtn) switchAdminBtn.style.display = isSuperAdmin ? 'block' : 'none';
+    const isSuperAdmin = currentUser.rol === 'SUPER_ADMINISTRADOR' || currentUser.cve_tecnico === '2025';
+    if (switchAdminBtn) switchAdminBtn.style.display = isSuperAdmin ? 'block' : 'none';
 
-  const trackSub = document.getElementById('solic-tracking-subtitle');
-  if (trackSub) trackSub.innerText = `Consulta exclusivamente las solicitudes generadas por tu usuario (${currentUser.name || currentUser.email}).`;
+    const trackSub = document.getElementById('solic-tracking-subtitle');
+    if (trackSub) trackSub.innerText = `Consulta exclusivamente las solicitudes generadas por tu usuario (${currentUser.name || currentUser.email}).`;
 
-  const calSub = document.getElementById('solic-calendar-subtitle');
-  if (calSub) calSub.innerText = `Programación de intervenciones y mantenimientos aprobados para el Área: ${userArea}`;
+    const calSub = document.getElementById('solic-calendar-subtitle');
+    if (calSub) calSub.innerText = `Programación de intervenciones y mantenimientos aprobados para el Área: ${userArea}`;
 
-  const valSub = document.getElementById('solic-validation-subtitle');
-  if (valSub) valSub.innerText = `Valida el trabajo realizado en tus solicitudes en estatus PENDIENTE DE VALIDACIÓN.`;
+    const valSub = document.getElementById('solic-validation-subtitle');
+    if (valSub) valSub.innerText = `Valida el trabajo realizado en tus solicitudes en estatus PENDIENTE DE VALIDACIÓN.`;
 
-  // Conteos en vivo para los cuadrantes
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-  const userRequests = requests.filter(r => (r.applicant === currentUser.name || r.applicant === currentUser.email || r.created_by === currentUser.uuid));
-  const activeRequestsCount = userRequests.filter(r => r.status !== 'Atendida' && r.status !== 'Rechazada').length;
-  const trackCountEl = document.getElementById('badge-solic-tracking-count');
-  if (trackCountEl) trackCountEl.innerText = `${activeRequestsCount} Activa${activeRequestsCount === 1 ? '' : 's'}`;
+    // Conteos en vivo para los cuadrantes
+    const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+    const userRequests = requests.filter(r => r && (r.applicant === currentUser.name || r.applicant === currentUser.email || r.created_by === currentUser.uuid));
+    const activeRequestsCount = userRequests.filter(r => r && r.status !== 'Atendida' && r.status !== 'Rechazada').length;
+    const trackCountEl = document.getElementById('badge-solic-tracking-count');
+    if (trackCountEl) trackCountEl.innerText = `${activeRequestsCount} Activa${activeRequestsCount === 1 ? '' : 's'}`;
 
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const pendingVal = orders.filter(o => o.status === 'PENDIENTE DE VALIDACIÓN' && (o.applicant === currentUser.name || o.applicant === currentUser.email || o.area === userArea));
-  const valCountEl = document.getElementById('badge-solic-validation-count');
-  const valSidebarBadge = document.getElementById('badge-solic-pending-val');
-  if (valCountEl) valCountEl.innerText = `${pendingVal.length} Pendiente${pendingVal.length === 1 ? '' : 's'}`;
-  if (valSidebarBadge) {
-    valSidebarBadge.innerText = pendingVal.length;
-    valSidebarBadge.style.display = pendingVal.length > 0 ? 'inline-block' : 'none';
+    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const pendingVal = orders.filter(o => o && o.status === 'PENDIENTE DE VALIDACIÓN' && (o.applicant === currentUser.name || o.applicant === currentUser.email || o.area === userArea));
+    const valCountEl = document.getElementById('badge-solic-validation-count');
+    const valSidebarBadge = document.getElementById('badge-solic-pending-val');
+    if (valCountEl) valCountEl.innerText = `${pendingVal.length} Pendiente${pendingVal.length === 1 ? '' : 's'}`;
+    if (valSidebarBadge) {
+      valSidebarBadge.innerText = pendingVal.length;
+      valSidebarBadge.style.display = pendingVal.length > 0 ? 'inline-block' : 'none';
+    }
+  } catch (err) {
+    console.warn('Error en renderSolicitanteProfileHeader:', err);
   }
 }
 
