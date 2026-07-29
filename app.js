@@ -1196,10 +1196,10 @@ function setupRealtimeSubscriptions() {
         .subscribe((status) => {
           console.log('[Realtime] Subscription status:', status);
           updateConnectionIndicator(status === 'SUBSCRIBED');
-          // A1: Reconexión automática si el canal cae
-          if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
-            console.warn('[Realtime] Canal caído. Reconectando en 5s...');
-            setTimeout(() => setupRealtimeSubscriptions(), 5000);
+          // Reconexión con debounce únicamente si ocurre CHANNEL_ERROR
+          if (status === 'CHANNEL_ERROR') {
+            if (window._tsmaiReconnectTimer) clearTimeout(window._tsmaiReconnectTimer);
+            window._tsmaiReconnectTimer = setTimeout(() => setupRealtimeSubscriptions(), 15000);
           }
         });
     } catch (err) {
