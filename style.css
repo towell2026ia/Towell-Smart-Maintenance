@@ -152,6 +152,207 @@ body {
 }
 
 /* ==========================================================================
+   Portal Solicitante — Grid de Cuadrantes 2x2 (Home)
+   ========================================================================== */
+.solic-quadrants-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  max-width: 860px;
+  margin: 0 auto 28px auto;
+}
+
+.solic-quadrant-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 28px 24px;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.4,0,0.2,1),
+              box-shadow 0.2s cubic-bezier(0.4,0,0.2,1),
+              border-color 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.solic-quadrant-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.solic-quadrant-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(37,99,235,0.12);
+  border-color: var(--accent-blue);
+}
+
+.solic-quadrant-card:hover::before {
+  opacity: 1;
+}
+
+.solic-quadrant-card.card-primary {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+  border-color: #334155;
+  color: white;
+}
+
+.solic-quadrant-card.card-primary:hover {
+  box-shadow: 0 12px 28px rgba(15,23,42,0.3);
+  border-color: var(--accent-cyan);
+}
+
+.solic-quadrant-card.card-primary::before {
+  background: linear-gradient(90deg, var(--accent-cyan), #818cf8);
+}
+
+.solic-quadrant-icon {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+
+.solic-quadrant-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+  color: #0f172a;
+}
+
+.solic-quadrant-card.card-primary .solic-quadrant-title {
+  color: #f8fafc;
+}
+
+.solic-quadrant-desc {
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.solic-quadrant-card.card-primary .solic-quadrant-desc {
+  color: #94a3b8;
+}
+
+.solic-quadrant-footer {
+  margin-top: auto;
+  padding-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.solic-quadrant-cta {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent-blue);
+}
+
+.solic-quadrant-card.card-primary .solic-quadrant-cta {
+  color: var(--accent-cyan);
+}
+
+/* Badge de conteo en cuadrantes */
+.solic-quadrant-badge {
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.solic-quadrant-badge.badge-warn {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+/* Botón "← Regresar al Inicio" en paneles */
+.solic-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-blue);
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+  margin-bottom: 18px;
+  transition: background 0.15s ease, color 0.15s ease;
+  text-decoration: none;
+}
+
+.solic-back-btn:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* Cabecera del panel solicitante con bienvenida */
+.solic-home-header {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #0c4a6e 100%);
+  border-radius: 16px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  color: white;
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.solic-home-header h2 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin: 0 0 4px 0;
+  color: #f8fafc;
+}
+
+.solic-home-header p {
+  font-size: 0.88rem;
+  margin: 0;
+  color: #94a3b8;
+}
+
+.solic-home-header-area {
+  background: rgba(6,182,212,0.15);
+  border: 1px solid rgba(6,182,212,0.35);
+  border-radius: 10px;
+  padding: 10px 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.solic-home-header-area .area-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.solic-home-header-area .area-code {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--accent-cyan);
+  line-height: 1;
+}
+
+
+
+/* ==========================================================================
    Sidebars (Administrador y Técnico)
    ========================================================================== */
 .sidebar {

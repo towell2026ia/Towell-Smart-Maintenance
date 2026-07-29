@@ -1800,7 +1800,10 @@
       </div>
 
       <ul class="sidebar-menu">
-        <li class="menu-item active" id="menu-solic-new" onclick="switchSolicitantePanel('new')">
+        <li class="menu-item active" id="menu-solic-home" onclick="switchSolicitantePanel('home')">
+          <a>🏠 Inicio</a>
+        </li>
+        <li class="menu-item" id="menu-solic-new" onclick="switchSolicitantePanel('new')">
           <a>📨 1. Nueva Solicitud</a>
         </li>
         <li class="menu-item" id="menu-solic-tracking" onclick="switchSolicitantePanel('tracking')">
@@ -1822,6 +1825,7 @@
       </div>
     </aside>
 
+
     <!-- Contenedor Principal Solicitante -->
     <div class="main-content">
       <!-- TopBar Solicitante -->
@@ -1842,53 +1846,74 @@
       <!-- Paneles Solicitante -->
       <div class="content-body" style="padding: 24px;">
 
-        <!-- Grid de 4 Cuadrantes (Menú Principal Solicitante) -->
-        <div class="solic-quadrants-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; max-width: 1000px; margin-left: auto; margin-right: auto;">
-          
-          <!-- Cuadrante 1: Nueva Solicitud -->
-          <div class="quadrant-card" onclick="switchSolicitantePanel('new')" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15); border: 1px solid #334155;">
-            <div style="font-size: 2.2rem; margin-bottom: 8px;">📨</div>
-            <h3 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: #f8fafc;">1. Nueva Solicitud</h3>
-            <p style="margin: 0; font-size: 0.8rem; color: #94a3b8; line-height: 1.4;">Registra reportes de fallas, mantenimiento correctivo o infraestructura.</p>
-            <div style="margin-top: 14px; font-size: 0.8rem; font-weight: 700; color: #38bdf8;">Registrar Ticket ➔</div>
-          </div>
+        <!-- ===== PANEL HOME: Grid 2x2 de Cuadrantes ===== -->
+        <div id="panel-solic-home" class="solic-panel-content">
 
-          <!-- Cuadrante 2: Seguimiento de Solicitudes -->
-          <div class="quadrant-card" onclick="switchSolicitantePanel('tracking')" style="background: white; border: 1px solid #cbd5e1; padding: 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 2.2rem; margin-bottom: 8px;">📋</div>
-            <h3 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: #0f172a;">2. Seguimiento</h3>
-            <p style="margin: 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">Consulta avance en tiempo real, técnico asignado y estatus de reportes.</p>
-            <div style="margin-top: 14px; display: flex; align-items: center; justify-content: space-between;">
-              <span style="font-size: 0.8rem; font-weight: 700; color: #2563eb;">Ver Estado ➔</span>
-              <span id="badge-solic-tracking-count" style="background: #eff6ff; color: #1d4ed8; padding: 2px 8px; border-radius: 12px; font-size: 0.76rem; font-weight: 700;">0 Activas</span>
+          <!-- Cabecera de bienvenida -->
+          <div class="solic-home-header">
+            <div>
+              <h2>👋 Bienvenido, <span id="solic-home-name">Solicitante</span></h2>
+              <p>Selecciona una opción para continuar. Tu portal de mantenimiento en un solo lugar.</p>
+            </div>
+            <div class="solic-home-header-area">
+              <span class="area-label">Tu Área</span>
+              <span class="area-code" id="solic-home-area-code">CF</span>
             </div>
           </div>
 
-          <!-- Cuadrante 3: Calendario por Área -->
-          <div class="quadrant-card" onclick="switchSolicitantePanel('calendar')" style="background: white; border: 1px solid #cbd5e1; padding: 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 2.2rem; margin-bottom: 8px;">📅</div>
-            <h3 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: #0f172a;">3. Calendario por Área</h3>
-            <p style="margin: 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">Revisa preventivos y mantenimientos autónomos agendados en tu área.</p>
-            <div style="margin-top: 14px; font-size: 0.8rem; font-weight: 700; color: #059669;">Ver Calendario ➔</div>
-          </div>
+          <!-- Grid 2x2 de Cuadrantes -->
+          <div class="solic-quadrants-grid">
 
-          <!-- Cuadrante 4: Cierre y Calificación -->
-          <div class="quadrant-card" onclick="switchSolicitantePanel('validation')" style="background: white; border: 1px solid #cbd5e1; padding: 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 2.2rem; margin-bottom: 8px;">✅</div>
-            <h3 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: #0f172a;">4. Cierre y Calificación</h3>
-            <p style="margin: 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">Valida trabajos terminados, otorga firma de conformidad y califica el servicio.</p>
-            <div style="margin-top: 14px; display: flex; align-items: center; justify-content: space-between;">
-              <span style="font-size: 0.8rem; font-weight: 700; color: #d97706;">Validar ➔</span>
-              <span id="badge-solic-validation-count" style="background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 12px; font-size: 0.76rem; font-weight: 700;">0 Pendientes</span>
+            <!-- Cuadrante 1: Nueva Solicitud (tarjeta primaria/oscura) -->
+            <div class="solic-quadrant-card card-primary" onclick="switchSolicitantePanel('new')">
+              <div class="solic-quadrant-icon">📨</div>
+              <h3 class="solic-quadrant-title">1. Nueva Solicitud</h3>
+              <p class="solic-quadrant-desc">Registra reportes de fallas, mantenimiento correctivo o infraestructura de tu área.</p>
+              <div class="solic-quadrant-footer">
+                <span class="solic-quadrant-cta">Registrar Ticket ➔</span>
+              </div>
             </div>
-          </div>
 
+            <!-- Cuadrante 2: Seguimiento -->
+            <div class="solic-quadrant-card" onclick="switchSolicitantePanel('tracking')">
+              <div class="solic-quadrant-icon">📋</div>
+              <h3 class="solic-quadrant-title">2. Seguimiento</h3>
+              <p class="solic-quadrant-desc">Consulta avance en tiempo real, técnico asignado y estatus de tus reportes activos.</p>
+              <div class="solic-quadrant-footer">
+                <span class="solic-quadrant-cta">Ver Estado ➔</span>
+                <span id="badge-solic-tracking-count" class="solic-quadrant-badge">0 Activas</span>
+              </div>
+            </div>
+
+            <!-- Cuadrante 3: Calendario -->
+            <div class="solic-quadrant-card" onclick="switchSolicitantePanel('calendar')">
+              <div class="solic-quadrant-icon">📅</div>
+              <h3 class="solic-quadrant-title">3. Calendario por Área</h3>
+              <p class="solic-quadrant-desc">Revisa preventivos y mantenimientos autónomos agendados para tu área de trabajo.</p>
+              <div class="solic-quadrant-footer">
+                <span class="solic-quadrant-cta">Ver Calendario ➔</span>
+              </div>
+            </div>
+
+            <!-- Cuadrante 4: Cierre y Calificación -->
+            <div class="solic-quadrant-card" onclick="switchSolicitantePanel('validation')">
+              <div class="solic-quadrant-icon">✅</div>
+              <h3 class="solic-quadrant-title">4. Cierre y Calificación</h3>
+              <p class="solic-quadrant-desc">Valida trabajos terminados, firma de conformidad y califica el servicio recibido.</p>
+              <div class="solic-quadrant-footer">
+                <span class="solic-quadrant-cta">Validar ➔</span>
+                <span id="badge-solic-validation-count" class="solic-quadrant-badge badge-warn">0 Pendientes</span>
+              </div>
+            </div>
+
+          </div>
         </div>
 
-        <!-- Panel 1: Nueva Solicitud (Datos Automáticos, Tipo, Máquina/Ubicación y Riesgo) -->
-        <div id="panel-solic-new" class="solic-panel-content">
+        <!-- ===== PANEL 1: Nueva Solicitud ===== -->
+        <div id="panel-solic-new" class="solic-panel-content" style="display:none;">
+          <button class="solic-back-btn" onclick="switchSolicitantePanel('home')">← Regresar al Inicio</button>
           <div style="background: white; padding: 28px; border-radius: 12px; border: 1px solid #cbd5e1; max-width: 800px; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-            
+
             <!-- Datos Obtenidos Automáticamente (Lectura únicamente) -->
             <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 20px;">
               <h4 style="margin: 0 0 10px 0; font-size: 0.95rem; font-weight: 700; color: #334155;">📌 Datos del Perfil (Cargados Automáticamente)</h4>
@@ -1899,6 +1924,7 @@
                 <div><span style="color: #64748b; display: block;">Fecha:</span><strong id="solic-auto-date">24/07/2026</strong></div>
                 <div><span style="color: #64748b; display: block;">Hora:</span><strong id="solic-auto-time">09:35</strong></div>
               </div>
+
             </div>
 
             <div style="margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
@@ -1995,7 +2021,9 @@
         </div>
 
         <!-- Panel 2: Seguimiento de Solicitudes (Aislamiento Estricto por Usuario) -->
+        <!-- ===== PANEL 2: Seguimiento ===== -->
         <div id="panel-solic-tracking" class="solic-panel-content" style="display: none;">
+          <button class="solic-back-btn" onclick="switchSolicitantePanel('home')">← Regresar al Inicio</button>
           <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
             <div>
               <h3 style="margin: 0; font-weight: 700;">📋 Mis Solicitudes Generadas</h3>
@@ -2028,7 +2056,9 @@
         </div>
 
         <!-- Panel 3: Calendario por Área (Vistas y Filtros Sin Prompts Internos IA) -->
+        <!-- ===== PANEL 3: Calendario ===== -->
         <div id="panel-solic-calendar" class="solic-panel-content" style="display: none;">
+          <button class="solic-back-btn" onclick="switchSolicitantePanel('home')">← Regresar al Inicio</button>
           <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
             <div>
               <h3 style="margin: 0; font-weight: 700;">📅 Calendario de Mantenimientos por Área</h3>
@@ -2062,7 +2092,9 @@
         </div>
 
         <!-- Panel 4: Cierre, Validación y Calificación de Órdenes de Trabajo -->
+        <!-- ===== PANEL 4: Cierre y Validación ===== -->
         <div id="panel-solic-validation" class="solic-panel-content" style="display: none;">
+          <button class="solic-back-btn" onclick="switchSolicitantePanel('home')">← Regresar al Inicio</button>
           <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
             <div>
               <h3 style="margin: 0; font-weight: 700;">✅ Cierre y Validación de Mis Órdenes</h3>

@@ -12461,10 +12461,10 @@ async function showAutonomousSegundasDetails(detailId) {
 let activeSolicitantePanel = 'new';
 
 function switchSolicitantePanel(panelId) {
-  const validPanels = ['new', 'tracking', 'calendar', 'validation'];
+  const validPanels = ['home', 'new', 'tracking', 'calendar', 'validation'];
   let target = String(panelId || '').toLowerCase().trim();
   if (!validPanels.includes(target)) {
-    target = 'new';
+    target = 'home';
   }
   activeSolicitantePanel = target;
 
@@ -12473,7 +12473,7 @@ function switchSolicitantePanel(panelId) {
     panel.style.display = 'none';
   });
 
-  // 2. Mostrar el panel activo (Garantizado existente 'panel-solic-new', etc.)
+  // 2. Mostrar el panel activo
   const targetPanel = document.getElementById(`panel-solic-${activeSolicitantePanel}`);
   if (targetPanel) {
     targetPanel.style.display = 'block';
@@ -12491,9 +12491,10 @@ function switchSolicitantePanel(panelId) {
   // 4. Actualizar título de la barra superior
   const titleEl = document.getElementById('solic-panel-title');
   if (titleEl) {
-    if (activeSolicitantePanel === 'new') titleEl.innerText = '📨 1. Nueva Solicitud de Mantenimiento';
-    else if (activeSolicitantePanel === 'tracking') titleEl.innerText = '📋 2. Seguimiento de Solicitudes';
-    else if (activeSolicitantePanel === 'calendar') titleEl.innerText = '📅 3. Calendario por Área';
+    if (activeSolicitantePanel === 'home')       titleEl.innerText = '🏠 Portal del Solicitante';
+    else if (activeSolicitantePanel === 'new')        titleEl.innerText = '📨 1. Nueva Solicitud de Mantenimiento';
+    else if (activeSolicitantePanel === 'tracking')   titleEl.innerText = '📋 2. Seguimiento de Solicitudes';
+    else if (activeSolicitantePanel === 'calendar')   titleEl.innerText = '📅 3. Calendario por Área';
     else if (activeSolicitantePanel === 'validation') titleEl.innerText = '✅ 4. Cierre y Calificación OTs';
   }
 
@@ -12519,21 +12520,30 @@ function switchSolicitantePanel(panelId) {
 
 function renderSolicitanteView() {
   renderSolicitanteProfileHeader();
-  switchSolicitantePanel(activeSolicitantePanel || 'new');
+  // Siempre arrancar en Home (cuadrantes) al ingresar a la vista
+  switchSolicitantePanel('home');
 }
 
 function renderSolicitanteProfileHeader() {
   if (!currentUser) return;
   const userArea = (currentUser.area || 'CF').toUpperCase().trim();
+  const userName = currentUser.name || currentUser.nombre_completo || 'Solicitante';
 
+  // Sidebar
   const nameEl = document.getElementById('solic-profile-name');
   const areaEl = document.getElementById('solic-profile-area');
   const badgeTopEl = document.getElementById('solic-topbar-area-badge');
   const switchAdminBtn = document.getElementById('menu-solic-switch-admin');
 
-  if (nameEl) nameEl.innerText = currentUser.name || currentUser.nombre_completo || 'Solicitante';
+  if (nameEl) nameEl.innerText = userName;
   if (areaEl) areaEl.innerText = `Área: ${userArea}`;
   if (badgeTopEl) badgeTopEl.innerText = `Área: ${userArea}`;
+
+  // Cabecera del panel Home
+  const homeNameEl = document.getElementById('solic-home-name');
+  const homeAreaEl = document.getElementById('solic-home-area-code');
+  if (homeNameEl) homeNameEl.innerText = userName.split(' ')[0]; // Solo primer nombre
+  if (homeAreaEl) homeAreaEl.innerText = userArea;
 
   const isSuperAdmin = currentUser.rol === 'SUPER_ADMINISTRADOR' || currentUser.cve_tecnico === '2025';
   if (switchAdminBtn) switchAdminBtn.style.display = isSuperAdmin ? 'block' : 'none';
