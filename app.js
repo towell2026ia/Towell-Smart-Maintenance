@@ -833,7 +833,14 @@ async function syncDatabases() {
     let dbDirectRequests = [];
     try {
       const { data: reqData } = await supabaseClient.from('solicitudes_mantenimiento').select('*');
-      if (reqData) dbDirectRequests = reqData;
+      if (reqData) {
+        dbDirectRequests = reqData.filter(r => {
+          const ts = (r.tipo_servicio || '').toUpperCase();
+          const desc = (r.descripcion_falla || '').toUpperCase();
+          const sol = (r.solicitante_nombre || '').toUpperCase();
+          return ts !== 'PREVENTIVO' && ts !== 'MP' && !desc.includes('PREVENTIVO') && !sol.includes('GENERADOR DE CALENDARIOS');
+        });
+      }
     } catch (e) {
       console.warn('[Sync] Non-critical solicitudes_mantenimiento fetch warning:', e);
     }
