@@ -170,36 +170,51 @@ function formatStatus(status) {
 
 function getAreaCodeForOrder(item) {
   if (!item) return 'AF';
-  const rawArea = String(item.area || item.departamento || '').toUpperCase().trim();
-  if (['CF', 'PF', 'AF', 'TF'].includes(rawArea)) return rawArea;
-  if (rawArea.includes('CONFEC') || rawArea.includes('COSTUR')) return 'CF';
-  if (rawArea.includes('TEJID') || rawArea.includes('URDI') || rawArea.includes('PREPA')) return 'PF';
-  if (rawArea.includes('TINT') || rawArea.includes('ACAB')) return 'TF';
-  if (rawArea.includes('AUXILIAR') || rawArea.includes('INFRA') || rawArea.includes('EDIFIC') || rawArea.includes('PLANTA')) return 'AF';
 
   const mac = String(item.machine || item.maquina_id || '').toUpperCase().trim();
-  if (mac.includes('TEJI') || mac.includes('URDI') || mac.includes('MACC') || mac.includes('ENG')) return 'PF';
-  if (mac.includes('CORT') || mac.includes('COS') || mac.includes('DOBL') || mac.includes('CONFE')) return 'CF';
-  if (mac.includes('TINT') || mac.includes('JET') || mac.includes('SECA') || mac.includes('OVER') || mac.includes('CAMP') || mac.includes('CALD') || mac.includes('ABRI') || mac.includes('RAMA')) return 'TF';
-  if (mac.includes('ELEV') || mac.includes('GENK') || mac.includes('RASU') || mac.includes('COMP') || mac.includes('SUBE') || mac.includes('CHIL')) return 'AF';
+  const desc = String(item.description || item.descripcion || item.descripcion_falla || '').toUpperCase().trim();
+  const loc = String(item.location || '').toUpperCase().trim();
 
-  return 'CF';
+  // REGLA FUNDAMENTAL: Todo lo que no sea una máquina de producción (baños, lavabos, infraestructura, no aplica máquina) SERÁ AF
+  if (
+    !mac || 
+    mac === 'NO APLICA MÁQUINA' || 
+    mac === 'NO_APLICA' || 
+    mac === 'NULL' || 
+    mac === 'UNDEFINED' || 
+    mac.startsWith('📍') ||
+    mac.includes('BAÑO') || 
+    mac.includes('LAVABO') ||
+    desc.includes('BAÑO') ||
+    desc.includes('LAVABO') ||
+    loc.includes('BAÑO')
+  ) {
+    return 'AF';
+  }
+
+  // Si es una máquina real, clasificar por la familia/código del equipo
+  if (mac.includes('TEJI') || mac.includes('URDI') || mac.includes('MACC') || mac.includes('ENG')) return 'PF';
+  if (mac.includes('CORT') || mac.includes('COS') || mac.includes('DOBL') || mac.includes('CONFE') || mac.includes('DETMET') || mac.includes('SUBL')) return 'CF';
+  if (mac.includes('TINT') || mac.includes('JET') || mac.includes('SECA') || mac.includes('OVER') || mac.includes('CAMP') || mac.includes('CALD') || mac.includes('ABRI') || mac.includes('RAMA') || mac.includes('BARC') || mac.includes('POZO') || mac.includes('AGUA')) return 'TF';
+  if (mac.includes('ELEV') || mac.includes('GENK') || mac.includes('RASU') || mac.includes('COMP') || mac.includes('SUBE') || mac.includes('CHIL') || mac.includes('SUBEST') || mac.includes('BOM') || mac.includes('SELL')) return 'AF';
+
+  const rawArea = String(item.area || item.departamento || '').toUpperCase().trim();
+  if (['CF', 'PF', 'TF'].includes(rawArea)) return rawArea;
+
+  return 'AF';
 }
 
 function formatStandardFolio(item) {
   if (!item || (!item.id && !item.folio)) return 'AF00001';
+  
+  const areaCode = getAreaCodeForOrder(item);
   const cleanId = String(item.id || item.folio || '').trim().toUpperCase();
-  if (/^(CF|PF|TF|AF)\d+$/.test(cleanId)) {
-    const prefix = cleanId.slice(0, 2);
-    const num = parseInt(cleanId.slice(2), 10);
-    return `${prefix}${String(num).padStart(5, '0')}`;
-  }
+  
   let numStr = cleanId.replace(/[^0-9]/g, '');
   let num = parseInt(numStr, 10);
   if (isNaN(num) || num <= 0) num = 1;
   if (num > 99999) num = num % 100000;
   
-  const areaCode = getAreaCodeForOrder(item);
   return `${areaCode}${String(num).padStart(5, '0')}`;
 }
 
@@ -4732,11 +4747,13 @@ function populateTechFilters() {
 }
 
 function resolveMachineArea(machineId, currentArea) {
-  if (currentArea && currentArea !== 'null' && currentArea !== 'undefined' && currentArea !== 'NULL' && currentArea !== '') {
-    return currentArea;
+  const u = String(machineId || '').toUpperCase().trim();
+  if (!u || u === 'NO APLICA MÁQUINA' || u === 'NO_APLICA' || u === 'NULL' || u === 'UNDEFINED' || u.startsWith('📍') || u.includes('BAÑO') || u.includes('LAVABO')) {
+    return 'AF';
   }
-  if (!machineId) return 'PF';
-  const u = String(machineId).toUpperCase();
+  if (currentArea && ['CF', 'PF', 'AF', 'TF'].includes(String(currentArea).toUpperCase().trim())) {
+    return String(currentArea).toUpperCase().trim();
+  }
 
   if (u.includes('DETMET')) return 'CF';
   if (u.includes('BOMCIST') || (u.includes('SELL') && u.includes('-PT'))) return 'AF';
