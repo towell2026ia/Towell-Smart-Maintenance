@@ -915,26 +915,7 @@ async function syncDatabases() {
           localRequests.push(item);
           existingFolios.add(stdFolio);
 
-          // Insertar en ordenes_trabajo en Supabase para permanencia total en todos los dispositivos
-          try {
-            await supabaseClient.from('ordenes_trabajo').insert([{
-              folio: stdFolio,
-              orden_trabajo: item.type,
-              origen: 'App',
-              estatus: 'RECIBIDA',
-              fecha_inicio: item.date.split('T')[0],
-              fecha_hora_inicio: item.date,
-              departamento: item.area,
-              maquina_id: item.machine,
-              descripcion: item.description,
-              nombre_solicitante: item.applicant,
-              cve_solicitante: item.applicant_id || null,
-              prioridad: item.urgency,
-              fecha_carga: new Date().toISOString()
-            }]);
-          } catch (e) {
-            console.warn('[Sync] Non-critical migration insert warning:', e);
-          }
+          // Solicitud en caché local sincronizada
         }
       }
     }
