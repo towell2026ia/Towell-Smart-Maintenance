@@ -744,6 +744,7 @@
             <div class="table-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
               <span class="table-title">Solicitudes Nuevas Recibidas</span>
               <div style="display: flex; gap: 8px;">
+                <button class="btn-nav btn-nav-outline" onclick="openRecurringRulesListModal()" style="width: auto; padding: 8px 14px;">📋 Reglas Recurrentes</button>
                 <button class="btn-nav btn-nav-secondary" onclick="openRecurringRequestModal()" style="width: auto; padding: 8px 16px; background: #4f46e5; color: white;">🔄 Programar Solicitud Recurrente / Futura</button>
                 <button class="btn-nav btn-nav-primary" onclick="openAdminCreateRequestModal()" style="width: auto; padding: 8px 16px;">➕ Registrar Solicitud</button>
               </div>
@@ -4662,6 +4663,73 @@
             <button type="submit" class="btn-action-primary">💾 Guardar Programación</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Detalle de Evento de Calendario (Admin) -->
+  <div id="modal-calendar-event-detail" class="modal-backdrop" style="display: none;">
+    <div class="modal-card" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="cal-detail-title">📋 Detalle de Intervención del Calendario</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-calendar-event-detail')">×</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <input type="hidden" id="cal-detail-ref-id">
+        <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+          <div style="font-weight: 700; font-size: 1rem; color: var(--primary-color);" id="cal-detail-activity">Servicio Preventivo</div>
+          <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;" id="cal-detail-machine">Máquina: TOW-TEL201-TEJI (PF)</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem; margin-bottom: 12px;">
+          <div><strong>Tipo Mantenimiento:</strong> <span id="cal-detail-type">Preventivo</span></div>
+          <div><strong>Fecha Programada:</strong> <span id="cal-detail-date">2026-08-15</span></div>
+          <div><strong>Prioridad:</strong> <span id="cal-detail-priority">Alta</span></div>
+          <div><strong>Técnico Sugerido:</strong> <span id="cal-detail-tech">Carlos Ruiz</span></div>
+        </div>
+
+        <div style="border-top: 1px dashed #cbd5e1; padding-top: 10px; margin-bottom: 12px;">
+          <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-color); margin-bottom: 6px;">🧠 Justificación e Indicadores de IA / Planta:</div>
+          <div id="cal-detail-reasons" style="font-size: 0.8rem; background: #eef2ff; padding: 10px; border-radius: 6px; color: #312e81; white-space: pre-line;">
+            - Criticidad del equipo<br>- Historial de paros y refacciones consumidas.<br>- Anticipación de despacho: 7 días antes a Solicitudes Nuevas.
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+          <button type="button" class="btn-action-secondary" onclick="closeModal('modal-calendar-event-detail')">Cerrar</button>
+          <button type="button" class="btn-action-primary" id="btn-cal-dispatch-now" onclick="dispatchCalendarEventNow()">⚡ Despachar Ahora a Solicitudes Nuevas</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Lista de Reglas Recurrentes (Admin) -->
+  <div id="modal-admin-recurring-list" class="modal-backdrop" style="display: none;">
+    <div class="modal-card" style="max-width: 750px;">
+      <div class="modal-header">
+        <h3 class="modal-title">📋 Reglas de Solicitudes Recurrentes y Programadas</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-admin-recurring-list')">×</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div class="responsive-table-wrapper" style="max-height: 350px; overflow-y: auto;">
+          <table class="custom-table" style="font-size: 0.82rem;">
+            <thead>
+              <tr>
+                <th>Tipo / Frecuencia</th>
+                <th>Área / Máquina</th>
+                <th>Descripción / Tarea</th>
+                <th>Estatus</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-recurring-rules">
+              <!-- Inyectado por JS -->
+            </tbody>
+          </table>
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+          <button type="button" class="btn-action-secondary" onclick="closeModal('modal-admin-recurring-list')">Cerrar</button>
+        </div>
       </div>
     </div>
   </div>

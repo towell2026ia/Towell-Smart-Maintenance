@@ -13839,5 +13839,173 @@ async function checkAndDispatchRecurringRules() {
   localStorage.setItem('TSMAI_recurring_rules', JSON.stringify(rules));
 }
 
+// --- VER DETALLE DE EVENTO EN CALENDARIO ---
+async function viewCalendarDetail(idRef, viewName) {
+  if (!idRef) return;
+  safeSetVal('cal-detail-ref-id', idRef);
+
+  let detail = null;
+
+  if (useLiveDatabase && supabaseClient) {
+    try {
+      const { data } = await supabaseClient
+        .from('calendario_mantenimiento_detalle')
+        .select('*')
+        .eq('id_detalle', idRef)
+        .maybeSingle();
+      if (data) detail = data;
+    } catch (e) {}
+  }
+
+  if (!detail) {
+    const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const found = [...requests, ...orders].find(o => o.id === idRef || o.uuid === idRef);
+    if (found) {
+      detail = {
+        actividad_sugerida: found.description || found.title || 'Intervención Programada',
+        maquina_id: found.machine || found.maquina_id || 'Planta General',
+        tipo_mantenimiento: found.type || 'PREVENTIVO',
+        fecha_programada: found.date ? String(found.date).split('T')[0] : 'Por definir',
+        prioridad: found.urgency || found.priority || 'MEDIA',
+        responsable_sugerido: found.assignedTech || 'Supervisor',
+        observaciones: null
+      };
+    }
+  }
+
+  if (!detail) return;
+
+  const areaCode = getAreaCodeForOrder({ machine: detail.maquina_id });
+  safeSetContent('cal-detail-title', `📋 Detalle de Intervención: ${detail.tipo_mantenimiento || 'Mantenimiento'}`);
+  safeSetContent('cal-detail-activity', detail.actividad_sugerida || 'Servicio Programado');
+  safeSetContent('cal-detail-machine', `Máquina: ${detail.maquina_id} (${areaCode})`);
+  safeSetContent('cal-detail-type', detail.tipo_mantenimiento || 'Preventivo');
+  safeSetContent('cal-detail-date', detail.fecha_programada || 'Fecha actual');
+  safeSetContent('cal-detail-priority', detail.prioridad || 'MEDIA');
+  safeSetContent('cal-detail-tech', detail.responsable_sugerido || 'Por asignar');
+
+  let reasonsText = `• Área responsable: ${areaCode}\n• Regla de Despacho: Ventana de anticipación antes de publicarse en Solicitudes Nuevas.\n• Criticidad asignada en catálogo de planta.`;
+
+  if (detail.observaciones) {
+    try {
+      const obs = JSON.parse(detail.observaciones);
+      if (obs.motivos && Array.isArray(obs.motivos)) {
+        reasonsText = obs.motivos.map(m => `• ${m}`).join('\n');
+      }
+    } catch (e) {}
+  }
+
+  safeSetContent('cal-detail-reasons', reasonsText);
+  openModal('modal-calendar-event-detail');
+}
+
+async function dispatchCalendarEventNow() {
+  const idRef = document.getElementById('cal-detail-ref-id').value;
+  if (!idRef) return;
+
+  closeModal('modal-calendar-event-detail');
+  showToast('⚡ Despachando tarea a Solicitudes Nuevas Recibidas...');
+
+  if (supabaseClient) {
+    try {
+      const { data: item } = await supabaseClient
+        .from('calendario_mantenimiento_detalle')
+        .select('*')
+        .eq('id_detalle', idRef)
+        .maybeSingle();
+
+      if (item) {
+        const areaCode = getAreaCodeForOrder({ machine: item.maquina_id, area: item.area });
+        const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+        const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+        let nextNum = 1;
+        [...requests, ...orders].forEach(o => {
+          if (!o || !o.id) return;
+          const clean = String(o.id).toUpperCase();
+          if (clean.startsWith(areaCode)) {
+            const num = parseInt(clean.replace(areaCode, ''), 10);
+            if (!isNaN(num) && num >= nextNum) nextNum = num + 1;
+          }
+        });
+        const newFolio = `${areaCode}${String(nextNum).padStart(5, '0')}`;
+
+        await supabaseClient.from('ordenes_trabajo').insert([{
+          folio: newFolio,
+          orden_trabajo: item.tipo_mantenimiento === 'PREVENTIVO' ? 'MP' : 'MC',
+          origen: 'Calendario Preventivo',
+          estatus: 'RECIBIDA',
+          fecha_inicio: item.fecha_programada || new Date().toISOString().split('T')[0],
+          fecha_hora_inicio: new Date().toISOString(),
+          departamento: areaCode,
+          maquina_id: item.maquina_id,
+          descripcion: `[${item.tipo_mantenimiento || 'PREVENTIVO'}] ${item.actividad_sugerida}`,
+          nombre_solicitante: 'Generador de Calendarios AI',
+          prioridad: item.prioridad || 'Media',
+          fecha_carga: new Date().toISOString()
+        }]);
+
+        await supabaseClient
+          .from('calendario_mantenimiento_detalle')
+          .update({ estatus: 'DESPACHADA_A_SOLICITUD' })
+          .eq('id_detalle', idRef);
+      }
+    } catch (e) {
+      console.warn('[dispatchCalendarEventNow] Error:', e);
+    }
+  }
+
+  await syncDatabases();
+  switchAdminPanel('requests');
+  renderAdminRequestsTable();
+  showToast('✅ Tarea enviada exitosamente a la Bandeja de Solicitudes Nuevas.');
+}
+
+// --- VER LISTA Y CONTROL DE REGLAS RECURRENTES ---
+function openRecurringRulesListModal() {
+  const rules = JSON.parse(localStorage.getItem('TSMAI_recurring_rules') || '[]');
+  const tbody = document.getElementById('tbody-recurring-rules');
+  if (!tbody) return;
+
+  if (rules.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-muted);">No hay reglas de solicitudes recurrentes configuradas aún.</td></tr>';
+  } else {
+    tbody.innerHTML = rules.map(r => `
+      <tr>
+        <td><strong>${r.type}</strong> (${r.day || r.specificDate || 'Periódico'})</td>
+        <td><span class="badge" style="background:#e2e8f0;">${r.area || 'AF'}</span> ${r.machine || 'General'}</td>
+        <td>${r.description}</td>
+        <td>${r.active !== false ? '<span class="badge badge-status-atendida">ACTIVA</span>' : '<span class="badge badge-priority-critica">PAUSADA</span>'}</td>
+        <td>
+          <button class="btn-table-action" onclick="toggleRecurringRuleStatus('${r.id}')">${r.active !== false ? 'Pausar' : 'Activar'}</button>
+          <button class="btn-table-action" style="background:#ef4444; color:white; margin-left:4px;" onclick="deleteRecurringRule('${r.id}')">Eliminar</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  openModal('modal-admin-recurring-list');
+}
+
+function toggleRecurringRuleStatus(ruleId) {
+  const rules = JSON.parse(localStorage.getItem('TSMAI_recurring_rules') || '[]');
+  const idx = rules.findIndex(r => r.id === ruleId);
+  if (idx !== -1) {
+    rules[idx].active = !rules[idx].active;
+    localStorage.setItem('TSMAI_recurring_rules', JSON.stringify(rules));
+    openRecurringRulesListModal();
+    showToast(`Estatus de regla recurrente actualizado.`);
+  }
+}
+
+function deleteRecurringRule(ruleId) {
+  if (!confirm('¿Deseas eliminar esta regla de programación recurrente?')) return;
+  let rules = JSON.parse(localStorage.getItem('TSMAI_recurring_rules') || '[]');
+  rules = rules.filter(r => r.id !== ruleId);
+  localStorage.setItem('TSMAI_recurring_rules', JSON.stringify(rules));
+  openRecurringRulesListModal();
+  showToast('Regla recurrente eliminada.');
+}
+
 
 
