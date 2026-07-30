@@ -11716,9 +11716,19 @@ async function handleGenerateCalendarProposal(event) {
     }
 
     if (type === 'PREVENTIVO') {
-      // Algoritmo Preventivo Anual
+      // Algoritmo Preventivo Anual: Pondera criticidad (A, B, C), historial de fallas y costos de refacciones acumulados
+      const partsCostByMachine = {};
+      allLogs.forEach(l => {
+        if (l.maquina_id && l.refacciones_usadas) {
+          const cost = parseFloat(l.costo_total_refacciones || l.costo || 0);
+          partsCostByMachine[l.maquina_id] = (partsCostByMachine[l.maquina_id] || 0) + (isNaN(cost) ? 150 : cost);
+        }
+      });
+
       for (const machine of activeMachines) {
         const mPlans = activePlans.filter(p => p.maquina_id === machine.equipo_towell);
+        const mCost = partsCostByMachine[machine.equipo_towell] || 0;
+        const mCrit = (machine.criticidad || machine.prioridad_default || 'B').toUpperCase();
         
         for (const plan of mPlans) {
           const freq = plan.frecuencia || 3;
@@ -11729,7 +11739,6 @@ async function handleGenerateCalendarProposal(event) {
             lastDate = new Date(year, 0, 15);
           }
 
-          // Proyectar ejecuciones del año
           let projections = [];
           if (unit === 'meses') {
             const occurrences = Math.floor(12 / freq);
@@ -11746,7 +11755,6 @@ async function handleGenerateCalendarProposal(event) {
               if (d.getFullYear() === year) projections.push(d);
             }
           } else {
-            // Días o por defecto (cada 2 meses)
             const occurrences = 6;
             for (let o = 0; o < occurrences; o++) {
               const d = new Date(lastDate);
@@ -11755,21 +11763,21 @@ async function handleGenerateCalendarProposal(event) {
             }
           }
 
-          // Registrar propuestas balanceadas
           projections.forEach(proj => {
             const balancedDateStr = getBalancedDate(proj);
-            
-            // Asignar técnico sugerido o aleatorio
             const matchingTech = activeTechs.find(t => t.nombre_tecnico.toLowerCase() === (plan.responsable || '').toLowerCase()) 
               || activeTechs[Math.floor(Math.random() * activeTechs.length)];
+
+            let prio = machine.prioridad_default || 'MEDIA';
+            if (mCrit.includes('A') || mCost > 5000) prio = 'ALTA';
 
             detailsToInsert.push({
               id_calendario: newCalId,
               maquina_id: machine.equipo_towell,
               fecha_programada: balancedDateStr,
               tipo_mantenimiento: 'PREVENTIVO',
-              prioridad: machine.prioridad_default || 'MEDIA',
-              actividad_sugerida: `Servicio preventivo: ${plan.nombre_plan || plan.codigo_servicio}`,
+              prioridad: prio,
+              actividad_sugerida: `Servicio preventivo anual: ${plan.nombre_plan || plan.codigo_servicio} (Criticidad: ${mCrit}, Refacciones acm: $${mCost.toFixed(0)})`,
               responsable_sugerido: matchingTech ? matchingTech.nombre_tecnico : 'Supervisor',
               id_plan: plan.id_plan,
               estatus_detalle: 'PROPUESTO'
@@ -11778,7 +11786,7 @@ async function handleGenerateCalendarProposal(event) {
         }
       }
     } else if (type === 'PREDICTIVO') {
-      // Predictivo Mensual: Generar propuestas a partir del análisis estadístico e histórico (IA Engine)
+      // Predictivo Mensual: Pondera estacionalidad del mes + tasa de acciones correctivas acumuladas con la app en uso
       const candidates = [];
       const nowTime = new Date();
 
@@ -11787,13 +11795,14 @@ async function handleGenerateCalendarProposal(event) {
         const machOts = allOts.filter(o => o.maquina_id === machId);
         const machLogs = allLogs.filter(l => l.maquina_id === machId);
 
-        // 1. Fallas en los últimos 60 días
+        // Acciones correctivas acumuladas mientras la app está en uso
+        const activeAppCorrectivesCount = machOts.filter(o => o.orden_trabajo === 'MC' || o.falla).length;
+
         const sixtyDaysAgo = new Date();
         sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
         const recentOts = machOts.filter(o => o.orden_trabajo !== 'MP' && new Date(o.fecha_carga) >= sixtyDaysAgo);
         const recentFailsCount = recentOts.length;
 
-        // 2. Repetición del mismo tipo de falla / palabras clave
         const descWords = recentOts.map(o => (o.descripcion || '').toLowerCase());
         const keywords = ['temperatura', 'calentamiento', 'caliente', 'vibracion', 'ruido', 'balero', 'rodamiento', 'fuga', 'presion', 'aceite', 'aire', 'motor', 'electrico', 'mecanico', 'polea', 'transmision'];
         const keywordCounts = {};
@@ -11810,7 +11819,6 @@ async function handleGenerateCalendarProposal(event) {
           }
         });
 
-        // 3. Tiempo de paro acumulado (Downtime)
         let totalDowntimeHours = 0;
         machOts.forEach(o => {
           if (o.tiempo_atencion_min) {
@@ -11821,7 +11829,6 @@ async function handleGenerateCalendarProposal(event) {
           }
         });
 
-        // 4. Último mantenimiento predictivo o preventivo
         let lastMaint = null;
         machOts.forEach(o => {
           if (o.orden_trabajo === 'MP' || o.orden_trabajo === 'MC') {
@@ -11829,21 +11836,15 @@ async function handleGenerateCalendarProposal(event) {
             if (!lastMaint || d > lastMaint) lastMaint = d;
           }
         });
-        machLogs.forEach(l => {
-          const d = new Date(l.fecha_hora_inicio);
-          if (!lastMaint || d > lastMaint) lastMaint = d;
-        });
 
         const daysSinceLastMaint = lastMaint ? Math.floor((nowTime - lastMaint) / (1000 * 60 * 60 * 24)) : 999;
 
-        // 5. Estacionalidad: Fallas en este mes en años anteriores
         const targetMonth = month;
         const seasonalFails = machOts.filter(o => {
           const d = new Date(o.fecha_carga);
           return d.getMonth() === targetMonth && d.getFullYear() < year;
         }).length;
 
-        // 6. Cálculo del Score de Riesgo (0-10)
         let riskScore = 0;
 
         const crit = (machine.criticidad || machine.prioridad_default || 'B').toUpperCase().trim();
@@ -11852,13 +11853,13 @@ async function handleGenerateCalendarProposal(event) {
         else riskScore += 0.5;
 
         riskScore += Math.min(3.0, recentFailsCount * 0.75);
+        riskScore += Math.min(2.0, activeAppCorrectivesCount * 0.4); // Ponderación de tasa de correctivos acumulados en uso
         if (maxCount >= 2) riskScore += 1.5;
         riskScore += Math.min(1.5, totalDowntimeHours * 0.05);
         if (daysSinceLastMaint > 30) riskScore += 1.0;
 
         riskScore = parseFloat(riskScore.toFixed(1));
 
-        // 7. Determinar Tipo de Revisión e Inspector sugerido
         let revType = 'Inspección predictiva termográfica y de vibraciones';
         let specialty = 'Electromecánico';
         if (maxKeyword) {
@@ -11874,10 +11875,12 @@ async function handleGenerateCalendarProposal(event) {
           }
         }
 
-        // 8. Construir motivos estructurados
         const motivos = [];
         if (recentFailsCount > 0) {
           motivos.push(`Registra ${recentFailsCount} falla(s) en los últimos 60 días.`);
+        }
+        if (activeAppCorrectivesCount > 0) {
+          motivos.push(`Tasa de acciones correctivas acumuladas en uso: ${activeAppCorrectivesCount} eventos.`);
         }
         if (maxCount >= 2) {
           motivos.push(`Se detecta repetibilidad de fallas asociadas a: "${maxKeyword}" (${maxCount} eventos).`);
@@ -11885,20 +11888,12 @@ async function handleGenerateCalendarProposal(event) {
         if (totalDowntimeHours > 0) {
           motivos.push(`Ha acumulado ${totalDowntimeHours.toFixed(1)} horas de paro en producción.`);
         }
-        if (lastMaint) {
-          motivos.push(`Último mantenimiento realizado hace ${daysSinceLastMaint} días (${lastMaint.toLocaleDateString('es-MX')}).`);
-        } else {
-          motivos.push(`No registra antecedentes de mantenimientos preventivos o predictivos.`);
-        }
         if (seasonalFails > 0) {
-          motivos.push(`Este equipo tiene historial de fallas recurrentes en el mes seleccionado en años anteriores (${seasonalFails} fallas anteriores).`);
-        }
-        if (crit.includes('A') || crit.includes('CRITICA')) {
-          motivos.push(`Equipo catalogado como crítico (Criticidad Alta).`);
+          motivos.push(`Historial estacional de fallas en este mes (${seasonalFails} fallas anteriores).`);
         }
 
         const otRefs = recentOts.slice(0, 3).map(o => o.folio).join(', ');
-        const evidencia = otRefs ? `Órdenes de Trabajo de referencia: [${otRefs}]. Tiempo de paro acumulado: ${totalDowntimeHours.toFixed(1)} hrs.` : `Sin registros de órdenes recientes. Analizado contra catálogo histórico general.`;
+        const evidencia = otRefs ? `Órdenes de referencia: [${otRefs}]. Tasa de correctivos acumulados: ${activeAppCorrectivesCount}.` : `Análisis mensual contra historial estacional.`;
 
         let finalPriority = 'MEDIA';
         if (riskScore >= 6.0) finalPriority = 'CRÍTICA';
@@ -11954,8 +11949,12 @@ async function handleGenerateCalendarProposal(event) {
         count++;
       }
     } else if (type === 'AUTONOMO') {
-      // Autónomo Semanal: Generar propuestas en base a la carga de Segundas por Rollo
-      // 1. Obtener registros de segundas del periodo actual y anterior
+      // Autónomo Semanal: EXCLUSIVAMENTE para máquinas del área PF (Tejido / Telares)
+      const pfMachines = activeMachines.filter(m => {
+        const area = getAreaCodeForOrder({ machine: m.equipo_towell, area: m.area || m.departamento });
+        return area === 'PF';
+      });
+
       const [segundasRes, prevSegundasRes, relRes] = await Promise.all([
         supabaseClient.from('segundas_por_rollo').select('*').eq('anio', year).eq('semana', week),
         supabaseClient.from('segundas_por_rollo').select('*').eq('anio', year).eq('semana', week - 1),
@@ -11964,12 +11963,10 @@ async function handleGenerateCalendarProposal(event) {
 
       const currentSegundas = segundasRes.data || [];
       const prevSegundas = prevSegundasRes.data || [];
-      const relations = relRes.data || [];
 
       if (currentSegundas.length === 0) {
-        showToast('⚠️ No hay registros de Segundas por Rollo cargados para esta semana. Generando rutinas base...', 'warning');
-        // Fallback a rutinas base de limpieza para máquinas activas
-        activeMachines.forEach((machine, idx) => {
+        showToast('⚠️ Sin registros de Segundas por Rollo para esta semana. Generando rutinas base de telares (PF)...', 'warning');
+        pfMachines.forEach((machine, idx) => {
           const baseDay = 1 + (idx % 5);
           const startOfYear = new Date(year, 0, 1);
           const projDate = new Date(startOfYear.setDate(startOfYear.getDate() + ((week - 1) * 7) + baseDay));
@@ -11981,8 +11978,8 @@ async function handleGenerateCalendarProposal(event) {
             fecha_programada: balancedDateStr,
             tipo_mantenimiento: 'AUTONOMO',
             prioridad: 'BAJA',
-            actividad_sugerida: `Rutina autónoma base: Limpieza y reapriete general`,
-            responsable_sugerido: 'Operador de Planta',
+            actividad_sugerida: `Rutina autónoma telar PF: Limpieza de guías, peines y reapriete de calzada`,
+            responsable_sugerido: 'Operador de Telar (PF)',
             estatus_detalle: 'PROPUESTO'
           });
         });
@@ -13605,17 +13602,23 @@ async function checkAndDispatchScheduledPreventives() {
     const currentMonth = today.getMonth() + 1; // 1-12
 
     const pendingPreventives = details.filter(item => {
-      const header = item.calendarios_mantenimiento || {};
       if (item.estatus === 'DESPACHADA_A_SOLICITUD' || item.estatus === 'CONVERTIDA_A_OT') return false;
+      
+      const type = (item.tipo_mantenimiento || 'PREVENTIVO').toUpperCase();
       
       if (item.fecha_programada) {
         const itemDate = new Date(item.fecha_programada);
-        const diffDays = Math.ceil((itemDate - today) / (1000 * 60 * 60 * 24));
-        return diffDays <= 7;
-      }
-      
-      if (header.anio && header.anio <= currentYear && header.mes && header.mes <= currentMonth) {
-        return true;
+        const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const itemDateZero = new Date(itemDate.getFullYear(), itemDate.getMonth(), itemDate.getDate());
+        const diffDays = Math.round((itemDateZero - todayZero) / (1000 * 60 * 60 * 24));
+        
+        if (type === 'AUTONOMO') {
+          // Autónomo: Se publica 1 día de anterioridad (o el mismo día)
+          return diffDays <= 1 && diffDays >= 0;
+        } else {
+          // Preventivo y Predictivo: Se publican con 7 días (1 semana) de anterioridad
+          return diffDays <= 7 && diffDays >= 0;
+        }
       }
       return false;
     });
