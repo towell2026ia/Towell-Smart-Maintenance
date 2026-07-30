@@ -536,12 +536,19 @@ async function dbGetTechnicians() {
 async function dbGetRequests() {
   if (supabaseClient) {
     try {
-      const { data, error } = await supabaseClient
+      const { data: ordersData, error: oErr } = await supabaseClient
         .from('ordenes_trabajo')
         .select('*')
         .order('fecha_carga', { ascending: false });
-      if (error) throw error;
-      return (data || []).map(o => ({
+      if (oErr) throw oErr;
+
+      let directData = [];
+      try {
+        const { data: reqData } = await supabaseClient.from('solicitudes_mantenimiento').select('*');
+        if (reqData) directData = reqData;
+      } catch (e) {}
+
+      const list = (ordersData || []).map(o => ({
         id: o.folio,
         uuid: o.id_orden,
         applicant: o.nombre_solicitante,
@@ -556,6 +563,30 @@ async function dbGetRequests() {
         date: o.fecha_hora_inicio || o.fecha_carga,
         evidence: null
       }));
+
+      const existingFolios = new Set(list.map(i => i.id));
+      directData.forEach(r => {
+        const folioId = r.folio_solicitud || r.id;
+        if (!existingFolios.has(folioId)) {
+          list.push({
+            id: folioId,
+            uuid: r.id,
+            applicant: r.solicitante_nombre,
+            shift: r.turno || 'Turno Mañana',
+            area: r.area || 'CF',
+            machine: r.maquina_id || 'NO APLICA MÁQUINA',
+            type: r.tipo_servicio || 'Correctivo',
+            description: r.descripcion_falla || 'Solicitud de servicio',
+            machineStopped: r.maquina_detenida ? 'Sí' : 'No',
+            urgency: r.urgencia || 'Media',
+            status: formatStatus(r.estatus || 'Solicitud recibida'),
+            date: r.fecha_registro || new Date().toISOString(),
+            evidence: null
+          });
+        }
+      });
+
+      return list;
     } catch (err) {
       console.error('Error fetching requests from Supabase:', err);
     }
@@ -755,10 +786,21 @@ async function syncDatabases() {
     // 4. Sync Orders & Requests
     const { data: dbOrders, error: oErr } = await supabaseClient.from('ordenes_trabajo').select('*');
     if (oErr) throw oErr;
+
+    // A4.1: Sincronizar también la tabla solicitudes_mantenimiento para no perder ninguna requisición
+    let dbDirectRequests = [];
+    try {
+      const { data: reqData } = await supabaseClient.from('solicitudes_mantenimiento').select('*');
+      if (reqData) dbDirectRequests = reqData;
+    } catch (e) {
+      console.warn('[Sync] Non-critical solicitudes_mantenimiento fetch warning:', e);
+    }
+
+    const localRequests = [];
+    const localOrders = [];
+    const existingFolios = new Set();
+    
     if (dbOrders && dbOrders.length > 0) {
-      const localRequests = [];
-      const localOrders = [];
-      
       dbOrders.forEach(o => {
         const formattedStatus = formatStatus(o.estatus);
         const item = {
@@ -766,6 +808,7 @@ async function syncDatabases() {
           uuid: o.id_orden,
           reqId: o.folio,
           applicant: o.nombre_solicitante,
+          applicant_id: o.cve_solicitante,
           shift: o.turno_solicitante === 1 ? 'Turno Mañana' : o.turno_solicitante === 2 ? 'Turno Tarde' : 'Turno Nocturno',
           area: o.departamento,
           machine: o.maquina_id,
@@ -784,17 +827,43 @@ async function syncDatabases() {
         };
         
         localRequests.push(item);
+        if (o.folio) existingFolios.add(o.folio);
         if (formattedStatus !== 'Solicitud recibida') {
           localOrders.push(item);
         }
       });
-      
-      localStorage.setItem('TSMAI_requests', JSON.stringify(localRequests));
-      localStorage.setItem('TSMAI_orders', JSON.stringify(localOrders));
-    } else {
-      localStorage.setItem('TSMAI_requests', '[]');
-      localStorage.setItem('TSMAI_orders', '[]');
     }
+
+    // Agregar solicitudes directas de solicitudes_mantenimiento (ej: REQ-2026-1259) que aún no estén en ordenes_trabajo
+    if (dbDirectRequests && dbDirectRequests.length > 0) {
+      dbDirectRequests.forEach(r => {
+        const folioId = r.folio_solicitud || r.id;
+        if (!existingFolios.has(folioId)) {
+          const item = {
+            id: folioId,
+            uuid: r.id,
+            reqId: folioId,
+            applicant: r.solicitante_nombre,
+            applicant_id: r.solicitante_id,
+            shift: r.turno || 'Turno Mañana',
+            area: r.area || 'CF',
+            machine: r.maquina_id || 'NO APLICA MÁQUINA',
+            type: r.tipo_servicio || 'Correctivo',
+            description: r.descripcion_falla || 'Solicitud de servicio',
+            machineStopped: r.maquina_detenida ? 'Sí' : 'No',
+            urgency: r.urgencia || 'Media',
+            status: formatStatus(r.estatus || 'Solicitud recibida'),
+            date: r.fecha_registro || new Date().toISOString(),
+            evidence: null
+          };
+          localRequests.push(item);
+          existingFolios.add(folioId);
+        }
+      });
+    }
+
+    localStorage.setItem('TSMAI_requests', JSON.stringify(localRequests));
+    localStorage.setItem('TSMAI_orders', JSON.stringify(localOrders));
 
     // 5. Sync Subtasks
     const { data: dbSubtasks, error: sErr } = await supabaseClient.from('subtareas_orden_trabajo').select('*');
@@ -4452,26 +4521,68 @@ async function convertToWorkOrder() {
   orders.push(newOrder);
   localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
 
-  // Actualizar en Supabase
+  // Actualizar / Insertar en Supabase
   if (supabaseClient) {
     try {
       const parsedDueDate = new Date(dueDate);
-      await supabaseClient
+      const payload = {
+        folio: otId,
+        orden_trabajo: type,
+        origen: 'App',
+        estatus: getDBStatus('Asignada'),
+        fecha_inicio: req.date ? req.date.split('T')[0] : new Date().toISOString().split('T')[0],
+        fecha_hora_inicio: req.date || new Date().toISOString(),
+        departamento: req.area || 'CF',
+        maquina_id: req.machine || 'NO APLICA MÁQUINA',
+        falla: req.type || 'Correctivo',
+        descripcion: req.description,
+        nombre_solicitante: req.applicant,
+        cve_solicitante: req.applicant_id || null,
+        cve_atendio: techId,
+        nombre_atendio: techName,
+        prioridad: priority,
+        fecha_fin: parsedDueDate.toISOString().split('T')[0],
+        hora_fin: parsedDueDate.toTimeString().split(' ')[0],
+        fecha_hora_fin: parsedDueDate.toISOString(),
+        fecha_carga: new Date().toISOString()
+      };
+
+      // Verificar si ya existe en ordenes_trabajo
+      const { data: existing } = await supabaseClient
         .from('ordenes_trabajo')
-        .update({
-          estatus: getDBStatus('Asignada'),
-          orden_trabajo: type,
-          especialidad_requerida: specialty,
-          cve_atendio: techId,
-          nombre_atendio: techName,
-          prioridad: priority,
-          fecha_fin: parsedDueDate.toISOString().split('T')[0],
-          hora_fin: parsedDueDate.toTimeString().split(' ')[0],
-          fecha_hora_fin: parsedDueDate.toISOString()
-        })
+        .select('id_orden')
         .eq('folio', reqId);
+
+      if (existing && existing.length > 0) {
+        await supabaseClient
+          .from('ordenes_trabajo')
+          .update({
+            estatus: getDBStatus('Asignada'),
+            orden_trabajo: type,
+            cve_atendio: techId,
+            nombre_atendio: techName,
+            prioridad: priority,
+            fecha_fin: parsedDueDate.toISOString().split('T')[0],
+            hora_fin: parsedDueDate.toTimeString().split(' ')[0],
+            fecha_hora_fin: parsedDueDate.toISOString()
+          })
+          .eq('folio', reqId);
+      } else {
+        await supabaseClient
+          .from('ordenes_trabajo')
+          .insert([payload]);
+      }
+
+      // Si existía en solicitudes_mantenimiento, actualizar estatus
+      try {
+        await supabaseClient
+          .from('solicitudes_mantenimiento')
+          .update({ estatus: 'Asignada' })
+          .eq('folio_solicitud', reqId);
+      } catch (e) {}
+
     } catch (err) {
-      console.error('Error updating order in Supabase:', err);
+      console.error('Error updating/inserting order in Supabase:', err);
     }
   }
 
