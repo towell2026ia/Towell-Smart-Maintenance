@@ -172,34 +172,26 @@ function getAreaCodeForOrder(item) {
   if (!item) return 'AF';
 
   const mac = String(item.machine || item.maquina_id || '').toUpperCase().trim();
-  const desc = String(item.description || item.descripcion || item.descripcion_falla || '').toUpperCase().trim();
-  const loc = String(item.location || '').toUpperCase().trim();
 
-  // REGLA FUNDAMENTAL: Todo lo que no sea una máquina de producción (baños, lavabos, infraestructura, no aplica máquina) SERÁ AF
-  if (
-    !mac || 
-    mac === 'NO APLICA MÁQUINA' || 
-    mac === 'NO_APLICA' || 
-    mac === 'NULL' || 
-    mac === 'UNDEFINED' || 
-    mac.startsWith('📍') ||
-    mac.includes('BAÑO') || 
-    mac.includes('LAVABO') ||
-    desc.includes('BAÑO') ||
-    desc.includes('LAVABO') ||
-    loc.includes('BAÑO')
-  ) {
+  // REGLA ABSOLUTA: Si no es una máquina real de planta registrada (ej. TOW-TEL205-TEJI), SERÁ SIEMPRE 'AF'
+  const isRealMachine = (
+    mac && 
+    mac !== 'NO APLICA MÁQUINA' && 
+    mac !== 'NO_APLICA' && 
+    mac !== 'NULL' && 
+    mac !== 'UNDEFINED' && 
+    !mac.startsWith('📍') &&
+    (mac.includes('TOW-') || mac.includes('MAQ-') || mac.includes('EQ-'))
+  );
+
+  if (!isRealMachine) {
     return 'AF';
   }
 
-  // Si es una máquina real, clasificar por la familia/código del equipo
+  // Si es una máquina real de planta, clasificar por el equipo:
   if (mac.includes('TEJI') || mac.includes('URDI') || mac.includes('MACC') || mac.includes('ENG')) return 'PF';
   if (mac.includes('CORT') || mac.includes('COS') || mac.includes('DOBL') || mac.includes('CONFE') || mac.includes('DETMET') || mac.includes('SUBL')) return 'CF';
   if (mac.includes('TINT') || mac.includes('JET') || mac.includes('SECA') || mac.includes('OVER') || mac.includes('CAMP') || mac.includes('CALD') || mac.includes('ABRI') || mac.includes('RAMA') || mac.includes('BARC') || mac.includes('POZO') || mac.includes('AGUA')) return 'TF';
-  if (mac.includes('ELEV') || mac.includes('GENK') || mac.includes('RASU') || mac.includes('COMP') || mac.includes('SUBE') || mac.includes('CHIL') || mac.includes('SUBEST') || mac.includes('BOM') || mac.includes('SELL')) return 'AF';
-
-  const rawArea = String(item.area || item.departamento || '').toUpperCase().trim();
-  if (['CF', 'PF', 'TF'].includes(rawArea)) return rawArea;
 
   return 'AF';
 }
