@@ -4393,6 +4393,7 @@ function renderAdminRequestsTable() {
     const machineName = mach ? (mach.name || mach.id) : (r.machine || r.location || 'Planta General');
     const urgencyVal = r.urgency || 'Media';
     const typeVal = r.type || 'Correctivo';
+    const areaVal = getAreaCodeForOrder(r);
     
     let formattedDate = '-';
     if (r.date) {
