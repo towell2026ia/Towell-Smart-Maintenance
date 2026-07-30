@@ -4274,7 +4274,11 @@ function updateAdminKPIs() {
 // Actualizar indicador visual de la bandeja
 function updateRequestsBadge() {
   const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-  const newCount = requests.filter(r => r.status === 'Solicitud recibida').length;
+  const newCount = requests.filter(r => {
+    if (!r || !r.status) return false;
+    const s = String(r.status).toLowerCase().trim();
+    return s.includes('recibid') || s === 'recibida' || s === 'solicitud recibida' || s === 'solicitud_recibida';
+  }).length;
   const badge = document.getElementById('badge-count-requests');
   if (badge) {
     if (newCount > 0) {
@@ -4293,8 +4297,12 @@ function renderAdminRequestsTable() {
   const tbody = document.getElementById('table-admin-requests-body');
   if (!tbody) return;
 
-  // Mostrar solo las nuevas en esta bandeja (Solicitud recibida)
-  const newRequests = requests.filter(r => r && (r.status === 'Solicitud recibida' || r.status === 'RECIBIDA'));
+  // Mostrar solo las solicitudes nuevas en esta bandeja (cualquier variación de recibida)
+  const newRequests = requests.filter(r => {
+    if (!r || !r.status) return false;
+    const s = String(r.status).toLowerCase().trim();
+    return s.includes('recibid') || s === 'recibida' || s === 'solicitud recibida' || s === 'solicitud_recibida';
+  });
 
   if (newRequests.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">No hay solicitudes nuevas por revisar.</td></tr>`;
