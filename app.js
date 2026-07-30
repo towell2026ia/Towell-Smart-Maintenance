@@ -168,6 +168,41 @@ function formatStatus(status) {
   }
 }
 
+function getAreaCodeForOrder(item) {
+  if (!item) return 'AF';
+  const rawArea = String(item.area || item.departamento || '').toUpperCase().trim();
+  if (['CF', 'PF', 'AF', 'TF'].includes(rawArea)) return rawArea;
+  if (rawArea.includes('CONFEC') || rawArea.includes('COSTUR')) return 'CF';
+  if (rawArea.includes('TEJID') || rawArea.includes('URDI') || rawArea.includes('PREPA')) return 'PF';
+  if (rawArea.includes('TINT') || rawArea.includes('ACAB')) return 'TF';
+  if (rawArea.includes('AUXILIAR') || rawArea.includes('INFRA') || rawArea.includes('EDIFIC') || rawArea.includes('PLANTA')) return 'AF';
+
+  const mac = String(item.machine || item.maquina_id || '').toUpperCase().trim();
+  if (mac.includes('TEJI') || mac.includes('URDI') || mac.includes('MACC') || mac.includes('ENG')) return 'PF';
+  if (mac.includes('CORT') || mac.includes('COS') || mac.includes('DOBL') || mac.includes('CONFE')) return 'CF';
+  if (mac.includes('TINT') || mac.includes('JET') || mac.includes('SECA') || mac.includes('OVER') || mac.includes('CAMP') || mac.includes('CALD') || mac.includes('ABRI') || mac.includes('RAMA')) return 'TF';
+  if (mac.includes('ELEV') || mac.includes('GENK') || mac.includes('RASU') || mac.includes('COMP') || mac.includes('SUBE') || mac.includes('CHIL')) return 'AF';
+
+  return 'CF';
+}
+
+function formatStandardFolio(item) {
+  if (!item || (!item.id && !item.folio)) return 'AF00001';
+  const cleanId = String(item.id || item.folio || '').trim().toUpperCase();
+  if (/^(CF|PF|TF|AF)\d+$/.test(cleanId)) {
+    const prefix = cleanId.slice(0, 2);
+    const num = parseInt(cleanId.slice(2), 10);
+    return `${prefix}${String(num).padStart(5, '0')}`;
+  }
+  let numStr = cleanId.replace(/[^0-9]/g, '');
+  let num = parseInt(numStr, 10);
+  if (isNaN(num) || num <= 0) num = 1;
+  if (num > 99999) num = num % 100000;
+  
+  const areaCode = getAreaCodeForOrder(item);
+  return `${areaCode}${String(num).padStart(5, '0')}`;
+}
+
 function formatSubtaskArea(area) {
   if (!area) return '';
   switch (area.toLowerCase()) {
@@ -834,15 +869,22 @@ async function syncDatabases() {
       });
     }
 
-    // Agregar solicitudes directas de solicitudes_mantenimiento (ej: REQ-2026-1259) que aún no estén en ordenes_trabajo
+    // Agregar y migrar automáticamente solicitudes directas de solicitudes_mantenimiento (ej: REQ-2026-1259) a ordenes_trabajo
     if (dbDirectRequests && dbDirectRequests.length > 0) {
-      dbDirectRequests.forEach(r => {
-        const folioId = r.folio_solicitud || r.id;
-        if (!existingFolios.has(folioId)) {
+      for (const r of dbDirectRequests) {
+        const rawFolio = r.folio_solicitud || r.id;
+        const tempItem = {
+          id: rawFolio,
+          area: r.area || 'CF',
+          machine: r.maquina_id || 'NO APLICA MÁQUINA'
+        };
+        const stdFolio = formatStandardFolio(tempItem);
+
+        if (!existingFolios.has(rawFolio) && !existingFolios.has(stdFolio)) {
           const item = {
-            id: folioId,
+            id: stdFolio,
             uuid: r.id,
-            reqId: folioId,
+            reqId: stdFolio,
             applicant: r.solicitante_nombre,
             applicant_id: r.solicitante_id,
             shift: r.turno || 'Turno Mañana',
@@ -852,14 +894,35 @@ async function syncDatabases() {
             description: r.descripcion_falla || 'Solicitud de servicio',
             machineStopped: r.maquina_detenida ? 'Sí' : 'No',
             urgency: r.urgencia || 'Media',
-            status: formatStatus(r.estatus || 'Solicitud recibida'),
+            status: 'Solicitud recibida',
             date: r.fecha_registro || new Date().toISOString(),
             evidence: null
           };
           localRequests.push(item);
-          existingFolios.add(folioId);
+          existingFolios.add(stdFolio);
+
+          // Insertar en ordenes_trabajo en Supabase para permanencia total en todos los dispositivos
+          try {
+            await supabaseClient.from('ordenes_trabajo').insert([{
+              folio: stdFolio,
+              orden_trabajo: item.type,
+              origen: 'App',
+              estatus: 'RECIBIDA',
+              fecha_inicio: item.date.split('T')[0],
+              fecha_hora_inicio: item.date,
+              departamento: item.area,
+              maquina_id: item.machine,
+              descripcion: item.description,
+              nombre_solicitante: item.applicant,
+              cve_solicitante: item.applicant_id || null,
+              prioridad: item.urgency,
+              fecha_carga: new Date().toISOString()
+            }]);
+          } catch (e) {
+            console.warn('[Sync] Non-critical migration insert warning:', e);
+          }
         }
-      });
+      }
     }
 
     localStorage.setItem('TSMAI_requests', JSON.stringify(localRequests));
@@ -4328,7 +4391,7 @@ function renderAdminRequestsTable() {
 
     html += `
       <tr>
-        <td><strong>${r.id}</strong></td>
+        <td><strong>${formatStandardFolio(r)}</strong></td>
         <td>${formattedDate}</td>
         <td><span class="badge" style="background: #e2e8f0; color: #1e293b;">${areaVal}</span></td>
         <td>${machineName}</td>
@@ -4720,7 +4783,7 @@ function renderAdminOrdersTable(filteredOrders) {
 
     html += `
       <tr>
-        <td><strong>${o.id}</strong></td>
+        <td><strong>${formatStandardFolio(o)}</strong></td>
         <td>${machineName}</td>
         <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">${resolvedArea}</span></td>
         <td>${o.type}</td>
@@ -8053,7 +8116,7 @@ function renderTechOrdersTable() {
 
     html += `
       <tr>
-        <td><strong>${o.id}</strong></td>
+        <td><strong>${formatStandardFolio(o)}</strong></td>
         <td>${machineName}</td>
         <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">${resolveMachineArea(o.machine || o.maquina_id, o.area)}</span></td>
         <td>${o.type}</td>
@@ -12924,7 +12987,7 @@ async function renderSolicitanteTracking() {
     const shortDesc = (item.description || item.descripcion_falla || 'Sin descripción').slice(0, 50) + '...';
 
     return `<tr>
-      <td><strong>${item.id}</strong></td>
+      <td><strong>${formatStandardFolio(item)}</strong></td>
       <td>${fmtDate(item.date || item.fecha_registro || new Date())}</td>
       <td><span class="badge badge-priority-baja">${item.area || currentUser.area}</span></td>
       <td>${macOrLoc}</td>
