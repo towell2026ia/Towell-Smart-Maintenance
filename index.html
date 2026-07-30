@@ -741,9 +741,12 @@
         <!-- Panel Admin 2: Bandeja de Solicitudes Nuevas -->
         <div id="panel-admin-requests" class="admin-panel-content" style="display: none;">
           <div class="table-container">
-            <div class="table-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div class="table-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
               <span class="table-title">Solicitudes Nuevas Recibidas</span>
-              <button class="btn-nav btn-nav-primary" onclick="openAdminCreateRequestModal()" style="width: auto; padding: 8px 16px;">➕ Registrar Solicitud</button>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-nav btn-nav-secondary" onclick="openRecurringRequestModal()" style="width: auto; padding: 8px 16px; background: #4f46e5; color: white;">🔄 Programar Solicitud Recurrente / Futura</button>
+                <button class="btn-nav btn-nav-primary" onclick="openAdminCreateRequestModal()" style="width: auto; padding: 8px 16px;">➕ Registrar Solicitud</button>
+              </div>
             </div>
             <div class="responsive-table-wrapper">
               <table class="custom-table">
@@ -4572,6 +4575,93 @@
             </table>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Programar Solicitud Recurrente o Fecha Futura (Admin) -->
+  <div id="modal-admin-recurring-request" class="modal-backdrop" style="display: none;">
+    <div class="modal-card" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🔄 Programar Solicitud Recurrente / Fecha Futura</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-admin-recurring-request')">×</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <form id="form-admin-recurring-request" onsubmit="event.preventDefault(); saveRecurringRequestConfig();">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-weight: 600; font-size: 0.85rem;">Tipo de Programación:</label>
+              <select id="recurring-type" class="filter-select" style="width: 100%; margin-top: 4px;" onchange="onRecurringTypeChange(this.value)" required>
+                <option value="Semanal">Semanal (Recurrente)</option>
+                <option value="Mensual">Mensual (Recurrente)</option>
+                <option value="FechaEspecifica">Fecha Específica Única</option>
+              </select>
+            </div>
+            <div id="group-recurring-day-select">
+              <label style="font-weight: 600; font-size: 0.85rem;">Día de Ejecución:</label>
+              <select id="recurring-day" class="filter-select" style="width: 100%; margin-top: 4px;">
+                <option value="Lunes">Todos los Lunes</option>
+                <option value="Martes">Todos los Martes</option>
+                <option value="Miércoles">Todos los Miércoles</option>
+                <option value="Jueves">Todos los Jueves</option>
+                <option value="Viernes">Todos los Viernes</option>
+                <option value="Sábado">Todos los Sábados</option>
+              </select>
+            </div>
+            <div id="group-recurring-date-select" style="display: none;">
+              <label style="font-weight: 600; font-size: 0.85rem;">Fecha Específica:</label>
+              <input type="date" id="recurring-specific-date" class="filter-select" style="width: 100%; margin-top: 4px;">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-weight: 600; font-size: 0.85rem;">Área de la Solicitud:</label>
+              <select id="recurring-area" class="filter-select" style="width: 100%; margin-top: 4px;" onchange="populateRecurringMachinesByArea(this.value)" required>
+                <option value="AF">AF - Servicios Auxiliares / Infraestructura</option>
+                <option value="CF">CF - Confección / Costura</option>
+                <option value="PF">PF - Tejido / Preparación</option>
+                <option value="TF">TF - Tintorería / Acabados</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-weight: 600; font-size: 0.85rem;">Máquina u Opción:</label>
+              <select id="recurring-machine" class="filter-select" style="width: 100%; margin-top: 4px;" required>
+                <option value="NO APLICA MÁQUINA">NO APLICA MÁQUINA (Infraestructura / Servicios)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-weight: 600; font-size: 0.85rem;">Tipo de Servicio:</label>
+              <select id="recurring-service-type" class="filter-select" style="width: 100%; margin-top: 4px;">
+                <option value="Preventivo">Preventivo (MP)</option>
+                <option value="Correctivo">Correctivo (MC)</option>
+                <option value="Infraestructura">Infraestructura / Servicios</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-weight: 600; font-size: 0.85rem;">Urgencia / Prioridad:</label>
+              <select id="recurring-urgency" class="filter-select" style="width: 100%; margin-top: 4px;">
+                <option value="Media">Media</option>
+                <option value="Alta">Alta</option>
+                <option value="Baja">Baja</option>
+                <option value="Crítica">Crítica</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <label style="font-weight: 600; font-size: 0.85rem;">Título / Descripción de la Tarea Programada:</label>
+            <textarea id="recurring-description" rows="3" class="filter-select" style="width: 100%; margin-top: 4px; padding: 8px;" placeholder="Ej: Mantenimiento preventivo semanal a compresores de planta / Revisión mensual de extintores..." required></textarea>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+            <button type="button" class="btn-action-secondary" onclick="closeModal('modal-admin-recurring-request')">Cancelar</button>
+            <button type="submit" class="btn-action-primary">💾 Guardar Programación</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
