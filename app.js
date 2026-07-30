@@ -12887,12 +12887,20 @@ async function submitSolicitanteNewRequest() {
     return;
   }
 
-  // Generar Folio Estándar de Planta (Prefijo del Área + Consecutivo de 5 dígitos, ej: CF00005)
+  // Generar Folio Estándar de Planta (Prefijo del Área + Consecutivo de 5 dígitos, ej: AF00001, CF00002)
   const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const combinedList = [...requests, ...orders];
 
-  const prefix = userArea || 'CF';
+  // Determinar área real: Si es NO_APLICA, baños o no es máquina ➔ SIEMPRE AF
+  const reqArea = getAreaCodeForOrder({
+    machine: machineId === 'NO_APLICA' ? 'NO APLICA MÁQUINA' : machineId,
+    area: userArea,
+    location: locationVal,
+    description: description
+  });
+
+  const prefix = reqArea;
   let nextConsecutive = 1;
 
   // Extraer el número más alto existente para este prefijo
@@ -12922,7 +12930,7 @@ async function submitSolicitanteNewRequest() {
     applicant_id: currentUser.id || currentUser.uuid,
     applicant_email: currentUser.email,
     shift: shift,
-    area: userArea,
+    area: reqArea,
     department: userDept,
     machine: machineId === 'NO_APLICA' ? (locationVal ? `📍 ${locationVal}` : 'NO APLICA MÁQUINA') : machineId,
     location: locationVal || 'Planta General',
