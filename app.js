@@ -1256,9 +1256,8 @@ async function syncDatabases() {
       console.error('Error syncing maintenance logs:', err);
     }
 
-    // Ejecutar despacho automático de tareas preventivas del calendario y reglas recurrentes hacia Solicitudes Nuevas
+    // Ejecutar despacho de reglas recurrentes del Administrador (si existen)
     try {
-      await checkAndDispatchScheduledPreventives();
       await checkAndDispatchRecurringRules();
     } catch (schErr) {
       console.warn('[Scheduler] Non-critical scheduler execution warning:', schErr);
