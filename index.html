@@ -2627,6 +2627,20 @@
               <label for="admin-req-description">Descripción Detallada del Problema *</label>
               <textarea id="admin-req-description" class="form-control" rows="3" placeholder="Describe los síntomas..." required></textarea>
             </div>
+
+            <div class="form-group" style="border-top: 1px dashed var(--border-color); padding-top: 12px; margin-top: 4px;">
+              <label for="admin-req-tech" style="color: var(--accent-blue); font-weight: 600;">⚡ Asignar Técnico (Opcional)</label>
+              <select id="admin-req-tech" class="form-control">
+                <option value="">Sin asignar — Crear como solicitud para revisar</option>
+                <!-- JS list -->
+              </select>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Si seleccionas un técnico, la solicitud se convierte directamente en OT Asignada.</div>
+            </div>
+
+            <div class="form-group" id="admin-req-due-date-group" style="border-top: none;">
+              <label for="admin-req-due-date" style="color: var(--accent-blue); font-weight: 600;">📅 Fecha Compromiso (Opcional)</label>
+              <input type="datetime-local" id="admin-req-due-date" class="form-control">
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -3383,6 +3397,8 @@
               <option value="SUPER_ADMINISTRADOR">Super Administrador</option>
               <option value="MANTENIMIENTO">Mantenimiento (Técnico)</option>
               <option value="SOLICITANTE">Solicitante (Producción / Operación)</option>
+              <!-- Alias de BD — normalizado a SOLICITANTE en JS, pero existe como fallback -->
+              <option value="SOLICITANTE_PUBLICO" style="display:none;">Solicitante Público</option>
             </select>
           </div>
           <div class="form-group">

@@ -711,7 +711,7 @@ async function dbInsertRequest(newRequest) {
         falla: newRequest.type,
         descripcion: newRequest.description,
         nombre_solicitante: newRequest.applicant,
-        cve_solicitante: newRequest.applicant_code || null,
+        cve_solicitante: newRequest.applicant_code || newRequest.applicant_id || null,
         turno_solicitante: newRequest.shift.includes('Mañana') ? 1 : newRequest.shift.includes('Tarde') ? 2 : 3,
         prioridad: newRequest.urgency,
         fecha_carga: new Date().toISOString()
@@ -735,8 +735,11 @@ async function dbInsertRequest(newRequest) {
         localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
       }
       
-      // Trigger background sync to keep database updated
-      syncDatabases().catch(err => console.error('Error in background sync after request insert:', err));
+      // Trigger background sync to keep database updated and refresh admin view
+      syncDatabases().then(() => {
+        refreshActiveViewSilently();
+        updateRequestsBadge();
+      }).catch(err => console.error('Error in background sync after request insert:', err));
       
       return;
     } catch (err) {
@@ -764,8 +767,12 @@ async function syncDatabases() {
       const existingLocalMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
       const localMachines = dbMachines.map(m => {
         const localM = existingLocalMachines.find(lm => lm.id === m.equipo_towell);
-        const area = m.equipo_towell.includes('COS') ? 'CF' : (m.equipo_towell.includes('TIN') || m.equipo_towell.includes('JET') ? 'TF' : 'PF');
-        const proceso = area === 'PF' ? 'Tejido' : (area === 'CF' ? 'Costura' : 'Tintorería');
+        // Priorizar departamento_codigo de la BD real; fallback a derivación por nombre del equipo
+        let area = m.departamento_codigo || m.area || null;
+        if (!area) {
+          area = m.equipo_towell.includes('COS') ? 'CF' : (m.equipo_towell.includes('TIN') || m.equipo_towell.includes('JET') ? 'TF' : 'PF');
+        }
+        const proceso = area === 'PF' ? 'Tejido' : (area === 'CF' ? 'Costura' : (area === 'TF' ? 'Tintoría' : 'Servicios Auxiliares'));
         return {
           id: m.equipo_towell,
           name: localM ? localM.name : m.equipo_towell,
@@ -774,6 +781,7 @@ async function syncDatabases() {
           proceso: proceso,
           tipo_equipo: 'Maquinaria',
           status: 'Operativa',
+          activo: m.activo !== false,
           failures: localM ? localM.failures : 0,
           cost: localM ? localM.cost : 0,
           mtbf: localM ? localM.mtbf : 120,
@@ -790,15 +798,23 @@ async function syncDatabases() {
     if (uErr) throw uErr;
     if (dbUsers && dbUsers.length > 0) {
       localStorage.setItem('TSMAI_users', JSON.stringify(dbUsers));
-      const localTechs = dbUsers.filter(u => u.rol === 'MANTENIMIENTO').map(t => ({
-        id: t.cve_tecnico || t.id_usuario,
+      // Filtro robusto: acepta 'MANTENIMIENTO', 'Mantenimiento', 'mantenimiento', 'TECH', etc.
+      const techRoles = ['mantenimiento', 'tech', 'técnico', 'tecnico', 'maintenance'];
+      const localTechs = dbUsers.filter(u => {
+        const userRol = (u.rol || '').toLowerCase().trim();
+        return techRoles.some(r => userRol.includes(r));
+      }).map(t => ({
+        id: t.cve_tecnico || t.id_usuario,   // id usado en el dropdown
         uuid: t.id_usuario,
+        cve_tecnico: t.cve_tecnico || null,  // campo FK real para cve_atendio
         name: t.nombre_completo,
         email: t.correo,
-        specialty: t.observaciones || 'General',
+        specialty: t.observaciones || t.especialidad || 'General',
         avatar: '👨‍🔧',
-        department: t.departamento
+        department: t.departamento,
+        activo: t.activo !== false
       }));
+      console.log(`[TSMAI] Técnicos sincronizados: ${localTechs.length} de ${dbUsers.length} usuarios. Roles encontrados:`, [...new Set(dbUsers.map(u => u.rol))]);
       localStorage.setItem('TSMAI_technicians', JSON.stringify(localTechs));
     } else {
       localStorage.setItem('TSMAI_users', '[]');
@@ -866,9 +882,13 @@ async function syncDatabases() {
           machineStopped: o.observacion_inicial || 'No',
           urgency: o.prioridad || 'Media',
           status: formattedStatus,
-          assignedTech: o.cve_atendio,
+          assignedTech: o.cve_atendio,    // puede ser cve_tecnico o UUID
+          cve_atendio: o.cve_atendio,     // campo exacto de Supabase
+          nombre_atendio: o.nombre_atendio, // nombre del técnico para matching por nombre
+          techName: o.nombre_atendio,     // alias para compatibilidad con renderTechOrdersTable
           date: o.fecha_hora_inicio || o.fecha_carga,
-          dueDate: o.fecha_fin ? `${o.fecha_fin}T${o.hora_fin}` : null,
+          dueDate: o.fecha_fin ? `${o.fecha_fin}T${o.hora_fin || '12:00:00'}` : null,
+          fecha_hora_inicio: o.fecha_hora_inicio,
           evidence: null,
           historyLogs: [
             { date: o.fecha_carga, status: 'Solicitud recibida', user: o.nombre_solicitante, comment: 'Registro inicial.' }
@@ -1531,14 +1551,15 @@ function restoreRouteFromHash() {
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1. SIEMPRE arrancar en el portal público/login — nunca saltar directo a una vista protegida
-  //    La sesión se verificará en segundo plano con Supabase antes de redirigir.
-  //    Limpiar currentUser en memoria para que restoreRouteFromHash lo trate como visitante.
-  currentUser = null;
-
-  // Mostrar portal público inmediatamente — el usuario siempre llega al inicio
-  showView('public-portal');
-  showPublicPanel('home');
+  // 1. Restaurar sesión activa de localStorage si existe
+  const savedUser = localStorage.getItem('TSMAI_current_user');
+  if (savedUser) {
+    try {
+      currentUser = JSON.parse(savedUser);
+    } catch (e) {
+      currentUser = null;
+    }
+  }
 
   // Asegurar que el seed de datos esté cargado
   if (typeof initLocalStorage === 'function') {
@@ -1549,21 +1570,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   populateTectSelects();
   loadPublicEmployeesList();
 
-  // 2. En segundo plano: Validar sesión activa de Supabase.
-  //    Solo si hay sesión válida en el servidor, restauramos la ruta del hash.
+  // Restaurar de inmediato la ruta/vista según el hash o el rol del usuario logueado
+  restoreRouteFromHash();
+
+  // 2. En segundo plano: Validar/Sincronizar sesión con Supabase (sin desconectar al usuario)
   if (supabaseClient) {
     try {
       const { data: { session } } = await supabaseClient.auth.getSession();
-      if (session) {
+      const sessionEmail = session?.user?.email || currentUser?.email;
+      
+      if (sessionEmail) {
         useLiveDatabase = true;
-        const email = session.user.email;
         const { data: dbUser } = await supabaseClient
           .from('cat_usuarios_roles')
           .select('*')
-          .eq('correo', email)
+          .eq('correo', sessionEmail)
           .maybeSingle();
         
         if (dbUser) {
+          if (dbUser.activo === false) {
+            console.warn('[TSMAI] Usuario inactivo en BD. Cerrando sesión...');
+            logout();
+            return;
+          }
           const roleKey = normalizeUserRole(dbUser.rol);
           if (roleKey === 'admin') {
             currentUser = { 
@@ -1602,18 +1631,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             };
           }
           persistSessionUser(currentUser);
-          // Solo ahora que hay sesión validada, restaurar la ruta del hash
           restoreRouteFromHash();
         }
       }
-      // Si NO hay sesión en Supabase: permanece en portal público (ya fue mostrado arriba)
     } catch (e) {
-      console.warn('No active Supabase session recovered:', e);
-      // En caso de error, permanece en portal público
+      console.warn('[TSMAI] Background session validation catch:', e);
     }
   }
   
-  if (useLiveDatabase) {
+  if (useLiveDatabase && supabaseClient) {
     await syncDatabases();
     refreshActiveViewSilently();
   }
@@ -2142,6 +2168,34 @@ function openAdminCreateRequestModal() {
     datalist.innerHTML = list.map(e => `<option value="${e.nombre_empleado}"></option>`).join('');
   }
 
+  // Populate technician dropdown
+  const techSelect = document.getElementById('admin-req-tech');
+  if (techSelect) {
+    const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+    let html = '<option value="">Sin asignar — Crear como solicitud para revisar</option>';
+    techs.forEach(t => {
+      if (t.activo === false) return;
+      const spec = t.specialty ? ` (${t.specialty})` : '';
+      html += `<option value="${t.id}">${t.name}${spec}</option>`;
+    });
+    // Fallback: si no hay técnicos sincronizados, mostrar aviso
+    if (techs.length === 0) {
+      html += '<option value="" disabled>⚠️ Sin técnicos sincronizados — haz sync primero</option>';
+    }
+    techSelect.innerHTML = html;
+  }
+
+  // Pre-set due date to tomorrow at noon
+  const dueDateInput = document.getElementById('admin-req-due-date');
+  if (dueDateInput) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(12, 0, 0, 0);
+    const offset = tomorrow.getTimezoneOffset();
+    tomorrow.setMinutes(tomorrow.getMinutes() - offset);
+    dueDateInput.value = tomorrow.toISOString().slice(0, 16);
+  }
+
   openModal('modal-admin-create-request');
 }
 
@@ -2210,6 +2264,24 @@ async function handleAdminRequestSubmit(event) {
   );
   const cveSolicitante = matchedEmp ? matchedEmp.cve_empleado : null;
 
+  // Leer campos opcionales de asignación directa
+  const selectedTechId = (document.getElementById('admin-req-tech')?.value || '').trim();
+  const dueDateRaw = document.getElementById('admin-req-due-date')?.value || '';
+  const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+  const selectedTech = techs.find(t => t.id === selectedTechId);
+  const selectedTechName = selectedTech ? selectedTech.name : '';
+  const selectedTechCve = selectedTech ? (selectedTech.cve_tecnico || null) : null;  // FK real
+  const selectedTechUuid = selectedTech ? (selectedTech.uuid || selectedTechId) : selectedTechId; // Para matching local
+
+  // Si se seleccionó técnico → crear directamente como OT Asignada
+  const directAssign = !!selectedTechId && !!selectedTechName;
+  const initialStatus = directAssign ? 'Asignada' : 'Solicitud recibida';
+
+  const nowISO = new Date().toISOString();
+  const dueDate = dueDateRaw ? new Date(dueDateRaw).toISOString() : (() => {
+    const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(12, 0, 0, 0); return d.toISOString();
+  })();
+
   const newRequest = {
     id: reqId,
     applicant: name,
@@ -2224,12 +2296,76 @@ async function handleAdminRequestSubmit(event) {
     risk: risk,
     machineStopped: machineStopped,
     description: description,
-    status: 'Solicitud recibida',
-    date: new Date().toISOString()
+    status: initialStatus,
+    assignedTech: directAssign ? selectedTechUuid : null,   // UUID para matching local
+    cve_atendio: directAssign ? selectedTechCve : null,      // cve_tecnico para sync desde Supabase
+    techName: directAssign ? selectedTechName : null,
+    dueDate: dueDate,
+    date: nowISO,
+    historyLogs: [
+      { date: nowISO, status: 'Solicitud recibida', user: name, comment: 'Registro inicial desde panel de administrador.' },
+      ...(directAssign ? [{ date: nowISO, status: 'Asignada', user: 'Super Admin', comment: `Asignada directamente a ${selectedTechName} al crear la solicitud.` }] : [])
+    ]
   };
 
   // Insertar en Supabase / LocalCache
-  await dbInsertRequest(newRequest);
+  if (supabaseClient) {
+    try {
+      const payload = {
+        folio: reqId,
+        orden_trabajo: type,
+        origen: 'App',
+        estatus: getDBStatus(initialStatus),
+        fecha_inicio: nowISO.split('T')[0],
+        hora_inicio: nowISO.split('T')[1].split('.')[0],
+        fecha_hora_inicio: nowISO,
+        departamento: area,
+        maquina_id: machine,
+        falla: type,
+        descripcion: description,
+        nombre_solicitante: name,
+        cve_solicitante: cveSolicitante || null,
+        turno_solicitante: shift.includes('Maña') || shift.includes('1') ? 1 : shift.includes('Vesper') || shift.includes('Tarde') || shift.includes('2') ? 2 : 3,
+        prioridad: urgency,
+        ...(directAssign ? {
+          cve_atendio: selectedTechCve,  // cve_tecnico real (puede ser null si no tiene)
+          nombre_atendio: selectedTechName,
+          fecha_fin: dueDate.split('T')[0],
+          hora_fin: dueDate.split('T')[1]?.split('.')[0] || '12:00:00',
+          fecha_hora_fin: dueDate
+        } : {}),
+        fecha_carga: nowISO
+      };
+      
+      const { data, error } = await supabaseClient
+        .from('ordenes_trabajo')
+        .insert([payload])
+        .select();
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        newRequest.id = data[0].folio || reqId;
+        newRequest.uuid = data[0].id_orden;
+      }
+    } catch (err) {
+      console.error('Error inserting request in Supabase:', err);
+    }
+  }
+
+  // Guardar en localStorage
+  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  if (!requests.some(r => r.id === newRequest.id)) {
+    requests.push(newRequest);
+    localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
+  }
+  // Si fue asignada directamente, agregar también a TSMAI_orders para que aparezca en tabla de OTs
+  if (directAssign) {
+    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    if (!orders.some(o => o.id === newRequest.id)) {
+      orders.push(newRequest);
+      localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+    }
+  }
 
   // Si la máquina está parada, actualizar estado
   if (machineStopped === 'Sí') {
@@ -2249,7 +2385,11 @@ async function handleAdminRequestSubmit(event) {
   }
 
   closeModal('modal-admin-create-request');
-  showToast(`✅ Solicitud ${reqId} registrada exitosamente.`);
+  if (directAssign) {
+    showToast(`✅ OT ${newRequest.id} creada y asignada a ${selectedTechName}.`);
+  } else {
+    showToast(`✅ Solicitud ${newRequest.id} registrada. Ve a "Nuevas Solicitudes" para convertirla en OT.`);
+  }
 
   await syncDatabases();
   refreshActiveViewSilently();
@@ -2668,7 +2808,7 @@ async function handleLoginSubmit(event) {
         uuid: dbUser.id_usuario,
         name: dbUser.nombre_completo, 
         email: dbUser.correo,
-        area: ['CF', 'PRF', 'AF', 'TF'].includes(userArea) ? userArea : 'CF',
+        area: ['CF', 'PF', 'AF', 'TF'].includes(userArea) ? userArea : 'CF',
         department: dbUser.departamento || 'Operación',
         supervisor: dbUser.id_supervisor || null,
         active: dbUser.activo !== false
@@ -4489,10 +4629,17 @@ function filterReviewTechsBySpecialty(specialty) {
     return spec.includes(specialty.toLowerCase()) || spec.includes('general') || spec.includes('coordinador');
   });
 
+  if (filtered.length === 0) {
+    select.innerHTML = '<option value="">⚠️ Sin técnicos activos disponibles — sincroniza usuarios</option>';
+    console.warn('[TSMAI] No hay técnicos en TSMAI_technicians. Verifica que los usuarios con rol MANTENIMIENTO estén activos en Supabase.');
+    return;
+  }
+
   let html = '<option value="">Selecciona técnico disponible...</option>';
   filtered.forEach(t => {
-    const specLabel = t.specialty ? ` (${t.specialty})` : '';
-    html += `<option value="${t.id}">${t.name}${specLabel}</option>`;
+    const keyLabel = t.cve_tecnico ? ` [${t.cve_tecnico}]` : '';
+    const specLabel = t.specialty && t.specialty !== 'General' ? ` — ${t.specialty}` : '';
+    html += `<option value="${t.id}">${t.name}${keyLabel}${specLabel}</option>`;
   });
 
   select.innerHTML = html;
@@ -4568,10 +4715,14 @@ async function convertToWorkOrder() {
   // Folio Oficial: Mantiene el folio original generado en el portal (ej: PF00001)
   const otId = reqId;
 
-  // Buscar nombre de técnico
+  // Buscar objeto completo del técnico
   const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
   const techObj = techs.find(t => t.id === techId);
   const techName = techObj ? techObj.name : 'Técnico';
+  // Usar cve_tecnico real para FK en Supabase; si no tiene, usar null (no forzar UUID inválido)
+  const techCveForDB = techObj ? (techObj.cve_tecnico || null) : null;
+  // Para matching local usamos el id completo (puede ser UUID o cve_tecnico)
+  const techUuidForLocal = techObj ? (techObj.uuid || techId) : techId;
 
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const newOrder = {
@@ -4587,7 +4738,8 @@ async function convertToWorkOrder() {
     machineStopped: req.machineStopped,
     urgency: priority,
     status: 'Asignada',
-    assignedTech: techId,
+    assignedTech: techUuidForLocal,   // UUID para matching local
+    cve_atendio: techCveForDB,        // cve_tecnico para sync desde Supabase
     techName: techName,
     date: req.date,
     dueDate: new Date(dueDate).toISOString(),
@@ -4618,7 +4770,7 @@ async function convertToWorkOrder() {
         descripcion: req.description,
         nombre_solicitante: req.applicant,
         cve_solicitante: req.applicant_id || null,
-        cve_atendio: techId,
+        cve_atendio: techCveForDB,  // cve_tecnico real — null si no tiene (evita error FK)
         nombre_atendio: techName,
         prioridad: priority,
         fecha_fin: parsedDueDate.toISOString().split('T')[0],
@@ -5646,9 +5798,9 @@ function renderAdminUsersTable() {
           </div>
         </td>
         <td>
-          <button class="btn-table-action" onclick="openAdminUserModal('${u.id_usuario}')">✏️ Editar</button>
-          <button class="btn-table-action" style="color: var(--accent-blue); border-color: rgba(59, 130, 246, 0.3);" onclick="resetAdminUserPassword('${u.id_usuario}')">🔑 Restablecer</button>
-          <button class="btn-table-action" style="color: ${u.activo ? 'var(--color-critical)' : 'var(--color-preventive)'}; border-color: ${u.activo ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}" onclick="deleteAdminUser('${u.id_usuario}')">
+          <button class="btn-table-action" onclick="openAdminUserModal('${u.id_usuario || u.correo || ''}')" ${!u.id_usuario && !u.correo ? 'disabled title="Sin ID disponible"' : ''}>✏️ Editar</button>
+          <button class="btn-table-action" style="color: var(--accent-blue); border-color: rgba(59, 130, 246, 0.3);" onclick="resetAdminUserPassword('${u.id_usuario || u.correo || ''}')">🔑 Restablecer</button>
+          <button class="btn-table-action" style="color: ${u.activo ? 'var(--color-critical)' : 'var(--color-preventive)'}; border-color: ${u.activo ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}" onclick="deleteAdminUser('${u.id_usuario || ''}')">
             ${u.activo ? '🚫 Desactivar' : '✅ Activar'}
           </button>
         </td>
@@ -5729,14 +5881,28 @@ function openAdminUserModal(userId = null) {
   
   if (userId) {
     const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-    const u = users.find(item => item.id_usuario === userId);
-    if (!u) return;
+    // Búsqueda robusta: primero por id_usuario, luego por uuid/id, luego por correo
+    let u = users.find(item => item.id_usuario === userId);
+    if (!u) u = users.find(item => (item.id || item.uuid) === userId);
+    if (!u) u = users.find(item => item.correo === userId); // fallback por correo
+    if (!u) {
+      console.warn('[TSMAI] openAdminUserModal: usuario no encontrado con ID:', userId, '— Lista de usuarios:', users.map(x => ({id: x.id_usuario, correo: x.correo})));
+      showToast('⚠️ No se pudo cargar el usuario. Intenta sincronizar (botón Sync).');
+      return;
+    }
 
-    document.getElementById('admin-user-id').value = u.id_usuario;
+    document.getElementById('admin-user-id').value = u.id_usuario || '';
     document.getElementById('admin-user-name').value = u.nombre_completo || '';
     document.getElementById('admin-user-email').value = u.correo || '';
     document.getElementById('admin-user-phone').value = u.telefono || '';
-    roleSelect.value = u.rol || 'SOLICITANTE';
+
+    // Normalizar el rol al valor del select (SOLICITANTE_PUBLICO → SOLICITANTE)
+    let rolNorm = (u.rol || 'SOLICITANTE').toUpperCase().trim();
+    if (rolNorm === 'SOLICITANTE_PUBLICO' || rolNorm === 'SOLICITANTE PUBLICO' || rolNorm === 'SOLICITANTE_PÚBLICO') rolNorm = 'SOLICITANTE';
+    if (rolNorm === 'ADMIN' || rolNorm === 'ADMINISTRADOR') rolNorm = 'SUPER_ADMINISTRADOR';
+    if (rolNorm === 'TECNICO' || rolNorm === 'TÉCNICO' || rolNorm === 'TECH') rolNorm = 'MANTENIMIENTO';
+    roleSelect.value = rolNorm;
+
     codeInput.value = u.cve_empleado || '';
     document.getElementById('admin-user-tech-code').value = u.cve_tecnico || '';
     document.getElementById('admin-user-dept').value = u.departamento || '';
@@ -5872,8 +6038,10 @@ async function saveAdminUser() {
   };
 
   const isUUID = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const isEmail = id && !isUUID && id.includes('@');
+  const isExistingUser = isUUID || isEmail; // true = update, false = insert
 
-  if (!isUUID) {
+  if (!isExistingUser) {
     userObj.contrasenia = tempPass;
     userObj.debe_cambiar_contrasenia = true;
     userObj.fecha_alta = new Date().toISOString();
@@ -5921,13 +6089,23 @@ async function saveAdminUser() {
       delete dbPayload.contrasenia;
 
       if (isUUID) {
+        // Caso normal: usuario identificado por UUID
         const { error } = await supabaseClient
           .from('cat_usuarios_roles')
           .update(dbPayload)
           .eq('id_usuario', id);
         if (error) throw error;
         showToast('✅ Usuario actualizado con éxito en Supabase.');
+      } else if (isEmail) {
+        // Caso fallback: usuario identificado por correo (sin UUID en TSMAI_users)
+        const { error } = await supabaseClient
+          .from('cat_usuarios_roles')
+          .update(dbPayload)
+          .eq('correo', id);
+        if (error) throw error;
+        showToast('✅ Usuario actualizado por correo en Supabase.');
       } else {
+        // Caso: nuevo usuario
         const { error } = await supabaseClient
           .from('cat_usuarios_roles')
           .insert([dbPayload]);
@@ -7752,18 +7930,21 @@ function renderTechDashboard() {
   
   // Filtrar OTs y Subtareas asignadas a este técnico
   const techId = currentUser.id || currentUser.uuid || currentUser.cve_tecnico;
+  const techUuid = currentUser.uuid;
+  const techCve = currentUser.cve_tecnico;
   const techName = (currentUser.name || '').toLowerCase();
-  const myOrders = orders.filter(o => 
-    o.assignedTech === techId || 
-    o.assignedTech === currentUser.uuid || 
-    o.cve_atendio === techId || 
-    o.cve_atendio === currentUser.cve_tecnico ||
-    (o.techName && o.techName.toLowerCase() === techName)
-  );
+  const myOrders = orders.filter(o => {
+    if (o.assignedTech === techId || o.assignedTech === techUuid || o.assignedTech === techCve) return true;
+    if (o.cve_atendio === techId || o.cve_atendio === techCve || o.cve_atendio === techUuid) return true;
+    if (o.techName && o.techName.toLowerCase() === techName) return true;
+    if (o.nombre_atendio && techName && o.nombre_atendio.toLowerCase() === techName) return true;
+    return false;
+  });
   const mySubtasks = subtasks.filter(s => 
     s.assignedTech === techId || 
-    s.assignedTech === currentUser.uuid ||
-    s.cve_atendio === techId
+    s.assignedTech === techUuid ||
+    s.cve_atendio === techId ||
+    s.cve_atendio === techCve
   );
 
   const assigned = myOrders.filter(o => o.status === 'Asignada').length + mySubtasks.filter(s => s.status === 'Asignada').length;
@@ -8077,14 +8258,14 @@ function renderTechOrdersTable() {
   const techCve = currentUser.cve_tecnico;
   const techName = (currentUser.name || '').toLowerCase();
 
-  const myOrders = orders.filter(o => 
-    o.assignedTech === techId || 
-    o.assignedTech === techUuid ||
-    o.assignedTech === techCve ||
-    o.cve_atendio === techId || 
-    o.cve_atendio === techCve ||
-    (o.techName && o.techName.toLowerCase() === techName)
-  );
+  const myOrders = orders.filter(o => {
+    if (o.assignedTech === techId || o.assignedTech === techUuid || o.assignedTech === techCve) return true;
+    if (o.cve_atendio === techId || o.cve_atendio === techCve || o.cve_atendio === techUuid) return true;
+    if (o.techName && o.techName.toLowerCase() === techName) return true;
+    // Fallback: nombre_atendio de Supabase
+    if (o.nombre_atendio && techName && o.nombre_atendio.toLowerCase() === techName) return true;
+    return false;
+  });
   
   // Convertir subtareas activas del técnico a formato compatible con la tabla
   const mySubtasks = subtasks.filter(s => 
@@ -13276,9 +13457,27 @@ async function submitSolicitanteAcceptWork() {
   });
   localStorage.setItem('TSMAI_validations_history', JSON.stringify(history));
 
+  // Actualizar en Supabase
+  if (supabaseClient) {
+    try {
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({
+          estatus: getDBStatus('Cerrada'),
+          calidad: rating,
+          observacion_cierre: comments || 'Trabajo aceptado satisfactoriamente por el solicitante'
+        })
+        .eq('folio', orderId);
+    } catch (err) {
+      console.error('Error updating order closure in Supabase:', err);
+    }
+  }
+
   closeModal('modal-solic-accept-work');
   alert(`✅ Trabajo de la Orden ${orderId} ACEPTADO y CERRADO con ${rating} estrellas.`);
   renderSolicitanteValidations();
+  if (typeof syncDatabases === 'function') await syncDatabases();
+  refreshActiveViewSilently();
 }
 
 function openCorrectionModal(orderId) {
@@ -13324,9 +13523,26 @@ async function submitSolicitanteCorrection() {
   });
   localStorage.setItem('TSMAI_validations_history', JSON.stringify(history));
 
+  // Actualizar en Supabase
+  if (supabaseClient) {
+    try {
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({
+          estatus: getDBStatus('REQUIERE CORRECCIÓN'),
+          observacion_cierre: `REQUIERE CORRECCIÓN: ${reason} - ${comments}`
+        })
+        .eq('folio', orderId);
+    } catch (err) {
+      console.error('Error updating order correction in Supabase:', err);
+    }
+  }
+
   closeModal('modal-solic-request-correction');
   alert(`⚠️ Se ha solicitado corrección para la Orden ${orderId}. La orden cambió a estatus REQUIERE CORRECCIÓN sin generar una nueva OT.`);
   renderSolicitanteValidations();
+  if (typeof syncDatabases === 'function') await syncDatabases();
+  refreshActiveViewSilently();
 }
 
 // ==========================================================================
