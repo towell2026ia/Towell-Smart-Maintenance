@@ -4791,7 +4791,7 @@ async function convertToWorkOrder() {
           .update({
             estatus: getDBStatus('Asignada'),
             orden_trabajo: type,
-            cve_atendio: techId,
+            cve_atendio: techCveForDB,  // cve_tecnico real — null si no tiene (evita error FK)
             nombre_atendio: techName,
             prioridad: priority,
             fecha_fin: parsedDueDate.toISOString().split('T')[0],
@@ -5891,7 +5891,7 @@ function openAdminUserModal(userId = null) {
       return;
     }
 
-    document.getElementById('admin-user-id').value = u.id_usuario || '';
+    document.getElementById('admin-user-id').value = u.id_usuario || u.correo || '';
     document.getElementById('admin-user-name').value = u.nombre_completo || '';
     document.getElementById('admin-user-email').value = u.correo || '';
     document.getElementById('admin-user-phone').value = u.telefono || '';
@@ -6137,7 +6137,7 @@ async function saveAdminUser() {
   } else {
     let localUsers = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
     if (id) {
-      localUsers = localUsers.map(u => u.id_usuario === id ? { ...u, ...userObj } : u);
+      localUsers = localUsers.map(u => (u.id_usuario === id || u.correo === id) ? { ...u, ...userObj } : u);
     } else {
       userObj.id_usuario = crypto.randomUUID ? crypto.randomUUID() : 'local-' + Math.random().toString(36).substr(2, 9);
       localUsers.push(userObj);
