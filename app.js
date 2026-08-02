@@ -1304,6 +1304,8 @@ function refreshActiveViewSilently() {
       renderAdminFormsList();
     } else if (activeAdminPanel === 'users') {
       renderAdminUsersTable();
+    } else if (activeAdminPanel === 'tecnicos') {
+      if (typeof renderAdminTecnicos === 'function') renderAdminTecnicos();
     }
     updateRequestsBadge();
   } else if (techView && techView.classList.contains('active')) {
@@ -1324,6 +1326,45 @@ function refreshActiveViewSilently() {
     }
   }
 }
+
+// --- BROADCAST REALTIME CROSS-TAB & CROSS-WINDOW SYNCHRONIZATION ---
+const tsmaiBroadcastChannel = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('tsmai_app_sync') : null;
+
+function broadcastAppUpdate(type = 'SYNC_ALL') {
+  const payload = { type, timestamp: Date.now() };
+  if (tsmaiBroadcastChannel) {
+    try {
+      tsmaiBroadcastChannel.postMessage(payload);
+    } catch (e) {
+      console.warn('[Broadcast] Error posting message:', e);
+    }
+  }
+  try {
+    localStorage.setItem('TSMAI_last_broadcast_event', JSON.stringify(payload));
+  } catch (e) {}
+}
+
+if (tsmaiBroadcastChannel) {
+  tsmaiBroadcastChannel.onmessage = async (event) => {
+    console.log('[Broadcast] Received cross-tab event:', event.data);
+    if (useLiveDatabase && supabaseClient) {
+      await syncDatabases();
+    }
+    populateTectSelects();
+    refreshActiveViewSilently();
+  };
+}
+
+window.addEventListener('storage', async (event) => {
+  if (event.key === 'TSMAI_last_broadcast_event' || event.key === 'TSMAI_users' || event.key === 'TSMAI_technicians' || event.key === 'TSMAI_orders' || event.key === 'TSMAI_requests') {
+    console.log('[StorageEvent] Detected cross-window change on key:', event.key);
+    if (useLiveDatabase && supabaseClient) {
+      await syncDatabases();
+    }
+    populateTectSelects();
+    refreshActiveViewSilently();
+  }
+});
 
 function setupRealtimeSubscriptions() {
   // --- A1: Limpiar canal previo si existe para evitar suscripciones duplicadas ---
@@ -3511,6 +3552,8 @@ async function submitNewTechnician() {
     // 5. Refresh table
     renderAdminTecnicos();
     populateTectSelects();
+    refreshActiveViewSilently();
+    broadcastAppUpdate('TECNICO_REGISTERED');
   } catch (err) {
     console.error('Error registering technician:', err);
     showToast(`Error: ${err.message}`);
@@ -6000,14 +6043,14 @@ async function saveAdminUser() {
     return;
   }
 
-  const finalEmpCode = cveEmpleado || (cveTecnico ? cveTecnico : null);
-  const finalTechCode = (rol === 'MANTENIMIENTO' || cveTecnico) ? (cveTecnico || cveEmpleado || null) : null;
-  const tempPass = 'TSM' + Math.floor(100000 + Math.random() * 900000);
-
-  if (rol === 'MANTENIMIENTO' && !finalEmpCode && !finalTechCode) {
-    alert('Por favor ingresa la clave de empleado o técnico.');
-    return;
+  let finalTechCode = (rol === 'MANTENIMIENTO' || cveTecnico) ? (cveTecnico || cveEmpleado || (id && !id.includes('@') ? id : null)) : null;
+  if (rol === 'MANTENIMIENTO' && !finalTechCode) {
+    const existingTechs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+    const nextNum = existingTechs.length + 1;
+    finalTechCode = `T-${String(nextNum).padStart(2, '0')}`;
   }
+  const finalEmpCode = cveEmpleado || finalTechCode || null;
+  const tempPass = 'TSM' + Math.floor(100000 + Math.random() * 900000);
 
   const finalCanCreate = rol === 'MANTENIMIENTO' ? false : puedeCrear;
 
@@ -6082,6 +6125,14 @@ async function saveAdminUser() {
             fecha_actualizacion: new Date().toISOString()
           }], { onConflict: 'cve_tecnico' });
         if (techErr) console.warn('Aviso en cat_tecnicos:', techErr);
+      } else if (rol !== 'MANTENIMIENTO' && (correo || finalTechCode)) {
+        // Si el rol cambió de Técnico a Solicitante/Admin, desactivar en cat_tecnicos
+        try {
+          await supabaseClient
+            .from('cat_tecnicos')
+            .update({ activo: false, fecha_actualizacion: new Date().toISOString() })
+            .eq('correo', correo);
+        } catch (e) { console.warn('Aviso al desactivar en cat_tecnicos:', e); }
       }
 
       // 3. Actualizar la tabla principal cat_usuarios_roles
@@ -6178,14 +6229,19 @@ async function saveAdminUser() {
   }
 
   closeModal('modal-admin-user-detail');
+  populateTectSelects();
   renderAdminUsersTable();
+  if (typeof renderAdminTecnicos === 'function') renderAdminTecnicos();
+  refreshActiveViewSilently();
+  broadcastAppUpdate('USER_SAVED');
 }
 
 async function deleteAdminUser(userId) {
   if (!userId) return;
 
   const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-  const user = users.find(u => u.id_usuario === userId);
+  let user = users.find(u => u.id_usuario === userId);
+  if (!user) user = users.find(u => u.correo === userId);
   if (!user) return;
 
   const newStatus = !user.activo;
@@ -6200,8 +6256,19 @@ async function deleteAdminUser(userId) {
       const { error } = await supabaseClient
         .from('cat_usuarios_roles')
         .update({ activo: newStatus, fecha_actualizacion: new Date().toISOString() })
-        .eq('id_usuario', userId);
+        .or(`id_usuario.eq.${userId},correo.eq.${userId}`);
       if (error) throw error;
+
+      // Si es técnico, también actualizar su estatus activo en cat_tecnicos
+      if (user.rol === 'MANTENIMIENTO' || user.cve_tecnico) {
+        try {
+          await supabaseClient
+            .from('cat_tecnicos')
+            .update({ activo: newStatus, fecha_actualizacion: new Date().toISOString() })
+            .or(`correo.eq.${user.correo},cve_tecnico.eq.${user.cve_tecnico || ''}`);
+        } catch (e) { console.warn('Aviso al actualizar estatus en cat_tecnicos:', e); }
+      }
+
       showToast(`Usuario ${newStatus ? 'activado' : 'desactivado'} en Supabase.`);
       await syncDatabases();
     } catch (err) {
@@ -6210,10 +6277,10 @@ async function deleteAdminUser(userId) {
       return;
     }
   } else {
-    const updatedUsers = users.map(u => u.id_usuario === userId ? { ...u, activo: newStatus } : u);
+    const updatedUsers = users.map(u => (u.id_usuario === userId || u.correo === userId) ? { ...u, activo: newStatus } : u);
     localStorage.setItem('TSMAI_users', JSON.stringify(updatedUsers));
     
-    const localTechs = updatedUsers.filter(u => u.rol === 'MANTENIMIENTO').map(t => ({
+    const localTechs = updatedUsers.filter(u => u.rol === 'MANTENIMIENTO' && u.activo !== false).map(t => ({
       id: t.cve_tecnico || t.id_usuario,
       uuid: t.id_usuario,
       name: t.nombre_completo,
@@ -6222,11 +6289,14 @@ async function deleteAdminUser(userId) {
       avatar: '👨‍🔧'
     }));
     localStorage.setItem('TSMAI_technicians', JSON.stringify(localTechs));
-    
     showToast(`Usuario ${newStatus ? 'activado' : 'desactivado'} localmente.`);
   }
 
+  populateTectSelects();
   renderAdminUsersTable();
+  if (typeof renderAdminTecnicos === 'function') renderAdminTecnicos();
+  refreshActiveViewSilently();
+  broadcastAppUpdate('USER_STATUS_TOGGLED');
 }
 
 // --- CRUD MÁQUINAS (ADMIN) ---
@@ -10315,20 +10385,69 @@ async function supabaseCall(fn, retries = 2) {
   }
 }
 
-// Función auxiliar para rellenar los técnicos activos en el modal de conversión del admin
+// Función auxiliar para rellenar los técnicos activos en todos los dropdowns del sistema
 function populateTectSelects() {
   const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
   const activeTechs = techs.filter(t => t.activo !== false);
-  
-  // Select en modal de revisión del admin
+
+  // 1. Select en modal de revisión del admin (#review-tech)
   const reviewTechSelect = document.getElementById('review-tech');
   if (reviewTechSelect) {
-    let html = '<option value="">Selecciona técnico...</option>';
+    const cur = reviewTechSelect.value;
+    let html = '<option value="">Selecciona técnico disponible...</option>';
     activeTechs.forEach(t => {
-      const deptLbl = t.department ? ` [${t.department}]` : '';
-      html += `<option value="${t.id}">${t.name} (${t.specialty || 'General'})${deptLbl}</option>`;
+      const keyLabel = t.cve_tecnico ? ` [${t.cve_tecnico}]` : '';
+      const specLabel = t.specialty && t.specialty !== 'General' ? ` — ${t.specialty}` : '';
+      html += `<option value="${t.id}">${t.name}${keyLabel}${specLabel}</option>`;
     });
+    if (activeTechs.length === 0) {
+      html = '<option value="">⚠️ Sin técnicos activos disponibles — sincroniza usuarios</option>';
+    }
     reviewTechSelect.innerHTML = html;
+    if (cur) reviewTechSelect.value = cur;
+  }
+
+  // 2. Select en modal de nueva solicitud / OT directa admin (#admin-req-tech)
+  const adminReqTechSelect = document.getElementById('admin-req-tech');
+  if (adminReqTechSelect) {
+    const cur = adminReqTechSelect.value;
+    let html = '<option value="">Sin asignar — Crear como solicitud para revisar</option>';
+    activeTechs.forEach(t => {
+      const keyLabel = t.cve_tecnico ? ` [${t.cve_tecnico}]` : '';
+      const specLabel = t.specialty && t.specialty !== 'General' ? ` — ${t.specialty}` : '';
+      html += `<option value="${t.id}">${t.name}${keyLabel}${specLabel}</option>`;
+    });
+    if (activeTechs.length === 0) {
+      html += '<option value="" disabled>⚠️ Sin técnicos activos disponibles</option>';
+    }
+    adminReqTechSelect.innerHTML = html;
+    if (cur) adminReqTechSelect.value = cur;
+  }
+
+  // 3. Select en modal de subtarea admin (#subtask-assign-tech)
+  const subtaskTechSelect = document.getElementById('subtask-assign-tech');
+  if (subtaskTechSelect) {
+    const cur = subtaskTechSelect.value;
+    let html = '<option value="">Selecciona técnico de apoyo...</option>';
+    activeTechs.forEach(t => {
+      const keyLabel = t.cve_tecnico ? ` [${t.cve_tecnico}]` : '';
+      html += `<option value="${t.id}">${t.name}${keyLabel}</option>`;
+    });
+    subtaskTechSelect.innerHTML = html;
+    if (cur) subtaskTechSelect.value = cur;
+  }
+
+  // 4. Select en filtro de OTs por técnico (#filter-ot-tech)
+  const filterOtTechSelect = document.getElementById('filter-ot-tech');
+  if (filterOtTechSelect) {
+    const cur = filterOtTechSelect.value;
+    let html = '<option value="">Todos los Técnicos</option>';
+    activeTechs.forEach(t => {
+      const keyLabel = t.cve_tecnico ? ` [${t.cve_tecnico}]` : '';
+      html += `<option value="${t.id}">${t.name}${keyLabel}</option>`;
+    });
+    filterOtTechSelect.innerHTML = html;
+    if (cur) filterOtTechSelect.value = cur;
   }
 }
 
