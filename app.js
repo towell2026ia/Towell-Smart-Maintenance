@@ -1832,36 +1832,35 @@ function showView(viewId) {
 
   // Ejecutar inicializaciones de datos según la vista
   if (viewId === 'admin') {
-    renderAdminDashboard();
-    updateAdminKPIs();
-    renderAdminRequestsTable();
-    renderAdminOrdersTable();
-    renderAdminCalendar();
-    renderAdminLogsTable();
-    renderAdminMachinesTable();
-    renderAdminPartsTable();
-    renderAdminFormsList();
-    renderAdminUsersTable();
     switchAdminPanel(activeAdminPanel || 'dashboard');
-    updateRequestsBadge();
+    try { renderAdminDashboard(); } catch(e) {}
+    try { updateAdminKPIs(); } catch(e) {}
+    try { renderAdminRequestsTable(); } catch(e) {}
+    try { renderAdminOrdersTable(); } catch(e) {}
+    try { renderAdminCalendar(); } catch(e) {}
+    try { renderAdminLogsTable(); } catch(e) {}
+    try { renderAdminMachinesTable(); } catch(e) {}
+    try { renderAdminPartsTable(); } catch(e) {}
+    try { renderAdminFormsList(); } catch(e) {}
+    try { renderAdminUsersTable(); } catch(e) {}
+    try { updateRequestsBadge(); } catch(e) {}
 
     // Sincronización en segundo plano para actualizar datos en tiempo real sin bloquear la interfaz
     if (supabaseClient) {
       syncDatabases().then(() => {
-        // Solo volver a renderizar si seguimos en la vista de admin
         const adminView = document.getElementById('view-admin');
         if (adminView && adminView.classList.contains('active')) {
-          renderAdminDashboard();
-          updateAdminKPIs();
-          renderAdminRequestsTable();
-          renderAdminOrdersTable();
-          renderAdminCalendar();
-          renderAdminLogsTable();
-          renderAdminMachinesTable();
-          renderAdminPartsTable();
-          renderAdminFormsList();
-          renderAdminUsersTable();
-          updateRequestsBadge();
+          try { renderAdminDashboard(); } catch(e) {}
+          try { updateAdminKPIs(); } catch(e) {}
+          try { renderAdminRequestsTable(); } catch(e) {}
+          try { renderAdminOrdersTable(); } catch(e) {}
+          try { renderAdminCalendar(); } catch(e) {}
+          try { renderAdminLogsTable(); } catch(e) {}
+          try { renderAdminMachinesTable(); } catch(e) {}
+          try { renderAdminPartsTable(); } catch(e) {}
+          try { renderAdminFormsList(); } catch(e) {}
+          try { renderAdminUsersTable(); } catch(e) {}
+          try { updateRequestsBadge(); } catch(e) {}
         }
       }).catch(err => console.error('Error in background sync for admin view:', err));
     }
@@ -4523,7 +4522,6 @@ function updateAdminKPIs() {
   const open = orders.filter(o => o.status !== 'Cerrada' && o.status !== 'Cancelada').length;
   const critical = orders.filter(o => o.urgency === 'Crítica' && o.status !== 'Cerrada').length;
   
-  // OTs vencidas (fecha compromiso anterior a hoy y no cerrada)
   const now = new Date();
   const overdue = orders.filter(o => {
     return new Date(o.dueDate) < now && o.status !== 'Cerrada' && o.status !== 'Cancelada';
@@ -4531,14 +4529,14 @@ function updateAdminKPIs() {
 
   const onHold = orders.filter(o => o.status === 'En espera').length;
   const preventives = orders.filter(o => o.type === 'MP').length;
-  const newRequests = requests.filter(r => r.status === 'Solicitud recibida').length;
+  const newRequests = requests.filter(r => r && r.status && String(r.status).toLowerCase().includes('recibid')).length;
 
-  document.getElementById('kpi-admin-ot-open').innerText = open;
-  document.getElementById('kpi-admin-ot-critical').innerText = critical;
-  document.getElementById('kpi-admin-ot-overdue').innerText = overdue;
-  document.getElementById('kpi-admin-ot-hold').innerText = onHold;
-  document.getElementById('kpi-admin-prev-month').innerText = preventives;
-  document.getElementById('kpi-admin-new-req').innerText = newRequests;
+  safeSetText('kpi-admin-ot-open', open);
+  safeSetText('kpi-admin-ot-critical', critical);
+  safeSetText('kpi-admin-ot-overdue', overdue);
+  safeSetText('kpi-admin-ot-hold', onHold);
+  safeSetText('kpi-admin-prev-month', preventives);
+  safeSetText('kpi-admin-new-req', newRequests);
 }
 
 // Actualizar indicador visual de la bandeja
