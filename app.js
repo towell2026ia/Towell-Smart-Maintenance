@@ -1510,8 +1510,17 @@ function restoreRouteFromHash() {
   if (currentUser) {
     const roleKey = normalizeUserRole(currentUser.role || currentUser.rol);
 
-    // Si la URL solicita una vista específica
-    if (viewId === 'tech') {
+    // Si el usuario es SOLICITANTE, forzar siempre la vista de solicitante
+    if (roleKey === 'solicitante') {
+      const validPanels = ['home', 'new', 'tracking', 'calendar', 'validation'];
+      const targetPanel = validPanels.includes(panelId) ? panelId : (activeSolicitantePanel || 'home');
+      showView('solicitante');
+      switchSolicitantePanel(targetPanel);
+      return true;
+    }
+
+    // Si el usuario es TÉCNICO
+    if (roleKey === 'tech') {
       const targetPanel = (panelId === 'orders') ? 'dashboard' : (panelId || activeTechPanel || 'dashboard');
       const pName = document.getElementById('tech-profile-name');
       const pSpec = document.getElementById('tech-profile-specialty');
@@ -1521,55 +1530,24 @@ function restoreRouteFromHash() {
       if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
 
       const switchAdminBtn = document.getElementById('menu-tech-switch-admin');
-      if (switchAdminBtn) {
-        switchAdminBtn.style.display = (roleKey === 'admin') ? 'block' : 'none';
-      }
+      if (switchAdminBtn) switchAdminBtn.style.display = 'none';
 
       showView('tech');
       switchTechPanel(targetPanel);
       return true;
     }
 
-    if (viewId === 'admin' && roleKey === 'admin') {
+    // Si el usuario es ADMIN
+    if (roleKey === 'admin') {
+      if (viewId === 'tech') {
+        const targetPanel = (panelId === 'orders') ? 'dashboard' : (panelId || activeTechPanel || 'dashboard');
+        showView('tech');
+        switchTechPanel(targetPanel);
+        return true;
+      }
       const targetPanel = panelId || activeAdminPanel || 'dashboard';
       showView('admin');
       switchAdminPanel(targetPanel);
-      return true;
-    }
-
-    if (viewId === 'solicitante') {
-      const validPanels = ['home', 'new', 'tracking', 'calendar', 'validation'];
-      const targetPanel = validPanels.includes(panelId) ? panelId : (activeSolicitantePanel || 'home');
-      showView('solicitante');
-      switchSolicitantePanel(targetPanel);
-      return true;
-    }
-
-    if (viewId === 'login') {
-      showView('login');
-      return true;
-    }
-
-    if (viewId === 'public') {
-      showView('public-portal');
-      showPublicPanel(panelId || 'home');
-      return true;
-    }
-
-    // Sin vista explícita en el hash: usar rol por defecto del usuario
-    if (roleKey === 'admin') {
-      const targetPanel = activeAdminPanel || 'dashboard';
-      showView('admin');
-      switchAdminPanel(targetPanel);
-      return true;
-    } else if (roleKey === 'tech') {
-      const targetPanel = activeTechPanel || 'dashboard';
-      showView('tech');
-      switchTechPanel(targetPanel);
-      return true;
-    } else if (roleKey === 'solicitante') {
-      showView('solicitante');
-      switchSolicitantePanel(panelId || activeSolicitantePanel || 'home');
       return true;
     }
   }
