@@ -1841,7 +1841,7 @@ function showView(viewId) {
     renderAdminPartsTable();
     renderAdminFormsList();
     renderAdminUsersTable();
-    // Actualizar badge de solicitudes nuevas
+    switchAdminPanel(activeAdminPanel || 'dashboard');
     updateRequestsBadge();
 
     // Sincronización en segundo plano para actualizar datos en tiempo real sin bloquear la interfaz
@@ -2933,19 +2933,17 @@ function toggleDatabaseSubmenu(event) {
 }
 
 function switchAdminPanel(panelId) {
-  activeAdminPanel = panelId;
-  const route = `#admin/${panelId}`;
+  activeAdminPanel = panelId || 'dashboard';
+  const route = `#admin/${activeAdminPanel}`;
   if (location.hash !== route) {
-    history.pushState(null, '', route);
+    try { history.pushState(null, '', route); } catch(e) {}
   }
   localStorage.setItem('TSMAI_current_route', route);
   closeSidebarOnMobile();
   updateMobileBottomNav();
-  
-  // Ocultar siempre el submenú desplegable al seleccionar una opción
   closeDatabaseSubmenu();
 
-  // Cambiar pestaña activa de la barra lateral
+  // 1. Cambiar pestaña activa de la barra lateral
   document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
     item.classList.remove('active');
   });
@@ -2953,7 +2951,7 @@ function switchAdminPanel(panelId) {
   const dbGroup = document.getElementById('menu-admin-database-group');
   if (dbGroup) dbGroup.classList.remove('active');
 
-  const activeMenuItem = document.getElementById(`menu-admin-${panelId}`);
+  const activeMenuItem = document.getElementById(`menu-admin-${activeAdminPanel}`);
   if (activeMenuItem) activeMenuItem.classList.add('active');
 
   const dbPanels = [
@@ -2963,18 +2961,25 @@ function switchAdminPanel(panelId) {
     'notificaciones', 'fallas', 'telegram', 'costosot', 'evidencias', 'refmaquina', 'histprecios', 'cierres', 'respchk',
     'preventive', 'checklists', 'downtime'
   ];
-  if (dbPanels.includes(panelId) && dbGroup) {
+  if (dbPanels.includes(activeAdminPanel) && dbGroup) {
     dbGroup.classList.add('active');
   }
 
-  // Cambiar paneles visibles
-  document.querySelectorAll('.admin-panel-content').forEach(panel => {
-    panel.style.display = 'none';
-  });
-  const activePanel = document.getElementById(`panel-admin-${panelId}`);
-  if (activePanel) activePanel.style.display = 'block';
+  // 2. Ocultar todos los paneles y MOSTRAR DE INMEDIATO el panel activo (con fallback a dashboard si no se encuentra)
+  let targetPanel = document.getElementById(`panel-admin-${activeAdminPanel}`);
+  if (!targetPanel) {
+    targetPanel = document.getElementById('panel-admin-dashboard');
+  }
 
-  // Configurar título de Topbar
+  document.querySelectorAll('.admin-panel-content').forEach(p => {
+    p.style.display = 'none';
+  });
+
+  if (targetPanel) {
+    targetPanel.style.display = 'block';
+  }
+
+  // 3. Configurar título de Topbar
   const titleLabels = {
     dashboard: '📊 Dashboard Ejecutivo',
     databases: '🗄️ Centro de Bases de Datos & Catálogos',
@@ -3022,91 +3027,94 @@ function switchAdminPanel(panelId) {
     respchk: '📋 Respuestas de Checklist por OT',
     analytics: '📈 Analítica de Planta — Tiempos Objetivo y Óptimos'
   };
-  document.getElementById('admin-panel-title').innerText = titleLabels[panelId] || 'Panel de Control';
+  const titleEl = document.getElementById('admin-panel-title');
+  if (titleEl) {
+    titleEl.innerText = titleLabels[activeAdminPanel] || 'Panel de Control';
+  }
 
-  // Acciones de refresco específicas del panel
+  // 4. Acciones de refresco específicas del panel protegidas con try-catch
   try {
-    if (panelId === 'dashboard') {
+    if (activeAdminPanel === 'dashboard') {
       renderAdminDashboard();
       updateAdminKPIs();
-    } else if (panelId === 'analytics') {
+    } else if (activeAdminPanel === 'analytics') {
       renderAdminAnalyticsDashboard();
-    } else if (panelId === 'requests') {
+    } else if (activeAdminPanel === 'requests') {
       renderAdminRequestsTable();
-    } else if (panelId === 'orders') {
+    } else if (activeAdminPanel === 'orders') {
       populateTechFilters();
       renderAdminOrdersTable();
-    } else if (panelId === 'calendar') {
+    } else if (activeAdminPanel === 'calendar') {
       switchCalendarViewMode('grid');
-    } else if (panelId === 'logs') {
+    } else if (activeAdminPanel === 'logs') {
       renderAdminLogsTable();
-    } else if (panelId === 'machines') {
+    } else if (activeAdminPanel === 'machines') {
       renderAdminMachinesTable();
-    } else if (panelId === 'parts') {
+    } else if (activeAdminPanel === 'parts') {
       renderAdminPartsTable();
-    } else if (panelId === 'tecnicos') {
+    } else if (activeAdminPanel === 'tecnicos') {
       if (typeof renderAdminTecnicos === 'function') renderAdminTecnicos();
-    } else if (panelId === 'empleados') {
+    } else if (activeAdminPanel === 'empleados') {
       if (typeof renderAdminEmpleados === 'function') renderAdminEmpleados();
-    } else if (panelId === 'departamentos') {
+    } else if (activeAdminPanel === 'departamentos') {
       if (typeof renderAdminDepartamentos === 'function') renderAdminDepartamentos();
-    } else if (panelId === 'turnos') {
+    } else if (activeAdminPanel === 'turnos') {
       if (typeof renderAdminTurnos === 'function') renderAdminTurnos();
-    } else if (panelId === 'servicios') {
+    } else if (activeAdminPanel === 'servicios') {
       if (typeof renderAdminServicios === 'function') renderAdminServicios();
-    } else if (panelId === 'tiposfalla') {
+    } else if (activeAdminPanel === 'tiposfalla') {
       if (typeof renderAdminTiposFalla === 'function') renderAdminTiposFalla();
-    } else if (panelId === 'categfalla') {
+    } else if (activeAdminPanel === 'categfalla') {
       if (typeof renderAdminCategFalla === 'function') renderAdminCategFalla();
-    } else if (panelId === 'criticidad') {
+    } else if (activeAdminPanel === 'criticidad') {
       if (typeof renderAdminCriticidad === 'function') renderAdminCriticidad();
-    } else if (panelId === 'componentes') {
+    } else if (activeAdminPanel === 'componentes') {
       if (typeof renderAdminComponentes === 'function') renderAdminComponentes();
-    } else if (panelId === 'estatusot') {
+    } else if (activeAdminPanel === 'estatusot') {
       if (typeof renderAdminEstatusOT === 'function') renderAdminEstatusOT();
-    } else if (panelId === 'users') {
+    } else if (activeAdminPanel === 'users') {
       renderAdminUsersTable();
-    } else if (panelId === 'forms') {
+    } else if (activeAdminPanel === 'forms') {
       renderAdminFormsList();
-    } else if (panelId === 'subtasks') {
+    } else if (activeAdminPanel === 'subtasks') {
       renderAdminSubtasksTable();
-    } else if (panelId === 'preventive') {
+    } else if (activeAdminPanel === 'preventive') {
       renderAdminPreventivePlans();
-    } else if (panelId === 'checklists') {
+    } else if (activeAdminPanel === 'checklists') {
       renderAdminChecklists();
-    } else if (panelId === 'downtime') {
+    } else if (activeAdminPanel === 'downtime') {
       renderAdminDowntime();
-    } else if (panelId === 'kpis') {
+    } else if (activeAdminPanel === 'kpis') {
       renderAdminKPIs();
-    } else if (panelId === 'analysis') {
+    } else if (activeAdminPanel === 'analysis') {
       renderAdminAnalysis();
-    } else if (panelId === 'ai') {
+    } else if (activeAdminPanel === 'ai') {
       renderAdminAIRecommendations();
-    } else if (panelId === 'alertrules') {
+    } else if (activeAdminPanel === 'alertrules') {
       renderAdminAlertRules();
-    } else if (panelId === 'notificaciones') {
+    } else if (activeAdminPanel === 'notificaciones') {
       renderAdminNotificaciones();
-    } else if (panelId === 'alertas') {
+    } else if (activeAdminPanel === 'alertas') {
       renderAdminAlertas();
-    } else if (panelId === 'fallas') {
+    } else if (activeAdminPanel === 'fallas') {
       renderAdminFallas();
-    } else if (panelId === 'telegram') {
+    } else if (activeAdminPanel === 'telegram') {
       renderAdminTelegramTable();
-    } else if (panelId === 'costosot') {
+    } else if (activeAdminPanel === 'costosot') {
       renderAdminCostosOT();
-    } else if (panelId === 'evidencias') {
+    } else if (activeAdminPanel === 'evidencias') {
       renderAdminEvidencias();
-    } else if (panelId === 'refmaquina') {
+    } else if (activeAdminPanel === 'refmaquina') {
       renderAdminRefMaquina();
-    } else if (panelId === 'cierres') {
+    } else if (activeAdminPanel === 'cierres') {
       renderAdminCierres();
-    } else if (panelId === 'respchk') {
+    } else if (activeAdminPanel === 'respchk') {
       renderAdminRespChk();
-    } else if (panelId === 'excel') {
+    } else if (activeAdminPanel === 'excel') {
       renderExcelHistoryTable();
     }
   } catch (err) {
-    console.error(`[AdminPanel] Error al cargar el panel ${panelId}:`, err);
+    console.error(`[AdminPanel] Error al renderizar ${activeAdminPanel}:`, err);
   }
 }
 
