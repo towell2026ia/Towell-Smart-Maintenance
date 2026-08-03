@@ -3025,84 +3025,88 @@ function switchAdminPanel(panelId) {
   document.getElementById('admin-panel-title').innerText = titleLabels[panelId] || 'Panel de Control';
 
   // Acciones de refresco específicas del panel
-  if (panelId === 'dashboard') {
-    renderAdminDashboard();
-    updateAdminKPIs();
-  } else if (panelId === 'analytics') {
-    renderAdminAnalyticsDashboard();
-  } else if (panelId === 'requests') {
-    renderAdminRequestsTable();
-  } else if (panelId === 'orders') {
-    populateTechFilters();
-    renderAdminOrdersTable();
-  } else if (panelId === 'calendar') {
-    switchCalendarViewMode('grid');
-  } else if (panelId === 'logs') {
-    renderAdminLogsTable();
-  } else if (panelId === 'machines') {
-    renderAdminMachinesTable();
-  } else if (panelId === 'parts') {
-    renderAdminPartsTable();
-  } else if (panelId === 'tecnicos') {
-    renderAdminTecnicos();
-  } else if (panelId === 'empleados') {
-    renderAdminEmpleados();
-  } else if (panelId === 'departamentos') {
-    renderAdminDepartamentos();
-  } else if (panelId === 'turnos') {
-    renderAdminTurnos();
-  } else if (panelId === 'servicios') {
-    renderAdminServicios();
-  } else if (panelId === 'tiposfalla') {
-    renderAdminTiposFalla();
-  } else if (panelId === 'categfalla') {
-    renderAdminCategFalla();
-  } else if (panelId === 'criticidad') {
-    renderAdminCriticidad();
-  } else if (panelId === 'componentes') {
-    renderAdminComponentes();
-  } else if (panelId === 'estatusot') {
-    renderAdminEstatusOT();
-  } else if (panelId === 'users') {
-    renderAdminUsersTable();
-  } else if (panelId === 'forms') {
-    renderAdminFormsList();
-  } else if (panelId === 'subtasks') {
-    renderAdminSubtasksTable();
-  } else if (panelId === 'preventive') {
-    renderAdminPreventivePlans();
-  } else if (panelId === 'checklists') {
-    renderAdminChecklists();
-  } else if (panelId === 'downtime') {
-    renderAdminDowntime();
-  } else if (panelId === 'kpis') {
-    renderAdminKPIs();
-  } else if (panelId === 'analysis') {
-    renderAdminAnalysis();
-  } else if (panelId === 'ai') {
-    renderAdminAIRecommendations();
-  } else if (panelId === 'alertrules') {
-    renderAdminAlertRules();
-  } else if (panelId === 'notificaciones') {
-    renderAdminNotificaciones();
-  } else if (panelId === 'alertas') {
-    renderAdminAlertas();
-  } else if (panelId === 'fallas') {
-    renderAdminFallas();
-  } else if (panelId === 'telegram') {
-    renderAdminTelegramTable();
-  } else if (panelId === 'costosot') {
-    renderAdminCostosOT();
-  } else if (panelId === 'evidencias') {
-    renderAdminEvidencias();
-  } else if (panelId === 'refmaquina') {
-    renderAdminRefMaquina();
-  } else if (panelId === 'cierres') {
-    renderAdminCierres();
-  } else if (panelId === 'respchk') {
-    renderAdminRespChk();
-  } else if (panelId === 'excel') {
-    renderExcelHistoryTable();
+  try {
+    if (panelId === 'dashboard') {
+      renderAdminDashboard();
+      updateAdminKPIs();
+    } else if (panelId === 'analytics') {
+      renderAdminAnalyticsDashboard();
+    } else if (panelId === 'requests') {
+      renderAdminRequestsTable();
+    } else if (panelId === 'orders') {
+      populateTechFilters();
+      renderAdminOrdersTable();
+    } else if (panelId === 'calendar') {
+      switchCalendarViewMode('grid');
+    } else if (panelId === 'logs') {
+      renderAdminLogsTable();
+    } else if (panelId === 'machines') {
+      renderAdminMachinesTable();
+    } else if (panelId === 'parts') {
+      renderAdminPartsTable();
+    } else if (panelId === 'tecnicos') {
+      if (typeof renderAdminTecnicos === 'function') renderAdminTecnicos();
+    } else if (panelId === 'empleados') {
+      if (typeof renderAdminEmpleados === 'function') renderAdminEmpleados();
+    } else if (panelId === 'departamentos') {
+      if (typeof renderAdminDepartamentos === 'function') renderAdminDepartamentos();
+    } else if (panelId === 'turnos') {
+      if (typeof renderAdminTurnos === 'function') renderAdminTurnos();
+    } else if (panelId === 'servicios') {
+      if (typeof renderAdminServicios === 'function') renderAdminServicios();
+    } else if (panelId === 'tiposfalla') {
+      if (typeof renderAdminTiposFalla === 'function') renderAdminTiposFalla();
+    } else if (panelId === 'categfalla') {
+      if (typeof renderAdminCategFalla === 'function') renderAdminCategFalla();
+    } else if (panelId === 'criticidad') {
+      if (typeof renderAdminCriticidad === 'function') renderAdminCriticidad();
+    } else if (panelId === 'componentes') {
+      if (typeof renderAdminComponentes === 'function') renderAdminComponentes();
+    } else if (panelId === 'estatusot') {
+      if (typeof renderAdminEstatusOT === 'function') renderAdminEstatusOT();
+    } else if (panelId === 'users') {
+      renderAdminUsersTable();
+    } else if (panelId === 'forms') {
+      renderAdminFormsList();
+    } else if (panelId === 'subtasks') {
+      renderAdminSubtasksTable();
+    } else if (panelId === 'preventive') {
+      renderAdminPreventivePlans();
+    } else if (panelId === 'checklists') {
+      renderAdminChecklists();
+    } else if (panelId === 'downtime') {
+      renderAdminDowntime();
+    } else if (panelId === 'kpis') {
+      renderAdminKPIs();
+    } else if (panelId === 'analysis') {
+      renderAdminAnalysis();
+    } else if (panelId === 'ai') {
+      renderAdminAIRecommendations();
+    } else if (panelId === 'alertrules') {
+      renderAdminAlertRules();
+    } else if (panelId === 'notificaciones') {
+      renderAdminNotificaciones();
+    } else if (panelId === 'alertas') {
+      renderAdminAlertas();
+    } else if (panelId === 'fallas') {
+      renderAdminFallas();
+    } else if (panelId === 'telegram') {
+      renderAdminTelegramTable();
+    } else if (panelId === 'costosot') {
+      renderAdminCostosOT();
+    } else if (panelId === 'evidencias') {
+      renderAdminEvidencias();
+    } else if (panelId === 'refmaquina') {
+      renderAdminRefMaquina();
+    } else if (panelId === 'cierres') {
+      renderAdminCierres();
+    } else if (panelId === 'respchk') {
+      renderAdminRespChk();
+    } else if (panelId === 'excel') {
+      renderExcelHistoryTable();
+    }
+  } catch (err) {
+    console.error(`[AdminPanel] Error al cargar el panel ${panelId}:`, err);
   }
 }
 
@@ -14342,13 +14346,11 @@ function deleteRecurringRule(ruleId) {
 // DASHBOARD ANALÍTICA DE PLANTA 🚀 (INDICADORES DE TIEMPO OBJETIVO Y ÓPTIMO)
 // ==========================================================================
 async function renderAdminAnalyticsDashboard() {
+  if (activeAdminPanel !== 'analytics') return;
   const panel = document.getElementById('panel-admin-analytics');
   if (!panel) return;
 
-  // Asegurar visibilidad del panel si estamos en la ruta de analítica
-  if (activeAdminPanel === 'analytics') {
-    panel.style.display = 'block';
-  }
+  panel.style.display = 'block';
 
   // 1. Población del selector de filtro por técnico
   const techSelect = document.getElementById('analytics-filter-tech');
