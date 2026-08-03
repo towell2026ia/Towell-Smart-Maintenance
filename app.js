@@ -55,7 +55,8 @@ if (window.location.hash && (window.location.hash.includes('type=recovery') || w
 if (typeof supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 'undefined') {
   try {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log('Supabase client initialized successfully!');
+    useLiveDatabase = true;
+    console.log('Supabase client initialized successfully with Live Database mode enabled!');
     
     // Registrar el listener de inmediato al inicio para capturar el hash de la URL
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
@@ -765,13 +766,12 @@ async function syncDatabases() {
   
   try {
     // 1. Sync Machines
+  try {
     const { data: dbMachines, error: mErr } = await supabaseClient.from('cat_maquinas').select('*');
-    if (mErr) throw mErr;
-    if (dbMachines && dbMachines.length > 0) {
+    if (!mErr && dbMachines && dbMachines.length > 0) {
       const existingLocalMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
       const localMachines = dbMachines.map(m => {
         const localM = existingLocalMachines.find(lm => lm.id === m.equipo_towell);
-        // Priorizar departamento_codigo de la BD real; fallback a derivación por nombre del equipo
         let area = m.departamento_codigo || m.area || null;
         if (!area) {
           area = m.equipo_towell.includes('COS') ? 'CF' : (m.equipo_towell.includes('TIN') || m.equipo_towell.includes('JET') ? 'TF' : 'PF');
@@ -793,24 +793,24 @@ async function syncDatabases() {
         };
       });
       localStorage.setItem('TSMAI_machines', JSON.stringify(localMachines));
-    } else {
-      localStorage.setItem('TSMAI_machines', '[]');
     }
+  } catch (errM) {
+    console.warn('[Sync] Non-blocking warning syncing cat_maquinas:', errM);
+  }
 
-    // 2. Sync Technicians
+  // 2. Sync Technicians & Users
+  try {
     const { data: dbUsers, error: uErr } = await supabaseClient.from('cat_usuarios_roles').select('*');
-    if (uErr) throw uErr;
-    if (dbUsers && dbUsers.length > 0) {
+    if (!uErr && dbUsers && dbUsers.length > 0) {
       localStorage.setItem('TSMAI_users', JSON.stringify(dbUsers));
-      // Filtro robusto: acepta 'MANTENIMIENTO', 'Mantenimiento', 'mantenimiento', 'TECH', etc.
       const techRoles = ['mantenimiento', 'tech', 'técnico', 'tecnico', 'maintenance'];
       const localTechs = dbUsers.filter(u => {
         const userRol = (u.rol || '').toLowerCase().trim();
         return techRoles.some(r => userRol.includes(r));
       }).map(t => ({
-        id: t.cve_tecnico || t.id_usuario,   // id usado en el dropdown
+        id: t.cve_tecnico || t.id_usuario,
         uuid: t.id_usuario,
-        cve_tecnico: t.cve_tecnico || null,  // campo FK real para cve_atendio
+        cve_tecnico: t.cve_tecnico || null,
         name: t.nombre_completo,
         email: t.correo,
         specialty: t.observaciones || t.especialidad || 'General',
@@ -818,19 +818,19 @@ async function syncDatabases() {
         department: t.departamento,
         activo: t.activo !== false
       }));
-      console.log(`[TSMAI] Técnicos sincronizados: ${localTechs.length} de ${dbUsers.length} usuarios. Roles encontrados:`, [...new Set(dbUsers.map(u => u.rol))]);
+      console.log(`[TSMAI] Técnicos sincronizados: ${localTechs.length} de ${dbUsers.length} usuarios.`);
       localStorage.setItem('TSMAI_technicians', JSON.stringify(localTechs));
-    } else {
-      localStorage.setItem('TSMAI_users', '[]');
-      localStorage.setItem('TSMAI_technicians', '[]');
     }
+  } catch (errU) {
+    console.warn('[Sync] Non-blocking warning syncing cat_usuarios_roles:', errU);
+  }
 
-    // 3. Sync Spare Parts
+  // 3. Sync Spare Parts
+  try {
     const { data: dbParts, error: pErr } = await supabaseClient
       .from('cat_refacciones')
       .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, costo_unitario, activo');
-    if (pErr) throw pErr;
-    if (dbParts && dbParts.length > 0) {
+    if (!pErr && dbParts && dbParts.length > 0) {
       const localParts = dbParts.map(p => ({
         id: p.codigo_articulo,
         name: p.nombre_articulo,
@@ -841,15 +841,14 @@ async function syncDatabases() {
         activo: p.activo !== false
       }));
       localStorage.setItem('TSMAI_parts', JSON.stringify(localParts));
-    } else {
-      localStorage.setItem('TSMAI_parts', '[]');
     }
+  } catch (errP) {
+    console.warn('[Sync] Non-blocking warning syncing cat_refacciones:', errP);
+  }
 
-    // 4. Sync Orders & Requests
+  // 4. Sync Orders & Requests
+  try {
     const { data: dbOrders, error: oErr } = await supabaseClient.from('ordenes_trabajo').select('*');
-    if (oErr) throw oErr;
-
-    // A4.1: Sincronizar también la tabla solicitudes_mantenimiento para no perder ninguna requisición
     let dbDirectRequests = [];
     try {
       const { data: reqData } = await supabaseClient.from('solicitudes_mantenimiento').select('*');
@@ -861,15 +860,13 @@ async function syncDatabases() {
           return ts !== 'PREVENTIVO' && ts !== 'MP' && !desc.includes('PREVENTIVO') && !sol.includes('GENERADOR DE CALENDARIOS');
         });
       }
-    } catch (e) {
-      console.warn('[Sync] Non-critical solicitudes_mantenimiento fetch warning:', e);
-    }
+    } catch (e) {}
 
     const localRequests = [];
     const localOrders = [];
     const existingFolios = new Set();
     
-    if (dbOrders && dbOrders.length > 0) {
+    if (!oErr && dbOrders && dbOrders.length > 0) {
       dbOrders.forEach(o => {
         const formattedStatus = formatStatus(o.estatus);
         const item = {
@@ -886,10 +883,10 @@ async function syncDatabases() {
           machineStopped: o.observacion_inicial || 'No',
           urgency: o.prioridad || 'Media',
           status: formattedStatus,
-          assignedTech: o.cve_atendio,    // puede ser cve_tecnico o UUID
-          cve_atendio: o.cve_atendio,     // campo exacto de Supabase
-          nombre_atendio: o.nombre_atendio, // nombre del técnico para matching por nombre
-          techName: o.nombre_atendio,     // alias para compatibilidad con renderTechOrdersTable
+          assignedTech: o.cve_atendio,
+          cve_atendio: o.cve_atendio,
+          nombre_atendio: o.nombre_atendio,
+          techName: o.nombre_atendio,
           date: o.fecha_hora_inicio || o.fecha_carga,
           dueDate: o.fecha_fin ? `${o.fecha_fin}T${o.hora_fin || '12:00:00'}` : null,
           fecha_hora_inicio: o.fecha_hora_inicio,
@@ -907,7 +904,6 @@ async function syncDatabases() {
       });
     }
 
-    // Agregar y migrar automáticamente solicitudes directas de solicitudes_mantenimiento (ej: REQ-2026-1259) a ordenes_trabajo
     if (dbDirectRequests && dbDirectRequests.length > 0) {
       for (const r of dbDirectRequests) {
         const rawFolio = r.folio_solicitud || r.id;
@@ -938,14 +934,19 @@ async function syncDatabases() {
           };
           localRequests.push(item);
           existingFolios.add(stdFolio);
-
-          // Solicitud en caché local sincronizada
         }
       }
     }
 
-    localStorage.setItem('TSMAI_requests', JSON.stringify(localRequests));
-    localStorage.setItem('TSMAI_orders', JSON.stringify(localOrders));
+    if (localRequests.length > 0) {
+      localStorage.setItem('TSMAI_requests', JSON.stringify(localRequests));
+    }
+    if (localOrders.length > 0) {
+      localStorage.setItem('TSMAI_orders', JSON.stringify(localOrders));
+    }
+  } catch (errO) {
+    console.warn('[Sync] Non-blocking warning syncing ordenes_trabajo:', errO);
+  }
 
     // 5. Sync Subtasks
     const { data: dbSubtasks, error: sErr } = await supabaseClient.from('subtareas_orden_trabajo').select('*');
