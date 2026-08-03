@@ -104,6 +104,15 @@ body {
   display: none !important;
 }
 
+/* Regla estricta para garantizar visibilidad de paneles activos */
+.admin-panel-content[style*="display: block"],
+.tech-panel-content[style*="display: block"],
+.solicitante-panel-content[style*="display: block"] {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
 .view-section.app-container {
   padding: 0 !important;
   overflow: hidden !important;

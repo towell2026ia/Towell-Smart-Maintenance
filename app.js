@@ -1409,9 +1409,10 @@ function setupRealtimeSubscriptions() {
     }
   }
 
-  // Backup polling silencioso cada 6 segundos para garantizar actualización sin parpadeo ni recargas
+  // Backup polling silencioso ligero (cada 60s) para evitar saturación de red y acelerar la interfaz
   if (!window._tsmaiRealtimeInterval) {
     window._tsmaiRealtimeInterval = setInterval(async () => {
+      if (document.hidden) return;
       if (useLiveDatabase && supabaseClient) {
         try {
           await syncDatabases();
@@ -1422,7 +1423,7 @@ function setupRealtimeSubscriptions() {
       } else {
         refreshActiveViewSilently();
       }
-    }, 6000);
+    }, 60000);
   }
 
   // A2: Detectar conectividad del navegador (con flag anti-duplicado)
