@@ -44,11 +44,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=2.8.0"></script>
+  <script src="config.js?v=2.9.0"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=2.8.0">
+  <link rel="stylesheet" href="style.css?v=2.9.0">
 </head>
 <body>
 
@@ -456,7 +456,7 @@
       </header>
 
       <!-- PANELS ADMIN -->
-      <div style="padding: 24px; flex: 1; overflow-y: auto;">
+      <div id="admin-panels-container" style="padding: 24px; flex: 1; overflow-y: auto; display: block !important;">
         
         <!-- Panel Admin 1: Dashboard Ejecutivo (DISEÑO PIZARRA) -->
         <div id="panel-admin-dashboard" class="admin-panel-content">
@@ -1726,7 +1726,7 @@
       </header>
 
       <!-- PANELS TÉCNICO -->
-      <div style="padding: 24px; flex: 1; overflow-y: auto;">
+      <div id="tech-panels-container" style="padding: 24px; flex: 1; overflow-y: auto; display: block !important;">
         
         <!-- Panel Técnico 1: Tablero General (KPIs + Tabla de OTs) -->
         <div id="panel-tech-dashboard" class="tech-panel-content">
@@ -4893,15 +4893,15 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=2.8.0"></script>
-  <script src="app.js?v=2.8.0"></script>
-  <script src="dashboard.js?v=2.8.0"></script>
+  <script src="seed.js?v=2.9.0"></script>
+  <script src="app.js?v=2.9.0"></script>
+  <script src="dashboard.js?v=2.9.0"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=2.8.0')
+        navigator.serviceWorker.register('./sw.js?v=2.9.0')
           .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
           .catch(err => console.warn('⚠️ ServiceWorker error:', err));
       });

@@ -2944,6 +2944,11 @@ function switchAdminPanel(panelId) {
   }
 
   // 2. Ocultar todos los paneles y MOSTRAR DE INMEDIATO el panel activo (con fallback a dashboard si no se encuentra)
+  const wrapper = document.getElementById('admin-panels-container');
+  if (wrapper) {
+    wrapper.style.display = 'block';
+  }
+
   let targetPanel = document.getElementById(`panel-admin-${activeAdminPanel}`);
   if (!targetPanel) {
     targetPanel = document.getElementById('panel-admin-dashboard');
