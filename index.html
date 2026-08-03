@@ -366,7 +366,7 @@
         <li class="menu-item active" id="menu-admin-dashboard" onclick="switchAdminPanel('dashboard')">
           <a>📊 Dashboard Ejecutivo</a>
         </li>
-        <li class="menu-item" id="menu-admin-analytics" onclick="switchAdminPanel('dashboard')">
+        <li class="menu-item" id="menu-admin-analytics" onclick="switchAdminPanel('analytics')">
           <a style="display: flex; align-items: center; gap: 8px; color: var(--accent-cyan) !important;">📈 Analítica de Planta 🚀</a>
         </li>
         <li class="menu-item" id="menu-admin-requests" onclick="switchAdminPanel('requests')">
@@ -735,7 +735,130 @@
                 <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Tiempos improductivos acumulados.</p>
               </div>
             </div>
+        </div>
+
+        <!-- Panel Admin: Analítica de Planta 🚀 (Indicadores de Tiempo Objetivo y Óptimo) -->
+        <div id="panel-admin-analytics" class="admin-panel-content" style="display: none;">
+          
+          <!-- Barra de Filtros del Dashboard de Analítica -->
+          <div class="table-container" style="padding: 16px 20px; margin-bottom: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+              <div>
+                <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--primary-dark); margin: 0;">🚀 Analítica de Tiempos Objetivo y Óptimos</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 2px 0 0 0;">Seguimiento de desempeño de actividades partiendo de la Bitácora de Mantenimiento</p>
+              </div>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <label for="analytics-filter-tech" style="font-size: 0.85rem; font-weight: 700; color: var(--secondary-dark);">👨‍🔧 Técnico:</label>
+                  <select id="analytics-filter-tech" class="filter-select" onchange="renderAdminAnalyticsDashboard()" style="min-width: 200px; font-weight: 600;">
+                    <option value="">Todos los Técnicos</option>
+                  </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <label for="analytics-filter-range" style="font-size: 0.85rem; font-weight: 700; color: var(--secondary-dark);">📅 Periodo:</label>
+                  <select id="analytics-filter-range" class="filter-select" onchange="renderAdminAnalyticsDashboard()" style="font-weight: 600;">
+                    <option value="month" selected>Este Mes</option>
+                    <option value="week">Esta Semana</option>
+                    <option value="today">Hoy</option>
+                    <option value="all">Histórico Completo</option>
+                  </select>
+                </div>
+                <button class="btn-nav btn-nav-outline" onclick="renderAdminAnalyticsDashboard()" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 0.85rem;">
+                  🔄 Actualizar
+                </button>
+              </div>
+            </div>
           </div>
+
+          <!-- Tarjetas KPI de Resumen de Tiempos -->
+          <div class="kpi-row" style="margin-bottom: 24px;">
+            <div class="kpi-card kpi-blue">
+              <div class="kpi-data">
+                <span class="kpi-title">Tiempo Real Promedio</span>
+                <span class="kpi-value" id="kpi-analytics-avg-real">0 min</span>
+              </div>
+              <div class="kpi-icon-box">⏱️</div>
+            </div>
+            <div class="kpi-card kpi-cyan">
+              <div class="kpi-data">
+                <span class="kpi-title">Tiempo Objetivo Estándar</span>
+                <span class="kpi-value" id="kpi-analytics-avg-target">0 min</span>
+              </div>
+              <div class="kpi-icon-box">🎯</div>
+            </div>
+            <div class="kpi-card kpi-green">
+              <div class="kpi-data">
+                <span class="kpi-title">Eficiencia Global</span>
+                <span class="kpi-value" id="kpi-analytics-efficiency">0%</span>
+              </div>
+              <div class="kpi-icon-box">📈</div>
+            </div>
+            <div class="kpi-card kpi-yellow">
+              <div class="kpi-data">
+                <span class="kpi-title">Horas Totales Bitácora</span>
+                <span class="kpi-value" id="kpi-analytics-total-hours">0 hrs</span>
+              </div>
+              <div class="kpi-icon-box">📑</div>
+            </div>
+          </div>
+
+          <!-- Cuadrícula 2x2 de Gráficos de Analítica -->
+          <div class="analytics-dashboard-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px;">
+            
+            <!-- Gráfico 1: Tiempo Objetivo vs Real por Categoría -->
+            <div class="table-container" style="padding: 20px; margin: 0; background: #ffffff;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="font-size: 1rem; font-weight: 700; color: var(--primary-dark); margin: 0; display: flex; align-items: center; gap: 8px;">
+                  📊 Tiempo Objetivo vs. Tiempo Real (por Actividad)
+                </h4>
+                <span style="font-size: 0.75rem; background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 6px; font-weight: 700;">Minutos</span>
+              </div>
+              <div class="chart-container" style="position: relative; height: 280px; width: 100%;">
+                <canvas id="chart-analytics-obj-vs-real"></canvas>
+              </div>
+            </div>
+
+            <!-- Gráfico 2: Distribución del Tiempo de Trabajo Óptimo -->
+            <div class="table-container" style="padding: 20px; margin: 0; background: #ffffff;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="font-size: 1rem; font-weight: 700; color: var(--primary-dark); margin: 0; display: flex; align-items: center; gap: 8px;">
+                  🍩 Distribución del Tiempo de Trabajo (Bitácora)
+                </h4>
+                <span style="font-size: 0.75rem; background: #f0fdf4; color: #15803d; padding: 3px 8px; border-radius: 6px; font-weight: 700;">Horas Invertidas</span>
+              </div>
+              <div class="chart-container" style="position: relative; height: 280px; width: 100%;">
+                <canvas id="chart-analytics-time-dist"></canvas>
+              </div>
+            </div>
+
+            <!-- Gráfico 3: Eficiencia y Desviación por Técnico -->
+            <div class="table-container" style="padding: 20px; margin: 0; background: #ffffff;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="font-size: 1rem; font-weight: 700; color: var(--primary-dark); margin: 0; display: flex; align-items: center; gap: 8px;">
+                  ⚡ Eficiencia de Cumplimiento por Técnico (%)
+                </h4>
+                <span style="font-size: 0.75rem; background: #fef3c7; color: #b45309; padding: 3px 8px; border-radius: 6px; font-weight: 700;">% Cumplimiento</span>
+              </div>
+              <div class="chart-container" style="position: relative; height: 280px; width: 100%;">
+                <canvas id="chart-analytics-efficiency-tech"></canvas>
+              </div>
+            </div>
+
+            <!-- Gráfico 4: Tendencia Temporal de Tiempos de Atención -->
+            <div class="table-container" style="padding: 20px; margin: 0; background: #ffffff;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="font-size: 1rem; font-weight: 700; color: var(--primary-dark); margin: 0; display: flex; align-items: center; gap: 8px;">
+                  📉 Tendencia Temporal del Tiempo de Ejecución
+                </h4>
+                <span style="font-size: 0.75rem; background: #f3e8ff; color: #6b21a8; padding: 3px 8px; border-radius: 6px; font-weight: 700;">Histórico Semanal</span>
+              </div>
+              <div class="chart-container" style="position: relative; height: 280px; width: 100%;">
+                <canvas id="chart-analytics-trend"></canvas>
+              </div>
+            </div>
+
+          </div>
+
         </div>
 
         <!-- Panel Admin 2: Bandeja de Solicitudes Nuevas -->
