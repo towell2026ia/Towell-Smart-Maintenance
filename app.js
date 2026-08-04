@@ -2956,10 +2956,12 @@ function switchAdminPanel(panelId) {
   }
 
   document.querySelectorAll('.admin-panel-content').forEach(p => {
+    p.classList.remove('active-panel');
     p.style.display = 'none';
   });
 
   if (targetPanel) {
+    targetPanel.classList.add('active-panel');
     targetPanel.style.display = 'block';
   }
 
@@ -4983,12 +4985,27 @@ function renderAdminOrdersTable(filteredOrders) {
 
   let html = '';
   orders.forEach(o => {
-    const mach = machines.find(m => m.id === o.machine);
-    const machineName = mach ? mach.name : o.machine;
-    const tech = techs.find(t => t.id === o.assignedTech);
-    const techName = tech ? tech.name : 'Sin asignar';
-    const formattedDueDate = new Date(o.dueDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-    const progress = getOTProgressSync(o.id, o.status);
+    if (!o) return;
+    const mach = machines.find(m => m && (m.id === o.machine || m.equipo_towell === o.machine));
+    const machineName = mach ? (mach.name || mach.id) : (o.machine || 'Sin especificar');
+    const tech = techs.find(t => t && (t.id === o.assignedTech || t.cve_tecnico === o.assignedTech || t.uuid === o.assignedTech));
+    const techName = tech ? tech.name : (o.nombre_atendio || o.techName || 'Sin asignar');
+    
+    let formattedDueDate = '-';
+    if (o.dueDate) {
+      try {
+        const d = new Date(o.dueDate);
+        if (!isNaN(d.getTime())) {
+          formattedDueDate = d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
+      } catch (e) {
+        formattedDueDate = String(o.dueDate);
+      }
+    }
+
+    const urgencyVal = o.urgency || 'Media';
+    const statusVal = o.status || 'En proceso';
+    const progress = getOTProgressSync(o.id || o.uuid, statusVal);
     const resolvedArea = resolveMachineArea(o.machine || o.maquina_id, o.area);
 
     html += `
@@ -4996,22 +5013,22 @@ function renderAdminOrdersTable(filteredOrders) {
         <td><strong>${formatStandardFolio(o)}</strong></td>
         <td>${machineName}</td>
         <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">${resolvedArea}</span></td>
-        <td>${o.type}</td>
-        <td><span class="badge badge-priority-${o.urgency.toLowerCase()}">${o.urgency}</span></td>
+        <td>${o.type || 'MC'}</td>
+        <td><span class="badge badge-priority-${urgencyVal.toLowerCase()}">${urgencyVal}</span></td>
         <td>${techName}</td>
-        <td><span class="badge badge-status-${o.status.toLowerCase().replace('ó', 'o').replace(' ', '-')}">${o.status}</span></td>
+        <td><span class="badge badge-status-${statusVal.toLowerCase().replace('ó', 'o').replace(/\s+/g, '-')}">${statusVal}</span></td>
         <td><strong>${progress}%</strong></td>
         <td>${formattedDueDate}</td>
         <td>
           <div style="display:flex; gap:4px; flex-wrap:wrap;">
-            <button class="btn-action-primary" style="padding:4px 8px; font-size:0.78rem; background:#0f172a; border-color:#0f172a;" onclick="openAdmin360OTAuditModal('${o.id}')">🔍 Auditoría 360°</button>
-            <button class="btn-table-action" style="padding:4px 8px; font-size:0.78rem;" onclick="viewOrderHistoryLogs('${o.id}')">Logs</button>
+            <button class="btn-action-primary" style="padding:4px 8px; font-size:0.78rem; background:#0f172a; border-color:#0f172a;" onclick="openAdmin360OTAuditModal('${o.id || o.uuid}')">🔍 Auditoría 360°</button>
+            <button class="btn-table-action" style="padding:4px 8px; font-size:0.78rem;" onclick="viewOrderHistoryLogs('${o.id || o.uuid}')">Logs</button>
           </div>
         </td>
       </tr>
     `;
   });
-  tbody.innerHTML = html;
+  if (tbody) tbody.innerHTML = html;
 }
 
 // Aplicar filtros combinados
