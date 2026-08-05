@@ -44,11 +44,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.1.0"></script>
+  <script src="config.js?v=3.2.0"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.1.0">
+  <link rel="stylesheet" href="style.css?v=3.2.0">
 </head>
 <body>
 
@@ -735,6 +735,7 @@
                 <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Tiempos improductivos acumulados.</p>
               </div>
             </div>
+          </div>
         </div>
 
         <!-- Panel Admin: Analítica de Planta 🚀 (Indicadores de Tiempo Objetivo y Óptimo) -->
@@ -1384,9 +1385,7 @@
               </div>
             </div>
             
-            <button class="btn-nav btn-nav-primary" onclick="alert('Configuración guardada (Simulado)')" style="align-self: flex-start; padding: 12px 24px;">Guardar Configuración</button>
           </div>
-        </div>
         </div>
 
 
@@ -4893,15 +4892,15 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.1.0"></script>
-  <script src="app.js?v=3.1.0"></script>
-  <script src="dashboard.js?v=3.1.0"></script>
+  <script src="seed.js?v=3.2.0"></script>
+  <script src="app.js?v=3.2.0"></script>
+  <script src="dashboard.js?v=3.2.0"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.1.0')
+        navigator.serviceWorker.register('./sw.js?v=3.2.0')
           .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
           .catch(err => console.warn('⚠️ ServiceWorker error:', err));
       });
