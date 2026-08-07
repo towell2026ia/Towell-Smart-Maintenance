@@ -44,11 +44,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.2.0"></script>
+  <script src="config.js?v=3.3.0"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.2.0">
+  <link rel="stylesheet" href="style.css?v=3.3.0">
 </head>
 <body>
 
@@ -3180,7 +3180,10 @@
 
           <!-- Selector de Refacciones Usadas -->
           <div class="form-group full-width" style="border-top: 1px solid #cbd5e1; padding-top: 16px;">
-            <label style="margin-bottom: 8px;">Refacciones Utilizadas</label>
+            <label style="margin-bottom: 6px; font-weight: 700; color: var(--accent-blue);">Refacciones Utilizadas (Máquina Asignada)</label>
+            <div style="margin-bottom: 8px;">
+              <input type="text" id="tech-part-search-input" class="form-control" placeholder="🔍 Filtrar refacción por nombre (Muestra >$1,000 primero)..." oninput="onTechPartSearchInput(this.value)">
+            </div>
             <div style="display: flex; gap: 8px; margin-bottom: 12px;">
               <select id="tech-part-select" class="form-control">
                 <option value="">Selecciona repuesto...</option>
@@ -3463,7 +3466,10 @@
 
           <!-- Selector de Refacciones Usadas (Bitácora) -->
           <div class="form-group" style="border-top: 1px solid #cbd5e1; padding-top: 16px; margin-top: 8px;">
-            <label style="margin-bottom: 8px; font-weight: 600;">Refacciones Utilizadas (si aplica)</label>
+            <label style="margin-bottom: 6px; font-weight: 600;">Refacciones Utilizadas (Máquina Asignada)</label>
+            <div style="margin-bottom: 8px;">
+              <input type="text" id="bitacora-part-search-input" class="form-control" placeholder="🔍 Filtrar refacción por nombre (Muestra >$1,000 primero)..." oninput="onBitacoraPartSearchInput(this.value)">
+            </div>
             <div style="display: flex; gap: 8px; margin-bottom: 12px;">
               <select id="bitacora-part-select" class="form-control" onchange="onBitacoraPartChange()">
                 <option value="">— Selecciona máquina primero —</option>
@@ -4892,15 +4898,15 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.2.0"></script>
-  <script src="app.js?v=3.2.0"></script>
-  <script src="dashboard.js?v=3.2.0"></script>
+  <script src="seed.js?v=3.3.0"></script>
+  <script src="app.js?v=3.3.0"></script>
+  <script src="dashboard.js?v=3.3.0"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.2.0')
+        navigator.serviceWorker.register('./sw.js?v=3.3.0')
           .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
           .catch(err => console.warn('⚠️ ServiceWorker error:', err));
       });

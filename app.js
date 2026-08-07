@@ -756,6 +756,30 @@ async function dbInsertRequest(newRequest) {
   localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
 }
 
+function auditAndCleanDatabaseStorage() {
+  const obsoleteKeys = [
+    'TSMAI_old_orders', 'TSMAI_parts_old', 'TSMAI_requests_bak', 'TSMAI_refacciones_usadas', 'TSMAI_temp_db', 'TSMAI_legacy_tables'
+  ];
+  obsoleteKeys.forEach(k => localStorage.removeItem(k));
+
+  // Deduplicar solicitudes y órdenes por ID único
+  ['TSMAI_requests', 'TSMAI_orders'].forEach(key => {
+    const data = JSON.parse(localStorage.getItem(key) || '[]');
+    if (Array.isArray(data) && data.length > 0) {
+      const unique = [];
+      const seen = new Set();
+      data.forEach(item => {
+        const idVal = item.id || item.uuid || item.folio;
+        if (idVal && !seen.has(idVal)) {
+          seen.add(idVal);
+          unique.push(item);
+        }
+      });
+      localStorage.setItem(key, JSON.stringify(unique));
+    }
+  });
+}
+
 async function syncDatabases() {
   if (!useLiveDatabase) {
     console.log('[TSMAI] Demo Mode: Bypassing Supabase synchronization.');
@@ -763,6 +787,8 @@ async function syncDatabases() {
   }
   if (!supabaseClient) return;
   console.log('Starting Supabase synchronization...');
+
+  auditAndCleanDatabaseStorage();
   
   try {
     // 1. Sync Machines
@@ -1937,39 +1963,67 @@ function getMachinesByArea(areaCode) {
   });
 }
 
-function getPartsByMachine(machineId) {
-  const allParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
-  const refPorMaquina = JSON.parse(localStorage.getItem('TSMAI_refacciones_por_maquina') || '[]');
-  
-  if (!machineId || machineId === '' || machineId === 'NO_APLICA' || machineId === 'ALL') {
-    return allParts;
+function getPartsByMachine(machineId, filterName = '') {
+  // SI NO HAY MÁQUINA ASIGNADA, NO SE PERMITEN ASIGNAR REFACCIONES
+  if (!machineId || machineId === '' || machineId === 'NO_APLICA' || machineId === 'NO APLICA MÁQUINA' || machineId === 'NONE' || machineId === 'ALL') {
+    return [];
   }
 
+  const allParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+  const refPorMaquina = JSON.parse(localStorage.getItem('TSMAI_refacciones_por_maquina') || '[]');
   const cleanMacId = String(machineId).toUpperCase().trim();
-  
-  // 1. Filtrar refacciones asociadas en el catálogo de relación refacciones_por_maquina
+  let resultParts = [];
+
+  // 1. Filtrar refacciones asociadas explícitamente por máquina
   const linkedParts = refPorMaquina.filter(rm => {
     const mac = String(rm.maquina_id || rm.maquina || rm.equipo || '').toUpperCase().trim();
     return mac === cleanMacId || mac.includes(cleanMacId);
   });
 
   if (linkedParts.length > 0) {
-    return linkedParts.map(lp => ({
+    resultParts = linkedParts.map(lp => ({
       id: lp.codigo_articulo || lp.id,
       code: lp.codigo_articulo || lp.code || lp.id,
-      name: lp.nombre_articulo || lp.nombre || lp.name,
+      name: lp.nombre_articulo || lp.nombre || lp.name || 'Refacción sin nombre',
       cost: parseFloat(lp.precio_costo_unitario || lp.costo || 0),
-      stock: parseFloat(lp.cantidad_estandar || lp.stock || 10)
+      stock: parseFloat(lp.cantidad_estandar || lp.stock || 10),
+      machineId: cleanMacId
+    }));
+  } else {
+    // 2. Coincidencia en el catálogo general por clave de máquina
+    resultParts = allParts.filter(p => {
+      const pMac = String(p.machineId || p.maquina_id || p.maquina || '').toUpperCase().trim();
+      return pMac === cleanMacId || pMac.includes(cleanMacId);
+    }).map(p => ({
+      id: p.id || p.code || p.codigo_articulo,
+      code: p.code || p.id || p.codigo_articulo,
+      name: p.name || p.nombre || p.nombre_articulo || 'Refacción sin nombre',
+      cost: parseFloat(p.cost || p.costo_unitario || p.precio_unitario || 0),
+      stock: parseFloat(p.stock || 10),
+      machineId: p.machineId || p.maquina_id || cleanMacId
     }));
   }
 
-  // 2. Filtrar en el catálogo general TSMAI_parts por coincidencia de máquina
-  const directParts = allParts.filter(p => {
-    const pMac = String(p.machineId || p.maquina_id || p.maquina || '').toUpperCase().trim();
-    return pMac === cleanMacId || pMac === '' || pMac.includes(cleanMacId);
+  // 3. Aplicar filtro en tiempo real por nombre de refacción
+  if (filterName && filterName.trim() !== '') {
+    const cleanFilter = filterName.toLowerCase().trim();
+    resultParts = resultParts.filter(p => 
+      (p.name && p.name.toLowerCase().includes(cleanFilter)) ||
+      (p.code && p.code.toLowerCase().includes(cleanFilter))
+    );
+  }
+
+  // 4. ORDENAR: Refacciones de más de $1,000 pesos PRIMERO (> 1000), luego por precio descendente
+  resultParts.sort((a, b) => {
+    const aOver1000 = (a.cost > 1000) ? 1 : 0;
+    const bOver1000 = (b.cost > 1000) ? 1 : 0;
+    if (aOver1000 !== bOver1000) {
+      return bOver1000 - aOver1000; // Prioriza las de más de $1,000 MXN
+    }
+    return b.cost - a.cost; // Luego descendente por precio
   });
 
-  return directParts.length > 0 ? directParts : allParts;
+  return resultParts;
 }
 
 function setupCascadingAreaMachineParts(areaSelectOrId, machineSelectOrId, partSelectOrId) {
@@ -8939,31 +8993,48 @@ async function updateOrderStatus(otId, newStatus) {
   }
 }
 
-// Cargar catálogo de refacciones en modal técnico
-// Cargar catálogo de refacciones en modal técnico (Refacciones específicas de la máquina + Genéricas)
-function populateTechSparePartsSelect(machineId = null) {
-  const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+let currentTechModalMachineId = null;
+
+function populateTechSparePartsSelect(machineId = null, filterName = '') {
   const select = document.getElementById('tech-part-select');
   if (!select) return;
 
-  const targetMach = machineId ? machineId.toUpperCase() : '';
+  currentTechModalMachineId = machineId || currentTechModalMachineId;
+  const targetMach = currentTechModalMachineId ? String(currentTechModalMachineId).trim() : '';
 
-  const filteredParts = parts.filter(p => {
-    if (!targetMach) return true;
-    const pMach = (p.maquina || p.maquina_id || '').toUpperCase();
-    return pMach === targetMach || pMach === 'GENERICA' || pMach === 'TODAS' || pMach === 'GENERAL' || pMach === '';
-  });
+  // Regla estricta: Si no hay máquina asignada, no se asignan refacciones
+  if (!targetMach || targetMach === 'NO_APLICA' || targetMach === 'NO APLICA MÁQUINA' || targetMach === 'NONE') {
+    select.innerHTML = '<option value="" disabled selected>⚠️ No hay máquina asignada, no se pueden asignar refacciones</option>';
+    select.disabled = true;
+    const qtyInput = document.getElementById('tech-part-qty');
+    if (qtyInput) qtyInput.disabled = true;
+    return;
+  }
 
-  let html = '<option value="">Selecciona repuesto...</option>';
+  select.disabled = false;
+  const qtyInput = document.getElementById('tech-part-qty');
+  if (qtyInput) qtyInput.disabled = false;
+
+  const filteredParts = getPartsByMachine(targetMach, filterName);
+
+  if (filteredParts.length === 0) {
+    select.innerHTML = `<option value="" disabled selected>No hay refacciones asociadas para "${targetMach}"${filterName ? ` con filtro "${filterName}"` : ''}</option>`;
+    return;
+  }
+
+  let html = `<option value="">— Selecciona refacción de ${targetMach} (${filteredParts.length} disponibles) —</option>`;
   filteredParts.forEach(p => {
-    const pMach = (p.maquina || p.maquina_id || '').toUpperCase();
-    const isGeneric = pMach === 'GENERICA' || pMach === 'TODAS' || pMach === 'GENERAL' || pMach === '';
-    const tag = isGeneric ? ' [Genérica]' : ` [Específica: ${p.maquina || p.maquina_id || targetMach}]`;
-    const costVal = p.cost || p.costo_unitario || 0;
-    const costStr = costVal > 0 ? ` - $${costVal.toLocaleString('es-MX')} MXN` : '';
-    html += `<option value="${p.id || p.codigo_articulo}">${p.name || p.nombre_articulo}${tag}${costStr}</option>`;
+    const isHighValue = p.cost > 1000;
+    const badge = isHighValue ? '⭐ [>$1,000 MXN] ' : '';
+    const costVal = p.cost || 0;
+    const costStr = costVal > 0 ? ` ($${costVal.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN)` : '';
+    html += `<option value="${p.id || p.code}" data-costo="${costVal}">${badge}${p.code} - ${p.name}${costStr}</option>`;
   });
   select.innerHTML = html;
+}
+
+function onTechPartSearchInput(searchTerm) {
+  populateTechSparePartsSelect(currentTechModalMachineId, searchTerm);
 }
 
 // Añadir refacción a la lista temporal de la OT
@@ -9763,92 +9834,70 @@ function getProportionMultiplier(otType) {
   return 1.0;
 }
 
-// Cargar refacciones específicas de la máquina seleccionada con cantidad proporcional
-async function loadPartsForMachine(machineId, otType = 'MP') {
+// Cargar refacciones específicas de la máquina seleccionada con cantidad proporcional y ordenamiento > $1,000
+async function loadPartsForMachine(machineId, otType = 'MP', filterName = '') {
   const partSelect = document.getElementById('bitacora-part-select') || document.getElementById('tech-part-select');
   if (!partSelect) return;
 
-  if (!machineId || machineId === 'NO_APLICA') {
+  // Regla estricta: Si no hay máquina asignada, no se asignan refacciones
+  if (!machineId || machineId === 'NO_APLICA' || machineId === 'NO APLICA MÁQUINA' || machineId === 'NONE' || machineId === 'ALL') {
     tempBitacoraMachineParts = [];
-    partSelect.innerHTML = '<option value="">— Selecciona máquina primero —</option>';
+    partSelect.innerHTML = '<option value="" disabled selected>⚠️ No hay máquina asignada, no se pueden asignar refacciones</option>';
+    partSelect.disabled = true;
+    const qtyInput = document.getElementById('bitacora-part-qty') || document.getElementById('tech-part-qty');
+    if (qtyInput) qtyInput.disabled = true;
     return;
   }
 
+  partSelect.disabled = false;
+  const qtyInput = document.getElementById('bitacora-part-qty') || document.getElementById('tech-part-qty');
+  if (qtyInput) qtyInput.disabled = false;
+
   const multiplier = getProportionMultiplier(otType);
-  partSelect.innerHTML = '<option value="">⏳ Cargando refacciones del servicio...</option>';
+  
+  // Utilizar helper estricto de filtrado y ordenamiento (> $1,000 primero)
+  let machineParts = getPartsByMachine(machineId, filterName);
 
-  let machineParts = [];
-
-  if (useLiveDatabase && supabaseClient) {
-    try {
-      const { data, error } = await supabaseClient
-        .from('cat_refacciones')
-        .select('codigo_articulo, nombre_articulo, maquina_id, cantidad_estandar, costo_unitario, precio_costo_unitario')
-        .eq('maquina_id', machineId)
-        .order('nombre_articulo');
-
-      if (!error && data && data.length > 0) {
-        machineParts = data.map(r => {
-          const baseQty = parseFloat(r.cantidad_estandar) || 1;
-          const propQty = Math.max(1, Math.round(baseQty * multiplier * 100) / 100);
-          return {
-            id: r.codigo_articulo,
-            name: r.nombre_articulo || r.codigo_articulo,
-            cantidadEstandar: baseQty,
-            cantidadSugerida: propQty,
-            costo: parseFloat(r.costo_unitario || r.precio_costo_unitario || 0)
-          };
-        });
-      } else {
-        // Fallback: general parts
-        const { data: genData } = await supabaseClient
-          .from('cat_refacciones')
-          .select('codigo_articulo, nombre_articulo, cantidad_estandar, costo_unitario, precio_costo_unitario')
-          .limit(100);
-        if (genData && genData.length > 0) {
-          machineParts = genData.map(r => {
-            const baseQty = parseFloat(r.cantidad_estandar) || 1;
-            const propQty = Math.max(1, Math.round(baseQty * multiplier * 100) / 100);
-            return {
-              id: r.codigo_articulo,
-              name: r.nombre_articulo || r.codigo_articulo,
-              cantidadEstandar: baseQty,
-              cantidadSugerida: propQty,
-              costo: parseFloat(r.costo_unitario || r.precio_costo_unitario || 0)
-            };
-          });
-        }
-      }
-    } catch (err) {
-      console.warn('Error loading machine parts:', err);
-    }
-  }
-
-  // Fallback: use full catalog from localStorage
-  if (machineParts.length === 0) {
-    const allParts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
-    machineParts = allParts.map(p => {
-      const baseQty = p.cantidadEstandar || 1;
-      const propQty = Math.max(1, Math.round(baseQty * multiplier * 100) / 100);
-      return {
-        id: p.id,
-        name: p.name,
-        cantidadEstandar: baseQty,
-        cantidadSugerida: propQty,
-        costo: p.cost || 0
-      };
-    });
-  }
-
-  tempBitacoraMachineParts = machineParts;
-
-  partSelect.innerHTML = machineParts.length > 0
-    ? `<option value="">Selecciona refacción (${machineParts.length} repuestos para ${machineId})...</option>`
-    : `<option value="">⚠️ Sin refacciones asignadas a esta máquina</option>`;
-
-  machineParts.forEach(p => {
-    partSelect.innerHTML += `<option value="${p.id}" data-qty="${p.cantidadSugerida}" data-base="${p.cantidadEstandar}" data-costo="${p.costo}">${p.name} — Sugerido (${Math.round(multiplier*100)}%): ${p.cantidadSugerida} pza [Base: ${p.cantidadEstandar}] ($${p.costo.toFixed(2)})</option>`;
+  tempBitacoraMachineParts = machineParts.map(p => {
+    const baseQty = p.cantidadEstandar || p.stock || 1;
+    const propQty = Math.max(1, Math.round(baseQty * multiplier * 100) / 100);
+    return {
+      id: p.id || p.code,
+      name: p.name || p.code,
+      cantidadEstandar: baseQty,
+      cantidadSugerida: propQty,
+      costo: p.cost || 0
+    };
   });
+
+  if (tempBitacoraMachineParts.length === 0) {
+    partSelect.innerHTML = `<option value="" disabled selected>No hay refacciones asociadas para "${machineId}"${filterName ? ` con filtro "${filterName}"` : ''}</option>`;
+    return;
+  }
+
+  let html = `<option value="">— Selecciona refacción de ${machineId} (${tempBitacoraMachineParts.length} disponibles) —</option>`;
+  tempBitacoraMachineParts.forEach(p => {
+    const isHighValue = p.costo > 1000;
+    const badge = isHighValue ? '⭐ [>$1,000 MXN] ' : '';
+    const costStr = p.costo > 0 ? ` ($${p.costo.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN)` : '';
+    html += `<option value="${p.id}" data-costo="${p.costo}">${badge}${p.name}${costStr}</option>`;
+  });
+
+  partSelect.innerHTML = html;
+}
+
+function onBitacoraPartSearchInput(searchTerm) {
+  const macEl = document.getElementById('bitacora-machine');
+  const otEl = document.getElementById('bitacora-ot-id');
+  let selectedMac = macEl ? macEl.value : '';
+  
+  if ((!selectedMac || selectedMac === 'NO_APLICA') && otEl && otEl.value) {
+    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const foundOT = orders.find(o => o.id === otEl.value);
+    if (foundOT) selectedMac = foundOT.machine;
+  }
+
+  loadPartsForMachine(selectedMac, 'MC', searchTerm);
 }
 
 function onBitacoraOTChange() {
