@@ -10371,6 +10371,7 @@ function openAlertsModal() {
 function openModal(modalId) {
   const el = document.getElementById(modalId);
   if (el) {
+    el.style.display = 'flex';
     el.classList.add('show');
   }
 }
@@ -10378,6 +10379,7 @@ function openModal(modalId) {
 function closeModal(modalId) {
   const el = document.getElementById(modalId);
   if (el) {
+    el.style.display = 'none';
     el.classList.remove('show');
   }
 }
@@ -14069,6 +14071,23 @@ async function checkAndDispatchScheduledPreventives() {
 }
 
 function openRecurringRequestModal() {
+  // Poblar selector de técnicos
+  const techSelect = document.getElementById('recurring-assigned-tech');
+  if (techSelect) {
+    const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+    const techs = users.filter(u => u.rol === 'MANTENIMIENTO' || u.rol === 'TECNICO');
+    const techsLegacy = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+    const allTechs = techs.length > 0 ? techs : techsLegacy;
+    
+    let html = '<option value="">— Selecciona técnico responsable —</option>';
+    allTechs.forEach(t => {
+      const id = t.cve_tecnico || t.id_usuario || t.id;
+      const name = t.nombre_completo || t.name || id;
+      html += `<option value="${id}">${name} (${id})</option>`;
+    });
+    techSelect.innerHTML = html;
+  }
+
   openModal('modal-admin-recurring-request');
   populateRecurringMachinesByArea(document.getElementById('recurring-area').value || 'AF');
 }
@@ -14107,12 +14126,24 @@ async function saveRecurringRequestConfig() {
   const machine = document.getElementById('recurring-machine').value;
   const serviceType = document.getElementById('recurring-service-type').value;
   const urgency = document.getElementById('recurring-urgency').value;
+  const assignedTech = document.getElementById('recurring-assigned-tech').value;
   const description = document.getElementById('recurring-description').value.trim();
 
   if (!description) {
     alert('Por favor indica una descripción o título para la tarea programada.');
     return;
   }
+
+  if (!assignedTech) {
+    alert('Por favor selecciona un técnico responsable para la solicitud recurrente.');
+    return;
+  }
+
+  // Obtener nombre del técnico
+  const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+  const techsLegacy = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+  const foundTech = users.find(u => (u.cve_tecnico || u.id_usuario) === assignedTech) || techsLegacy.find(t => t.id === assignedTech);
+  const techName = foundTech ? (foundTech.nombre_completo || foundTech.name) : assignedTech;
 
   const rules = JSON.parse(localStorage.getItem('TSMAI_recurring_rules') || '[]');
   const newRule = {
@@ -14124,6 +14155,8 @@ async function saveRecurringRequestConfig() {
     machine,
     serviceType,
     urgency,
+    assignedTech,
+    techName,
     description,
     createdAt: new Date().toISOString(),
     active: true,
@@ -14208,13 +14241,15 @@ async function checkAndDispatchRecurringRules() {
             folio: newFolio,
             orden_trabajo: rule.serviceType === 'Preventivo' ? 'MP' : 'MC',
             origen: 'Solicitud Recurrente Admin',
-            estatus: 'RECIBIDA',
+            estatus: rule.assignedTech ? 'ASIGNADA' : 'RECIBIDA',
             fecha_inicio: todayStr,
             fecha_hora_inicio: today.toISOString(),
             departamento: areaCode,
             maquina_id: rule.machine,
             descripcion: descText,
             nombre_solicitante: 'Super Administrador (Programación)',
+            cve_atendio: rule.assignedTech || null,
+            nombre_atendio: rule.techName || null,
             prioridad: rule.urgency || 'Media',
             fecha_carga: today.toISOString()
           }]);
@@ -14222,6 +14257,29 @@ async function checkAndDispatchRecurringRules() {
           console.warn('[Recurring] Dispatch insert warning:', e);
         }
       }
+
+      // También insertar en localStorage para que el técnico la vea inmediatamente
+      const localOrders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+      localOrders.push({
+        id: newFolio,
+        reqId: rule.id,
+        applicant: 'Super Administrador (Programación)',
+        area: rule.area,
+        machine: rule.machine,
+        type: rule.serviceType === 'Preventivo' ? 'MP' : 'MC',
+        description: descText,
+        urgency: rule.urgency || 'Media',
+        status: rule.assignedTech ? 'Asignada' : 'Solicitud recibida',
+        assignedTech: rule.assignedTech || '',
+        techName: rule.techName || '',
+        date: today.toISOString(),
+        dueDate: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        historyLogs: [
+          { date: today.toISOString(), status: 'Solicitud recibida', user: 'Super Admin', comment: `Generada por regla recurrente ${rule.type}: ${rule.description}` },
+          ...(rule.assignedTech ? [{ date: today.toISOString(), status: 'Asignada', user: 'Super Admin', comment: `Asignada automáticamente a ${rule.techName || rule.assignedTech}` }] : [])
+        ]
+      });
+      localStorage.setItem('TSMAI_orders', JSON.stringify(localOrders));
 
       rules[i].lastDispatched = todayStr;
       if (rule.type === 'FechaEspecifica') rules[i].active = false;
