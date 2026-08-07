@@ -44,11 +44,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.3.0"></script>
+  <script src="config.js?v=3.3.2"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.3.0">
+  <link rel="stylesheet" href="style.css?v=3.3.2">
 </head>
 <body>
 
@@ -4725,7 +4725,7 @@
   </div>
 
   <!-- Modal: Programar Solicitud Recurrente o Fecha Futura (Admin) -->
-  <div id="modal-admin-recurring-request" class="modal-backdrop" style="display: none;">
+  <div id="modal-admin-recurring-request" class="modal-overlay modal-backdrop" style="display: none;">
     <div class="modal-card" style="max-width: 650px;">
       <div class="modal-header">
         <h3 class="modal-title">🔄 Programar Solicitud Recurrente / Fecha Futura</h3>
@@ -4820,7 +4820,7 @@
   </div>
 
   <!-- Modal: Detalle de Evento de Calendario (Admin) -->
-  <div id="modal-calendar-event-detail" class="modal-backdrop" style="display: none;">
+  <div id="modal-calendar-event-detail" class="modal-overlay modal-backdrop" style="display: none;">
     <div class="modal-card" style="max-width: 600px;">
       <div class="modal-header">
         <h3 class="modal-title" id="cal-detail-title">📋 Detalle de Intervención del Calendario</h3>
@@ -4856,7 +4856,7 @@
   </div>
 
   <!-- Modal: Lista de Reglas Recurrentes (Admin) -->
-  <div id="modal-admin-recurring-list" class="modal-backdrop" style="display: none;">
+  <div id="modal-admin-recurring-list" class="modal-overlay modal-backdrop" style="display: none;">
     <div class="modal-card" style="max-width: 750px;">
       <div class="modal-header">
         <h3 class="modal-title">📋 Reglas de Solicitudes Recurrentes y Programadas</h3>
@@ -4906,15 +4906,15 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.3.0"></script>
-  <script src="app.js?v=3.3.0"></script>
-  <script src="dashboard.js?v=3.3.0"></script>
+  <script src="seed.js?v=3.3.2"></script>
+  <script src="app.js?v=3.3.2"></script>
+  <script src="dashboard.js?v=3.3.2"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.3.0')
+        navigator.serviceWorker.register('./sw.js?v=3.3.2')
           .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
           .catch(err => console.warn('⚠️ ServiceWorker error:', err));
       });
