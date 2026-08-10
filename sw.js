@@ -2,7 +2,7 @@
    Towell Smart Maintenance AI (TSM-AI) - Service Worker (PWA)
    ========================================================================== */
 
-const CACHE_NAME = 'tsmai-pwa-v3.3.3';
+const CACHE_NAME = 'tsmai-pwa-v3.3.5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

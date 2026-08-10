@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -4350,54 +4350,43 @@
     </div>
   </div>
 
-  <!-- Modal: Recuperación de Contraseña con Doble Verificación (2FA) -->
+  <!-- Modal: Recuperación de Contraseña -->
   <div class="modal-overlay" id="modal-password-recovery" style="z-index: 1100;">
     <div class="modal-card" style="max-width: 420px; border: 2px solid var(--accent-cyan);">
       <div class="modal-header" style="background: var(--dark-bg); color: white; border-bottom: 2px solid var(--accent-cyan);">
-        <h3 style="margin:0; display:flex; align-items:center; gap:8px;">🔐 Doble Verificación (2FA)</h3>
-        <button class="btn-close-modal" onclick="closeModal('modal-password-recovery')" style="color: white; border: none; background: transparent; font-size: 1.5rem; cursor: pointer;">×</button>
+        <h3 style="margin:0; display:flex; align-items:center; gap:8px;">&#128272; Recuperar Contrase&#241;a</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-password-recovery')" style="color: white; border: none; background: transparent; font-size: 1.5rem; cursor: pointer;">&#215;</button>
       </div>
-      <div class="modal-body" style="padding: 20px;">
-        
-        <!-- Paso 1: Solicitar Email y Teléfono -->
+      <div class="modal-body" style="padding: 24px;">
+
         <div id="recovery-step-1">
-          <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 16px;">
-            Para restablecer tu contraseña, ingresa el correo electrónico oficial y el número de teléfono registrado en tu perfil de usuario.
+          <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px;">
+            Ingresa tu correo electr&#243;nico registrado y te enviaremos un enlace para restablecer tu contrase&#241;a.
           </p>
-          <div class="form-group" style="margin-bottom: 16px;">
-            <label for="recovery-email">Correo Electrónico *</label>
-            <input type="email" id="recovery-email" class="form-control" placeholder="ejemplo@tsm-ai.com" required>
-          </div>
           <div class="form-group" style="margin-bottom: 20px;">
-            <label for="recovery-phone">Número de Teléfono *</label>
-            <input type="tel" id="recovery-phone" class="form-control" placeholder="Ej. 5512345678" required>
+            <label for="recovery-email">Correo Electr&#243;nico *</label>
+            <input type="email" id="recovery-email" class="form-control"
+              placeholder="tu@correo.com"
+              onkeydown="if(event.key==='Enter') submitRecoveryRequest2FA()" required>
           </div>
-          <button class="btn-action-primary" onclick="submitRecoveryRequest2FA()" style="width: 100%; background: var(--accent-cyan); color: black; font-weight: 700; border-radius: 6px; padding: 12px;">
-            📲 Enviar Código de Verificación
+          <button class="btn-action-primary" onclick="submitRecoveryRequest2FA()"
+            style="width: 100%; background: var(--accent-cyan); color: black; font-weight: 700; border-radius: 6px; padding: 12px; font-size: 0.95rem;">
+            &#128231; Enviar Correo de Restablecimiento
           </button>
+          <p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-top: 14px; line-height: 1.4;">
+            Recibir&#225;s un correo con un enlace v&#225;lido por 24 horas.<br>
+            Revisa tu bandeja de entrada y carpeta de spam.
+          </p>
         </div>
 
-        <!-- Paso 2: Introducir Código SMS OTP -->
-        <div id="recovery-step-2" style="display: none;">
-          <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 16px;">
-            Hemos enviado un código SMS de 6 dígitos al teléfono finalizado en <strong id="recovery-masked-phone">****</strong>.
-          </p>
-          <div class="form-group" style="margin-bottom: 20px; text-align: center;">
-            <label for="recovery-otp" style="text-align: left; display: block; margin-bottom: 8px;">Código de Verificación OTP *</label>
-            <input type="text" id="recovery-otp" class="form-control" placeholder="######" maxlength="6" style="font-family: monospace; font-size: 1.8rem; text-align: center; letter-spacing: 6px; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: white;" required>
-          </div>
-          <button class="btn-action-primary" onclick="verifyRecoveryOTP()" style="width: 100%; background: var(--color-preventive); color: white; font-weight: 700; border-radius: 6px; padding: 12px;">
-            ✅ Verificar Código y Enviar Correo
-          </button>
-          <button class="btn-action-secondary" onclick="goBackToStep1()" style="width: 100%; margin-top: 10px; font-size: 0.8rem; border: none; background: transparent; color: var(--text-muted); cursor: pointer;">
-            ← Cambiar Correo o Teléfono
-          </button>
-        </div>
+        <!-- Campos ocultos para compatibilidad -->
+        <input type="hidden" id="recovery-phone" value="">
+        <input type="hidden" id="recovery-otp" value="">
+        <div id="recovery-step-2" style="display: none;"></div>
 
       </div>
     </div>
   </div>
-
   <!-- Modal: Simulador de Teléfono SMS (WOW factor) -->
   <div class="modal-overlay" id="modal-sms-simulator" style="z-index: 1300; background: rgba(0,0,0,0.85);">
     <div style="width: 290px; height: 520px; background: #000; border-radius: 40px; padding: 12px; box-shadow: 0 0 30px rgba(6, 182, 212, 0.4); position: relative; border: 4px solid #334155; margin: auto; display: flex; flex-direction: column;">

@@ -2809,18 +2809,10 @@ async function handleLoginSubmit(event) {
         }
       }
       
-      // Fallback: si Auth no retornó el usuario o la contraseña difiere en Auth, consultar cat_usuarios_roles directamente en la BD real
-      if (!dbUser) {
-        const { data: directUser, error: directErr } = await supabaseClient
-          .from('cat_usuarios_roles')
-          .select('*')
-          .eq('correo', email)
-          .maybeSingle();
-          
-        if (!directErr && directUser) {
-          dbUser = directUser;
-          console.log('[TSMAI] Usuario autenticado exitosamente desde cat_usuarios_roles en Supabase:', email);
-        }
+      // Si Auth falló, NO hacer fallback directo a cat_usuarios_roles sin verificar contraseña (brecha de seguridad)
+      // El usuario debe autenticarse siempre via Supabase Auth.
+      if (!dbUser && authErr) {
+        console.warn('[TSMAI] Auth fallido para:', email, authErr.message);
       }
     } catch (err) {
       console.error('Error durante la autenticación de Supabase:', err);
@@ -6231,12 +6223,12 @@ async function saveAdminUser() {
         if (error) throw error;
         showToast('✅ Usuario actualizado por correo en Supabase.');
       } else {
-        // Caso: nuevo usuario
+        // Caso: nuevo usuario — insertar en cat_usuarios_roles
         const { error } = await supabaseClient
           .from('cat_usuarios_roles')
           .insert([dbPayload]);
         if (error) throw error;
-        showToast('✅ Usuario creado con éxito en Supabase.');
+        showToast('✅ Usuario creado en BD. Enviando invitación por correo...');
         shouldShowEmail = true;
       }
     } catch (err) {
@@ -6267,10 +6259,8 @@ async function saveAdminUser() {
     } else {
       userObj.id_usuario = crypto.randomUUID ? crypto.randomUUID() : 'local-' + Math.random().toString(36).substr(2, 9);
       localUsers.push(userObj);
-      shouldShowEmail = true;
     }
     localStorage.setItem('TSMAI_users', JSON.stringify(localUsers));
-    
     const localTechs = localUsers.filter(u => u.rol === 'MANTENIMIENTO').map(t => ({
       id: t.cve_tecnico || t.id_usuario,
       uuid: t.id_usuario,
@@ -6282,25 +6272,41 @@ async function saveAdminUser() {
     localStorage.setItem('TSMAI_technicians', JSON.stringify(localTechs));
   }
 
-  if (shouldShowEmail) {
-    showSimulatedEmail(
-      correo,
-      '🔑 Tu contraseña temporal de acceso a TSM-AI',
-      `<h2>¡Bienvenido a TSM-AI, ${nombre}!</h2>
-       <p>Tu cuenta ha sido creada con éxito por el Super Administrador.</p>
-       <p>Tu rol asignado es: <strong>${rol === 'SUPER_ADMINISTRADOR' ? 'Super Administrador' : rol === 'MANTENIMIENTO' ? 'Técnico' : 'Solicitante Público'}</strong>.</p>
-       <p>Tu contraseña temporal de acceso es:</p>
-       <div style="margin: 20px 0; text-align: center;">
-         <strong style="font-size: 1.5rem; color: var(--accent-blue); background: #f1f5f9; padding: 6px 16px; border: 1px dashed var(--accent-blue); border-radius: 4px; font-family: monospace; display: inline-block;">${tempPass}</strong>
-       </div>
-       <p>Por motivos de seguridad, deberás cambiar esta contraseña la primera vez que ingreses al sistema.</p>
-       <p style="margin-top: 25px; font-size: 0.8rem; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px;">Este es un correo de bienvenida automático simulado por el sistema.</p>`,
-      'Copiar Contraseña',
-      () => {
-        navigator.clipboard.writeText(tempPass);
-        showToast('Contraseña temporal copiada al portapapeles.');
+  // Plan A: Enviar invitación real via Edge Function (solo para usuarios nuevos con Supabase activo)
+  if (shouldShowEmail && supabaseClient) {
+    try {
+      showToast('📧 Enviando correo de invitación real...');
+      const supabaseUrl = typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '';
+      const edgeFnUrl = supabaseUrl.replace('.supabase.co', '.supabase.co') + '/functions/v1/invite-user';
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const accessToken = session?.access_token || '';
+
+      const resp = await fetch(edgeFnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          email: correo,
+          nombre: nombre,
+          rol: rol,
+          redirectTo: 'https://tsmail-towell.netlify.app'
+        })
+      });
+
+      const result = await resp.json();
+      if (resp.ok && result.success) {
+        showToast(`✅ Correo de invitación enviado a ${correo}. El usuario recibirá el enlace para establecer su contraseña.`);
+      } else {
+        console.warn('[Invite] Edge Function error:', result.error);
+        // Fallback informativo: mostrar toast con instrucciones manuales
+        showToast(`⚠️ No se pudo enviar la invitación automática (${result.error || 'error'}). Comparte el acceso manualmente con ${correo}.`);
       }
-    );
+    } catch (inviteErr) {
+      console.warn('[Invite] Error llamando Edge Function:', inviteErr);
+      showToast(`⚠️ Usuario creado, pero la invitación por correo falló. Verifica la Edge Function en Supabase.`);
+    }
   }
 
   closeModal('modal-admin-user-detail');
@@ -10993,73 +10999,44 @@ function goBackToStep1() {
 
 async function submitRecoveryRequest2FA() {
   const email = document.getElementById('recovery-email').value.trim().toLowerCase();
-  const phone = document.getElementById('recovery-phone').value.trim();
 
-  if (!email || !phone) {
-    alert('Por favor completa todos los campos.');
+  if (!email) {
+    alert('Por favor ingresa tu correo electrónico registrado.');
     return;
   }
 
-  // 1. Validar que el usuario exista en la base de datos (local o remota)
-  let userRecord = null;
-  const localUsers = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-  
-  if (supabaseClient) {
-    try {
-      showToast('Verificando usuario...');
-      const { data, error } = await supabaseClient
-        .from('cat_usuarios_roles')
-        .select('*')
-        .eq('correo', email)
-        .maybeSingle();
-      if (!error && data) {
-        userRecord = data;
-      }
-    } catch (err) {
-      console.warn('Error al verificar correo en Supabase, buscando en local:', err);
+  if (!supabaseClient) {
+    alert('Sin conexión. Por favor intenta más tarde.');
+    return;
+  }
+
+  try {
+    const btn = document.querySelector('#recovery-step-1 button');
+    if (btn) { btn.disabled = true; btn.innerText = '⏳ Enviando...'; }
+
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://tsmail-towell.netlify.app'
+    });
+
+    if (btn) { btn.disabled = false; btn.innerText = '📧 Enviar Correo de Restablecimiento'; }
+
+    if (error) {
+      console.warn('[Recovery] resetPasswordForEmail error:', error.message);
+      // Por seguridad: no revelar si el correo existe o no
     }
-  }
 
-  if (!userRecord) {
-    userRecord = localUsers.find(u => u.correo && u.correo.toLowerCase() === email);
-  }
-
-  if (!userRecord) {
-    alert('El correo electrónico ingresado no coincide con ningún usuario del sistema.');
+    closeModal('modal-password-recovery');
+    alert('Si el correo está registrado en el sistema, recibirás un enlace para restablecer tu contraseña.\n\nRevisa tu bandeja de entrada (y carpeta de spam).');
     return;
+  } catch (err) {
+    console.error('[Recovery] Error:', err);
+    alert('Error al procesar la solicitud. Por favor intenta más tarde.');
   }
 
-  // 2. Asociar el teléfono ingresado al usuario si el teléfono en la base de datos es nulo o coincide
-  // (Para facilitar las pruebas iniciales del usuario, si no tiene teléfono registrado se lo asociamos en el flujo)
-  const userPhone = userRecord.telefono || '';
-  if (userPhone && userPhone.replace(/\s+/g, '') !== phone.replace(/\s+/g, '')) {
-    alert('El número de teléfono no coincide con el registrado para esta cuenta.');
-    return;
-  }
-
-  // 3. Generar código OTP y disparar simulador SMS
-  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-  recoveryGeneratedOTP = otpCode;
-  recoveryTargetEmail = email;
-
-  // Actualizar el valor en la pantalla del celular simulado
-  const smsSimField = document.getElementById('sms-simulated-code');
-  if (smsSimField) {
-    smsSimField.innerText = otpCode;
-  }
-
-  // Mostrar el teléfono simulado y enmascarar en el modal
-  openModal('modal-sms-simulator');
-  
-  const masked = phone.length > 4 ? '******' + phone.slice(-4) : phone;
-  document.getElementById('recovery-masked-phone').innerText = masked;
-
-  // Pasar al paso 2 en el modal
-  document.getElementById('recovery-step-1').style.display = 'none';
-  document.getElementById('recovery-step-2').style.display = 'block';
-  
-  showToast('Código enviado por SMS (Simulador)');
+  // Función simplificada — el flujo SMS/OTP anterior fue eliminado en v3.3.5
+  // El correo de restablecimiento se envía directamente por Supabase Auth arriba.
 }
+
 
 async function verifyRecoveryOTP() {
   const enteredOtp = document.getElementById('recovery-otp').value.trim();
@@ -11288,87 +11265,53 @@ async function resetAdminUserPassword(userId) {
   if (!userId) return;
 
   const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-  const user = users.find(u => u.id_usuario === userId);
-  if (!user) return;
-
-  if (!confirm(`¿Estás seguro de que deseas restablecer la contraseña para el usuario "${user.nombre_completo}"? Se generará una nueva contraseña temporal y se simulará el envío de un correo electrónico.`)) {
+  const user = users.find(u => u.id_usuario === userId) || users.find(u => u.correo === userId);
+  if (!user) {
+    alert('No se encontró el usuario. Por favor recarga la página.');
     return;
   }
 
-  const tempPass = 'RST-' + Math.floor(1000 + Math.random() * 9000);
-
-  if (supabaseClient) {
-    try {
-      const { error } = await supabaseClient
-        .from('cat_usuarios_roles')
-        .update({ 
-          debe_cambiar_contrasenia: true,
-          fecha_actualizacion: new Date().toISOString()
-        })
-        .eq('id_usuario', userId);
-      if (error) throw error;
-      showToast('Contraseña restablecida en Supabase.');
-    } catch (err) {
-      console.error('Error al restablecer la contraseña en Supabase:', err);
-      alert('Error en Supabase: ' + err.message);
-      return;
-    }
+  const correoDestino = user.correo;
+  if (!correoDestino) {
+    alert('Este usuario no tiene correo registrado.');
+    return;
   }
 
-  // Actualizar en localStorage
-  const updatedUsers = users.map(u => u.id_usuario === userId ? { ...u, contrasenia: tempPass, debe_cambiar_contrasenia: true } : u);
-  localStorage.setItem('TSMAI_users', JSON.stringify(updatedUsers));
-
-  if (supabaseClient) {
-    await syncDatabases();
+  if (!confirm(`¿Enviar correo de restablecimiento de contraseña a:\n\n${correoDestino}\n\nEl usuario recibirá un enlace real en su bandeja de entrada para establecer una nueva contraseña.`)) {
+    return;
   }
 
-  // Construir cuerpo de correo simulado con enlace de acción
-  const emailBody = `
-    <h2>Restablecimiento de Contraseña - TSM-AI</h2>
-    <p>Hola <strong>${user.nombre_completo}</strong>,</p>
-    <p>Se ha solicitado un restablecimiento de contraseña para tu cuenta vinculada a este correo electrónico.</p>
-    <p>Tu nueva contraseña temporal de acceso es:</p>
-    <div style="margin: 15px 0;">
-      <strong style="font-size: 1.3rem; color: var(--color-critical); background: #f1f5f9; padding: 6px 12px; border-radius: 4px; font-family: monospace; display: inline-block;">${tempPass}</strong>
-    </div>
-    <p>Por seguridad, se te solicitará cambiarla en cuanto ingreses.</p>
-    <p>También puedes reestablecerla directamente haciendo clic en el siguiente enlace:</p>
-    <div style="margin: 20px 0; text-align: center;">
-      <a href="#" id="reset-mail-link" style="background: var(--accent-blue); color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">Establecer Nueva Contraseña Ahora</a>
-    </div>
-    <p style="font-size: 0.8rem; color: #64748b; margin-top: 25px; border-top: 1px solid #e2e8f0; padding-top: 10px;">Este es un correo automático simulado por el sistema.</p>
-  `;
+  if (!supabaseClient) {
+    alert('Sin conexión a Supabase. El correo no puede enviarse en modo offline.');
+    return;
+  }
 
-  showSimulatedEmail(
-    user.correo,
-    '🔄 Solicitud de Restablecimiento de Contraseña - TSM-AI',
-    emailBody,
-    'Copiar Contraseña Temporal',
-    () => {
-      navigator.clipboard.writeText(tempPass);
-      showToast('Contraseña temporal copiada al portapapeles.');
-    }
-  );
+  try {
+    showToast('📧 Enviando correo de restablecimiento...');
 
-  // Registrar listener del enlace simulado después de renderizarse
-  setTimeout(() => {
-    const link = document.getElementById('reset-mail-link');
-    if (link) {
-      link.addEventListener('click', (e) => {
-        e.preventDefault();
-        closeModal('modal-email-simulator');
-        
-        // Cargar datos en el modal de cambio de contraseña obligatoria
-        document.getElementById('change-pass-user-id').value = user.id_usuario;
-        document.getElementById('change-pass-target-view').value = user.rol === 'SUPER_ADMINISTRADOR' ? 'admin' : 'tech';
-        document.getElementById('change-pass-new').value = '';
-        document.getElementById('change-pass-confirm').value = '';
-        
-        openModal('modal-change-password');
-      });
+    // 1. Marcar en cat_usuarios_roles que debe cambiar contraseña
+    await supabaseClient
+      .from('cat_usuarios_roles')
+      .update({ debe_cambiar_contrasenia: true, fecha_actualizacion: new Date().toISOString() })
+      .eq('id_usuario', userId);
+
+    // 2. Enviar correo real via Supabase Auth (resetPasswordForEmail)
+    const { error: resetErr } = await supabaseClient.auth.resetPasswordForEmail(correoDestino, {
+      redirectTo: 'https://tsmail-towell.netlify.app'
+    });
+
+    if (resetErr) {
+      console.warn('[Reset] resetPasswordForEmail error:', resetErr.message);
+      throw new Error(resetErr.message);
     }
-  }, 150);
+
+    showToast(`✅ Correo de restablecimiento enviado a ${correoDestino}. El usuario recibirá el enlace en su bandeja de entrada.`);
+    alert(`✅ Correo enviado exitosamente a:\n${correoDestino}\n\nEl usuario recibirá un enlace para establecer su nueva contraseña. El correo puede tardar unos minutos.`);
+
+  } catch (err) {
+    console.error('[Reset] Error al enviar correo de restablecimiento:', err);
+    alert(`Error al enviar el correo:\n${err.message}\n\nVerifica que el usuario tenga cuenta en Supabase Auth.`);
+  }
 }
 
 // ============================================================================
