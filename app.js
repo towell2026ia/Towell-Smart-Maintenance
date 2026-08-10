@@ -10458,9 +10458,36 @@ async function supabaseCall(fn, retries = 2) {
 }
 
 // Función auxiliar para rellenar los técnicos activos en todos los dropdowns del sistema
+function getActiveTechsList() {
+  // Fuente 1: catálogo rápido TSMAI_technicians
+  const stored = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+  // Fuente 2: tabla completa de usuarios rol MANTENIMIENTO (por si se acaban de crear)
+  const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+  const techRoles = ['mantenimiento', 'tecnico', 'tech', 'mecanico', 'electrico', 'maintenance'];
+  const fromUsers = users.filter(u => {
+    const rol = (u.rol || '').toLowerCase().trim();
+    return techRoles.some(r => rol.includes(r)) && u.activo !== false;
+  }).map(u => ({
+    id: u.cve_tecnico || u.id_usuario,
+    uuid: u.id_usuario,
+    cve_tecnico: u.cve_tecnico || null,
+    name: u.nombre_completo,
+    email: u.correo,
+    specialty: u.observaciones || u.especialidad || 'General',
+    activo: true
+  }));
+
+  // Fusionar: priorizar stored, agregar los que no estén
+  const merged = [...stored.filter(t => t.activo !== false)];
+  fromUsers.forEach(u => {
+    const exists = merged.some(t => t.id === u.id || t.uuid === u.uuid || t.email === u.email);
+    if (!exists) merged.push(u);
+  });
+  return merged;
+}
+
 function populateTectSelects() {
-  const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
-  const activeTechs = techs.filter(t => t.activo !== false);
+  const activeTechs = getActiveTechsList();
 
   // 1. Select en modal de revisión del admin (#review-tech)
   const reviewTechSelect = document.getElementById('review-tech');
@@ -10520,6 +10547,22 @@ function populateTectSelects() {
     });
     filterOtTechSelect.innerHTML = html;
     if (cur) filterOtTechSelect.value = cur;
+  }
+
+  // 5. Select en modal de solicitud recurrente (#recurring-assigned-tech)
+  const recurringTechSelect = document.getElementById('recurring-assigned-tech');
+  if (recurringTechSelect) {
+    const cur = recurringTechSelect.value;
+    let html = '<option value="">— Selecciona técnico responsable —</option>';
+    activeTechs.forEach(t => {
+      const keyLabel = t.cve_tecnico ? ` [${t.cve_tecnico}]` : '';
+      html += `<option value="${t.id}">${t.name}${keyLabel}</option>`;
+    });
+    if (activeTechs.length === 0) {
+      html += '<option value="" disabled>⚠️ Sin técnicos activos disponibles</option>';
+    }
+    recurringTechSelect.innerHTML = html;
+    if (cur) recurringTechSelect.value = cur;
   }
 }
 
@@ -14071,23 +14114,8 @@ async function checkAndDispatchScheduledPreventives() {
 }
 
 function openRecurringRequestModal() {
-  // Poblar selector de técnicos
-  const techSelect = document.getElementById('recurring-assigned-tech');
-  if (techSelect) {
-    const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-    const techs = users.filter(u => u.rol === 'MANTENIMIENTO' || u.rol === 'TECNICO');
-    const techsLegacy = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
-    const allTechs = techs.length > 0 ? techs : techsLegacy;
-    
-    let html = '<option value="">— Selecciona técnico responsable —</option>';
-    allTechs.forEach(t => {
-      const id = t.cve_tecnico || t.id_usuario || t.id;
-      const name = t.nombre_completo || t.name || id;
-      html += `<option value="${id}">${name} (${id})</option>`;
-    });
-    techSelect.innerHTML = html;
-  }
-
+  // Poblar todos los selectores de técnicos usando la función centralizada
+  populateTectSelects();
   openModal('modal-admin-recurring-request');
   populateRecurringMachinesByArea(document.getElementById('recurring-area').value || 'AF');
 }
