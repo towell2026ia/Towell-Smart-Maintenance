@@ -1,14 +1,13 @@
 // supabase/functions/agents-orchestrator/core/executor.ts
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { AgentEvent, AgentExecution, Agent } from '../types/agents.types.ts';
+import { AgentExecution } from '../types/agents.types.ts';
 import { generateIdempotencyKey, checkIdempotency } from './idempotency.ts';
 import { resolveAgentRoute } from './router.ts';
 import { validateEventPayload, validateAgentOutput } from './validator.ts';
 import { createApprovalRequest } from './approvals.ts';
 import { callOpenAI } from '../providers/openai-adapter.ts';
-import { callMiMo } from '../providers/mimo-adapter.ts';
-import { calculateExecutionCost } from './cost-tracker.ts';
+import { calculateCost, fetchModelRates } from './cost-tracker.ts';
 
 // Schema para la respuesta estructurada de clasificación de AG-001
 const CAPATAZ_JSON_SCHEMA = {
@@ -27,11 +26,25 @@ const CAPATAZ_JSON_SCHEMA = {
   additionalProperties: false
 };
 
+interface SecretsConfig {
+  OPENAI_API_KEY?: string;
+  MIMO_API_KEY?: string;
+  MULTIAGENT_ENABLED?: string;
+  LLM_CALLS_ENABLED?: string;
+  AI_ROUTER_ENABLED?: string;
+  OPENAI_ENABLED?: string;
+  MIMO_ENABLED?: string;
+}
+
 interface ExecutionResult {
   success: boolean;
   status: string;
+  event_code?: string;
+  agent_id?: string;
+  routing_type?: 'DETERMINISTIC' | 'AI_CLASSIFICATION' | 'NONE';
   correlation_id: string;
   event_id?: string;
+  llm_used?: boolean;
   result?: any;
   error?: string;
 }
@@ -41,12 +54,23 @@ export async function executeAgentFlow(
   eventCode: string,
   clientPayload: Record<string, any>,
   correlationId: string | null,
-  secrets: { OPENAI_API_KEY?: string; MIMO_API_KEY?: string; AI_AGENTS_ENABLED?: string }
+  secrets: SecretsConfig
 ): Promise<ExecutionResult> {
   const startedAt = new Date().toISOString();
   const corrId = correlationId || `CORR-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`.toUpperCase();
   const humanEventId = `EVT-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`.toUpperCase();
   
+  // 0. Evaluar Feature Flags Server-side (Fase A)
+  const isMultiagentEnabled = (secrets.MULTIAGENT_ENABLED || 'false') === 'true';
+  if (!isMultiagentEnabled) {
+    return {
+      success: false,
+      status: 'FALLIDO',
+      correlation_id: corrId,
+      error: 'La arquitectura multiagente está deshabilitada en el servidor (MULTIAGENT_ENABLED = false)'
+    };
+  }
+
   // 1. Generar e iniciar Idempotencia Server-Side
   const idempotencyKey = await generateIdempotencyKey(eventCode, clientPayload);
   const idemCheck = await checkIdempotency(supabase, idempotencyKey);
@@ -54,8 +78,9 @@ export async function executeAgentFlow(
   if (idemCheck.exists) {
     console.log(`[Executor] Idempotency Hit for key ${idempotencyKey}. Status: ${idemCheck.status}`);
     return {
-      success: idemCheck.status === 'COMPLETADO' || idemCheck.status === 'REQUIERE_APROBACION',
+      success: idemCheck.status === 'ENRUTADO' || idemCheck.status === 'COMPLETADO' || idemCheck.status === 'REQUIERE_APROBACION',
       status: idemCheck.status || 'FALLIDO',
+      event_code: eventCode.toUpperCase(),
       correlation_id: corrId,
       result: idemCheck.result,
       error: idemCheck.status === 'FALLIDO' ? 'Ejecución duplicada fallida originalmente' : undefined
@@ -65,7 +90,7 @@ export async function executeAgentFlow(
   // 2. Resolver la ruta determinista
   const route = await resolveAgentRoute(supabase, eventCode);
   if (!route.agent_id) {
-    return { success: false, status: 'FALLIDO', correlation_id: corrId, error: 'No se pudo resolver agente de destino.' };
+    return { success: false, status: 'FALLIDO', correlation_id: corrId, error: `No se pudo resolver agente de destino para: ${eventCode}.` };
   }
 
   // 3. Crear registro del evento en la tabla eventos_agente
@@ -83,8 +108,8 @@ export async function executeAgentFlow(
     .single();
 
   if (insErr || !dbEvent) {
-    console.error('[Executor] Error creating events_agente record:', insErr?.message);
-    return { success: false, status: 'FALLIDO', correlation_id: corrId, error: insErr?.message || 'Error de BD' };
+    console.error('[Executor] Error creating eventos_agente record:', insErr?.message);
+    return { success: false, status: 'FALLIDO', correlation_id: corrId, error: insErr?.message || 'Error de BD al crear evento.' };
   }
 
   const dbEventId = dbEvent.id_evento;
@@ -96,6 +121,7 @@ export async function executeAgentFlow(
     .eq('id_evento', dbEventId);
 
   // 4. Validar payload del cliente contra campos obligatorios si el evento es conocido
+  // (El validador limpia cualquier inyección de agent_id/model del cliente por seguridad)
   if (route.es_conocido) {
     const valResult = validateEventPayload(eventCode, clientPayload, route.required_fields);
     if (!valResult.isValid) {
@@ -107,13 +133,19 @@ export async function executeAgentFlow(
     }
   }
 
-  // 5. Verificar si el agente de destino está activo
+  // 5. Verificar si el agente de destino está activo en el catálogo
   if (!route.activo) {
     await supabase
       .from('eventos_agente')
       .update({ estatus: 'FALLIDO', fecha_actualizacion: new Date().toISOString() })
       .eq('id_evento', dbEventId);
-    return { success: false, status: 'FALLIDO', correlation_id: corrId, event_id: humanEventId, error: `El agente de destino '${route.agent_id}' está desactivado en la configuración.` };
+    return {
+      success: false,
+      status: 'FALLIDO',
+      correlation_id: corrId,
+      event_id: humanEventId,
+      error: `BLOCKED_AGENT_DISABLED: El agente destino '${route.agent_id}' está desactivado.`
+    };
   }
 
   // 6. ENRUTAMIENTO DETERMINÍSTICO (P-01: Conocido, 0 Tokens para el enrutador)
@@ -140,7 +172,7 @@ export async function executeAgentFlow(
       price_input_usd: 0,
       price_output_usd: 0,
       price_cache_usd: 0,
-      pricing_version: 'none',
+      pricing_version: 'DETERMINISTIC_TARIFF',
       estimated_cost_usd: 0,
       status: 'SUCCESS',
       confidence: 1.0,
@@ -154,30 +186,43 @@ export async function executeAgentFlow(
 
     await supabase.from('bitacora_ejecuciones_agente').insert([dbExec]);
     
-    // Actualizar evento a COMPLETADO
+    // Cambiado de COMPLETADO a ENRUTADO (Punto 2)
     await supabase
       .from('eventos_agente')
-      .update({ estatus: 'COMPLETADO', fecha_actualizacion: new Date().toISOString() })
+      .update({ estatus: 'ENRUTADO', fecha_actualizacion: new Date().toISOString() })
       .eq('id_evento', dbEventId);
 
     return {
       success: true,
-      status: 'COMPLETADO',
+      status: 'ENRUTADO',
+      event_code: eventCode.toUpperCase(),
+      agent_id: route.agent_id,
+      routing_type: 'DETERMINISTIC',
       correlation_id: corrId,
       event_id: humanEventId,
+      llm_used: false,
       result: dbExec.result
     };
   }
 
   // 7. ENRUTAMIENTO POR IA (AG-001 Clasificador)
-  // Verificar Feature Flag de IA en el servidor (RF-006 / Seguridad 6)
-  const aiAgentsEnabled = (secrets.AI_AGENTS_ENABLED || 'false') === 'true';
-  if (!aiAgentsEnabled) {
+  // Evaluar flags de IA: LLM_CALLS_ENABLED y AI_ROUTER_ENABLED (Punto 1 y 6)
+  const isLlmCallsEnabled = (secrets.LLM_CALLS_ENABLED || 'false') === 'true';
+  const isAiRouterEnabled = (secrets.AI_ROUTER_ENABLED || 'false') === 'true';
+  const isOpenaiEnabled = (secrets.OPENAI_ENABLED || 'false') === 'true';
+
+  if (!isLlmCallsEnabled || !isAiRouterEnabled || !isOpenaiEnabled) {
     await supabase
       .from('eventos_agente')
       .update({ estatus: 'FALLIDO', fecha_actualizacion: new Date().toISOString() })
       .eq('id_evento', dbEventId);
-    return { success: false, status: 'FALLIDO', correlation_id: corrId, event_id: humanEventId, error: 'IA deshabilitada en el servidor (AI_AGENTS_ENABLED = false)' };
+    return {
+      success: false,
+      status: 'FALLIDO',
+      correlation_id: corrId,
+      event_id: humanEventId,
+      error: `LLM_DISABLED: La llamadas de IA / Router están desactivadas en la configuración.`
+    };
   }
 
   const openAiKey = secrets.OPENAI_API_KEY || '';
@@ -189,7 +234,7 @@ export async function executeAgentFlow(
     return { success: false, status: 'FALLIDO', correlation_id: corrId, event_id: humanEventId, error: 'Falta configurar OPENAI_API_KEY en el servidor.' };
   }
 
-  // 7.1. Clasificar con GPT-4.1 Nano (Plan D)
+  // 7.1. Clasificar con GPT-4.1 Nano
   let modelUsed = 'gpt-4.1-nano';
   let aliasUsed: 'AI_ROUTER_OPENAI' | 'AI_DOCUMENT_OPENAI' = 'AI_ROUTER_OPENAI';
   let aiResp;
@@ -200,10 +245,14 @@ export async function executeAgentFlow(
     const systemPrompt = `Eres AG-001 (Capataz Orquestador) de TSM-AI. Clasifica este mensaje en una de las intenciones de agentes de mantenimiento. Retorna estrictamente la estructura del esquema JSON.`;
     const userPrompt = clientPayload.texto || JSON.stringify(clientPayload);
     
+    // Si la entrada simula un fallo para forzar fallback (Punto 9)
+    if (clientPayload.simular_fallback === true || (clientPayload.texto && clientPayload.texto.includes('SIMULATE_FALLBACK_SEMANTIC'))) {
+      throw new Error('Simulated payload error to test fallback to Mini');
+    }
+
     aiResp = await callOpenAI(openAiKey, modelUsed, systemPrompt, userPrompt, CAPATAZ_JSON_SCHEMA);
     parseResult = JSON.parse(aiResp.text);
     
-    // Validar semánticamente la salida del clasificador
     const valOut = validateAgentOutput('AG-001', parseResult);
     if (!valOut.isValid) {
       validationError = valOut.error;
@@ -212,7 +261,7 @@ export async function executeAgentFlow(
     validationError = err.message;
   }
 
-  // 7.2. FALLBACK SEMÁNTICO (Plan E: Si Nano falla, escalar a GPT-4.1 Mini)
+  // 7.2. Fallback semántico a GPT-4.1 Mini
   if (validationError) {
     console.warn(`[Executor] GPT-4.1 Nano falló validación semántica (${validationError}). Escalando a GPT-4.1 Mini...`);
     modelUsed = 'gpt-4.1-mini';
@@ -222,6 +271,11 @@ export async function executeAgentFlow(
       const systemPrompt = `Eres AG-001 (Capataz Orquestador) con nivel de atención superior. Clasifica el mensaje bajo la estructura JSON estricta.`;
       const userPrompt = clientPayload.texto || JSON.stringify(clientPayload);
       
+      // Si simula un fallo completo de fallback
+      if (clientPayload.simular_fallback_mini === true) {
+        throw new Error('Simulated payload error to test full fallback failure');
+      }
+
       aiResp = await callOpenAI(openAiKey, modelUsed, systemPrompt, userPrompt, CAPATAZ_JSON_SCHEMA);
       parseResult = JSON.parse(aiResp.text);
       
@@ -229,14 +283,14 @@ export async function executeAgentFlow(
       if (!valOut.isValid) {
         validationError = `Fallback fallido: ${valOut.error}`;
       } else {
-        validationError = null; // Éxito en fallback
+        validationError = null; // Éxito
       }
     } catch (err: any) {
       validationError = `Excepción en fallback: ${err.message}`;
     }
   }
 
-  // 8. Calcular Costos y Registrar Ejecución (Cost Tracker)
+  // 8. Calcular Costos y Registrar Ejecución (Cost Tracker dinámico)
   const completedAt = new Date().toISOString();
   const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
   
@@ -245,12 +299,13 @@ export async function executeAgentFlow(
     statusExec = 'REJECTED_VALIDATOR';
   }
 
-  const rates = calculateExecutionCost(
-    modelUsed,
+  // Cargar tarifas reales de la base de datos (Punto 3)
+  const rates = await fetchModelRates(supabase, 'openai', modelUsed);
+  const costUsd = calculateCost(
+    rates,
     aiResp?.inputTokens || 0,
     aiResp?.outputTokens || 0,
-    aiResp?.cachedInputTokens || 0,
-    aiResp?.reasoningTokens || 0
+    aiResp?.cachedInputTokens || 0
   );
 
   const dbExec: AgentExecution = {
@@ -273,7 +328,7 @@ export async function executeAgentFlow(
     price_output_usd: rates.price_output_usd,
     price_cache_usd: rates.price_cache_usd,
     pricing_version: rates.pricing_version,
-    estimated_cost_usd: rates.estimated_cost_usd,
+    estimated_cost_usd: costUsd,
     status: statusExec,
     confidence: parseResult?.confidence || 0.0,
     result: parseResult || null,
@@ -290,7 +345,7 @@ export async function executeAgentFlow(
     return { success: false, status: 'FALLIDO', correlation_id: corrId, event_id: humanEventId, error: validationError };
   }
 
-  // 9. Manejo de Niveles de Autoridad y Aprobación Humana (Nivel 2)
+  // 9. Aprobaciones manuales en TSM-AI para Nivel 2
   const reqApproval = parseResult.requires_approval || false;
   if (reqApproval) {
     const appResult = await createApprovalRequest(supabase, {
@@ -304,8 +359,12 @@ export async function executeAgentFlow(
     return {
       success: true,
       status: 'REQUIERE_APROBACION',
+      event_code: eventCode.toUpperCase(),
+      agent_id: parseResult.agente_destino,
+      routing_type: 'AI_CLASSIFICATION',
       correlation_id: corrId,
       event_id: humanEventId,
+      llm_used: true,
       result: {
         ...parseResult,
         approval_id: appResult.id
@@ -313,17 +372,21 @@ export async function executeAgentFlow(
     };
   }
 
-  // Si no requiere aprobación, completar evento
+  // Si no requiere aprobación, completar evento como enrutado para procesamiento posterior
   await supabase
     .from('eventos_agente')
-    .update({ estatus: 'COMPLETADO', fecha_actualizacion: new Date().toISOString() })
+    .update({ estatus: 'ENRUTADO', fecha_actualizacion: new Date().toISOString() })
     .eq('id_evento', dbEventId);
 
   return {
     success: true,
-    status: 'COMPLETADO',
+    status: 'ENRUTADO',
+    event_code: eventCode.toUpperCase(),
+    agent_id: parseResult.agente_destino,
+    routing_type: 'AI_CLASSIFICATION',
     correlation_id: corrId,
     event_id: humanEventId,
+    llm_used: true,
     result: parseResult
   };
 }

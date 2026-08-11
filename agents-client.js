@@ -5,18 +5,16 @@
 (function () {
   const DEBUG_PREFIX = '[TSM-AI Agentes]';
 
-  // Configuración de Feature Flag local (UX)
-  const LOCAL_AI_AGENTS_ENABLED = false; // Deshabilitado por defecto inicialmente
-
   window.TSMAIAgents = {
     /**
      * Envía un evento a la cola del Capataz Orquestador.
      * @param {string} eventCode Código de evento en cat_eventos_agente (ej. 'PREVENTIVO_GENERAR')
      * @param {object} payload Datos del evento
      * @param {string|null} correlationId ID de correlación opcional para enlazar flujos
+     * @param {object} options Opciones adicionales (ej: { async: true })
      * @returns {Promise<object>} Respuesta del servidor
      */
-    dispatch: async function (eventCode, payload = {}, correlationId = null) {
+    dispatch: async function (eventCode, payload = {}, correlationId = null, options = {}) {
       console.log(`${DEBUG_PREFIX} Despachando evento:`, eventCode, payload);
 
       if (!useLiveDatabase || !supabaseClient) {
@@ -44,12 +42,19 @@
           correlation_id: correlationId
         };
 
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': accessToken ? `Bearer ${accessToken}` : ''
+        };
+
+        // Si se solicita explícitamente procesamiento asíncrono (Punto 11)
+        if (options.async === true) {
+          headers['prefer'] = 'respond-async';
+        }
+
         const response = await fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': accessToken ? `Bearer ${accessToken}` : ''
-          },
+          headers: headers,
           body: JSON.stringify(body)
         });
 
@@ -61,11 +66,11 @@
             success: false,
             status: 'FALLIDO',
             correlation_id: correlationId || 'CORR-FAILED',
-            error: result.error || 'Error desconocido del orquestador'
+            error: result.error || 'Error de enrutamiento en servidor'
           };
         }
 
-        console.log(`${DEBUG_PREFIX} Respuesta recibida con éxito:`, result);
+        console.log(`${DEBUG_PREFIX} Respuesta recibida con éxito [Status: ${response.status}]:`, result);
         return result;
 
       } catch (err) {

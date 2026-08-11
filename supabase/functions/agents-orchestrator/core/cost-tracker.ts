@@ -1,68 +1,81 @@
 // supabase/functions/agents-orchestrator/core/cost-tracker.ts
 
-interface ModelRates {
-  price_input_usd: number;     // Price per token (NOT per million)
-  price_output_usd: number;    // Price per token
-  price_cache_usd: number;     // Price per token for cached input
+import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+interface RatesResult {
+  price_input_usd: number;
+  price_output_usd: number;
+  price_cache_usd: number;
   pricing_version: string;
 }
 
-const PRICING_VERSION = "2026-08-A";
+/**
+ * Consulta las tarifas del modelo de forma dinámica en la base de datos (cat_tarifas_modelo)
+ * para garantizar la trazabilidad histórica de costos.
+ */
+export async function fetchModelRates(
+  supabase: SupabaseClient,
+  provider: string,
+  model: string
+): Promise<RatesResult> {
+  try {
+    const cleanProvider = (provider || "").toLowerCase().trim();
+    const cleanModel = (model || "").toLowerCase().trim();
 
-// Rates are per single token (e.g. Rate per Million / 1,000,000)
-const MODEL_RATES: Record<string, ModelRates> = {
-  "gpt-4.1-nano": {
-    price_input_usd: 0.15 / 1_000_000,
-    price_output_usd: 0.60 / 1_000_000,
-    price_cache_usd: 0.03 / 1_000_000,
-    pricing_version: PRICING_VERSION
-  },
-  "gpt-4.1-mini": {
-    price_input_usd: 0.15 / 1_000_000,
-    price_output_usd: 0.60 / 1_000_000,
-    price_cache_usd: 0.03 / 1_000_000,
-    pricing_version: PRICING_VERSION
-  },
-  "mimo-v2.5": {
-    price_input_usd: 0.14 / 1_000_000,
-    price_output_usd: 0.28 / 1_000_000,
-    price_cache_usd: 0.0028 / 1_000_000, // 0.0028 per million for cache hit
-    pricing_version: PRICING_VERSION
+    // Query active rate from DB
+    const { data, error } = await supabase
+      .from('cat_tarifas_modelo')
+      .select('price_input_usd, price_output_usd, price_cached_input_usd, pricing_version')
+      .eq('provider', cleanProvider)
+      .eq('model', cleanModel)
+      .eq('activo', true)
+      .order('valid_from', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[CostTracker] Error fetching rates from DB:', error.message);
+    }
+
+    if (data) {
+      return {
+        price_input_usd: parseFloat(data.price_input_usd),
+        price_output_usd: parseFloat(data.price_output_usd),
+        price_cache_usd: parseFloat(data.price_cached_input_usd),
+        pricing_version: data.pricing_version
+      };
+    }
+  } catch (err) {
+    console.error('[CostTracker] Exception fetching rates:', err);
   }
-};
 
-const DEFAULT_RATES: ModelRates = {
-  price_input_usd: 0.0,
-  price_output_usd: 0.0,
-  price_cache_usd: 0.0,
-  pricing_version: "UNKNOWN"
-};
+  // Fallback seguro a tarifas por defecto de v3.3.6 si falla la consulta
+  console.log(`[CostTracker] Falling back to default rates for ${provider}/${model}`);
+  const isMimo = provider.toLowerCase() === 'mimo';
+  
+  return {
+    price_input_usd: isMimo ? (0.14 / 1_000_000) : (0.15 / 1_000_000),
+    price_output_usd: isMimo ? (0.28 / 1_000_000) : (0.60 / 1_000_000),
+    price_cache_usd: isMimo ? (0.0028 / 1_000_000) : (0.03 / 1_000_000),
+    pricing_version: 'FALLBACK_v3.3.6'
+  };
+}
 
-export function calculateExecutionCost(
-  model: string | null,
+/**
+ * Calcula el costo estimado en base a los tokens y tarifas
+ */
+export function calculateCost(
+  rates: RatesResult,
   inputTokens: number,
   outputTokens: number,
-  cachedInputTokens: number = 0,
-  reasoningTokens: number = 0
-) {
-  const normalizedModel = (model || "").toLowerCase();
-  const rates = MODEL_RATES[normalizedModel] || DEFAULT_RATES;
-
-  // Standard input tokens is total input minus cached input
+  cachedInputTokens: number = 0
+): number {
   const standardInputTokens = Math.max(0, inputTokens - cachedInputTokens);
   
-  // Calculate cost
   const inputCost = standardInputTokens * rates.price_input_usd;
   const outputCost = outputTokens * rates.price_output_usd;
   const cacheCost = cachedInputTokens * rates.price_cache_usd;
   
-  const estimated_cost_usd = inputCost + outputCost + cacheCost;
-
-  return {
-    price_input_usd: rates.price_input_usd,
-    price_output_usd: rates.price_output_usd,
-    price_cache_usd: rates.price_cache_usd,
-    pricing_version: rates.pricing_version,
-    estimated_cost_usd: parseFloat(estimated_cost_usd.toFixed(12))
-  };
+  const total = inputCost + outputCost + cacheCost;
+  return parseFloat(total.toFixed(12));
 }

@@ -1,8 +1,9 @@
 // supabase/functions/agents-orchestrator/index.ts
-// Entrypoint for the agents-orchestrator Supabase Edge Function
+// Entrypoint for the agents-orchestrator Supabase Edge Function (v1.2)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { executeAgentFlow } from './core/executor.ts';
+import { validateUserAuthentication } from './core/validator.ts';
 
 const ALLOWED_ORIGINS = [
   'https://tsmail-towell.netlify.app',
@@ -21,7 +22,7 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', {
       headers: {
         'Access-Control-Allow-Origin': corsOrigin,
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, prefer',
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
       }
     });
@@ -54,14 +55,65 @@ Deno.serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
+    // 2. Validación estricta del JWT de autenticación y rol de usuario en Servidor (P-05)
+    const authHeader = req.headers.get('Authorization');
+    const authValidation = await validateUserAuthentication(supabaseAdmin, authHeader, event_code);
+
+    if (!authValidation.isAuthorized) {
+      console.warn(`[Orchestrator] Bloqueado acceso no autorizado: ${authValidation.error}`);
+      return new Response(JSON.stringify({ error: authValidation.error || 'No autorizado' }), {
+        status: authValidation.isAuthenticated ? 403 : 401,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin }
+      });
+    }
+
     // Obtener variables de configuración y secretos para los proveedores
     const secrets = {
       OPENAI_API_KEY: Deno.env.get('OPENAI_API_KEY'),
       MIMO_API_KEY: Deno.env.get('MIMO_API_KEY'),
-      AI_AGENTS_ENABLED: Deno.env.get('AI_AGENTS_ENABLED') || 'false'
+      MULTIAGENT_ENABLED: Deno.env.get('MULTIAGENT_ENABLED'),
+      LLM_CALLS_ENABLED: Deno.env.get('LLM_CALLS_ENABLED'),
+      AI_ROUTER_ENABLED: Deno.env.get('AI_ROUTER_ENABLED'),
+      OPENAI_ENABLED: Deno.env.get('OPENAI_ENABLED'),
+      MIMO_ENABLED: Deno.env.get('MIMO_ENABLED')
     };
 
-    // Lanzar el flujo del orquestador Capataz
+    // 3. Dispatch Asíncrono (202 Accepted) si el cliente lo prefiere (Header 'Prefer: respond-async')
+    // o por defecto para eventos que requieren IA / llamadas de larga duración.
+    const preferAsync = req.headers.get('prefer') === 'respond-async' || event_code.toUpperCase() === 'TEXTO_AMBIGUO';
+
+    if (preferAsync) {
+      // Generar ID de correlación y evento temporal rápido
+      const corrId = correlation_id || `CORR-ASYNC-${Date.now()}`.toUpperCase();
+      const humanEventId = `EVT-ASYNC-${Date.now()}`.toUpperCase();
+
+      console.log(`[Orchestrator] Dispatch Asíncrono (202 Accepted) para: ${event_code}`);
+      
+      // Iniciar el flujo de agentes en segundo plano
+      executeAgentFlow(
+        supabaseAdmin,
+        event_code,
+        payload || {},
+        corrId,
+        secrets
+      ).catch(err => {
+        console.error('[Orchestrator] Error en background executeAgentFlow:', err);
+      });
+
+      return new Response(JSON.stringify({
+        success: true,
+        status: 'PENDIENTE',
+        event_code: event_code.toUpperCase(),
+        correlation_id: corrId,
+        event_id: humanEventId,
+        message: 'Evento recibido y puesto en cola de procesamiento asíncrono.'
+      }), {
+        status: 202, // 202 Accepted
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin }
+      });
+    }
+
+    // Ejecución Síncrona normal (para reglas deterministicas de 0 tokens)
     const flowResult = await executeAgentFlow(
       supabaseAdmin,
       event_code,
