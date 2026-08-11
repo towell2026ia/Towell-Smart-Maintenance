@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -4898,15 +4898,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.3.3"></script>
-  <script src="app.js?v=3.3.3"></script>
-  <script src="dashboard.js?v=3.3.3"></script>
+  <script src="seed.js?v=3.3.6"></script>
+  <script src="agents-client.js?v=3.3.6"></script>
+  <script src="app.js?v=3.3.6"></script>
+  <script src="dashboard.js?v=3.3.6"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.3.3')
+        navigator.serviceWorker.register('./sw.js?v=3.3.6')
           .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
           .catch(err => console.warn('⚠️ ServiceWorker error:', err));
       });
