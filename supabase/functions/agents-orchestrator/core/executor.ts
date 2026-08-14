@@ -1,32 +1,19 @@
 // supabase/functions/agents-orchestrator/core/executor.ts
+// Central Orchestration Engine for AG-001 Capataz Orquestador v1.0
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { AgentExecution } from '../types/agents.types.ts';
+import { AgentExecution, NanoOutputFormat, RoutingStatusResult } from '../types/agents.types.ts';
+import { config } from './config.ts';
 import { generateIdempotencyKey, checkIdempotency } from './idempotency.ts';
 import { resolveAgentRoute } from './router.ts';
-import { validateEventPayload, validateAgentOutput } from './validator.ts';
+import { validateEventPayload, validateAuthorityLevel, validateNanoOutput, CLOSED_AGENT_CATALOG } from './validator.ts';
 import { createApprovalRequest } from './approvals.ts';
-import { callOpenAI } from '../providers/openai-adapter.ts';
-import { calculateCost, fetchModelRates } from './cost-tracker.ts';
+import { callOpenAIWithRetry, CAPATAZ_NANO_SYSTEM_PROMPT, CAPATAZ_NANO_JSON_SCHEMA } from '../providers/openai-adapter.ts';
+import { calculateCost, fetchModelRates, logExecutionRecord } from './cost-tracker.ts';
+import { executeAG005Audit } from '../agents/ag005/ag005-executor.ts';
+import { executeAG006FormBuilder } from '../agents/ag006/ag006-executor.ts';
 
-// Schema para la respuesta estructurada de clasificación de AG-001
-const CAPATAZ_JSON_SCHEMA = {
-  type: 'object',
-  properties: {
-    status: { type: 'string', enum: ['SUCCESS', 'FAILED'] },
-    agente_destino: { type: 'string' },
-    findings: { type: 'array', items: { type: 'string' } },
-    recommendations: { type: 'array', items: { type: 'string' } },
-    requires_action: { type: 'boolean' },
-    requires_approval: { type: 'boolean' },
-    confidence: { type: 'number' },
-    payload_procesado: { type: 'object', additionalProperties: true }
-  },
-  required: ['status', 'agente_destino', 'findings', 'recommendations', 'requires_action', 'requires_approval', 'confidence', 'payload_procesado'],
-  additionalProperties: false
-};
-
-interface SecretsConfig {
+export interface SecretsConfig {
   OPENAI_API_KEY?: string;
   MIMO_API_KEY?: string;
   MULTIAGENT_ENABLED?: string;
@@ -36,21 +23,50 @@ interface SecretsConfig {
   MIMO_ENABLED?: string;
 }
 
-interface ExecutionResult {
+export interface ExecutionResult {
   success: boolean;
-  status: string;
+  status: RoutingStatusResult | 'FALLIDO';
   event_code?: string;
-  agent_id?: string;
-  routing_type?: 'DETERMINISTIC' | 'AI_CLASSIFICATION' | 'NONE';
+  agent_id?: string | null;
+  target_agent?: string | null;
+  routing_type?: 'DETERMINISTIC' | 'AI_CLASSIFICATION_NANO' | 'AI_CLASSIFICATION_MINI' | 'NONE';
   correlation_id: string;
   event_id?: string;
+  execution_id?: string;
   llm_used?: boolean;
   result?: any;
   error?: string;
+  sequence_executed?: string[];
+}
+
+export function canExecuteAgent(agentStatus: string, activo: boolean, environment: string): { allowed: boolean; reason: RoutingStatusResult } {
+  if (!activo) {
+    return { allowed: false, reason: 'BLOCKED_AGENT_DISABLED' };
+  }
+
+  switch (agentStatus.toUpperCase()) {
+    case 'REGISTERED':
+      return { allowed: false, reason: 'BLOCKED_AGENT_NOT_READY' };
+    case 'ROUTING_ONLY':
+      // ROUTING_ONLY means the agent is cataloged and can be target of route, but specialist execution is not invoked
+      return { allowed: true, reason: 'ENRUTADO' };
+    case 'TRAINING':
+    case 'EVALUATION':
+      if (['test', 'staging'].includes(environment.toLowerCase())) {
+        return { allowed: true, reason: 'ENRUTADO' };
+      }
+      return { allowed: false, reason: 'BLOCKED_AGENT_NOT_READY' };
+    case 'READY':
+      return { allowed: true, reason: 'ENRUTADO' };
+    case 'SUSPENDED':
+      return { allowed: false, reason: 'BLOCKED_AGENT_SUSPENDED' };
+    default:
+      return { allowed: false, reason: 'BLOCKED_AGENT_DISABLED' };
+  }
 }
 
 export async function executeAgentFlow(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient | null,
   eventCode: string,
   clientPayload: Record<string, any>,
   correlationId: string | null,
@@ -59,109 +75,219 @@ export async function executeAgentFlow(
   const startedAt = new Date().toISOString();
   const corrId = correlationId || `CORR-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`.toUpperCase();
   const humanEventId = `EVT-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`.toUpperCase();
-  
-  // 0. Evaluar Feature Flags Server-side (Fase A)
-  const isMultiagentEnabled = (secrets.MULTIAGENT_ENABLED || 'false') === 'true';
-  if (!isMultiagentEnabled) {
+
+  // 0. Feature Flag Check: MULTIAGENT_ENABLED
+  if (!config.multiagentEnabled) {
     return {
       success: false,
       status: 'FALLIDO',
       correlation_id: corrId,
-      error: 'La arquitectura multiagente está deshabilitada en el servidor (MULTIAGENT_ENABLED = false)'
+      error: 'La arquitectura multiagente está deshabilitada (MULTIAGENT_ENABLED = false)'
     };
   }
 
-  // 1. Generar e iniciar Idempotencia Server-Side
+  // 1. Resolve Route from cat_eventos_agente DB Catalog (Single Source of Truth)
+  const route = await resolveAgentRoute(supabase, eventCode);
+
+  // Adjustment 3: Unknown eventCode returns INVALID_EVENT immediately; NEVER sent to Nano!
+  if (!route.is_valid_event) {
+    console.warn(`[Executor] Rejecting unknown eventCode "${eventCode}" as INVALID_EVENT.`);
+    return {
+      success: false,
+      status: 'INVALID_EVENT',
+      correlation_id: corrId,
+      error: `Código de evento desconocido o no catalogado: '${eventCode}'.`
+    };
+  }
+
+  // 2. Idempotency Check
   const idempotencyKey = await generateIdempotencyKey(eventCode, clientPayload);
   const idemCheck = await checkIdempotency(supabase, idempotencyKey);
 
   if (idemCheck.exists) {
     console.log(`[Executor] Idempotency Hit for key ${idempotencyKey}. Status: ${idemCheck.status}`);
     return {
-      success: idemCheck.status === 'ENRUTADO' || idemCheck.status === 'COMPLETADO' || idemCheck.status === 'REQUIERE_APROBACION',
-      status: idemCheck.status || 'FALLIDO',
+      success: true,
+      status: 'DUPLICATE',
       event_code: eventCode.toUpperCase(),
       correlation_id: corrId,
       result: idemCheck.result,
-      error: idemCheck.status === 'FALLIDO' ? 'Ejecución duplicada fallida originalmente' : undefined
+      error: 'Ejecución duplicada detectada por validación de idempotencia.'
     };
   }
 
-  // 2. Resolver la ruta determinista
-  const route = await resolveAgentRoute(supabase, eventCode);
-  if (!route.agent_id) {
-    return { success: false, status: 'FALLIDO', correlation_id: corrId, error: `No se pudo resolver agente de destino para: ${eventCode}.` };
+  // 3. Register Event in eventos_agente table if DB connection exists
+  let dbEventId: string | undefined;
+  if (supabase) {
+    try {
+      const { data: dbEvent, error: insErr } = await supabase
+        .from('eventos_agente')
+        .insert([{
+          event_id: humanEventId,
+          correlation_id: corrId,
+          idempotency_key: idempotencyKey,
+          event_code: eventCode.toUpperCase(),
+          payload: clientPayload,
+          estatus: 'PENDIENTE'
+        }])
+        .select('id_evento')
+        .single();
+
+      if (!insErr && dbEvent) {
+        dbEventId = dbEvent.id_evento;
+        await supabase
+          .from('eventos_agente')
+          .update({ estatus: 'EN_PROCESO', fecha_actualizacion: new Date().toISOString() })
+          .eq('id_evento', dbEventId);
+      }
+    } catch (e) {
+      console.warn('[Executor] DB event insertion non-blocking exception:', e);
+    }
   }
 
-  // 3. Crear registro del evento en la tabla eventos_agente
-  const { data: dbEvent, error: insErr } = await supabase
-    .from('eventos_agente')
-    .insert([{
-      event_id: humanEventId,
-      correlation_id: corrId,
-      idempotency_key: idempotencyKey,
-      event_code: eventCode.toUpperCase(),
-      payload: clientPayload,
-      estatus: 'PENDIENTE'
-    }])
-    .select('id_evento')
-    .single();
-
-  if (insErr || !dbEvent) {
-    console.error('[Executor] Error creating eventos_agente record:', insErr?.message);
-    return { success: false, status: 'FALLIDO', correlation_id: corrId, error: insErr?.message || 'Error de BD al crear evento.' };
-  }
-
-  const dbEventId = dbEvent.id_evento;
-
-  // Actualizar a EN_PROCESO
-  await supabase
-    .from('eventos_agente')
-    .update({ estatus: 'EN_PROCESO', fecha_actualizacion: new Date().toISOString() })
-    .eq('id_evento', dbEventId);
-
-  // 4. Validar payload del cliente contra campos obligatorios si el evento es conocido
-  // (El validador limpia cualquier inyección de agent_id/model del cliente por seguridad)
-  if (route.es_conocido) {
-    const valResult = validateEventPayload(eventCode, clientPayload, route.required_fields);
-    if (!valResult.isValid) {
+  // 4. Validate Payload & Clean Injected Flags
+  const valResult = validateEventPayload(eventCode, clientPayload, route.required_fields);
+  if (!valResult.isValid) {
+    if (supabase && dbEventId) {
       await supabase
         .from('eventos_agente')
         .update({ estatus: 'FALLIDO', fecha_actualizacion: new Date().toISOString() })
         .eq('id_evento', dbEventId);
-      return { success: false, status: 'FALLIDO', correlation_id: corrId, event_id: humanEventId, error: valResult.error || 'Payload inválido' };
     }
-  }
-
-  // 5. Verificar si el agente de destino está activo en el catálogo
-  if (!route.activo) {
-    await supabase
-      .from('eventos_agente')
-      .update({ estatus: 'FALLIDO', fecha_actualizacion: new Date().toISOString() })
-      .eq('id_evento', dbEventId);
     return {
       success: false,
-      status: 'FALLIDO',
+      status: 'INVALID_PAYLOAD',
       correlation_id: corrId,
       event_id: humanEventId,
-      error: `BLOCKED_AGENT_DISABLED: El agente destino '${route.agent_id}' está desactivado.`
+      error: valResult.error || 'Payload inválido.'
     };
   }
 
-  // 6. ENRUTAMIENTO DETERMINÍSTICO (P-01: Conocido, 0 Tokens para el enrutador)
+  const cleanedPayload = valResult.cleanedPayload;
+
+  // 5. Check Target Agent Status & Environment Permissions
+  let targetAgentState = 'EVALUATION';
+  let targetAuthorityLevel = 1;
+  let targetActive = route.activo;
+
+  if (supabase && route.agent_id) {
+    try {
+      const { data: agentRow } = await supabase
+        .from('cat_agentes')
+        .select('activo, estado_implementacion, authority_level')
+        .eq('agent_id', route.agent_id)
+        .maybeSingle();
+
+      if (agentRow) {
+        targetActive = agentRow.activo;
+        targetAgentState = agentRow.estado_implementacion || 'EVALUATION';
+        targetAuthorityLevel = agentRow.authority_level ?? 1;
+      }
+    } catch (e) {}
+  }
+
+  const agentExecutionCheck = canExecuteAgent(targetAgentState, targetActive, config.tsmEnv);
+  if (!agentExecutionCheck.allowed) {
+    if (supabase && dbEventId) {
+      await supabase
+        .from('eventos_agente')
+        .update({ estatus: 'BLOQUEADO', fecha_actualizacion: new Date().toISOString() })
+        .eq('id_evento', dbEventId);
+    }
+    return {
+      success: false,
+      status: agentExecutionCheck.reason,
+      correlation_id: corrId,
+      event_id: humanEventId,
+      target_agent: route.agent_id,
+      error: `Agente '${route.agent_id}' bloqueado por estado/activo (${agentExecutionCheck.reason}).`
+    };
+  }
+
+  // 6. DETERMINISTIC ROUTING (es_conocido === true -> 0 Tokens)
   if (route.es_conocido) {
+    // Adjustment 2: Check Authority Level (0, 1, 2, 3)
+    const authorityCheck = validateAuthorityLevel(targetAuthorityLevel);
+
+    if (authorityCheck.status === 'REQUIRES_HUMAN_ACTION') {
+      // Level 3: Block execution, DO NOT create standard approval row
+      const execId = await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-001',
+        execution_type: 'ROUTING_RULE',
+        status: 'REQUIRES_HUMAN_ACTION',
+        target_agent: route.agent_id,
+        duration_ms: Date.now() - new Date(startedAt).getTime()
+      });
+
+      return {
+        success: false,
+        status: 'REQUIRES_HUMAN_ACTION',
+        event_code: eventCode.toUpperCase(),
+        agent_id: route.agent_id,
+        routing_type: 'DETERMINISTIC',
+        correlation_id: corrId,
+        event_id: humanEventId,
+        execution_id: execId,
+        llm_used: false,
+        error: `Acción de Nivel 3 requiere intervención humana exclusiva. Ningún proceso automático ejecutado.`
+      };
+    }
+
+    if (authorityCheck.status === 'PENDING_APPROVAL') {
+      // Level 2: Create PENDING_APPROVAL row with SHA-256 canonical hash
+      const appResult = await createApprovalRequest(supabase, {
+        correlation_id: corrId,
+        event_id: dbEventId,
+        agent_id: route.agent_id!,
+        action_type: `SOLICITUD_${eventCode.toUpperCase()}`,
+        payload_snapshot: cleanedPayload
+      });
+
+      const execId = await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-001',
+        execution_type: 'APPROVAL_REQUEST',
+        status: 'SUCCESS',
+        target_agent: route.agent_id,
+        result: { approval_id: appResult.id, action_hash: appResult.action_hash },
+        duration_ms: Date.now() - new Date(startedAt).getTime()
+      });
+
+      return {
+        success: true,
+        status: 'PENDING_APPROVAL',
+        event_code: eventCode.toUpperCase(),
+        agent_id: route.agent_id,
+        routing_type: 'DETERMINISTIC',
+        correlation_id: corrId,
+        event_id: humanEventId,
+        execution_id: execId,
+        llm_used: false,
+        result: { approval_id: appResult.id, action_hash: appResult.action_hash }
+      };
+    }
+
+    // Level 0 & 1: Deterministic route successful
+    // Adjustment 4: Supervised Multi-Agent Sequences
+    let sequenceExecuted: string[] = [];
+    if (route.secuencia_destinos && route.secuencia_destinos.length > 0) {
+      for (const seqAgent of route.secuencia_destinos) {
+        sequenceExecuted.push(seqAgent);
+      }
+    } else if (route.agent_id) {
+      sequenceExecuted.push(route.agent_id);
+    }
+
     const completedAt = new Date().toISOString();
     const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
-    
-    const dbExec: AgentExecution = {
-      execution_id: `EXEC-RULE-${Date.now()}`.toUpperCase(),
-      event_id: dbEventId,
+
+    const execId = await logExecutionRecord(supabase, {
       correlation_id: corrId,
       agent_id: 'AG-001',
       execution_type: 'ROUTING_RULE',
       provider: 'none',
       model: 'none',
-      key_alias: 'NONE',
       started_at: startedAt,
       completed_at: completedAt,
       duration_ms: duration,
@@ -172,25 +298,71 @@ export async function executeAgentFlow(
       price_input_usd: 0,
       price_output_usd: 0,
       price_cache_usd: 0,
-      pricing_version: 'DETERMINISTIC_TARIFF',
+      pricing_version: 'DETERMINISTIC_FREE',
       estimated_cost_usd: 0,
       status: 'SUCCESS',
       confidence: 1.0,
+      target_agent: route.agent_id,
       result: {
-        agente_destino: route.agent_id,
-        metodo: 'REGLA_DETERMINISTICA',
-        requiere_ia: false
-      },
-      error_message: null
-    };
+        target_agent: route.agent_id,
+        routing_method: 'REGLA_DETERMINISTICA',
+        sequence_executed: sequenceExecuted
+      }
+    });
 
-    await supabase.from('bitacora_ejecuciones_agente').insert([dbExec]);
-    
-    // Cambiado de COMPLETADO a ENRUTADO (Punto 2)
-    await supabase
-      .from('eventos_agente')
-      .update({ estatus: 'ENRUTADO', fecha_actualizacion: new Date().toISOString() })
-      .eq('id_evento', dbEventId);
+    // If target is AG-005 (Auditor de Bases), execute specialist audit
+    let ag005AuditResult = null;
+    if (route.agent_id === 'AG-005') {
+      ag005AuditResult = await executeAG005Audit(supabase, cleanedPayload, corrId);
+      await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-005',
+        execution_type: 'AGENT_EXECUTION',
+        provider: 'none',
+        model: 'none',
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - new Date(startedAt).getTime(),
+        input_tokens: 0,
+        output_tokens: 0,
+        estimated_cost_usd: 0,
+        status: ag005AuditResult.can_promote ? 'SUCCESS' : 'FAILED',
+        result: ag005AuditResult
+      });
+    }
+
+    // If target is AG-006 (Constructor de Formularios), execute specialist form builder
+    let ag006Result = null;
+    if (route.agent_id === 'AG-006') {
+      ag006Result = await executeAG006FormBuilder(supabase, cleanedPayload, corrId, secrets.OPENAI_API_KEY);
+      const isLlmUsed = secrets.OPENAI_API_KEY ? true : false;
+      const modelRates = await fetchModelRates(supabase);
+      const costCalc = calculateCost('openai', 'gpt-4.1-mini', 0, 0, 0, modelRates);
+
+      await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-006',
+        execution_type: 'AGENT_EXECUTION',
+        provider: isLlmUsed ? 'openai' : 'none',
+        model: isLlmUsed ? 'gpt-4.1-mini' : 'none',
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - new Date(startedAt).getTime(),
+        input_tokens: 0,
+        output_tokens: 0,
+        estimated_cost_usd: costCalc.estimatedCostUsd,
+        pricing_version: costCalc.pricingVersion,
+        status: 'SUCCESS',
+        result: ag006Result
+      });
+    }
+
+    if (supabase && dbEventId) {
+      await supabase
+        .from('eventos_agente')
+        .update({ estatus: 'ENRUTADO', fecha_actualizacion: new Date().toISOString() })
+        .eq('id_evento', dbEventId);
+    }
 
     return {
       success: true,
@@ -200,193 +372,287 @@ export async function executeAgentFlow(
       routing_type: 'DETERMINISTIC',
       correlation_id: corrId,
       event_id: humanEventId,
+      execution_id: execId,
       llm_used: false,
-      result: dbExec.result
+      sequence_executed: sequenceExecuted,
+      result: {
+        target_agent: route.agent_id,
+        sequence_executed: sequenceExecuted,
+        audit_result: ag005AuditResult,
+        form_builder_result: ag006Result
+      }
     };
   }
 
-  // 7. ENRUTAMIENTO POR IA (AG-001 Clasificador)
-  // Evaluar flags de IA: LLM_CALLS_ENABLED y AI_ROUTER_ENABLED (Punto 1 y 6)
-  const isLlmCallsEnabled = (secrets.LLM_CALLS_ENABLED || 'false') === 'true';
-  const isAiRouterEnabled = (secrets.AI_ROUTER_ENABLED || 'false') === 'true';
-  const isOpenaiEnabled = (secrets.OPENAI_ENABLED || 'false') === 'true';
-
-  if (!isLlmCallsEnabled || !isAiRouterEnabled || !isOpenaiEnabled) {
-    await supabase
-      .from('eventos_agente')
-      .update({ estatus: 'FALLIDO', fecha_actualizacion: new Date().toISOString() })
-      .eq('id_evento', dbEventId);
+  // 7. AI CLASSIFICATION (TEXTO_AMBIGUO -> GPT-4.1 Nano -> Validator -> GPT-4.1 Mini Fallback)
+  if (!config.llmCallsEnabled || !config.aiRouterEnabled || !config.openaiEnabled) {
     return {
       success: false,
       status: 'FALLIDO',
       correlation_id: corrId,
-      event_id: humanEventId,
-      error: `LLM_DISABLED: La llamadas de IA / Router están desactivadas en la configuración.`
+      error: 'LLM_DISABLED: La llamadas a modelos de IA están deshabilitadas en la configuración.'
     };
   }
 
-  const openAiKey = secrets.OPENAI_API_KEY || '';
-  if (!openAiKey) {
-    await supabase
-      .from('eventos_agente')
-      .update({ estatus: 'FALLIDO', fecha_actualizacion: new Date().toISOString() })
-      .eq('id_evento', dbEventId);
-    return { success: false, status: 'FALLIDO', correlation_id: corrId, event_id: humanEventId, error: 'Falta configurar OPENAI_API_KEY en el servidor.' };
-  }
+  const openAiApiKey = secrets.OPENAI_API_KEY || Deno.env.get('OPENAI_API_KEY') || '';
 
-  // 7.1. Clasificar con GPT-4.1 Nano
-  let modelUsed = 'gpt-4.1-nano';
-  let aliasUsed: 'AI_ROUTER_OPENAI' | 'AI_DOCUMENT_OPENAI' = 'AI_ROUTER_OPENAI';
-  let aiResp;
-  let validationError: string | null = null;
-  let parseResult: any = null;
+  // 7.1 Call GPT-4.1 Nano (Primary Classifier)
+  let nanoExecId: string | null = null;
+  let nanoOutput: NanoOutputFormat | null = null;
+  let nanoValError: string | null = null;
 
+  const nanoStartTime = Date.now();
   try {
-    const systemPrompt = `Eres AG-001 (Capataz Orquestador) de TSM-AI. Clasifica este mensaje en una de las intenciones de agentes de mantenimiento. Retorna estrictamente la estructura del esquema JSON.`;
-    const userPrompt = clientPayload.texto || JSON.stringify(clientPayload);
-    
-    // Si la entrada simula un fallo para forzar fallback (Punto 9)
-    if (clientPayload.simular_fallback === true || (clientPayload.texto && clientPayload.texto.includes('SIMULATE_FALLBACK_SEMANTIC'))) {
-      throw new Error('Simulated payload error to test fallback to Mini');
-    }
+    // Simulated test triggers for prompt failure or invalid agent
+    if (cleanedPayload.simular_error_agente_invalido) {
+      const mockResult = {
+        event_code: 'FALLA_REPORTADA',
+        target_agent: 'AG-666', // Invalid agent not in closed catalog
+        confidence: 0.95,
+        missing_fields: [],
+        risk_flags: [],
+        model_recommends_approval: false,
+        reason_code: 'INVALID_AGENT_TEST'
+      };
+      const valCheck = validateNanoOutput(mockResult);
+      nanoValError = valCheck.error;
+    } else {
+      const userPromptText = cleanedPayload.texto || JSON.stringify(cleanedPayload);
+      const nanoResp = await callOpenAIWithRetry(
+        openAiApiKey,
+        'gpt-4.1-nano',
+        CAPATAZ_NANO_SYSTEM_PROMPT,
+        userPromptText,
+        CAPATAZ_NANO_JSON_SCHEMA
+      );
 
-    aiResp = await callOpenAI(openAiKey, modelUsed, systemPrompt, userPrompt, CAPATAZ_JSON_SCHEMA);
-    parseResult = JSON.parse(aiResp.text);
-    
-    const valOut = validateAgentOutput('AG-001', parseResult);
-    if (!valOut.isValid) {
-      validationError = valOut.error;
+      const rates = await fetchModelRates(supabase, 'openai', 'gpt-4.1-nano');
+      const costUsd = calculateCost(rates, nanoResp.inputTokens, nanoResp.outputTokens, nanoResp.cachedInputTokens);
+
+      const valCheck = validateNanoOutput(nanoResp.parsedOutput);
+      nanoOutput = valCheck.nanoData;
+      nanoValError = valCheck.error;
+
+      // Adjustment 6: Log Nano Execution Entry
+      nanoExecId = await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-001',
+        execution_type: 'AI_CLASSIFICATION_NANO',
+        provider: 'openai',
+        model: 'gpt-4.1-nano',
+        started_at: new Date(nanoStartTime).toISOString(),
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - nanoStartTime,
+        input_tokens: nanoResp.inputTokens,
+        outputTokens: nanoResp.outputTokens,
+        cachedInputTokens: nanoResp.cachedInputTokens,
+        reasoningTokens: nanoResp.reasoningTokens,
+        price_input_usd: rates.price_input_usd,
+        price_output_usd: rates.price_output_usd,
+        price_cache_usd: rates.price_cache_usd,
+        pricing_version: rates.pricing_version,
+        estimated_cost_usd: costUsd,
+        status: nanoValError ? 'REJECTED_VALIDATOR' : 'SUCCESS',
+        confidence: nanoOutput?.confidence || 0,
+        reason_code: nanoOutput?.reason_code || 'UNCLASSIFIED',
+        target_agent: nanoOutput?.target_agent || null,
+        result: nanoResp.parsedOutput,
+        error_message: nanoValError
+      });
     }
   } catch (err: any) {
-    validationError = err.message;
+    nanoValError = err.message || 'Error executing GPT-4.1 Nano.';
+    nanoExecId = await logExecutionRecord(supabase, {
+      correlation_id: corrId,
+      agent_id: 'AG-001',
+      execution_type: 'AI_CLASSIFICATION_NANO',
+      provider: 'openai',
+      model: 'gpt-4.1-nano',
+      duration_ms: Date.now() - nanoStartTime,
+      status: 'FAILED',
+      error_message: nanoValError
+    });
   }
 
-  // 7.2. Fallback semántico a GPT-4.1 Mini
-  if (validationError) {
-    console.warn(`[Executor] GPT-4.1 Nano falló validación semántica (${validationError}). Escalando a GPT-4.1 Mini...`);
-    modelUsed = 'gpt-4.1-mini';
-    aliasUsed = 'AI_DOCUMENT_OPENAI';
-    
+  // 7.2 Semantic Fallback to GPT-4.1 Mini (Adjustment 6)
+  // Invoked ONLY when Nano produces invalid JSON or fails semantic validation
+  let finalClassification: NanoOutputFormat | null = nanoOutput;
+  let activeExecutionId = nanoExecId;
+  let activeRoutingType: 'AI_CLASSIFICATION_NANO' | 'AI_CLASSIFICATION_MINI' = 'AI_CLASSIFICATION_NANO';
+
+  if (nanoValError || !nanoOutput) {
+    console.warn(`[Executor] Nano validation failed (${nanoValError}). Triggering GPT-4.1 Mini fallback...`);
+    const miniStartTime = Date.now();
+
     try {
-      const systemPrompt = `Eres AG-001 (Capataz Orquestador) con nivel de atención superior. Clasifica el mensaje bajo la estructura JSON estricta.`;
-      const userPrompt = clientPayload.texto || JSON.stringify(clientPayload);
-      
-      // Si simula un fallo completo de fallback
-      if (clientPayload.simular_fallback_mini === true) {
-        throw new Error('Simulated payload error to test full fallback failure');
+      const userPromptText = cleanedPayload.texto || JSON.stringify(cleanedPayload);
+      const miniResp = await callOpenAIWithRetry(
+        openAiApiKey,
+        'gpt-4.1-mini',
+        CAPATAZ_NANO_SYSTEM_PROMPT,
+        userPromptText,
+        CAPATAZ_NANO_JSON_SCHEMA
+      );
+
+      const rates = await fetchModelRates(supabase, 'openai', 'gpt-4.1-mini');
+      const costUsd = calculateCost(rates, miniResp.inputTokens, miniResp.outputTokens, miniResp.cachedInputTokens);
+
+      const valCheck = validateNanoOutput(miniResp.parsedOutput);
+      const miniOutput = valCheck.nanoData;
+      const miniValError = valCheck.error;
+
+      // Adjustment 6: Log Mini Execution Entry linked by parent_execution_id
+      const miniExecId = await logExecutionRecord(supabase, {
+        parent_execution_id: nanoExecId,
+        correlation_id: corrId,
+        agent_id: 'AG-001',
+        execution_type: 'AI_CLASSIFICATION_MINI',
+        provider: 'openai',
+        model: 'gpt-4.1-mini',
+        started_at: new Date(miniStartTime).toISOString(),
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - miniStartTime,
+        input_tokens: miniResp.inputTokens,
+        outputTokens: miniResp.outputTokens,
+        cachedInputTokens: miniResp.cachedInputTokens,
+        reasoningTokens: miniResp.reasoningTokens,
+        price_input_usd: rates.price_input_usd,
+        price_output_usd: rates.price_output_usd,
+        price_cache_usd: rates.price_cache_usd,
+        pricing_version: rates.pricing_version,
+        estimated_cost_usd: costUsd,
+        status: miniValError ? 'REJECTED_VALIDATOR' : 'SUCCESS',
+        confidence: miniOutput?.confidence || 0,
+        reason_code: miniOutput?.reason_code || 'UNCLASSIFIED',
+        target_agent: miniOutput?.target_agent || null,
+        result: miniResp.parsedOutput,
+        error_message: miniValError
+      });
+
+      if (miniValError || !miniOutput) {
+        return {
+          success: false,
+          status: 'FALLIDO',
+          correlation_id: corrId,
+          event_id: humanEventId,
+          execution_id: miniExecId,
+          error: `Rechazado por Validator tras fallback en Mini: ${miniValError}`
+        };
       }
 
-      aiResp = await callOpenAI(openAiKey, modelUsed, systemPrompt, userPrompt, CAPATAZ_JSON_SCHEMA);
-      parseResult = JSON.parse(aiResp.text);
-      
-      const valOut = validateAgentOutput('AG-001', parseResult);
-      if (!valOut.isValid) {
-        validationError = `Fallback fallido: ${valOut.error}`;
-      } else {
-        validationError = null; // Éxito
-      }
+      finalClassification = miniOutput;
+      activeExecutionId = miniExecId;
+      activeRoutingType = 'AI_CLASSIFICATION_MINI';
     } catch (err: any) {
-      validationError = `Excepción en fallback: ${err.message}`;
+      return {
+        success: false,
+        status: 'FALLIDO',
+        correlation_id: corrId,
+        event_id: humanEventId,
+        execution_id: nanoExecId || undefined,
+        error: `Error en fallback Mini: ${err.message}`
+      };
     }
   }
 
-  // 8. Calcular Costos y Registrar Ejecución (Cost Tracker dinámico)
-  const completedAt = new Date().toISOString();
-  const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
-  
-  let statusExec: 'SUCCESS' | 'FAILED' | 'REJECTED_VALIDATOR' = 'SUCCESS';
-  if (validationError) {
-    statusExec = 'REJECTED_VALIDATOR';
-  }
-
-  // Cargar tarifas reales de la base de datos (Punto 3)
-  const rates = await fetchModelRates(supabase, 'openai', modelUsed);
-  const costUsd = calculateCost(
-    rates,
-    aiResp?.inputTokens || 0,
-    aiResp?.outputTokens || 0,
-    aiResp?.cachedInputTokens || 0
-  );
-
-  const dbExec: AgentExecution = {
-    execution_id: `EXEC-AI-${Date.now()}`.toUpperCase(),
-    event_id: dbEventId,
-    correlation_id: corrId,
-    agent_id: 'AG-001',
-    execution_type: 'AGENT_EXECUTION',
-    provider: 'openai',
-    model: modelUsed,
-    key_alias: aliasUsed,
-    started_at: startedAt,
-    completed_at: completedAt,
-    duration_ms: duration,
-    input_tokens: aiResp?.inputTokens || 0,
-    output_tokens: aiResp?.outputTokens || 0,
-    cached_input_tokens: aiResp?.cachedInputTokens || 0,
-    reasoning_tokens: aiResp?.reasoningTokens || 0,
-    price_input_usd: rates.price_input_usd,
-    price_output_usd: rates.price_output_usd,
-    price_cache_usd: rates.price_cache_usd,
-    pricing_version: rates.pricing_version,
-    estimated_cost_usd: costUsd,
-    status: statusExec,
-    confidence: parseResult?.confidence || 0.0,
-    result: parseResult || null,
-    error_message: validationError
-  };
-
-  await supabase.from('bitacora_ejecuciones_agente').insert([dbExec]);
-
-  if (validationError) {
-    await supabase
-      .from('eventos_agente')
-      .update({ estatus: 'FALLIDO', fecha_actualizacion: new Date().toISOString() })
-      .eq('id_evento', dbEventId);
-    return { success: false, status: 'FALLIDO', correlation_id: corrId, event_id: humanEventId, error: validationError };
-  }
-
-  // 9. Aprobaciones manuales en TSM-AI para Nivel 2
-  const reqApproval = parseResult.requires_approval || false;
-  if (reqApproval) {
-    const appResult = await createApprovalRequest(supabase, {
+  if (!finalClassification) {
+    return {
+      success: false,
+      status: 'FALLIDO',
       correlation_id: corrId,
-      event_id: dbEventId,
-      agent_id: parseResult.agente_destino,
-      tipo_accion: 'ENRUTAMIENTO_IA_REQUIERE_APROBACION',
-      propuesta_payload: parseResult.payload_procesado
-    });
-    
+      error: 'Clasificación de IA fallida.'
+    };
+  }
+
+  // 8. Missing Fields Guard (PRD Section 18)
+  if (finalClassification.missing_fields && finalClassification.missing_fields.length > 0) {
     return {
       success: true,
-      status: 'REQUIERE_APROBACION',
-      event_code: eventCode.toUpperCase(),
-      agent_id: parseResult.agente_destino,
-      routing_type: 'AI_CLASSIFICATION',
+      status: 'REQUIRES_INFORMATION',
+      event_code: finalClassification.event_code,
+      agent_id: finalClassification.target_agent,
+      routing_type: activeRoutingType,
       correlation_id: corrId,
       event_id: humanEventId,
+      execution_id: activeExecutionId || undefined,
       llm_used: true,
       result: {
-        ...parseResult,
-        approval_id: appResult.id
+        missing_fields: finalClassification.missing_fields,
+        reason_code: finalClassification.reason_code,
+        target_agent: finalClassification.target_agent
       }
     };
   }
 
-  // Si no requiere aprobación, completar evento como enrutado para procesamiento posterior
-  await supabase
-    .from('eventos_agente')
-    .update({ estatus: 'ENRUTADO', fecha_actualizacion: new Date().toISOString() })
-    .eq('id_evento', dbEventId);
+  // 9. Authority Check for AI Classified Target
+  let classifiedAuthorityLevel = 1;
+  if (supabase) {
+    try {
+      const { data: agentData } = await supabase
+        .from('cat_agentes')
+        .select('authority_level')
+        .eq('agent_id', finalClassification.target_agent)
+        .maybeSingle();
+      if (agentData) {
+        classifiedAuthorityLevel = agentData.authority_level;
+      }
+    } catch (e) {}
+  }
+
+  const aiAuthorityCheck = validateAuthorityLevel(classifiedAuthorityLevel);
+
+  if (aiAuthorityCheck.status === 'REQUIRES_HUMAN_ACTION') {
+    return {
+      success: false,
+      status: 'REQUIRES_HUMAN_ACTION',
+      event_code: finalClassification.event_code,
+      agent_id: finalClassification.target_agent,
+      routing_type: activeRoutingType,
+      correlation_id: corrId,
+      execution_id: activeExecutionId || undefined,
+      llm_used: true,
+      error: 'Acción de Nivel 3 requiere intervención humana exclusiva.'
+    };
+  }
+
+  if (aiAuthorityCheck.status === 'PENDING_APPROVAL') {
+    const appResult = await createApprovalRequest(supabase, {
+      correlation_id: corrId,
+      execution_id: activeExecutionId || undefined,
+      event_id: dbEventId,
+      agent_id: finalClassification.target_agent,
+      action_type: `ENRUTAMIENTO_IA_${finalClassification.event_code}`,
+      payload_snapshot: cleanedPayload
+    });
+
+    return {
+      success: true,
+      status: 'PENDING_APPROVAL',
+      event_code: finalClassification.event_code,
+      agent_id: finalClassification.target_agent,
+      routing_type: activeRoutingType,
+      correlation_id: corrId,
+      execution_id: activeExecutionId || undefined,
+      llm_used: true,
+      result: {
+        approval_id: appResult.id,
+        action_hash: appResult.action_hash,
+        target_agent: finalClassification.target_agent
+      }
+    };
+  }
 
   return {
     success: true,
     status: 'ENRUTADO',
-    event_code: eventCode.toUpperCase(),
-    agent_id: parseResult.agente_destino,
-    routing_type: 'AI_CLASSIFICATION',
+    event_code: finalClassification.event_code,
+    agent_id: finalClassification.target_agent,
+    target_agent: finalClassification.target_agent,
+    routing_type: activeRoutingType,
     correlation_id: corrId,
     event_id: humanEventId,
+    execution_id: activeExecutionId || undefined,
     llm_used: true,
-    result: parseResult
+    result: finalClassification
   };
 }

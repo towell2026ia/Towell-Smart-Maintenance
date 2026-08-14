@@ -1,0 +1,3052 @@
+[
+  {
+    "case_id": "AG006-CASE-001",
+    "category": "VALID_WORKBOOK",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "template_valid_ot_checklist_1.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-002",
+    "category": "VALID_WORKBOOK",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "template_valid_levantamiento_predictivo_2.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-003",
+    "category": "VALID_WORKBOOK",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "template_valid_levantamiento_autonomo_3.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-004",
+    "category": "VALID_WORKBOOK",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "template_valid_bitacora_levantamiento_4.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-005",
+    "category": "VALID_WORKBOOK",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "template_valid_requisicion_ot_5.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-006",
+    "category": "VALID_WORKBOOK",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "template_valid_formulario_generico_6.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-007",
+    "category": "VALID_WORKBOOK",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "template_valid_ot_checklist_7.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-008",
+    "category": "VALID_WORKBOOK",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "template_valid_levantamiento_predictivo_8.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-009",
+    "category": "VALID_WORKBOOK",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "template_valid_levantamiento_autonomo_9.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-010",
+    "category": "VALID_WORKBOOK",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "template_valid_bitacora_levantamiento_10.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-011",
+    "category": "VALID_WORKBOOK",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "template_valid_requisicion_ot_11.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-012",
+    "category": "VALID_WORKBOOK",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "template_valid_formulario_generico_12.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-013",
+    "category": "VALID_WORKBOOK",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "template_valid_ot_checklist_13.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-014",
+    "category": "VALID_WORKBOOK",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "template_valid_levantamiento_predictivo_14.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-015",
+    "category": "VALID_WORKBOOK",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "template_valid_levantamiento_autonomo_15.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-016",
+    "category": "VALID_WORKBOOK",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "template_valid_bitacora_levantamiento_16.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-017",
+    "category": "VALID_WORKBOOK",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "template_valid_requisicion_ot_17.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-018",
+    "category": "VALID_WORKBOOK",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "template_valid_formulario_generico_18.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-019",
+    "category": "VALID_WORKBOOK",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "template_valid_ot_checklist_19.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-020",
+    "category": "VALID_WORKBOOK",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "template_valid_levantamiento_predictivo_20.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-021",
+    "category": "VALID_WORKBOOK",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "template_valid_levantamiento_autonomo_21.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-022",
+    "category": "VALID_WORKBOOK",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "template_valid_bitacora_levantamiento_22.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-023",
+    "category": "VALID_WORKBOOK",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "template_valid_requisicion_ot_23.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-024",
+    "category": "VALID_WORKBOOK",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "template_valid_formulario_generico_24.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-025",
+    "category": "VALID_WORKBOOK",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "template_valid_ot_checklist_25.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-026",
+    "category": "VALID_WORKBOOK",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "template_valid_levantamiento_predictivo_26.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-027",
+    "category": "VALID_WORKBOOK",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "template_valid_levantamiento_autonomo_27.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-028",
+    "category": "VALID_WORKBOOK",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "template_valid_bitacora_levantamiento_28.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-029",
+    "category": "VALID_WORKBOOK",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "template_valid_requisicion_ot_29.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-030",
+    "category": "VALID_WORKBOOK",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "template_valid_formulario_generico_30.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Datos Generales",
+          "rows": [
+            {
+              "Campo": "Máquina",
+              "Tipo": "Select",
+              "Requerido": true
+            },
+            {
+              "Campo": "Observaciones",
+              "Tipo": "Textarea",
+              "Requerido": false
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false,
+      "requires_human_review": true
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-031",
+    "category": "FIELD_MAPPING",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "mapping_ot_checklist_1.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-032",
+    "category": "FIELD_MAPPING",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "mapping_levantamiento_predictivo_2.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-033",
+    "category": "FIELD_MAPPING",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "mapping_levantamiento_autonomo_3.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-034",
+    "category": "FIELD_MAPPING",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "mapping_bitacora_levantamiento_4.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-035",
+    "category": "FIELD_MAPPING",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "mapping_requisicion_ot_5.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-036",
+    "category": "FIELD_MAPPING",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "mapping_formulario_generico_6.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-037",
+    "category": "FIELD_MAPPING",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "mapping_ot_checklist_7.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-038",
+    "category": "FIELD_MAPPING",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "mapping_levantamiento_predictivo_8.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-039",
+    "category": "FIELD_MAPPING",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "mapping_levantamiento_autonomo_9.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-040",
+    "category": "FIELD_MAPPING",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "mapping_bitacora_levantamiento_10.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-041",
+    "category": "FIELD_MAPPING",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "mapping_requisicion_ot_11.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-042",
+    "category": "FIELD_MAPPING",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "mapping_formulario_generico_12.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-043",
+    "category": "FIELD_MAPPING",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "mapping_ot_checklist_13.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-044",
+    "category": "FIELD_MAPPING",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "mapping_levantamiento_predictivo_14.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-045",
+    "category": "FIELD_MAPPING",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "mapping_levantamiento_autonomo_15.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-046",
+    "category": "FIELD_MAPPING",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "mapping_bitacora_levantamiento_16.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-047",
+    "category": "FIELD_MAPPING",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "mapping_requisicion_ot_17.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-048",
+    "category": "FIELD_MAPPING",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "mapping_formulario_generico_18.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-049",
+    "category": "FIELD_MAPPING",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "mapping_ot_checklist_19.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-050",
+    "category": "FIELD_MAPPING",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "mapping_levantamiento_predictivo_20.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-051",
+    "category": "FIELD_MAPPING",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "mapping_levantamiento_autonomo_21.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-052",
+    "category": "FIELD_MAPPING",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "mapping_bitacora_levantamiento_22.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-053",
+    "category": "FIELD_MAPPING",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "mapping_requisicion_ot_23.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-054",
+    "category": "FIELD_MAPPING",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "mapping_formulario_generico_24.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-055",
+    "category": "FIELD_MAPPING",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "mapping_ot_checklist_25.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-056",
+    "category": "FIELD_MAPPING",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "mapping_levantamiento_predictivo_26.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-057",
+    "category": "FIELD_MAPPING",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "mapping_levantamiento_autonomo_27.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-058",
+    "category": "FIELD_MAPPING",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "mapping_bitacora_levantamiento_28.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-059",
+    "category": "FIELD_MAPPING",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "mapping_requisicion_ot_29.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-060",
+    "category": "FIELD_MAPPING",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "mapping_formulario_generico_30.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Inspección",
+          "rows": [
+            {
+              "Etiqueta": "Nivel de Aceite",
+              "Campo": "DECIMAL"
+            },
+            {
+              "Etiqueta": "Fecha de Medición",
+              "Campo": "DATE"
+            },
+            {
+              "Etiqueta": "Evidencia Fotográfica",
+              "Campo": "PHOTO"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-061",
+    "category": "VALIDATION_RULES",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "validations_ot_checklist_1.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-062",
+    "category": "VALIDATION_RULES",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "validations_levantamiento_predictivo_2.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-063",
+    "category": "VALIDATION_RULES",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "validations_levantamiento_autonomo_3.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-064",
+    "category": "VALIDATION_RULES",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "validations_bitacora_levantamiento_4.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-065",
+    "category": "VALIDATION_RULES",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "validations_requisicion_ot_5.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-066",
+    "category": "VALIDATION_RULES",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "validations_formulario_generico_6.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-067",
+    "category": "VALIDATION_RULES",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "validations_ot_checklist_7.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-068",
+    "category": "VALIDATION_RULES",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "validations_levantamiento_predictivo_8.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-069",
+    "category": "VALIDATION_RULES",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "validations_levantamiento_autonomo_9.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-070",
+    "category": "VALIDATION_RULES",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "validations_bitacora_levantamiento_10.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-071",
+    "category": "VALIDATION_RULES",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "validations_requisicion_ot_11.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-072",
+    "category": "VALIDATION_RULES",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "validations_formulario_generico_12.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-073",
+    "category": "VALIDATION_RULES",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "validations_ot_checklist_13.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-074",
+    "category": "VALIDATION_RULES",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "validations_levantamiento_predictivo_14.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-075",
+    "category": "VALIDATION_RULES",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "validations_levantamiento_autonomo_15.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-076",
+    "category": "VALIDATION_RULES",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "validations_bitacora_levantamiento_16.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-077",
+    "category": "VALIDATION_RULES",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "validations_requisicion_ot_17.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-078",
+    "category": "VALIDATION_RULES",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "validations_formulario_generico_18.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-079",
+    "category": "VALIDATION_RULES",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "validations_ot_checklist_19.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-080",
+    "category": "VALIDATION_RULES",
+    "form_family": "LEVANTAMIENTO_PREDICTIVO",
+    "payload": {
+      "form_name": "validations_levantamiento_predictivo_20.xlsx",
+      "form_family": "LEVANTAMIENTO_PREDICTIVO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-081",
+    "category": "VALIDATION_RULES",
+    "form_family": "LEVANTAMIENTO_AUTONOMO",
+    "payload": {
+      "form_name": "validations_levantamiento_autonomo_21.xlsx",
+      "form_family": "LEVANTAMIENTO_AUTONOMO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-082",
+    "category": "VALIDATION_RULES",
+    "form_family": "BITACORA_LEVANTAMIENTO",
+    "payload": {
+      "form_name": "validations_bitacora_levantamiento_22.xlsx",
+      "form_family": "BITACORA_LEVANTAMIENTO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-083",
+    "category": "VALIDATION_RULES",
+    "form_family": "REQUISICION_OT",
+    "payload": {
+      "form_name": "validations_requisicion_ot_23.xlsx",
+      "form_family": "REQUISICION_OT",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-084",
+    "category": "VALIDATION_RULES",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "validations_formulario_generico_24.xlsx",
+      "form_family": "FORMULARIO_GENERICO",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-085",
+    "category": "VALIDATION_RULES",
+    "form_family": "OT_CHECKLIST",
+    "payload": {
+      "form_name": "validations_ot_checklist_25.xlsx",
+      "form_family": "OT_CHECKLIST",
+      "sheets": [
+        {
+          "name": "Rango",
+          "rows": [
+            {
+              "Parámetro": "Temperatura °C",
+              "Min": 20,
+              "Max": 90,
+              "Requerido": true
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-086",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_1.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-087",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_2.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-088",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_3.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-089",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_4.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-090",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_5.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-091",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_6.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-092",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_7.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-093",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_8.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-094",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_9.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-095",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_10.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-096",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_11.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-097",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_12.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-098",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_13.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-099",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_14.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-100",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_15.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-101",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_16.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG006-CASE-102",
+    "category": "AMBIGUITY_UNSUPPORTED",
+    "form_family": "FORMULARIO_GENERICO",
+    "payload": {
+      "form_name": "ambiguous_component_17.xlsx",
+      "unsupported_activex": true,
+      "sheets": [
+        {
+          "name": "Control",
+          "rows": [
+            {
+              "Elemento": "Control ActiveX Desconocido",
+              "Tipo": "CUSTOM_ACTIVEX"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "status": "DRAFT_READY_FOR_REVIEW",
+      "can_publish": false
+    },
+    "critical": false
+  }
+]

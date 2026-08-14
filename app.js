@@ -73,10 +73,13 @@ if (typeof supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && ty
 }
 
 function triggerRecoveryUI() {
-  if (!pendingRecovery) return;
+  const isRecoveryHash = window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('recovery'));
+  if (!pendingRecovery && !isRecoveryHash) return;
+
   const modal = document.getElementById('modal-change-password');
   if (!modal) return; // Se reintentará en DOMContentLoaded
 
+  // Mantener al usuario en la Homepage (Public Portal) sin auto-iniciar sesión en el tablero
   showView('public-portal');
   showPublicPanel('home');
 
@@ -88,6 +91,12 @@ function triggerRecoveryUI() {
   const subEl = document.getElementById('modal-change-pass-subtitle');
   if (titleEl) titleEl.innerText = '🔐 Establece tu Nueva Contraseña';
   if (subEl) subEl.innerText = 'Ingresa y confirma la contraseña que usarás para acceder al sistema.';
+
+  // Limpiar campos de texto del modal
+  const newPassInput = document.getElementById('change-pass-new');
+  const confirmPassInput = document.getElementById('change-pass-confirm');
+  if (newPassInput) newPassInput.value = '';
+  if (confirmPassInput) confirmPassInput.value = '';
   
   openModal('modal-change-password');
   pendingRecovery = false;
@@ -1519,6 +1528,18 @@ function switchToAdminView() {
 }
 
 function restoreRouteFromHash() {
+  const hash = window.location.hash || '';
+
+  // Si la URL contiene un token de recuperación de contraseña o el flag está activo,
+  // NO navegar a vistas internas, permanecer siempre en la Homepage (public-portal)
+  if (pendingRecovery || hash.includes('type=recovery') || hash.includes('recovery')) {
+    console.log('[Recovery Route] Permaneciendo en Homepage para restablecimiento de contraseña.');
+    showView('public-portal');
+    showPublicPanel('home');
+    triggerRecoveryUI();
+    return true;
+  }
+
   // 1. Intentar recuperar usuario si no está en memoria
   if (!currentUser) {
     const savedUser = localStorage.getItem('TSMAI_current_user');
@@ -1527,7 +1548,6 @@ function restoreRouteFromHash() {
     }
   }
 
-  const hash = window.location.hash || '';
   const cleanHash = hash.replace('#', '');
   const parts = cleanHash.split('/');
   const viewId = parts[0] || '';
@@ -1629,15 +1649,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 2. En segundo plano: Validar/Sincronizar sesión con Supabase (sin desconectar al usuario)
   if (supabaseClient) {
     try {
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      const sessionEmail = session?.user?.email || currentUser?.email;
-      
-      if (sessionEmail) {
-        useLiveDatabase = true;
-        const { data: dbUser } = await supabaseClient
-          .from('cat_usuarios_roles')
-          .select('*')
-          .eq('correo', sessionEmail)
+      const isRecoveryHash = window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('recovery'));
+      if (pendingRecovery || isRecoveryHash) {
+        console.log('[TSMAI] Modo recuperación activo. Omitiendo auto-logueo a tableros internos.');
+        showView('public-portal');
+        showPublicPanel('home');
+        triggerRecoveryUI();
+      } else {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const sessionEmail = session?.user?.email || currentUser?.email;
+        
+        if (sessionEmail) {
+          useLiveDatabase = true;
+          const { data: dbUser } = await supabaseClient
+            .from('cat_usuarios_roles')
+            .select('*')
+            .eq('correo', sessionEmail)
           .maybeSingle();
         
         if (dbUser) {
@@ -1687,6 +1714,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           restoreRouteFromHash();
         }
       }
+    }
     } catch (e) {
       console.warn('[TSMAI] Background session validation catch:', e);
     }
@@ -2589,57 +2617,20 @@ async function quickLogin(role, techId) {
   currentUser = null;
   localStorage.removeItem('TSMAI_current_user');
   showToast('🔑 Iniciando sesión rápida...');
-  
-  let email = 'admin@tsm-ai.com';
-  let password = 'admin123';
-  
-  if (role === 'admin') {
-    email = 'admin@tsm-ai.com';
-    password = 'admin123';
-  } else if (role === 'solicitante') {
-    email = 'sgc@towelmex.com';
-    password = 'solicitante123';
-  } else if (role === 'tech') {
-    if (techId === 'T-02' || techId === 'T-3366' || (techId && techId.toLowerCase().includes('sofia'))) {
-      email = 'sofia@tsm-ai.com';
-      password = 'tech123';
-    } else if (techId === 'T-03' || (techId && techId.toLowerCase().includes('alejandro'))) {
-      email = 'alejandro@tsm-ai.com';
-      password = 'tech123';
-    } else {
-      email = 'carlos@tsm-ai.com';
-      password = 'tech123';
-    }
-  }
-
-  if (supabaseClient) {
-    useLiveDatabase = true;
-    try {
-      await supabaseClient.auth.signOut();
-      const { error: authErr } = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (authErr) {
-        console.warn('Fallo autenticación Supabase Demo:', authErr.message);
-      }
-    } catch (authEx) {
-      console.warn('Excepción de autenticación en quickLogin:', authEx);
-    }
-  } else {
-    useLiveDatabase = false;
-  }
 
   try {
     if (role === 'admin') {
       let dbAdmin = null;
-      if (useLiveDatabase) {
-        const { data, error } = await supabaseClient
+      if (supabaseClient && useLiveDatabase) {
+        const { data } = await supabaseClient
           .from('cat_usuarios_roles')
           .select('*')
-          .eq('correo', email)
+          .in('rol', ['SUPER_ADMINISTRADOR', 'ADMINISTRADOR'])
+          .eq('activo', true)
+          .limit(1)
           .maybeSingle();
-          
-        if (!error && data) {
-          dbAdmin = data;
-        }
+
+        if (data) dbAdmin = data;
       }
 
       if (!dbAdmin) {
@@ -2655,13 +2646,13 @@ async function quickLogin(role, techId) {
           uuid: dbAdmin.id_usuario 
         };
       } else {
-        currentUser = { role: 'admin', name: 'Super Administrador' };
+        currentUser = { role: 'admin', name: 'Super Administrador (Demo Local)', email: 'admin.demo@local' };
       }
 
       persistSessionUser(currentUser);
       showToast(`Sesión iniciada como Super Admin: ${currentUser.name}`);
       
-      if (useLiveDatabase) {
+      if (useLiveDatabase && supabaseClient) {
         await syncDatabases();
       }
       showView('admin');
@@ -2669,16 +2660,16 @@ async function quickLogin(role, techId) {
 
     } else if (role === 'solicitante') {
       let dbUser = null;
-      if (useLiveDatabase) {
-        const { data, error } = await supabaseClient
+      if (supabaseClient && useLiveDatabase) {
+        const { data } = await supabaseClient
           .from('cat_usuarios_roles')
           .select('*')
-          .eq('correo', email)
+          .eq('rol', 'SOLICITANTE')
+          .eq('activo', true)
+          .limit(1)
           .maybeSingle();
 
-        if (!error && data) {
-          dbUser = data;
-        }
+        if (data) dbUser = data;
       }
 
       if (!dbUser) {
@@ -2699,34 +2690,46 @@ async function quickLogin(role, techId) {
           department: dbUser.departamento || 'Servicios Auxiliares',
           supervisor: dbUser.id_supervisor || null
         };
-        persistSessionUser(currentUser);
-        showToast(`Sesión iniciada como Solicitante (${currentUser.area}): ${dbUser.nombre_completo}`);
-        
-        if (useLiveDatabase) {
-          await syncDatabases();
-        }
-        showView('solicitante');
-        switchSolicitantePanel('new');
-        return;
+      } else {
+        currentUser = {
+          role: 'solicitante',
+          rol: 'SOLICITANTE',
+          name: 'Solicitante Demo (Local)',
+          email: 'solicitante.demo@local',
+          area: 'AF',
+          department: 'Servicios Auxiliares'
+        };
       }
+
+      persistSessionUser(currentUser);
+      showToast(`Sesión iniciada como Solicitante: ${currentUser.name}`);
+      
+      if (useLiveDatabase && supabaseClient) {
+        await syncDatabases();
+      }
+      showView('solicitante');
+      switchSolicitantePanel('new');
+
     } else {
       // Técnico
       let dbUser = null;
-      if (useLiveDatabase) {
-        const { data, error } = await supabaseClient
+      if (supabaseClient && useLiveDatabase) {
+        let query = supabaseClient
           .from('cat_usuarios_roles')
           .select('*')
-          .eq('correo', email)
-          .maybeSingle();
+          .in('rol', ['MANTENIMIENTO', 'TECNICO'])
+          .eq('activo', true);
 
-        if (!error && data) {
-          dbUser = data;
+        if (techId) {
+          query = query.or(`cve_tecnico.eq.${techId},id_usuario.eq.${techId}`);
         }
+        const { data } = await query.limit(1).maybeSingle();
+        if (data) dbUser = data;
       }
 
       if (!dbUser) {
         const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-        dbUser = users.find(u => u.rol === 'MANTENIMIENTO' && (u.cve_tecnico === techId || u.id_usuario === techId));
+        dbUser = users.find(u => u.rol === 'MANTENIMIENTO' && (u.cve_tecnico === techId || u.id_usuario === techId)) || users.find(u => u.rol === 'MANTENIMIENTO');
       }
 
       if (dbUser) {
@@ -2740,24 +2743,36 @@ async function quickLogin(role, techId) {
           avatar: '👨‍🔧',
           department: dbUser.departamento
         };
-        persistSessionUser(currentUser);
-        showToast(`Sesión iniciada como Técnico: ${dbUser.nombre_completo}`);
-        
-        document.getElementById('tech-profile-name').innerText = dbUser.nombre_completo;
-        document.getElementById('tech-profile-specialty').innerText = dbUser.observaciones || 'General';
-        document.getElementById('tech-profile-avatar').innerText = '👨‍🔧';
-
-        if (useLiveDatabase) {
-          await syncDatabases();
-        }
-        showView('tech');
-        switchTechPanel('dashboard');
-        return;
+      } else {
+        currentUser = {
+          role: 'tech',
+          id: techId || 'T-DEMO',
+          name: 'Técnico Demo (Local)',
+          email: 'tecnico.demo@local',
+          specialty: 'Mantenimiento General',
+          avatar: '👨‍🔧'
+        };
       }
+
+      persistSessionUser(currentUser);
+      showToast(`Sesión iniciada como Técnico: ${currentUser.name}`);
+      
+      const pName = document.getElementById('tech-profile-name');
+      const pSpec = document.getElementById('tech-profile-specialty');
+      const pAvat = document.getElementById('tech-profile-avatar');
+      if (pName) pName.innerText = currentUser.name;
+      if (pSpec) pSpec.innerText = currentUser.specialty || 'General';
+      if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
+
+      if (useLiveDatabase && supabaseClient) {
+        await syncDatabases();
+      }
+      showView('tech');
+      switchTechPanel('dashboard');
     }
   } catch (err) {
     console.error('Error en quickLogin:', err);
-    showToast('❌ Error al iniciar sesión de prueba.', 'error');
+    showToast('❌ Error al iniciar sesión rápida.', 'error');
   }
 }
 
@@ -11175,29 +11190,46 @@ async function submitChangedPassword() {
     }
   }
 
-  // Actualizar en localStorage y realizar el inicio de sesión
-  let users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-  let targetUser = null;
-
   if (userId === 'RECOVERY_MODE') {
-    // Modo de recuperación: buscar por correo del usuario de Supabase o variable temporal
-    let emailToFind = recoveryTargetEmail;
+    closeModal('modal-change-password');
+    showToast('✅ Contraseña restablecida con éxito. Por favor inicia sesión con tu nueva contraseña.');
+
+    // Limpiar tokens de recuperación de la barra de direcciones de la URL
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, null, window.location.pathname);
+    } else {
+      window.location.hash = '';
+    }
+
+    // Cerrar sesión de recuperación temporal en Supabase
     if (supabaseClient) {
       try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (user?.email) {
-          emailToFind = user.email;
-        }
-      } catch (err) {
-        console.warn('No se pudo recuperar el usuario de la sesión de Supabase Auth:', err);
+        await supabaseClient.auth.signOut();
+      } catch (e) {
+        console.warn('SignOut post-recovery non-blocking warning:', e);
       }
     }
-    if (emailToFind) {
-      targetUser = users.find(u => u.correo && u.correo.toLowerCase() === emailToFind.toLowerCase());
+
+    // Limpiar variables de sesión y mantener en Homepage
+    currentUser = null;
+    localStorage.removeItem('TSMAI_current_user');
+    pendingRecovery = false;
+    recoverySession = null;
+    recoveryTargetEmail = null;
+
+    showView('public-portal');
+    showPublicPanel('home');
+
+    if (supabaseClient) {
+      try {
+        await syncDatabases();
+      } catch (e) {}
     }
-  } else {
-    targetUser = users.find(u => u.id_usuario === userId);
+    return;
   }
+
+  const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+  const targetUser = users.find(u => u.id_usuario === userId);
 
   if (targetUser) {
     const userIdx = users.findIndex(u => u.id_usuario === targetUser.id_usuario);

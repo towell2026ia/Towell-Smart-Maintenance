@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FORM-DEFINITION-001",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["FORM-DEFINITION-001"] },
+    "status": { "type": "string", "enum": ["DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "SUPERSEDED", "ARCHIVED"] },
+    "form": {
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "form_type": { 
+          "type": "string", 
+          "enum": ["OT_CHECKLIST", "LEVANTAMIENTO_PREDICTIVO", "LEVANTAMIENTO_AUTONOMO", "BITACORA_LEVANTAMIENTO", "REQUISICION_OT", "FORMULARIO_GENERICO"] 
+        },
+        "target_response_table": { 
+          "type": "string", 
+          "enum": ["respuestas_checklist_orden", "respuestas_checklist_predictivo", "respuestas_checklist_autonomo", "solicitudes_mantenimiento"] 
+        },
+        "version": { "type": "string" },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": ["string", "null"] },
+              "order": { "type": "integer" },
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "string" },
+                    "label": { "type": "string" },
+                    "field_type": {
+                      "type": "string",
+                      "enum": [
+                        "TEXT", "TEXTAREA", "INTEGER", "DECIMAL", "DATE", "DATETIME",
+                        "BOOLEAN", "YES_NO", "SELECT", "MULTISELECT", "CHECKBOX", "RADIO",
+                        "PHOTO", "FILE", "SIGNATURE", "MACHINE_SELECTOR", "TECHNICIAN_SELECTOR", "READ_ONLY"
+                      ]
+                    },
+                    "required": { "type": "boolean" },
+                    "order": { "type": "integer" }
+                  },
+                  "required": ["code", "label", "field_type", "required", "order"]
+                }
+              }
+            },
+            "required": ["code", "title", "order", "fields"]
+          }
+        }
+      },
+      "required": ["code", "name", "form_type", "target_response_table", "version", "sections"]
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "unsupported_components": { "type": "array", "items": { "type": "string" } },
+    "requires_human_review": { "type": "boolean" }
+  },
+  "required": ["schema_version", "status", "form", "warnings", "unsupported_components", "requires_human_review"]
+}

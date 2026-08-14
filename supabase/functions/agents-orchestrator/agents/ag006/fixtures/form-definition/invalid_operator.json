@@ -1,0 +1,49 @@
+{
+  "schema_version": "FORM-DEFINITION-001",
+  "status": "DRAFT",
+  "form": {
+    "code": "FORM_INV_OP",
+    "name": "Operador Inválido",
+    "form_type": "OT_CHECKLIST",
+    "target_response_table": "respuestas_checklist_orden",
+    "version": "1.0",
+    "sections": [
+      {
+        "code": "SEC_1",
+        "title": "Sección",
+        "order": 1,
+        "fields": [
+          {
+            "code": "Q1",
+            "label": "Pregunta 1",
+            "field_type": "TEXT",
+            "required": true,
+            "order": 1
+          },
+          {
+            "code": "Q2",
+            "label": "Pregunta 2",
+            "field_type": "TEXT",
+            "required": false,
+            "order": 2,
+            "visibility_rule": {
+              "when": {
+                "field": "Q1",
+                "operator": "INVALID_JS_EVAL_OPERATOR",
+                "value": "x"
+              },
+              "action": {
+                "type": "SHOW",
+                "target": "Q2"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "warnings": [],
+  "unsupported_components": [],
+  "requires_human_review": false,
+  "expected_error": "INVALID_CONDITIONAL_OPERATOR"
+}

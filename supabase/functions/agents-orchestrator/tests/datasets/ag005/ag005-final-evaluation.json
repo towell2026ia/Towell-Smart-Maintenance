@@ -1,0 +1,1005 @@
+[
+  {
+    "case_id": "AG005-CASE-137",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_2.xlsx",
+      "headers": [
+        "columna_ambigua_2_a",
+        "columna_ambigua_2_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_2_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-138",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_3.xlsx",
+      "headers": [
+        "columna_ambigua_3_a",
+        "columna_ambigua_3_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_3_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-139",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_4.xlsx",
+      "headers": [
+        "columna_ambigua_4_a",
+        "columna_ambigua_4_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_4_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-140",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_5.xlsx",
+      "headers": [
+        "columna_ambigua_5_a",
+        "columna_ambigua_5_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_5_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-141",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_6.xlsx",
+      "headers": [
+        "columna_ambigua_6_a",
+        "columna_ambigua_6_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_6_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-142",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_7.xlsx",
+      "headers": [
+        "columna_ambigua_7_a",
+        "columna_ambigua_7_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_7_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-143",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_8.xlsx",
+      "headers": [
+        "columna_ambigua_8_a",
+        "columna_ambigua_8_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_8_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-144",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_9.xlsx",
+      "headers": [
+        "columna_ambigua_9_a",
+        "columna_ambigua_9_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_9_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-145",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_10.xlsx",
+      "headers": [
+        "columna_ambigua_10_a",
+        "columna_ambigua_10_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_10_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-146",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_11.xlsx",
+      "headers": [
+        "columna_ambigua_11_a",
+        "columna_ambigua_11_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_11_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-147",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_12.xlsx",
+      "headers": [
+        "columna_ambigua_12_a",
+        "columna_ambigua_12_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_12_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-148",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_13.xlsx",
+      "headers": [
+        "columna_ambigua_13_a",
+        "columna_ambigua_13_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_13_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-149",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_14.xlsx",
+      "headers": [
+        "columna_ambigua_14_a",
+        "columna_ambigua_14_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_14_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-150",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_15.xlsx",
+      "headers": [
+        "columna_ambigua_15_a",
+        "columna_ambigua_15_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_15_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-151",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_16.xlsx",
+      "headers": [
+        "columna_ambigua_16_a",
+        "columna_ambigua_16_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_16_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-152",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_17.xlsx",
+      "headers": [
+        "columna_ambigua_17_a",
+        "columna_ambigua_17_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_17_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-153",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_18.xlsx",
+      "headers": [
+        "columna_ambigua_18_a",
+        "columna_ambigua_18_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_18_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-154",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_19.xlsx",
+      "headers": [
+        "columna_ambigua_19_a",
+        "columna_ambigua_19_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_19_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-155",
+    "category": "UNKNOWN_SCHEMA",
+    "source_type": "UNKNOWN",
+    "payload": {
+      "nombre_archivo": "ambiguous_schema_20.xlsx",
+      "headers": [
+        "columna_ambigua_20_a",
+        "columna_ambigua_20_b"
+      ],
+      "rows": [
+        {
+          "columna_ambigua_20_a": "valor_ambiguo"
+        }
+      ]
+    },
+    "expected": {
+      "status": "UNKNOWN_SCHEMA",
+      "can_promote": false
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-156",
+    "category": "SECURITY_ATTACK",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "security_attack_1.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        }
+      ],
+      "skip_validation": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-157",
+    "category": "SECURITY_ATTACK",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "security_attack_2.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ],
+      "force_insert": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-158",
+    "category": "SECURITY_ATTACK",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "security_attack_3.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ],
+      "destination_table": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-159",
+    "category": "SECURITY_ATTACK",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "security_attack_4.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        }
+      ],
+      "override_schema": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-160",
+    "category": "SECURITY_ATTACK",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "security_attack_5.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ],
+      "allow_invalid_machines": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-161",
+    "category": "SECURITY_ATTACK",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "security_attack_6.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        }
+      ],
+      "skip_validation": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-162",
+    "category": "SECURITY_ATTACK",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "security_attack_7.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ],
+      "force_insert": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-163",
+    "category": "SECURITY_ATTACK",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "security_attack_8.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ],
+      "destination_table": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-164",
+    "category": "SECURITY_ATTACK",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "security_attack_9.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        }
+      ],
+      "override_schema": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-165",
+    "category": "SECURITY_ATTACK",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "security_attack_10.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ],
+      "allow_invalid_machines": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-166",
+    "category": "SECURITY_ATTACK",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "security_attack_11.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        }
+      ],
+      "skip_validation": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-167",
+    "category": "SECURITY_ATTACK",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "security_attack_12.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ],
+      "force_insert": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-168",
+    "category": "SECURITY_ATTACK",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "security_attack_13.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ],
+      "destination_table": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-169",
+    "category": "SECURITY_ATTACK",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "security_attack_14.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        }
+      ],
+      "override_schema": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-170",
+    "category": "SECURITY_ATTACK",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "security_attack_15.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ],
+      "allow_invalid_machines": true
+    },
+    "expected": {
+      "status": "INVALID_PAYLOAD",
+      "can_promote": false,
+      "code": "INVALID_PAYLOAD"
+    },
+    "critical": true
+  }
+]

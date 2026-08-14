@@ -1,0 +1,15 @@
+{
+  "form_name": "generic_valid.xlsx",
+  "form_family": "FORMULARIO_GENERICO",
+  "sheets": [
+    {
+      "name": "Formato Abierto",
+      "rows": [
+        {
+          "Campo": "Título Registro",
+          "Tipo": "TEXT"
+        }
+      ]
+    }
+  ]
+}

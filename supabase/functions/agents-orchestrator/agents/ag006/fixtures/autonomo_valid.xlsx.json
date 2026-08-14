@@ -1,0 +1,34 @@
+{
+  "form_name": "autonomo_valid.xlsx",
+  "form_family": "LEVANTAMIENTO_AUTONOMO",
+  "sheets": [
+    {
+      "name": "Autónomo Semanal",
+      "rows": [
+        {
+          "Bloque": "Vibración",
+          "Campo": "Medición mm/s",
+          "Valor": 2.4
+        },
+        {
+          "Bloque": "Limpieza",
+          "Campo": "Estado Limpieza",
+          "Tipo": "YES_NO"
+        },
+        {
+          "Bloque": "Lubricación",
+          "Campo": "Puntos de Grasa"
+        },
+        {
+          "Bloque": "Temperatura",
+          "Campo": "Temperatura °C",
+          "Valor": 45.2
+        },
+        {
+          "Bloque": "Cableado",
+          "Campo": "Conexiones Flojas"
+        }
+      ]
+    }
+  ]
+}

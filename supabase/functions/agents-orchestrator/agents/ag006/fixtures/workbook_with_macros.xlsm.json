@@ -1,0 +1,17 @@
+{
+  "form_name": "workbook_with_macros.xlsm",
+  "form_family": "OT_CHECKLIST",
+  "has_macros": true,
+  "macro_name": "vbaProject.bin",
+  "sheets": [
+    {
+      "name": "Checklist Macro",
+      "rows": [
+        {
+          "Campo": "Inspeccionar banda",
+          "Tipo": "YES_NO"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "form_name": "predictivo_valid.xlsx",
+  "form_family": "LEVANTAMIENTO_PREDICTIVO",
+  "sheets": [
+    {
+      "name": "Predictivo Telares",
+      "rows": [
+        {
+          "Bloque": "Electrónico",
+          "Campo": "Sensores Alarma"
+        },
+        {
+          "Bloque": "Mecánico",
+          "Campo": "Holgura Rodamientos"
+        },
+        {
+          "Bloque": "Limpieza",
+          "Campo": "Zonas Críticas"
+        },
+        {
+          "Bloque": "Lubricación",
+          "Campo": "Nivel de Aceite"
+        }
+      ]
+    }
+  ]
+}

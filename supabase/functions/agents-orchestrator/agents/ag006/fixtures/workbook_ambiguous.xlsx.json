@@ -1,0 +1,15 @@
+{
+  "form_name": "workbook_ambiguous.xlsx",
+  "form_family": "FORMULARIO_GENERICO",
+  "sheets": [
+    {
+      "name": "Sin Contexto",
+      "rows": [
+        {
+          "Campo": "Estado",
+          "Valor": "X"
+        }
+      ]
+    }
+  ]
+}

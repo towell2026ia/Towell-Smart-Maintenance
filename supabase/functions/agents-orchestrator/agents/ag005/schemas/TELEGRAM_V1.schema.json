@@ -1,0 +1,53 @@
+{
+  "schema_id": "TELEGRAM",
+  "version": "1.0",
+  "source": "TELEGRAM_ERP",
+  "allowed_extensions": [".xlsx", ".xls"],
+  "expected_columns": [
+    "id", "folio", "estatus", "fecha", "hora", "depto", "maquina_id", "tipofallaid",
+    "falla", "horafin", "cveempl", "nomempl", "turno", "cveatendio", "nomatendio",
+    "turnoatendio", "obs", "ordentrabajo", "descripcion", "enviado", "obscierre",
+    "calidad", "fechafin"
+  ],
+  "required_columns": ["folio", "fecha", "maquina_id", "depto", "falla"],
+  "optional_columns": [
+    "id", "estatus", "hora", "tipofallaid", "horafin", "cveempl", "nomempl", "turno",
+    "cveatendio", "nomatendio", "turnoatendio", "obs", "ordentrabajo", "descripcion",
+    "enviado", "obscierre", "calidad", "fechafin"
+  ],
+  "data_types": {
+    "id": "INTEGER",
+    "folio": "STRING",
+    "estatus": "STRING",
+    "fecha": "DATE",
+    "hora": "STRING",
+    "depto": "STRING",
+    "maquina_id": "STRING",
+    "tipofallaid": "STRING",
+    "falla": "STRING",
+    "horafin": "STRING",
+    "cveempl": "STRING",
+    "nomempl": "STRING",
+    "turno": "INTEGER",
+    "cveatendio": "STRING",
+    "nomatendio": "STRING",
+    "turnoatendio": "INTEGER",
+    "obs": "STRING",
+    "ordentrabajo": "STRING",
+    "descripcion": "STRING",
+    "enviado": "BOOLEAN",
+    "obscierre": "STRING",
+    "calidad": "INTEGER",
+    "fechafin": "DATE"
+  },
+  "destination": "ordenes_trabajo",
+  "staging_table": "stg_telegram_ordenes_telares",
+  "relations": {
+    "maquina_id": "cat_maquinas.equipo_towell",
+    "depto": "cat_departamentos.codigo_departamento"
+  },
+  "idempotency": {
+    "strategy": "UPSERT",
+    "conflict_key": "folio"
+  }
+}

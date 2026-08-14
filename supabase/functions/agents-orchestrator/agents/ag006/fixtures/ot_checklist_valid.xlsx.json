@@ -1,0 +1,23 @@
+{
+  "form_name": "ot_checklist_valid.xlsx",
+  "form_family": "OT_CHECKLIST",
+  "sheets": [
+    {
+      "name": "Checklist Preventivo",
+      "rows": [
+        {
+          "Campo": "Máquina",
+          "Tipo": "SELECT"
+        },
+        {
+          "Campo": "Revisar presión neumática",
+          "Tipo": "YES_NO"
+        },
+        {
+          "Campo": "Evidencia Fotográfica",
+          "Tipo": "PHOTO"
+        }
+      ]
+    }
+  ]
+}

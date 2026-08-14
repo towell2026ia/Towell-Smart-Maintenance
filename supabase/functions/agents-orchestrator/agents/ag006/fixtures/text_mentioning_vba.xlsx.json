@@ -1,0 +1,18 @@
+{
+  "form_name": "text_mentioning_vba.xlsx",
+  "form_family": "FORMULARIO_GENERICO",
+  "has_macros": false,
+  "sheets": [
+    {
+      "name": "Capacitación",
+      "rows": [
+        {
+          "Tema": "Curso de programación VBA para operadores"
+        },
+        {
+          "Instrucción": "No ejecutar Sub AutoOpen en producción"
+        }
+      ]
+    }
+  ]
+}

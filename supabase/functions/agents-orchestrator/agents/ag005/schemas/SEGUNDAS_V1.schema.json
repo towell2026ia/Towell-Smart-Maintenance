@@ -1,0 +1,60 @@
+{
+  "schema_id": "SEGUNDAS",
+  "version": "1.0",
+  "source": "EXCEL_QUALITY",
+  "allowed_extensions": [".xlsx", ".xls"],
+  "expected_columns": [
+    "produccion", "fecha", "codigo_bodega", "codigo_articulo", "nombre_articulo",
+    "configuracion", "tamano", "color", "nombre", "almacen", "numero_lote",
+    "localidad", "salon", "numero_serie", "id_flog", "nombre_flog", "calidad_flog",
+    "pzas_rollo", "kg_rollo", "mts_rollo", "no_tiras", "medida_1", "medida_2",
+    "turno_tejido", "codigo_defecto", "cantidad", "defecto"
+  ],
+  "required_columns": [
+    "produccion", "fecha", "numero_serie", "codigo_defecto", "cantidad", "defecto"
+  ],
+  "optional_columns": [
+    "codigo_bodega", "codigo_articulo", "nombre_articulo", "configuracion", "tamano",
+    "color", "nombre", "almacen", "numero_lote", "localidad", "salon", "id_flog",
+    "nombre_flog", "calidad_flog", "pzas_rollo", "kg_rollo", "mts_rollo", "no_tiras",
+    "medida_1", "medida_2", "turno_tejido"
+  ],
+  "data_types": {
+    "produccion": "STRING",
+    "fecha": "DATE",
+    "codigo_bodega": "STRING",
+    "codigo_articulo": "STRING",
+    "nombre_articulo": "STRING",
+    "configuracion": "STRING",
+    "tamano": "STRING",
+    "color": "STRING",
+    "nombre": "STRING",
+    "almacen": "STRING",
+    "numero_lote": "STRING",
+    "localidad": "STRING",
+    "salon": "STRING",
+    "numero_serie": "STRING",
+    "id_flog": "STRING",
+    "nombre_flog": "STRING",
+    "calidad_flog": "STRING",
+    "pzas_rollo": "INTEGER",
+    "kg_rollo": "DECIMAL",
+    "mts_rollo": "DECIMAL",
+    "no_tiras": "INTEGER",
+    "medida_1": "DECIMAL",
+    "medida_2": "DECIMAL",
+    "turno_tejido": "INTEGER",
+    "codigo_defecto": "STRING",
+    "cantidad": "INTEGER",
+    "defecto": "STRING"
+  },
+  "destination": "segundas_por_rollo",
+  "staging_table": "stg_segundas_por_rollo_excel",
+  "relations": {
+    "localidad": "cat_maquinas.ax"
+  },
+  "idempotency": {
+    "strategy": "DEDUP_KEY",
+    "conflict_key": "fecha,produccion,codigo_defecto,numero_serie,turno_tejido"
+  }
+}

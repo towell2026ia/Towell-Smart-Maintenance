@@ -1,0 +1,16 @@
+{
+  "form_name": "workbook_with_formulas.xlsx",
+  "form_family": "FORMULARIO_GENERICO",
+  "sheets": [
+    {
+      "name": "Cálculos",
+      "rows": [
+        {
+          "Campo": "Total Horas",
+          "Valor": "=SUM(C1:C10)",
+          "Valor_cached": 40
+        }
+      ]
+    }
+  ]
+}

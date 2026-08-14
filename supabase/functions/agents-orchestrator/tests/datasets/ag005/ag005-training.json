@@ -1,0 +1,4033 @@
+[
+  {
+    "case_id": "AG005-CASE-001",
+    "category": "VALID_FILE",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "valid_maquinas_1.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        },
+        {
+          "EQUIPO TOWELL": "TOW-TEL202-TEJI",
+          "Clave": "TEL202"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "MAQUINAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-002",
+    "category": "VALID_FILE",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "valid_telegram_2.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        },
+        {
+          "id": 1002,
+          "folio": "TG-PF00002",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-03",
+          "depto": "TF",
+          "maquina_id": "TOW-LOG1-COST",
+          "falla": "Falla generada de prueba 2"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "TELEGRAM"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-003",
+    "category": "VALID_FILE",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "valid_refacciones_3.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        },
+        {
+          "Fecha": "2026-08-03",
+          "Destino": "TOW-LOG1-COST",
+          "Código de Artículo": "REF-002",
+          "Nombre del Artículo": "Artículo Refacción 2",
+          "Cantidad": 2,
+          "Precio de Costo": 200,
+          "Importe de Costo": 400
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "REFACCIONES"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-004",
+    "category": "VALID_FILE",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "valid_fallas_4.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        },
+        {
+          "Descripción": "Descripción de falla histórica 2",
+          "Creada": "2026-08-03T10:00:00Z"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "FALLAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-005",
+    "category": "VALID_FILE",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "valid_segundas_5.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        },
+        {
+          "produccion": "PROD-2026-2",
+          "fecha": "2026-08-03",
+          "numero_serie": "SER-9002",
+          "codigo_defecto": "DEF-03",
+          "cantidad": 2,
+          "defecto": "Defecto de calidad en rollo 2"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "SEGUNDAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-006",
+    "category": "VALID_FILE",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "valid_maquinas_6.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        },
+        {
+          "EQUIPO TOWELL": "TOW-TEL202-TEJI",
+          "Clave": "TEL202"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "MAQUINAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-007",
+    "category": "VALID_FILE",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "valid_telegram_7.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        },
+        {
+          "id": 1002,
+          "folio": "TG-PF00002",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-03",
+          "depto": "TF",
+          "maquina_id": "TOW-LOG1-COST",
+          "falla": "Falla generada de prueba 2"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "TELEGRAM"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-008",
+    "category": "VALID_FILE",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "valid_refacciones_8.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        },
+        {
+          "Fecha": "2026-08-03",
+          "Destino": "TOW-LOG1-COST",
+          "Código de Artículo": "REF-002",
+          "Nombre del Artículo": "Artículo Refacción 2",
+          "Cantidad": 2,
+          "Precio de Costo": 200,
+          "Importe de Costo": 400
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "REFACCIONES"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-009",
+    "category": "VALID_FILE",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "valid_fallas_9.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        },
+        {
+          "Descripción": "Descripción de falla histórica 2",
+          "Creada": "2026-08-03T10:00:00Z"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "FALLAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-010",
+    "category": "VALID_FILE",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "valid_segundas_10.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        },
+        {
+          "produccion": "PROD-2026-2",
+          "fecha": "2026-08-03",
+          "numero_serie": "SER-9002",
+          "codigo_defecto": "DEF-03",
+          "cantidad": 2,
+          "defecto": "Defecto de calidad en rollo 2"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "SEGUNDAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-011",
+    "category": "VALID_FILE",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "valid_maquinas_11.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        },
+        {
+          "EQUIPO TOWELL": "TOW-TEL202-TEJI",
+          "Clave": "TEL202"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "MAQUINAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-012",
+    "category": "VALID_FILE",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "valid_telegram_12.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        },
+        {
+          "id": 1002,
+          "folio": "TG-PF00002",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-03",
+          "depto": "TF",
+          "maquina_id": "TOW-LOG1-COST",
+          "falla": "Falla generada de prueba 2"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "TELEGRAM"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-013",
+    "category": "VALID_FILE",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "valid_refacciones_13.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        },
+        {
+          "Fecha": "2026-08-03",
+          "Destino": "TOW-LOG1-COST",
+          "Código de Artículo": "REF-002",
+          "Nombre del Artículo": "Artículo Refacción 2",
+          "Cantidad": 2,
+          "Precio de Costo": 200,
+          "Importe de Costo": 400
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "REFACCIONES"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-014",
+    "category": "VALID_FILE",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "valid_fallas_14.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        },
+        {
+          "Descripción": "Descripción de falla histórica 2",
+          "Creada": "2026-08-03T10:00:00Z"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "FALLAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-015",
+    "category": "VALID_FILE",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "valid_segundas_15.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        },
+        {
+          "produccion": "PROD-2026-2",
+          "fecha": "2026-08-03",
+          "numero_serie": "SER-9002",
+          "codigo_defecto": "DEF-03",
+          "cantidad": 2,
+          "defecto": "Defecto de calidad en rollo 2"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "SEGUNDAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-016",
+    "category": "VALID_FILE",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "valid_maquinas_16.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        },
+        {
+          "EQUIPO TOWELL": "TOW-TEL202-TEJI",
+          "Clave": "TEL202"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "MAQUINAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-017",
+    "category": "VALID_FILE",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "valid_telegram_17.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        },
+        {
+          "id": 1002,
+          "folio": "TG-PF00002",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-03",
+          "depto": "TF",
+          "maquina_id": "TOW-LOG1-COST",
+          "falla": "Falla generada de prueba 2"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "TELEGRAM"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-018",
+    "category": "VALID_FILE",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "valid_refacciones_18.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        },
+        {
+          "Fecha": "2026-08-03",
+          "Destino": "TOW-LOG1-COST",
+          "Código de Artículo": "REF-002",
+          "Nombre del Artículo": "Artículo Refacción 2",
+          "Cantidad": 2,
+          "Precio de Costo": 200,
+          "Importe de Costo": 400
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "REFACCIONES"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-019",
+    "category": "VALID_FILE",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "valid_fallas_19.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        },
+        {
+          "Descripción": "Descripción de falla histórica 2",
+          "Creada": "2026-08-03T10:00:00Z"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "FALLAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-020",
+    "category": "VALID_FILE",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "valid_segundas_20.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        },
+        {
+          "produccion": "PROD-2026-2",
+          "fecha": "2026-08-03",
+          "numero_serie": "SER-9002",
+          "codigo_defecto": "DEF-03",
+          "cantidad": 2,
+          "defecto": "Defecto de calidad en rollo 2"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "SEGUNDAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-021",
+    "category": "VALID_FILE",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "valid_maquinas_21.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        },
+        {
+          "EQUIPO TOWELL": "TOW-TEL202-TEJI",
+          "Clave": "TEL202"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "MAQUINAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-022",
+    "category": "VALID_FILE",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "valid_telegram_22.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        },
+        {
+          "id": 1002,
+          "folio": "TG-PF00002",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-03",
+          "depto": "TF",
+          "maquina_id": "TOW-LOG1-COST",
+          "falla": "Falla generada de prueba 2"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "TELEGRAM"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-023",
+    "category": "VALID_FILE",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "valid_refacciones_23.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        },
+        {
+          "Fecha": "2026-08-03",
+          "Destino": "TOW-LOG1-COST",
+          "Código de Artículo": "REF-002",
+          "Nombre del Artículo": "Artículo Refacción 2",
+          "Cantidad": 2,
+          "Precio de Costo": 200,
+          "Importe de Costo": 400
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "REFACCIONES"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-024",
+    "category": "VALID_FILE",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "valid_fallas_24.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        },
+        {
+          "Descripción": "Descripción de falla histórica 2",
+          "Creada": "2026-08-03T10:00:00Z"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "FALLAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-025",
+    "category": "VALID_FILE",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "valid_segundas_25.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        },
+        {
+          "produccion": "PROD-2026-2",
+          "fecha": "2026-08-03",
+          "numero_serie": "SER-9002",
+          "codigo_defecto": "DEF-03",
+          "cantidad": 2,
+          "defecto": "Defecto de calidad en rollo 2"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "SEGUNDAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-026",
+    "category": "VALID_FILE",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "valid_maquinas_26.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        },
+        {
+          "EQUIPO TOWELL": "TOW-TEL202-TEJI",
+          "Clave": "TEL202"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "MAQUINAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-027",
+    "category": "VALID_FILE",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "valid_telegram_27.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        },
+        {
+          "id": 1002,
+          "folio": "TG-PF00002",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-03",
+          "depto": "TF",
+          "maquina_id": "TOW-LOG1-COST",
+          "falla": "Falla generada de prueba 2"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "TELEGRAM"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-028",
+    "category": "VALID_FILE",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "valid_refacciones_28.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        },
+        {
+          "Fecha": "2026-08-03",
+          "Destino": "TOW-LOG1-COST",
+          "Código de Artículo": "REF-002",
+          "Nombre del Artículo": "Artículo Refacción 2",
+          "Cantidad": 2,
+          "Precio de Costo": 200,
+          "Importe de Costo": 400
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "REFACCIONES"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-029",
+    "category": "VALID_FILE",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "valid_fallas_29.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        },
+        {
+          "Descripción": "Descripción de falla histórica 2",
+          "Creada": "2026-08-03T10:00:00Z"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "FALLAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-030",
+    "category": "VALID_FILE",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "valid_segundas_30.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        },
+        {
+          "produccion": "PROD-2026-2",
+          "fecha": "2026-08-03",
+          "numero_serie": "SER-9002",
+          "codigo_defecto": "DEF-03",
+          "cantidad": 2,
+          "defecto": "Defecto de calidad en rollo 2"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_SUCCESS",
+      "can_promote": true,
+      "schema_id": "SEGUNDAS"
+    },
+    "critical": false
+  },
+  {
+    "case_id": "AG005-CASE-031",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "invalid_struct_maquinas_1.xlsx",
+      "headers": [
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-032",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "invalid_struct_telegram_2.xlsx",
+      "headers": [
+        "id",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-033",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "invalid_struct_refacciones_3.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-034",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "invalid_struct_fallas_4.xlsx",
+      "headers": [
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-035",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "invalid_struct_segundas_5.xlsx",
+      "headers": [
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-036",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "invalid_struct_maquinas_6.xlsx",
+      "headers": [
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-037",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "invalid_struct_telegram_7.xlsx",
+      "headers": [
+        "id",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-038",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "invalid_struct_refacciones_8.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-039",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "invalid_struct_fallas_9.xlsx",
+      "headers": [
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-040",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "invalid_struct_segundas_10.xlsx",
+      "headers": [
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-041",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "invalid_struct_maquinas_11.xlsx",
+      "headers": [
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-042",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "invalid_struct_telegram_12.xlsx",
+      "headers": [
+        "id",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-043",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "invalid_struct_refacciones_13.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-044",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "invalid_struct_fallas_14.xlsx",
+      "headers": [
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-045",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "invalid_struct_segundas_15.xlsx",
+      "headers": [
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-046",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "invalid_struct_maquinas_16.xlsx",
+      "headers": [
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-047",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "invalid_struct_telegram_17.xlsx",
+      "headers": [
+        "id",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-048",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "invalid_struct_refacciones_18.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-049",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "invalid_struct_fallas_19.xlsx",
+      "headers": [
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-050",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "invalid_struct_segundas_20.xlsx",
+      "headers": [
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-051",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "invalid_struct_maquinas_21.xlsx",
+      "headers": [
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "TOW-TEL201-TEJI",
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-052",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "invalid_struct_telegram_22.xlsx",
+      "headers": [
+        "id",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-053",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "invalid_struct_refacciones_23.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-054",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "invalid_struct_fallas_24.xlsx",
+      "headers": [
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-055",
+    "category": "INVALID_STRUCTURE",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "invalid_struct_segundas_25.xlsx",
+      "headers": [
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MISSING_REQUIRED_COLUMN"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-056",
+    "category": "INVALID_DATA",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "invalid_data_maquinas_1.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": null,
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-057",
+    "category": "INVALID_DATA",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "invalid_data_telegram_2.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "FECHA_INVALIDA_2026",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-058",
+    "category": "INVALID_DATA",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "invalid_data_refacciones_3.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": "INVALID_NUMBER_XYZ",
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-059",
+    "category": "INVALID_DATA",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "invalid_data_fallas_4.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "INVALID_DATE_XYZ"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-060",
+    "category": "INVALID_DATA",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "invalid_data_segundas_5.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": "CANTIDAD_NUL_ABC",
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-061",
+    "category": "INVALID_DATA",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "invalid_data_maquinas_6.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": null,
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-062",
+    "category": "INVALID_DATA",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "invalid_data_telegram_7.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "FECHA_INVALIDA_2026",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-063",
+    "category": "INVALID_DATA",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "invalid_data_refacciones_8.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": "INVALID_NUMBER_XYZ",
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-064",
+    "category": "INVALID_DATA",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "invalid_data_fallas_9.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "INVALID_DATE_XYZ"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-065",
+    "category": "INVALID_DATA",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "invalid_data_segundas_10.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": "CANTIDAD_NUL_ABC",
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-066",
+    "category": "INVALID_DATA",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "invalid_data_maquinas_11.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": null,
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-067",
+    "category": "INVALID_DATA",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "invalid_data_telegram_12.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "FECHA_INVALIDA_2026",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-068",
+    "category": "INVALID_DATA",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "invalid_data_refacciones_13.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": "INVALID_NUMBER_XYZ",
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-069",
+    "category": "INVALID_DATA",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "invalid_data_fallas_14.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "INVALID_DATE_XYZ"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-070",
+    "category": "INVALID_DATA",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "invalid_data_segundas_15.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": "CANTIDAD_NUL_ABC",
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-071",
+    "category": "INVALID_DATA",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "invalid_data_maquinas_16.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": null,
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-072",
+    "category": "INVALID_DATA",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "invalid_data_telegram_17.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "FECHA_INVALIDA_2026",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-073",
+    "category": "INVALID_DATA",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "invalid_data_refacciones_18.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": "INVALID_NUMBER_XYZ",
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-074",
+    "category": "INVALID_DATA",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "invalid_data_fallas_19.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "INVALID_DATE_XYZ"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-075",
+    "category": "INVALID_DATA",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "invalid_data_segundas_20.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": "CANTIDAD_NUL_ABC",
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-076",
+    "category": "INVALID_DATA",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "invalid_data_maquinas_21.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": null,
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-077",
+    "category": "INVALID_DATA",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "invalid_data_telegram_22.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "FECHA_INVALIDA_2026",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-078",
+    "category": "INVALID_DATA",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "invalid_data_refacciones_23.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": "INVALID_NUMBER_XYZ",
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-079",
+    "category": "INVALID_DATA",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "invalid_data_fallas_24.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "INVALID_DATE_XYZ"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-080",
+    "category": "INVALID_DATA",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "invalid_data_segundas_25.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": "CANTIDAD_NUL_ABC",
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-081",
+    "category": "INVALID_DATA",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "invalid_data_maquinas_26.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": null,
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-082",
+    "category": "INVALID_DATA",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "invalid_data_telegram_27.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "FECHA_INVALIDA_2026",
+          "depto": "CF",
+          "maquina_id": "TOW-TEL202-TEJI",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-083",
+    "category": "INVALID_DATA",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "invalid_data_refacciones_28.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "TOW-TEL202-TEJI",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": "INVALID_NUMBER_XYZ",
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-084",
+    "category": "INVALID_DATA",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "invalid_data_fallas_29.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "INVALID_DATE_XYZ"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-085",
+    "category": "INVALID_DATA",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "invalid_data_segundas_30.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": "CANTIDAD_NUL_ABC",
+          "defecto": "Defecto de calidad en rollo 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-086",
+    "category": "CATALOG_MISSING",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "missing_catalog_maquinas_1.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "EQUIPO-INEXISTENTE-1",
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-087",
+    "category": "CATALOG_MISSING",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "missing_catalog_telegram_2.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "MAQ-INEXISTENTE-2",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-088",
+    "category": "CATALOG_MISSING",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "missing_catalog_refacciones_3.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "MAQ-DESCONOCIDA-3",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-089",
+    "category": "CATALOG_MISSING",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "missing_catalog_fallas_4.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z",
+          "EQUIPO TOWELL": "EQUIPO-INEXISTENTE-4"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-090",
+    "category": "CATALOG_MISSING",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "missing_catalog_segundas_5.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1",
+          "localidad": "MAQ-INEXISTENTE-BODEGA-5"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-091",
+    "category": "CATALOG_MISSING",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "missing_catalog_maquinas_6.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "EQUIPO-INEXISTENTE-6",
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-092",
+    "category": "CATALOG_MISSING",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "missing_catalog_telegram_7.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "MAQ-INEXISTENTE-7",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-093",
+    "category": "CATALOG_MISSING",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "missing_catalog_refacciones_8.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "MAQ-DESCONOCIDA-8",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-094",
+    "category": "CATALOG_MISSING",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "missing_catalog_fallas_9.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z",
+          "EQUIPO TOWELL": "EQUIPO-INEXISTENTE-9"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-095",
+    "category": "CATALOG_MISSING",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "missing_catalog_segundas_10.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1",
+          "localidad": "MAQ-INEXISTENTE-BODEGA-10"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-096",
+    "category": "CATALOG_MISSING",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "missing_catalog_maquinas_11.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "EQUIPO-INEXISTENTE-11",
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-097",
+    "category": "CATALOG_MISSING",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "missing_catalog_telegram_12.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "MAQ-INEXISTENTE-12",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-098",
+    "category": "CATALOG_MISSING",
+    "source_type": "REFACCIONES",
+    "payload": {
+      "source_type": "REFACCIONES",
+      "nombre_archivo": "missing_catalog_refacciones_13.xlsx",
+      "headers": [
+        "Fecha",
+        "Destino",
+        "Código de Artículo",
+        "Nombre del Artículo",
+        "Cantidad",
+        "Precio de Costo",
+        "Importe de Costo"
+      ],
+      "rows": [
+        {
+          "Fecha": "2026-08-02",
+          "Destino": "MAQ-DESCONOCIDA-13",
+          "Código de Artículo": "REF-001",
+          "Nombre del Artículo": "Artículo Refacción 1",
+          "Cantidad": 1,
+          "Precio de Costo": 100,
+          "Importe de Costo": 100
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-099",
+    "category": "CATALOG_MISSING",
+    "source_type": "FALLAS",
+    "payload": {
+      "source_type": "FALLAS",
+      "nombre_archivo": "missing_catalog_fallas_14.xlsx",
+      "headers": [
+        "Descripción",
+        "Creada"
+      ],
+      "rows": [
+        {
+          "Descripción": "Descripción de falla histórica 1",
+          "Creada": "2026-08-02T10:00:00Z",
+          "EQUIPO TOWELL": "EQUIPO-INEXISTENTE-14"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-100",
+    "category": "CATALOG_MISSING",
+    "source_type": "SEGUNDAS",
+    "payload": {
+      "source_type": "SEGUNDAS",
+      "nombre_archivo": "missing_catalog_segundas_15.xlsx",
+      "headers": [
+        "produccion",
+        "fecha",
+        "codigo_bodega",
+        "codigo_articulo",
+        "nombre_articulo",
+        "configuracion",
+        "tamano",
+        "color",
+        "nombre",
+        "almacen",
+        "numero_lote",
+        "localidad",
+        "salon",
+        "numero_serie",
+        "id_flog",
+        "nombre_flog",
+        "calidad_flog",
+        "pzas_rollo",
+        "kg_rollo",
+        "mts_rollo",
+        "no_tiras",
+        "medida_1",
+        "medida_2",
+        "turno_tejido",
+        "codigo_defecto",
+        "cantidad",
+        "defecto"
+      ],
+      "rows": [
+        {
+          "produccion": "PROD-2026-1",
+          "fecha": "2026-08-02",
+          "numero_serie": "SER-9001",
+          "codigo_defecto": "DEF-02",
+          "cantidad": 1,
+          "defecto": "Defecto de calidad en rollo 1",
+          "localidad": "MAQ-INEXISTENTE-BODEGA-15"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-101",
+    "category": "CATALOG_MISSING",
+    "source_type": "MAQUINAS",
+    "payload": {
+      "source_type": "MAQUINAS",
+      "nombre_archivo": "missing_catalog_maquinas_16.xlsx",
+      "headers": [
+        "EQUIPO TOWELL",
+        "Clave"
+      ],
+      "rows": [
+        {
+          "EQUIPO TOWELL": "EQUIPO-INEXISTENTE-16",
+          "Clave": "TEL201"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  },
+  {
+    "case_id": "AG005-CASE-102",
+    "category": "CATALOG_MISSING",
+    "source_type": "TELEGRAM",
+    "payload": {
+      "source_type": "TELEGRAM",
+      "nombre_archivo": "missing_catalog_telegram_17.xlsx",
+      "headers": [
+        "id",
+        "folio",
+        "estatus",
+        "fecha",
+        "hora",
+        "depto",
+        "maquina_id",
+        "tipofallaid",
+        "falla",
+        "horafin",
+        "cveempl",
+        "nomempl",
+        "turno",
+        "cveatendio",
+        "nomatendio",
+        "turnoatendio",
+        "obs",
+        "ordentrabajo",
+        "descripcion",
+        "enviado",
+        "obscierre",
+        "calidad",
+        "fechafin"
+      ],
+      "rows": [
+        {
+          "id": 1001,
+          "folio": "TG-PF00001",
+          "estatus": "Cerrada",
+          "fecha": "2026-08-02",
+          "depto": "CF",
+          "maquina_id": "MAQ-INEXISTENTE-17",
+          "falla": "Falla generada de prueba 1"
+        }
+      ]
+    },
+    "expected": {
+      "status": "VALIDATION_REJECTED",
+      "can_promote": false,
+      "code": "MACHINE_NOT_FOUND"
+    },
+    "critical": true
+  }
+]

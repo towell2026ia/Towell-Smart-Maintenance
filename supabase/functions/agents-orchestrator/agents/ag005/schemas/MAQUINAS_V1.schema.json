@@ -1,0 +1,19 @@
+{
+  "schema_id": "MAQUINAS",
+  "version": "1.0",
+  "source": "EXCEL_BATCH",
+  "allowed_extensions": [".xlsx", ".xls"],
+  "expected_columns": ["equipo towell", "clave"],
+  "required_columns": ["equipo towell"],
+  "optional_columns": ["clave"],
+  "data_types": {
+    "equipo towell": "STRING",
+    "clave": "STRING"
+  },
+  "destination": "cat_maquinas",
+  "staging_table": "stg_maquinas_excel",
+  "idempotency": {
+    "strategy": "UPSERT",
+    "conflict_key": "equipo_towell"
+  }
+}

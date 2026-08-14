@@ -1,0 +1,19 @@
+{
+  "form_name": "bitacora_levantamiento_valid.xlsx",
+  "form_family": "BITACORA_LEVANTAMIENTO",
+  "sheets": [
+    {
+      "name": "Bitácora Turno",
+      "rows": [
+        {
+          "Campo": "Fecha y Hora de Cierre",
+          "Tipo": "DATETIME"
+        },
+        {
+          "Campo": "Firma Digital de Conformidad",
+          "Tipo": "SIGNATURE"
+        }
+      ]
+    }
+  ]
+}

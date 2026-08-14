@@ -1,0 +1,22 @@
+{
+  "schema_id": "FALLAS",
+  "version": "1.0",
+  "source": "EXCEL_BATCH",
+  "allowed_extensions": [".xlsx", ".xls"],
+  "expected_columns": ["descripcion", "creada"],
+  "required_columns": ["descripcion", "creada"],
+  "optional_columns": [],
+  "data_types": {
+    "descripcion": "STRING",
+    "creada": "DATETIME"
+  },
+  "destination": "fallas_por_maquina",
+  "staging_table": "stg_fallas_por_maquina_excel",
+  "relations": {
+    "maquina_id": "cat_maquinas.equipo_towell"
+  },
+  "idempotency": {
+    "strategy": "DEDUP_KEY",
+    "conflict_key": "maquina_id,creada,descripcion"
+  }
+}

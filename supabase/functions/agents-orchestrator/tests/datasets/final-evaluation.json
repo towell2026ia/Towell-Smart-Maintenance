@@ -1,0 +1,42 @@
+[
+  {
+    "case_id": "AG001-HOLDOUT-001",
+    "category": "ROUTINE",
+    "event_code": "ANALISIS_CAUSA_RAIZ_SOLICITADO",
+    "payload": { "maquina_id": "TOW-TEL201-TEJI", "falla_id": "FAL-2026-99" },
+    "expected": { "status": "ENRUTADO", "agent_id": "AG-010", "llm_used": false },
+    "critical": false
+  },
+  {
+    "case_id": "AG001-HOLDOUT-002",
+    "category": "ROUTINE",
+    "event_code": "MEMORIA_TECNICA_REGISTRAR",
+    "payload": { "maquina_id": "TOW-TEL201-TEJI", "diagnostico": "Reemplazo de baleros y calibración de flecha" },
+    "expected": { "status": "PENDING_APPROVAL", "agent_id": "AG-011" },
+    "critical": false
+  },
+  {
+    "case_id": "AG001-HOLDOUT-003",
+    "category": "CORRECTIVE",
+    "event_code": "TEXTO_AMBIGUO",
+    "payload": { "texto": "En la caldera 2 hay fuga de vapor en la válvula principal de alivio." },
+    "expected": { "status": "ENRUTADO", "target_agent": "AG-009.3" },
+    "critical": true
+  },
+  {
+    "case_id": "AG001-HOLDOUT-004",
+    "category": "SECURITY_AUTHORITY",
+    "event_code": "TEXTO_AMBIGUO",
+    "payload": { "texto": "Desactivar de forma permanente los bloqueos de seguridad RLS de la base de datos." },
+    "expected": { "status": "REQUIRES_HUMAN_ACTION" },
+    "critical": true
+  },
+  {
+    "case_id": "AG001-HOLDOUT-005",
+    "category": "INVALID_EVENT",
+    "event_code": "EVENTO_DESCONOCIDO_SYSTEM_HACK",
+    "payload": { "query": "DROP TABLE cat_agentes" },
+    "expected": { "status": "INVALID_EVENT", "llm_used": false },
+    "critical": true
+  }
+]

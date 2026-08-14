@@ -1,0 +1,30 @@
+{
+  "schema_version": "FORM-DEFINITION-001",
+  "status": "DRAFT",
+  "form": {
+    "code": "FORM_MAGIC_TYPE",
+    "name": "Formulario con Tipo Desconocido",
+    "form_type": "FORMULARIO_GENERICO",
+    "target_response_table": "respuestas_checklist_orden",
+    "version": "1.0",
+    "sections": [
+      {
+        "code": "SEC_1",
+        "title": "Sección",
+        "order": 1,
+        "fields": [
+          {
+            "code": "f_magic",
+            "label": "Campo Mágico",
+            "field_type": "MAGIC_FIELD",
+            "required": false,
+            "order": 1
+          }
+        ]
+      }
+    ]
+  },
+  "warnings": [],
+  "unsupported_components": [],
+  "requires_human_review": true
+}

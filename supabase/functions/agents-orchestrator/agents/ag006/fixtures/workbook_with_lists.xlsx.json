@@ -1,0 +1,26 @@
+{
+  "form_name": "workbook_with_lists.xlsx",
+  "form_family": "OT_CHECKLIST",
+  "sheets": [
+    {
+      "name": "Listas Validacion",
+      "data_validations": [
+        {
+          "range": "B2:B10",
+          "type": "list",
+          "values": [
+            "Sí",
+            "No",
+            "N/A"
+          ]
+        }
+      ],
+      "rows": [
+        {
+          "Campo": "Cumplimiento Inspección",
+          "Tipo": "YES_NO"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AG-001 Input Envelope Schema",
+  "type": "object",
+  "properties": {
+    "event_code": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "correlation_id": {
+      "type": "string"
+    }
+  },
+  "required": ["event_code", "payload"],
+  "additionalProperties": false
+}

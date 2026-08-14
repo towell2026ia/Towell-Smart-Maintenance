@@ -1,0 +1,32 @@
+{
+  "schema_version": "FORM-DEFINITION-001",
+  "status": "DRAFT",
+  "form": {
+    "code": "FORM_NO_OPT",
+    "name": "Select Sin Opciones",
+    "form_type": "OT_CHECKLIST",
+    "target_response_table": "respuestas_checklist_orden",
+    "version": "1.0",
+    "sections": [
+      {
+        "code": "SEC_1",
+        "title": "Sección",
+        "order": 1,
+        "fields": [
+          {
+            "code": "Q1",
+            "label": "Seleccionar Opción",
+            "field_type": "SELECT",
+            "required": true,
+            "order": 1,
+            "options": []
+          }
+        ]
+      }
+    ]
+  },
+  "warnings": [],
+  "unsupported_components": [],
+  "requires_human_review": false,
+  "expected_error": "INVALID_FIELD_DEFINITION"
+}

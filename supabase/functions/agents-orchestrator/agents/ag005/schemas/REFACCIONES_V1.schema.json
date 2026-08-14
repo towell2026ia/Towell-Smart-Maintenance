@@ -1,0 +1,35 @@
+{
+  "schema_id": "REFACCIONES",
+  "version": "1.0",
+  "source": "EXCEL_BATCH",
+  "allowed_extensions": [".xlsx", ".xls"],
+  "expected_columns": [
+    "fecha", "destino", "codigo de articulo", "nombre del articulo",
+    "cantidad", "precio de costo", "importe de costo"
+  ],
+  "required_columns": [
+    "codigo de articulo", "nombre del articulo", "cantidad", "precio de costo"
+  ],
+  "optional_columns": ["fecha", "destino", "importe de costo"],
+  "data_types": {
+    "fecha": "DATE",
+    "destino": "STRING",
+    "codigo de articulo": "STRING",
+    "nombre del articulo": "STRING",
+    "cantidad": "DECIMAL",
+    "precio de costo": "DECIMAL",
+    "importe de costo": "DECIMAL"
+  },
+  "destination": "cat_refacciones",
+  "staging_table": "stg_refacciones_excel",
+  "calculated_fields": {
+    "importe de costo": {
+      "formula": "cantidad * precio de costo",
+      "tolerance": 0.05
+    }
+  },
+  "idempotency": {
+    "strategy": "UPSERT",
+    "conflict_key": "codigo_articulo"
+  }
+}

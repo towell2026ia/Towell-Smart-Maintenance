@@ -1,0 +1,19 @@
+{
+  "form_name": "requisicion_ot_valid.xlsx",
+  "form_family": "REQUISICION_OT",
+  "sheets": [
+    {
+      "name": "Solicitud Intervención",
+      "rows": [
+        {
+          "Campo": "Máquina Afectada",
+          "Tipo": "SELECT"
+        },
+        {
+          "Campo": "Descripción de Falla",
+          "Tipo": "TEXTAREA"
+        }
+      ]
+    }
+  ]
+}

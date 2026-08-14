@@ -1,0 +1,42 @@
+{
+  "schema_version": "FORM-DEFINITION-001",
+  "status": "DRAFT",
+  "form": {
+    "code": "FORM_INV_REF",
+    "name": "Referencia Inexistente",
+    "form_type": "OT_CHECKLIST",
+    "target_response_table": "respuestas_checklist_orden",
+    "version": "1.0",
+    "sections": [
+      {
+        "code": "SEC_1",
+        "title": "Sección",
+        "order": 1,
+        "fields": [
+          {
+            "code": "Q1",
+            "label": "Pregunta",
+            "field_type": "TEXT",
+            "required": true,
+            "order": 1,
+            "visibility_rule": {
+              "when": {
+                "field": "NON_EXISTENT_FIELD_999",
+                "operator": "EQUALS",
+                "value": "NO"
+              },
+              "action": {
+                "type": "SHOW",
+                "target": "Q1"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "warnings": [],
+  "unsupported_components": [],
+  "requires_human_review": false,
+  "expected_error": "INVALID_FIELD_REFERENCE"
+}

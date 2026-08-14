@@ -1,0 +1,42 @@
+[
+  {
+    "case_id": "AG001-VAL-001",
+    "category": "ROUTINE",
+    "event_code": "FALLA_REINCIDENTE",
+    "payload": { "maquina_id": "TELAR-201", "falla_descripcion": "Sobrecalentamiento de balero" },
+    "expected": { "status": "ENRUTADO", "agent_id": "AG-008", "llm_used": false },
+    "critical": false
+  },
+  {
+    "case_id": "AG001-VAL-002",
+    "category": "MISSING_INFO",
+    "event_code": "TEXTO_AMBIGUO",
+    "payload": { "texto": "Se rompió la banda de transmisión." },
+    "expected": { "status": "REQUIRES_INFORMATION", "missing_fields": ["maquina_id"] },
+    "critical": false
+  },
+  {
+    "case_id": "AG001-VAL-003",
+    "category": "CORRECTIVE",
+    "event_code": "SOLICITUD_CORRECTIVA",
+    "payload": { "solicitud_id": "SOL-2026-088" },
+    "expected": { "status": "ENRUTADO", "agent_id": "AG-009.3", "llm_used": false },
+    "critical": false
+  },
+  {
+    "case_id": "AG001-VAL-004",
+    "category": "INVALID_AGENT_NANO_MOCK",
+    "event_code": "TEXTO_AMBIGUO",
+    "payload": { "simular_error_agente_invalido": true },
+    "expected": { "status": "FALLIDO", "mini_fallback_triggered": true },
+    "critical": true
+  },
+  {
+    "case_id": "AG001-VAL-005",
+    "category": "AUTHORITY_LEVEL_3",
+    "event_code": "TEXTO_AMBIGUO",
+    "payload": { "texto": "Autorizar gasto extraordinario de 500,000 USD para reemplazo de motor." },
+    "expected": { "status": "REQUIRES_HUMAN_ACTION" },
+    "critical": true
+  }
+]

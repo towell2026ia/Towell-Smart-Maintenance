@@ -1,0 +1,32 @@
+{
+  "schema_version": "FORM-DEFINITION-001",
+  "status": "DRAFT",
+  "form": {
+    "code": "FORM_XSS_SECURITY",
+    "name": "Formulario Prueba XSS <script>alert('xss')</script>",
+    "form_type": "FORMULARIO_GENERICO",
+    "target_response_table": "respuestas_checklist_orden",
+    "version": "1.0",
+    "sections": [
+      {
+        "code": "SEC_XSS",
+        "title": "Sección Sanitización <img src=x onerror=alert(1)>",
+        "order": 1,
+        "fields": [
+          {
+            "code": "f_xss",
+            "label": "Campo con Script <img src=x onerror=alert(1)>",
+            "field_type": "TEXT",
+            "required": false,
+            "order": 1,
+            "help_text": "Help text <script>window.location='http://attacker.com'</script>",
+            "placeholder": "<svg onload=alert(1)>"
+          }
+        ]
+      }
+    ]
+  },
+  "warnings": [],
+  "unsupported_components": [],
+  "requires_human_review": false
+}
