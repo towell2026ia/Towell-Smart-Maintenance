@@ -1898,9 +1898,19 @@
             
             <div style="text-align: left; width: 100%; border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 0.95rem; display: flex; flex-direction: column; gap: 8px;">
               <div><strong>Correo Electrónico:</strong> <span id="tech-perf-email">carlos@tsm-ai.com</span></div>
-              <div><strong>Rol Operativo:</strong> Técnico Principal Homologado</div>
+              <div><strong>Rol Operativo:</strong> <span id="tech-perf-role">Técnico Principal Homologado</span></div>
               <div><strong>Estación de Trabajo:</strong> Towell Smart Planta Principal</div>
               <div><strong>Permisos:</strong> Carga de bitácora y checklists dinámicos</div>
+            </div>
+
+            <!-- Botones de Acción de Perfil (Administrador & Logout) -->
+            <div style="width: 100%; border-top: 1px solid #e2e8f0; padding-top: 16px; display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+              <button id="btn-tech-perf-switch-admin" onclick="switchToAdminView()" class="btn-action-primary" style="background: #6366f1; border-color: #6366f1; color: white; display: none; width: 100%; justify-content: center; padding: 12px; font-weight: 700;">
+                👑 Volver a Panel Administrador
+              </button>
+              <button onclick="logout()" class="btn-logout" style="width: 100%; justify-content: center; padding: 12px; font-weight: 700;">
+                🚪 Cerrar Sesión
+              </button>
             </div>
           </div>
         </div>

@@ -1586,6 +1586,11 @@ function restoreRouteFromHash() {
 
     // Si el usuario es ADMIN
     if (roleKey === 'admin') {
+      const switchAdminBtn = document.getElementById('menu-tech-switch-admin');
+      if (switchAdminBtn) switchAdminBtn.style.display = 'block';
+      const switchSolicBtn = document.getElementById('menu-solic-switch-admin');
+      if (switchSolicBtn) switchSolicBtn.style.display = 'block';
+
       if (viewId === 'tech') {
         const targetPanel = (panelId === 'orders') ? 'dashboard' : (panelId || activeTechPanel || 'dashboard');
         showView('tech');
@@ -1766,6 +1771,8 @@ function updateMobileBottomNav() {
 
   const isTechView = document.getElementById('view-tech')?.classList.contains('active');
   const isAdminView = document.getElementById('view-admin')?.classList.contains('active');
+  const roleKey = normalizeUserRole(currentUser.role || currentUser.rol);
+  const isAdmin = roleKey === 'admin';
 
   if (isTechView) {
     bottomNav.style.display = 'block';
@@ -1783,14 +1790,19 @@ function updateMobileBottomNav() {
         <span class="nav-icon">📝</span>
         <span>Bitácora</span>
       </div>
-      <div class="mobile-nav-item ${panel === 'history' ? 'active' : ''}" onclick="switchTechPanel('history')">
-        <span class="nav-icon">⚙️</span>
-        <span>Histórico</span>
-      </div>
       <div class="mobile-nav-item ${panel === 'profile' ? 'active' : ''}" onclick="switchTechPanel('profile')">
         <span class="nav-icon">👤</span>
         <span>Perfil</span>
       </div>
+      ${isAdmin ? `
+      <div class="mobile-nav-item" onclick="switchToAdminView()" style="color: #818cf8; font-weight: 700;">
+        <span class="nav-icon">👑</span>
+        <span>Admin</span>
+      </div>` : `
+      <div class="mobile-nav-item ${panel === 'history' ? 'active' : ''}" onclick="switchTechPanel('history')">
+        <span class="nav-icon">⚙️</span>
+        <span>Histórico</span>
+      </div>`}
     `;
   } else if (isAdminView) {
     bottomNav.style.display = 'block';
@@ -8085,6 +8097,31 @@ function switchTechPanel(panelId) {
     renderTechBitacora();
   } else if (panelId === 'history') {
     populateTechMachineHistorySelect();
+  } else if (panelId === 'profile') {
+    renderTechProfile();
+  }
+}
+
+function renderTechProfile() {
+  if (!currentUser) return;
+  const pAvatar = document.getElementById('tech-perf-avatar-huge');
+  const pName = document.getElementById('tech-perf-name');
+  const pSpec = document.getElementById('tech-perf-specialty');
+  const pEmail = document.getElementById('tech-perf-email');
+  const pRole = document.getElementById('tech-perf-role');
+  const btnSwitchAdmin = document.getElementById('btn-tech-perf-switch-admin');
+
+  const roleKey = normalizeUserRole(currentUser.role || currentUser.rol);
+  const isAdmin = roleKey === 'admin';
+
+  if (pAvatar) pAvatar.innerText = currentUser.avatar || (isAdmin ? '👑' : '👨‍🔧');
+  if (pName) pName.innerText = currentUser.name || currentUser.nombre_completo || 'Usuario TSM-AI';
+  if (pSpec) pSpec.innerText = currentUser.specialty || currentUser.observaciones || currentUser.department || (isAdmin ? 'Administrador del Sistema' : 'Técnico Homologado');
+  if (pEmail) pEmail.innerText = currentUser.email || currentUser.correo || 'sin-correo@tsm-ai.com';
+  if (pRole) pRole.innerText = isAdmin ? 'Super Administrador / Orquestador TSM-AI' : 'Técnico Mantenimiento Planta';
+
+  if (btnSwitchAdmin) {
+    btnSwitchAdmin.style.display = isAdmin ? 'flex' : 'none';
   }
 }
 
