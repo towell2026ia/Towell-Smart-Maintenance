@@ -2020,8 +2020,8 @@ body {
   display: flex;
   width: 100%;
   min-height: 100vh;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100dvh;
+  overflow-x: hidden;
 }
 
 .split-left-hero {
@@ -2086,24 +2086,38 @@ body {
 @media (max-width: 900px) {
   .split-login-container {
     flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: auto !important;
+    overflow-y: auto;
   }
   .split-left-hero {
-    padding: 40px 20px;
+    flex: none;
+    padding: 32px 20px 24px;
     text-align: center;
     align-items: center;
   }
   .split-hero-logo {
+    margin-bottom: 16px !important;
     justify-content: center;
   }
+  .split-hero-logo img {
+    height: 100px !important;
+  }
   .split-left-hero h1 {
-    font-size: 2.2rem !important;
+    font-size: 1.75rem !important;
+    margin-bottom: 12px !important;
   }
   .split-left-hero p {
+    font-size: 0.95rem !important;
     text-align: center;
     margin: 0 auto;
+    max-width: 90%;
   }
   .split-right-login {
-    padding: 30px 15px;
+    flex: none;
+    padding: 24px 16px 40px;
+    width: 100%;
   }
 }
 

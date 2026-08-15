@@ -1482,11 +1482,14 @@ function setupRealtimeSubscriptions() {
 function persistSessionUser(userObj) {
   currentUser = userObj;
   if (userObj) {
-    localStorage.setItem('TSMAI_current_user', JSON.stringify(userObj));
+    sessionStorage.setItem('TSMAI_current_user', JSON.stringify(userObj));
   } else {
-    localStorage.removeItem('TSMAI_current_user');
-    localStorage.removeItem('TSMAI_current_route');
+    sessionStorage.removeItem('TSMAI_current_user');
+    sessionStorage.removeItem('TSMAI_current_route');
   }
+  // Garantizar que no quede sesión permanente en localStorage (se cierra al cerrar ventana/pestaña)
+  localStorage.removeItem('TSMAI_current_user');
+  localStorage.removeItem('TSMAI_current_route');
 }
 
 function normalizeUserRole(rawRol) {
@@ -1505,26 +1508,11 @@ function normalizeUserRole(rawRol) {
 }
 
 function switchToTechView() {
-  if (!currentUser) return;
-  if (!currentUser.cve_tecnico && !currentUser.id) {
-    currentUser.id = currentUser.cve_empleado || currentUser.uuid || '2025';
-    currentUser.cve_tecnico = currentUser.cve_empleado || '2025';
-  }
-  const pName = document.getElementById('tech-profile-name');
-  const pSpec = document.getElementById('tech-profile-specialty');
-  const pAvat = document.getElementById('tech-profile-avatar');
-  if (pName) pName.innerText = currentUser.name || currentUser.nombre_completo || 'Técnico';
-  if (pSpec) pSpec.innerText = currentUser.specialty || currentUser.observaciones || currentUser.department || 'Coordinador Mantenimiento';
-  if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
-
-  showView('tech');
-  switchTechPanel('dashboard');
+  restoreRouteFromHash();
 }
 
 function switchToAdminView() {
-  if (!currentUser) return;
-  showView('admin');
-  switchAdminPanel(activeAdminPanel || 'dashboard');
+  restoreRouteFromHash();
 }
 
 function restoreRouteFromHash() {
@@ -1540,9 +1528,9 @@ function restoreRouteFromHash() {
     return true;
   }
 
-  // 1. Intentar recuperar usuario si no está en memoria
+  // 1. Intentar recuperar usuario desde sessionStorage (memoria por pestaña/sesión)
   if (!currentUser) {
-    const savedUser = localStorage.getItem('TSMAI_current_user');
+    const savedUser = sessionStorage.getItem('TSMAI_current_user');
     if (savedUser) {
       try { currentUser = JSON.parse(savedUser); } catch (e) {}
     }
@@ -1553,11 +1541,11 @@ function restoreRouteFromHash() {
   const viewId = parts[0] || '';
   const panelId = parts[1] || '';
 
-  // 2. Si hay usuario autenticado
+  // 2. Si hay usuario autenticado: AISLAMIENTO ESTRICTO DE 1 ROL POR USUARIO
   if (currentUser) {
     const roleKey = normalizeUserRole(currentUser.role || currentUser.rol);
 
-    // Si el usuario es SOLICITANTE, forzar siempre la vista de solicitante
+    // Si el usuario es SOLICITANTE, forzar EXCLUSIVAMENTE la vista de solicitante
     if (roleKey === 'solicitante') {
       const validPanels = ['home', 'new', 'tracking', 'calendar', 'validation'];
       const targetPanel = validPanels.includes(panelId) ? panelId : (activeSolicitantePanel || 'home');
@@ -1566,9 +1554,10 @@ function restoreRouteFromHash() {
       return true;
     }
 
-    // Si el usuario es TÉCNICO
+    // Si el usuario es TÉCNICO, forzar EXCLUSIVAMENTE la vista de técnico
     if (roleKey === 'tech') {
-      const targetPanel = (panelId === 'orders') ? 'dashboard' : (panelId || activeTechPanel || 'dashboard');
+      const validPanels = ['dashboard', 'checklists', 'bitacora', 'history', 'profile'];
+      const targetPanel = validPanels.includes(panelId) ? panelId : (activeTechPanel || 'dashboard');
       const pName = document.getElementById('tech-profile-name');
       const pSpec = document.getElementById('tech-profile-specialty');
       const pAvat = document.getElementById('tech-profile-avatar');
@@ -1576,28 +1565,15 @@ function restoreRouteFromHash() {
       if (pSpec) pSpec.innerText = currentUser.specialty || currentUser.observaciones || currentUser.department || 'General';
       if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
 
-      const switchAdminBtn = document.getElementById('menu-tech-switch-admin');
-      if (switchAdminBtn) switchAdminBtn.style.display = 'none';
-
       showView('tech');
       switchTechPanel(targetPanel);
       return true;
     }
 
-    // Si el usuario es ADMIN
+    // Si el usuario es ADMIN, forzar EXCLUSIVAMENTE la vista de administrador
     if (roleKey === 'admin') {
-      const switchAdminBtn = document.getElementById('menu-tech-switch-admin');
-      if (switchAdminBtn) switchAdminBtn.style.display = 'block';
-      const switchSolicBtn = document.getElementById('menu-solic-switch-admin');
-      if (switchSolicBtn) switchSolicBtn.style.display = 'block';
-
-      if (viewId === 'tech') {
-        const targetPanel = (panelId === 'orders') ? 'dashboard' : (panelId || activeTechPanel || 'dashboard');
-        showView('tech');
-        switchTechPanel(targetPanel);
-        return true;
-      }
-      const targetPanel = panelId || activeAdminPanel || 'dashboard';
+      const validPanels = ['dashboard', 'requests', 'orders', 'preventive', 'checklists', 'downtime', 'forms', 'excel', 'config', 'databases', 'users'];
+      const targetPanel = validPanels.includes(panelId) ? panelId : (activeAdminPanel || 'dashboard');
       showView('admin');
       switchAdminPanel(targetPanel);
       return true;
@@ -1629,8 +1605,8 @@ function restoreRouteFromHash() {
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Restaurar sesión activa de localStorage si existe
-  const savedUser = localStorage.getItem('TSMAI_current_user');
+  // 1. Restaurar sesión activa de sessionStorage si existe en la pestaña actual
+  const savedUser = sessionStorage.getItem('TSMAI_current_user');
   if (savedUser) {
     try {
       currentUser = JSON.parse(savedUser);
@@ -1638,6 +1614,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentUser = null;
     }
   }
+  // Garantizar limpieza de localStorage para no mantener sesión abierta si se cierra la aplicación
+  localStorage.removeItem('TSMAI_current_user');
+  localStorage.removeItem('TSMAI_current_route');
 
   // Asegurar que el seed de datos esté cargado
   if (typeof initLocalStorage === 'function') {
@@ -1760,76 +1739,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function updateMobileBottomNav() {
-  const navContainer = document.getElementById('mobile-nav-items-container');
   const bottomNav = document.getElementById('mobile-bottom-nav');
-  if (!navContainer || !bottomNav) return;
-
-  if (!currentUser) {
-    bottomNav.style.display = 'none';
-    return;
-  }
-
-  const isTechView = document.getElementById('view-tech')?.classList.contains('active');
-  const isAdminView = document.getElementById('view-admin')?.classList.contains('active');
-  const roleKey = normalizeUserRole(currentUser.role || currentUser.rol);
-  const isAdmin = roleKey === 'admin';
-
-  if (isTechView) {
-    bottomNav.style.display = 'block';
-    const panel = activeTechPanel || 'dashboard';
-    navContainer.innerHTML = `
-      <div class="mobile-nav-item ${panel === 'dashboard' ? 'active' : ''}" onclick="switchTechPanel('dashboard')">
-        <span class="nav-icon">📋</span>
-        <span>Tablero</span>
-      </div>
-      <div class="mobile-nav-item ${panel === 'checklists' ? 'active' : ''}" onclick="switchTechPanel('checklists')">
-        <span class="nav-icon">⚡</span>
-        <span>Checklists</span>
-      </div>
-      <div class="mobile-nav-item ${panel === 'bitacora' ? 'active' : ''}" onclick="switchTechPanel('bitacora')">
-        <span class="nav-icon">📝</span>
-        <span>Bitácora</span>
-      </div>
-      <div class="mobile-nav-item ${panel === 'profile' ? 'active' : ''}" onclick="switchTechPanel('profile')">
-        <span class="nav-icon">👤</span>
-        <span>Perfil</span>
-      </div>
-      ${isAdmin ? `
-      <div class="mobile-nav-item" onclick="switchToAdminView()" style="color: #818cf8; font-weight: 700;">
-        <span class="nav-icon">👑</span>
-        <span>Admin</span>
-      </div>` : `
-      <div class="mobile-nav-item ${panel === 'history' ? 'active' : ''}" onclick="switchTechPanel('history')">
-        <span class="nav-icon">⚙️</span>
-        <span>Histórico</span>
-      </div>`}
-    `;
-  } else if (isAdminView) {
-    bottomNav.style.display = 'block';
-    const panel = activeAdminPanel || 'dashboard';
-    navContainer.innerHTML = `
-      <div class="mobile-nav-item ${panel === 'dashboard' ? 'active' : ''}" onclick="switchAdminPanel('dashboard')">
-        <span class="nav-icon">📊</span>
-        <span>Dashboard</span>
-      </div>
-      <div class="mobile-nav-item ${panel === 'requests' ? 'active' : ''}" onclick="switchAdminPanel('requests')">
-        <span class="nav-icon">📨</span>
-        <span>Solicitudes</span>
-      </div>
-      <div class="mobile-nav-item ${panel === 'orders' ? 'active' : ''}" onclick="switchAdminPanel('orders')">
-        <span class="nav-icon">📋</span>
-        <span>Órdenes</span>
-      </div>
-      <div class="mobile-nav-item ${panel === 'databases' ? 'active' : ''}" onclick="switchAdminPanel('databases')">
-        <span class="nav-icon">🗄️</span>
-        <span>Bases BD</span>
-      </div>
-      <div class="mobile-nav-item" onclick="toggleSidebar()">
-        <span class="nav-icon">☰</span>
-        <span>Menú</span>
-      </div>
-    `;
-  } else {
+  if (bottomNav) {
     bottomNav.style.display = 'none';
   }
 }
@@ -2940,6 +2851,8 @@ async function handleLoginSubmit(event) {
 function logout() {
   currentUser = null;
   persistSessionUser(null);
+  sessionStorage.removeItem('TSMAI_current_user');
+  sessionStorage.removeItem('TSMAI_current_route');
   localStorage.removeItem('TSMAI_current_user');
   localStorage.removeItem('TSMAI_current_route');
   useLiveDatabase = false;

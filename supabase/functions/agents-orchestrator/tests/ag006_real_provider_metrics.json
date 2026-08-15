@@ -1,0 +1,15 @@
+{
+  "model": "gpt-4.1-mini",
+  "real_api_calls": 12,
+  "successful_calls": 0,
+  "semantic_holdout": "0/12",
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "cached_input_tokens": 0,
+  "estimated_cost_usd": "$0.000000",
+  "avg_latency_ms": "0 ms",
+  "technical_retries": 0,
+  "semantic_repairs": 0,
+  "unlogged_calls": 0,
+  "provider_fallback": 0
+}

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -44,11 +44,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.3.3"></script>
+  <script src="config.js?v=3.3.7"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.3.3">
+  <link rel="stylesheet" href="style.css?v=3.3.7">
 </head>
 <body>
 
@@ -452,6 +452,7 @@
             <span class="status-dot"></span>
             <span class="conn-label">En Vivo</span>
           </div>
+          <button class="btn-logout" onclick="logout()" style="padding: 6px 14px; font-size: 0.85rem; width: auto; margin-top: 0; background: #ef4444; border-color: #ef4444; color: white; display: flex; align-items: center; gap: 6px; font-weight: 700;">🚪 Cerrar Sesión</button>
         </div>
       </header>
 
@@ -1698,9 +1699,6 @@
         <li class="menu-item" id="menu-tech-profile" onclick="switchTechPanel('profile')">
           <a>👤 Mi Perfil</a>
         </li>
-        <li class="menu-item" id="menu-tech-switch-admin" onclick="switchToAdminView()" style="background: rgba(99, 102, 241, 0.12); border-left: 3px solid #6366f1; margin-top: 10px; display: none;">
-          <a style="color: #818cf8 !important; font-weight: 700; display: flex; align-items: center; gap: 8px;">👑 Cambiar a Panel Administrador</a>
-        </li>
       </ul>
 
       <div class="sidebar-footer">
@@ -1721,6 +1719,7 @@
             <span class="status-dot"></span>
             <span class="conn-label">En Vivo</span>
           </div>
+          <button class="btn-logout" onclick="logout()" style="padding: 6px 14px; font-size: 0.85rem; width: auto; margin-top: 0; background: #ef4444; border-color: #ef4444; color: white; display: flex; align-items: center; gap: 6px; font-weight: 700;">🚪 Cerrar Sesión</button>
         </div>
       </header>
 
@@ -1903,11 +1902,8 @@
               <div><strong>Permisos:</strong> Carga de bitácora y checklists dinámicos</div>
             </div>
 
-            <!-- Botones de Acción de Perfil (Administrador & Logout) -->
+            <!-- Botón de Acción de Perfil (Cerrar Sesión) -->
             <div style="width: 100%; border-top: 1px solid #e2e8f0; padding-top: 16px; display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
-              <button id="btn-tech-perf-switch-admin" onclick="switchToAdminView()" class="btn-action-primary" style="background: #6366f1; border-color: #6366f1; color: white; display: none; width: 100%; justify-content: center; padding: 12px; font-weight: 700;">
-                👑 Volver a Panel Administrador
-              </button>
               <button onclick="logout()" class="btn-logout" style="width: 100%; justify-content: center; padding: 12px; font-weight: 700;">
                 🚪 Cerrar Sesión
               </button>
@@ -4895,12 +4891,7 @@
     <span id="toast-text">Notificación exitosa!</span>
   </div>
 
-  <!-- Barra de Navegación Inferior Móvil (Bottom Bar para iOS y Android) -->
-  <nav class="mobile-bottom-nav" id="mobile-bottom-nav" style="display: none;">
-    <div class="mobile-bottom-nav-items" id="mobile-nav-items-container">
-      <!-- Se genera dinámicamente en app.js según el rol del usuario -->
-    </div>
-  </nav>
+
 
   <!-- Botón Flotante para Instalar PWA -->
   <div id="pwa-install-banner" class="pwa-install-banner" onclick="triggerPwaInstall()" style="display: none;">
@@ -4908,10 +4899,10 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.3.6"></script>
-  <script src="agents-client.js?v=3.3.6"></script>
-  <script src="app.js?v=3.3.6"></script>
-  <script src="dashboard.js?v=3.3.6"></script>
+  <script src="seed.js?v=3.3.7"></script>
+  <script src="agents-client.js?v=3.3.7"></script>
+  <script src="app.js?v=3.3.7"></script>
+  <script src="dashboard.js?v=3.3.7"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
