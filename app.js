@@ -860,14 +860,37 @@ async function syncDatabases() {
     console.warn('[Sync] Non-blocking warning syncing cat_usuarios_roles:', errU);
   }
 
-  // 3. Sync Spare Parts
+  // 3. Sync Spare Parts & Machine Associations (All Pages)
   try {
-    const { data: dbParts, error: pErr } = await supabaseClient
-      .from('cat_refacciones')
-      .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, costo_unitario, activo');
-    if (!pErr && dbParts && dbParts.length > 0) {
-      const localParts = dbParts.map(p => ({
+    let allDbParts = [];
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      const { data, error } = await supabaseClient
+        .from('cat_refacciones')
+        .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, costo_unitario, activo')
+        .range(from, to);
+
+      if (error || !data || data.length === 0) {
+        hasMore = false;
+      } else {
+        allDbParts = allDbParts.concat(data);
+        if (data.length < pageSize) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      }
+    }
+
+    if (allDbParts.length > 0) {
+      const localParts = allDbParts.map(p => ({
         id: p.codigo_articulo,
+        code: p.codigo_articulo,
         name: p.nombre_articulo,
         category: p.familia,
         stock: parseFloat(p.stock_actual) || 0,
@@ -875,7 +898,22 @@ async function syncDatabases() {
         cost: parseFloat(p.costo_unitario) || 0,
         activo: p.activo !== false
       }));
+      console.log(`[TSMAI] Refacciones sincronizadas: ${localParts.length} artículos.`);
       localStorage.setItem('TSMAI_parts', JSON.stringify(localParts));
+    }
+
+    // Sync refacciones_por_maquina if populated in Supabase
+    try {
+      const { data: dbRPM, error: rpmErr } = await supabaseClient
+        .from('refacciones_por_maquina')
+        .select('*')
+        .limit(5000);
+      if (!rpmErr && dbRPM && dbRPM.length > 0) {
+        localStorage.setItem('TSMAI_refacciones_por_maquina', JSON.stringify(dbRPM));
+        console.log(`[TSMAI] Refacciones por máquina sincronizadas: ${dbRPM.length} relaciones.`);
+      }
+    } catch (eRPM) {
+      console.warn('[Sync] Non-blocking notice for refacciones_por_maquina:', eRPM);
     }
   } catch (errP) {
     console.warn('[Sync] Non-blocking warning syncing cat_refacciones:', errP);
@@ -1916,7 +1954,7 @@ function getMachinesByArea(areaCode) {
 
 function getPartsByMachine(machineId, filterName = '') {
   // SI NO HAY MÁQUINA ASIGNADA, NO SE PERMITEN ASIGNAR REFACCIONES
-  if (!machineId || machineId === '' || machineId === 'NO_APLICA' || machineId === 'NO APLICA MÁQUINA' || machineId === 'NONE' || machineId === 'ALL') {
+  if (!machineId || machineId === '' || machineId === 'NO_APLICA' || machineId === 'NO APLICA MÁQUINA' || machineId === 'NONE') {
     return [];
   }
 
@@ -1925,10 +1963,10 @@ function getPartsByMachine(machineId, filterName = '') {
   const cleanMacId = String(machineId).toUpperCase().trim();
   let resultParts = [];
 
-  // 1. Filtrar refacciones asociadas explícitamente por máquina
+  // 1. Filtrar refacciones asociadas explícitamente por máquina (en tabla relacional)
   const linkedParts = refPorMaquina.filter(rm => {
     const mac = String(rm.maquina_id || rm.maquina || rm.equipo || '').toUpperCase().trim();
-    return mac === cleanMacId || mac.includes(cleanMacId);
+    return mac && (mac === cleanMacId || mac.includes(cleanMacId) || cleanMacId.includes(mac));
   });
 
   if (linkedParts.length > 0) {
@@ -1938,24 +1976,55 @@ function getPartsByMachine(machineId, filterName = '') {
       name: lp.nombre_articulo || lp.nombre || lp.name || 'Refacción sin nombre',
       cost: parseFloat(lp.precio_costo_unitario || lp.costo || 0),
       stock: parseFloat(lp.cantidad_estandar || lp.stock || 10),
-      machineId: cleanMacId
+      machineId: cleanMacId,
+      isDirectMatch: true
     }));
   } else {
-    // 2. Coincidencia en el catálogo general por clave de máquina
-    resultParts = allParts.filter(p => {
+    // 2. Coincidencia en el catálogo general por machineId explícito
+    const directMacParts = allParts.filter(p => {
       const pMac = String(p.machineId || p.maquina_id || p.maquina || '').toUpperCase().trim();
-      return pMac === cleanMacId || pMac.includes(cleanMacId);
-    }).map(p => ({
-      id: p.id || p.code || p.codigo_articulo,
-      code: p.code || p.id || p.codigo_articulo,
-      name: p.name || p.nombre || p.nombre_articulo || 'Refacción sin nombre',
-      cost: parseFloat(p.cost || p.costo_unitario || p.precio_unitario || 0),
-      stock: parseFloat(p.stock || 10),
-      machineId: p.machineId || p.maquina_id || cleanMacId
-    }));
+      return pMac && (pMac === cleanMacId || pMac.includes(cleanMacId) || cleanMacId.includes(pMac));
+    });
+
+    if (directMacParts.length > 0) {
+      resultParts = directMacParts.map(p => ({
+        id: p.id || p.code || p.codigo_articulo,
+        code: p.code || p.id || p.codigo_articulo,
+        name: p.name || p.nombre || p.nombre_articulo || 'Refacción sin nombre',
+        cost: parseFloat(p.cost || p.costo_unitario || p.precio_unitario || 0),
+        stock: parseFloat(p.stock || 10),
+        machineId: p.machineId || p.maquina_id || cleanMacId,
+        isDirectMatch: true
+      }));
+    } else {
+      // 3. Fallback Contextual Inteligente + Catálogo Universal Completo
+      // Identificar prefijos/tokens de la máquina (ej: 'TEL', 'RECT', 'COST', 'JET', 'TIN', 'JUKI', 'BROTHER', 'SANTEX', 'THIES')
+      const macTokens = cleanMacId.split(/[-_\s/]+/).filter(t => t.length >= 3);
+
+      resultParts = allParts.map(p => {
+        const pCode = String(p.id || p.code || p.codigo_articulo || '').toUpperCase();
+        const pName = String(p.name || p.nombre || p.nombre_articulo || '').toUpperCase();
+        const pFam = String(p.category || p.familia || '').toUpperCase();
+
+        let score = 0;
+        macTokens.forEach(tok => {
+          if (pName.includes(tok) || pCode.includes(tok) || pFam.includes(tok)) score += 10;
+        });
+
+        return {
+          id: p.id || p.code || p.codigo_articulo,
+          code: p.code || p.id || p.codigo_articulo,
+          name: p.name || p.nombre || p.nombre_articulo || 'Refacción sin nombre',
+          cost: parseFloat(p.cost || p.costo_unitario || p.precio_unitario || 0),
+          stock: parseFloat(p.stock || 10),
+          machineId: cleanMacId,
+          score: score
+        };
+      });
+    }
   }
 
-  // 3. Aplicar filtro en tiempo real por nombre de refacción
+  // 4. Aplicar filtro en tiempo real por nombre de refacción o código
   if (filterName && filterName.trim() !== '') {
     const cleanFilter = filterName.toLowerCase().trim();
     resultParts = resultParts.filter(p => 
@@ -1964,14 +2033,21 @@ function getPartsByMachine(machineId, filterName = '') {
     );
   }
 
-  // 4. ORDENAR: Refacciones de más de $1,000 pesos PRIMERO (> 1000), luego por precio descendente
+  // 5. ORDENAR:
+  //    1) Score de afinidad contextual
+  //    2) Refacciones de más de $1,000 pesos PRIMERO (> 1000) con insignia ⭐
+  //    3) Precio descendente
   resultParts.sort((a, b) => {
+    const aScore = a.score || 0;
+    const bScore = b.score || 0;
+    if (aScore !== bScore) return bScore - aScore;
+
     const aOver1000 = (a.cost > 1000) ? 1 : 0;
     const bOver1000 = (b.cost > 1000) ? 1 : 0;
     if (aOver1000 !== bOver1000) {
-      return bOver1000 - aOver1000; // Prioriza las de más de $1,000 MXN
+      return bOver1000 - aOver1000;
     }
-    return b.cost - a.cost; // Luego descendente por precio
+    return b.cost - a.cost;
   });
 
   return resultParts;
@@ -9851,7 +9927,8 @@ async function loadPartsForMachine(machineId, otType = 'MP', filterName = '') {
     const isHighValue = p.costo > 1000;
     const badge = isHighValue ? '⭐ [>$1,000 MXN] ' : '';
     const costStr = p.costo > 0 ? ` ($${p.costo.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN)` : '';
-    html += `<option value="${p.id}" data-costo="${p.costo}">${badge}${p.name}${costStr}</option>`;
+    const codePrefix = p.code && p.code !== p.name ? `${p.code} - ` : '';
+    html += `<option value="${p.id}" data-costo="${p.costo}" data-qty="${p.cantidadSugerida}">${badge}${codePrefix}${p.name}${costStr}</option>`;
   });
 
   partSelect.innerHTML = html;
@@ -13009,6 +13086,7 @@ function switchSolicitantePanel(panelId) {
     target = 'home';
   }
   activeSolicitantePanel = target;
+  closeSidebarOnMobile();
 
   // 1. Ocultar todos los paneles de contenido del solicitante
   document.querySelectorAll('.solic-panel-content').forEach(panel => {

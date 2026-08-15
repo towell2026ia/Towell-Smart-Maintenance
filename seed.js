@@ -21,12 +21,33 @@ const DEFAULT_MACHINES = [
 ];
 
 const DEFAULT_PARTS = [
-  { id: 'R-01', name: 'Rodamiento SKF 6204', category: 'Mecánica', stock: 15, minStock: 5, cost: 25 },
-  { id: 'R-02', name: 'Banda Dentada Gates', category: 'Transmisión', stock: 8, minStock: 3, cost: 45 },
-  { id: 'R-03', name: 'Sensor Óptico Keyence', category: 'Electrónica', stock: 3, minStock: 2, cost: 120 },
-  { id: 'R-04', name: 'Aceite Sintético Mobil (L)', category: 'Lubricación', stock: 25, minStock: 8, cost: 15 },
-  { id: 'R-05', name: 'Resistencia Eléctrica 2000W', category: 'Eléctrica', stock: 2, minStock: 2, cost: 85 },
-  { id: 'R-06', name: 'Válvula Neumática Festo', category: 'Neumática', stock: 4, minStock: 2, cost: 110 }
+  { id: 'R-01', code: 'R-01', name: 'Rodamiento SKF 6204', category: 'Mecánica', stock: 15, minStock: 5, cost: 450 },
+  { id: 'R-02', code: 'R-02', name: 'Banda Dentada Gates 1500', category: 'Transmisión', stock: 8, minStock: 3, cost: 680 },
+  { id: 'R-03', code: 'R-03', name: 'Sensor Óptico Keyence PZ-V31', category: 'Electrónica', stock: 5, minStock: 2, cost: 2450 },
+  { id: 'R-04', code: 'R-04', name: 'Aceite Sintético Mobil DTE (L)', category: 'Lubricación', stock: 35, minStock: 10, cost: 220 },
+  { id: 'R-05', code: 'R-05', name: 'Resistencia Eléctrica Industrial 2000W', category: 'Eléctrica', stock: 4, minStock: 2, cost: 1850 },
+  { id: 'R-06', code: 'R-06', name: 'Válvula Neumática Solenoide Festo', category: 'Neumática', stock: 6, minStock: 2, cost: 1980 },
+  { id: 'R-07', code: 'R-07', name: 'Servomotor Panasonic 750W', category: 'Electrónica', stock: 2, minStock: 1, cost: 5800 },
+  { id: 'R-08', code: 'R-08', name: 'Freno Doble de Laminilla AOA3S603', category: 'Mecánica', stock: 3, minStock: 1, cost: 1429.42 },
+  { id: 'R-09', code: 'R-09', name: 'Relevador Finder 120V AC 8A 46.52', category: 'Eléctrica', stock: 12, minStock: 4, cost: 110.70 },
+  { id: 'R-10', code: 'R-10', name: 'Aguja Groz-Beckert DBx1 (Caja x100)', category: 'Costura', stock: 20, minStock: 5, cost: 560 },
+  { id: 'R-11', code: 'R-11', name: 'Guía de Trama para Telar', category: 'Tejido', stock: 10, minStock: 3, cost: 54.50 },
+  { id: 'R-12', code: 'R-12', name: 'Malla de Gasa de Vuelta 39cm', category: 'Tejido', stock: 14, minStock: 4, cost: 75.00 },
+  { id: 'R-13', code: 'R-13', name: 'Sello Mecánico Bomba Jet Thies', category: 'Tintorería', stock: 4, minStock: 2, cost: 3200 },
+  { id: 'R-14', code: 'R-14', name: 'Filtro de Aire Compresor Ingersoll', category: 'Planta', stock: 8, minStock: 2, cost: 890 }
+];
+
+const DEFAULT_REFACCIONES_POR_MAQUINA = [
+  { maquina_id: 'M-101', codigo_articulo: 'R-01', nombre_articulo: 'Rodamiento SKF 6204', precio_costo_unitario: 450, cantidad_estandar: 2 },
+  { maquina_id: 'M-101', codigo_articulo: 'R-02', nombre_articulo: 'Banda Dentada Gates 1500', precio_costo_unitario: 680, cantidad_estandar: 1 },
+  { maquina_id: 'M-101', codigo_articulo: 'R-07', nombre_articulo: 'Servomotor Panasonic 750W', precio_costo_unitario: 5800, cantidad_estandar: 1 },
+  { maquina_id: 'M-201', codigo_articulo: 'R-10', nombre_articulo: 'Aguja Groz-Beckert DBx1 (Caja x100)', precio_costo_unitario: 560, cantidad_estandar: 1 },
+  { maquina_id: 'M-201', codigo_articulo: 'R-04', nombre_articulo: 'Aceite Sintético Mobil DTE (L)', precio_costo_unitario: 220, cantidad_estandar: 1 },
+  { maquina_id: 'M-301', codigo_articulo: 'R-13', nombre_articulo: 'Sello Mecánico Bomba Jet Thies', precio_costo_unitario: 3200, cantidad_estandar: 1 },
+  { maquina_id: 'M-301', codigo_articulo: 'R-05', nombre_articulo: 'Resistencia Eléctrica Industrial 2000W', precio_costo_unitario: 1850, cantidad_estandar: 2 },
+  { maquina_id: 'M-301', codigo_articulo: 'R-06', nombre_articulo: 'Válvula Neumática Solenoide Festo', precio_costo_unitario: 1980, cantidad_estandar: 1 },
+  { maquina_id: 'M-401', codigo_articulo: 'R-14', nombre_articulo: 'Filtro de Aire Compresor Ingersoll', precio_costo_unitario: 890, cantidad_estandar: 1 },
+  { maquina_id: 'M-401', codigo_articulo: 'R-04', nombre_articulo: 'Aceite Sintético Mobil DTE (L)', precio_costo_unitario: 220, cantidad_estandar: 5 }
 ];
 
 const DEFAULT_REQUESTS = [
@@ -220,6 +241,9 @@ function initLocalStorage() {
   }
   if (!localStorage.getItem('TSMAI_parts')) {
     localStorage.setItem('TSMAI_parts', JSON.stringify(DEFAULT_PARTS));
+  }
+  if (!localStorage.getItem('TSMAI_refacciones_por_maquina')) {
+    localStorage.setItem('TSMAI_refacciones_por_maquina', JSON.stringify(DEFAULT_REFACCIONES_POR_MAQUINA));
   }
   if (!localStorage.getItem('TSMAI_requests')) {
     localStorage.setItem('TSMAI_requests', JSON.stringify(DEFAULT_REQUESTS));
