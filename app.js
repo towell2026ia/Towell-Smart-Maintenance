@@ -3160,10 +3160,101 @@ function switchAdminPanel(panelId) {
       renderAdminRespChk();
     } else if (activeAdminPanel === 'excel') {
       renderExcelHistoryTable();
+    } else if (activeAdminPanel === 'config') {
+      renderAdminConfig();
     }
   } catch (err) {
     console.error(`[AdminPanel] Error al renderizar ${activeAdminPanel}:`, err);
   }
+}
+
+// ============================================================================
+// PANEL DE CONFIGURACIÓN Y PERFIL DE USUARIO (SOLO LECTURA)
+// ============================================================================
+function renderAdminConfig() {
+  if (!currentUser) {
+    const savedUser = sessionStorage.getItem('TSMAI_current_user') || localStorage.getItem('TSMAI_current_user');
+    if (savedUser) {
+      try { currentUser = JSON.parse(savedUser); } catch (e) {}
+    }
+  }
+
+  const u = currentUser || {};
+
+  // 1. Nombre completo
+  const nameVal = u.name || u.nombre_completo || u.nombre || 'Usuario del Sistema';
+
+  // 2. Número (clave de empleado, clave de técnico, teléfono o ID)
+  let numVal = u.cve_empleado || u.cve_tecnico || u.telefono || u.id;
+  if (!numVal && u.uuid) {
+    numVal = String(u.uuid).substring(0, 8).toUpperCase();
+  }
+  if (!numVal || numVal === 'undefined') {
+    numVal = 'No asignado';
+  }
+
+  // 3. Tipo de usuario / Rol
+  const rawRole = String(u.rol || u.role || '').toUpperCase().trim();
+  let roleLabel = 'Super Administrador';
+  let badgeLabel = 'ADMIN';
+  let badgeColor = '#2563eb';
+  let avatarIcon = '👑';
+
+  if (rawRole.includes('SUPER') || rawRole === 'ADMIN') {
+    roleLabel = '👑 Super Administrador';
+    badgeLabel = 'SUPER ADMIN';
+    badgeColor = '#6366f1';
+    avatarIcon = '👑';
+  } else if (rawRole.includes('MANTENIMIENTO') || rawRole.includes('TECH') || rawRole.includes('TECNICO')) {
+    roleLabel = '🛠️ Personal Técnico de Mantenimiento';
+    badgeLabel = 'TÉCNICO';
+    badgeColor = '#0284c7';
+    avatarIcon = '👨‍🔧';
+  } else if (rawRole.includes('SOLICITANTE')) {
+    const area = u.area || 'Planta';
+    roleLabel = `📨 Solicitante de Mantenimiento (${area})`;
+    badgeLabel = 'SOLICITANTE';
+    badgeColor = '#059669';
+    avatarIcon = '📨';
+  } else if (rawRole.includes('SUPERVISOR')) {
+    roleLabel = '👔 Supervisor de Área';
+    badgeLabel = 'SUPERVISOR';
+    badgeColor = '#d97706';
+    avatarIcon = '👔';
+  } else if (rawRole) {
+    roleLabel = rawRole;
+    badgeLabel = rawRole;
+  }
+
+  // 4. Correo
+  const emailVal = u.email || u.correo || 'correo@towell.com.mx';
+
+  // Asignar en los elementos de la vista
+  const elHeaderName = document.getElementById('config-user-name-header');
+  const elHeaderEmail = document.getElementById('config-user-email-header');
+  const elHeaderBadge = document.getElementById('config-user-badge-header');
+  const elHeaderAvatar = document.getElementById('config-user-avatar');
+
+  const elFieldNombre = document.getElementById('config-field-nombre');
+  const elFieldNumero = document.getElementById('config-field-numero');
+  const elFieldTipo = document.getElementById('config-field-tipo');
+  const elFieldCorreo = document.getElementById('config-field-correo');
+
+  if (elHeaderName) elHeaderName.innerText = nameVal;
+  if (elHeaderEmail) elHeaderEmail.innerText = emailVal;
+  if (elHeaderBadge) {
+    elHeaderBadge.innerText = badgeLabel;
+    elHeaderBadge.style.background = badgeColor;
+  }
+  if (elHeaderAvatar) elHeaderAvatar.innerText = avatarIcon;
+
+  if (elFieldNombre) elFieldNombre.innerText = nameVal;
+  if (elFieldNumero) elFieldNumero.innerText = numVal;
+  if (elFieldTipo) {
+    elFieldTipo.innerText = roleLabel;
+    elFieldTipo.style.color = badgeColor;
+  }
+  if (elFieldCorreo) elFieldCorreo.innerText = emailVal;
 }
 
 // ============================================================================

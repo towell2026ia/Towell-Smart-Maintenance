@@ -44,11 +44,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.3.8"></script>
+  <script src="config.js?v=3.3.9"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.3.8">
+  <link rel="stylesheet" href="style.css?v=3.3.9">
 </head>
 <body>
 
@@ -1361,31 +1361,83 @@
           </div>
         </div>
 
-        <!-- Panel Admin 11: Configuración -->
+        <!-- Panel Admin: Configuración y Cuenta de Usuario (Solo Lectura) -->
         <div id="panel-admin-config" class="admin-panel-content" style="display: none;">
-          <div style="background-color: white; padding: 24px; border-radius: var(--border-radius); border: 1px solid #cbd5e1; display: flex; flex-direction: column; gap: 20px;">
-            <h3 style="font-weight: 700; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">Parámetros Generales de TSM-AI</h3>
+          <div style="max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px;">
             
-            <div class="form-grid">
-              <div class="form-group">
-                <label>Nomenclatura Automática de OT</label>
-                <input type="text" class="form-control" value="TIPO-ÁREA-AÑO-CONSECUTIVO" disabled>
-                <span style="font-size: 0.75rem; color: var(--text-muted);">Ej. MC-PF-2026-0001</span>
+            <!-- Tarjeta Principal de Configuración / Perfil -->
+            <div style="background: white; padding: 24px 28px; border-radius: var(--border-radius); border: 1px solid #e2e8f0; box-shadow: var(--shadow-sm);">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px; margin-bottom: 20px;">
+                <div>
+                  <h3 style="font-weight: 800; font-size: 1.3rem; color: var(--primary-dark); margin: 0;">⚙️ Configuración & Cuenta de Usuario</h3>
+                  <p style="color: var(--text-muted); font-size: 0.88rem; margin: 4px 0 0;">Información del usuario autenticado en la plataforma (Modo Consulta - Solo Lectura).</p>
+                </div>
+                <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;">
+                  🔒 Solo Lectura
+                </span>
               </div>
-              <div class="form-group">
-                <label>Meta de Cumplimiento Preventivo (%)</label>
-                <input type="number" class="form-control" value="95">
+
+              <!-- Tarjeta de Identidad de Usuario -->
+              <div style="display: flex; align-items: center; gap: 20px; padding: 18px 20px; background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 12px; color: white; margin-bottom: 24px;">
+                <div id="config-user-avatar" style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255, 255, 255, 0.15); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; border: 2px solid rgba(255, 255, 255, 0.3); flex-shrink: 0;">
+                  👤
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <h4 id="config-user-name-header" style="font-size: 1.15rem; font-weight: 800; margin: 0; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Usuario</h4>
+                    <span id="config-user-badge-header" style="background: #2563eb; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;">ADMIN</span>
+                  </div>
+                  <p id="config-user-email-header" style="font-size: 0.85rem; color: #94a3b8; margin: 4px 0 0; word-break: break-all;">usuario@towell.com.mx</p>
+                </div>
               </div>
-              <div class="form-group">
-                <label>Tiempo Límite para Atención Crítica (Horas)</label>
-                <input type="number" class="form-control" value="2">
+
+              <!-- Grid de Datos del Usuario (Únicamente 4 campos solicitados: Nombre, Número, Tipo de Usuario, Correo) -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                
+                <!-- 1. Nombre -->
+                <div style="background: #f8fafc; padding: 16px 18px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                  <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">👤 Nombre Completo</label>
+                  <div id="config-field-nombre" style="font-size: 1rem; font-weight: 700; color: var(--primary-dark); word-break: break-word;">
+                    —
+                  </div>
+                </div>
+
+                <!-- 2. Número -->
+                <div style="background: #f8fafc; padding: 16px 18px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                  <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">🔢 Número / Clave de Empleado</label>
+                  <div id="config-field-numero" style="font-size: 1rem; font-weight: 700; color: var(--primary-dark); font-family: monospace;">
+                    —
+                  </div>
+                </div>
+
+                <!-- 3. Tipo de Usuario -->
+                <div style="background: #f8fafc; padding: 16px 18px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                  <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">🛡️ Tipo de Usuario</label>
+                  <div id="config-field-tipo" style="font-size: 1rem; font-weight: 700; color: #2563eb;">
+                    —
+                  </div>
+                </div>
+
+                <!-- 4. Correo -->
+                <div style="background: #f8fafc; padding: 16px 18px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                  <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">✉️ Correo Electrónico</label>
+                  <div id="config-field-correo" style="font-size: 1rem; font-weight: 700; color: var(--primary-dark); word-break: break-all;">
+                    —
+                  </div>
+                </div>
+
               </div>
-              <div class="form-group">
-                <label>Alertas por Frecuencia de Falla Crítica (Mensual)</label>
-                <input type="number" class="form-control" value="5">
+
+              <!-- Nota Informativa de Seguridad -->
+              <div style="margin-top: 20px; padding: 12px 16px; background: #eff6ff; border-radius: 8px; border-left: 4px solid #3b82f6; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.2rem;">ℹ️</span>
+                <span style="font-size: 0.82rem; color: #1e40af; line-height: 1.4;">
+                  Esta pantalla es de solo lectura. Los datos de la cuenta están administrados institucionalmente por el control de accesos de planta.
+                </span>
               </div>
+
             </div>
-            
+
           </div>
         </div>
 
@@ -4899,10 +4951,10 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.3.8"></script>
-  <script src="agents-client.js?v=3.3.8"></script>
-  <script src="app.js?v=3.3.8"></script>
-  <script src="dashboard.js?v=3.3.8"></script>
+  <script src="seed.js?v=3.3.9"></script>
+  <script src="agents-client.js?v=3.3.9"></script>
+  <script src="app.js?v=3.3.9"></script>
+  <script src="dashboard.js?v=3.3.9"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
