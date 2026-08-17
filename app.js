@@ -2918,8 +2918,36 @@ async function handleLoginSubmit(event) {
     return;
   }
 
-  // 3. Si no existe en la base de datos real
-  alert('Credenciales incorrectas. El correo (' + email + ') no se encuentra registrado en el sistema.');
+  // 3. Si la autenticación falló, diagnosticar la causa exacta para dar un mensaje claro
+  if (supabaseClient) {
+    try {
+      const { data: existingUser } = await supabaseClient
+        .from('cat_usuarios_roles')
+        .select('nombre_completo, correo, rol, activo, debe_cambiar_contrasenia')
+        .eq('correo', email)
+        .maybeSingle();
+
+      if (existingUser) {
+        if (existingUser.activo === false) {
+          alert(`⛔ Acceso Denegado\n\nLa cuenta de ${existingUser.nombre_completo} (${email}) se encuentra desactivada en el sistema.\nContacta al administrador si requieres reactivarla.`);
+          return;
+        }
+
+        if (existingUser.debe_cambiar_contrasenia) {
+          alert(`🔑 Contraseña Pendiente\n\nEl usuario ${existingUser.nombre_completo} está registrado, pero aún no has establecido tu contraseña.\n\nPor favor haz clic en "¿Olvidaste tu contraseña?" para recibir un enlace en tu correo y definir tu clave de acceso.`);
+          return;
+        }
+
+        alert(`❌ Contraseña Incorrecta\n\nLa contraseña ingresada para ${existingUser.nombre_completo} (${email}) no es correcta.\n\nSi no recuerdas tu contraseña, haz clic en "¿Olvidaste tu contraseña?" abajo para restablecerla.`);
+        return;
+      }
+    } catch (e) {
+      console.warn('[Login Error Diagnostic]', e);
+    }
+  }
+
+  // Si realmente no existe en la base de datos
+  alert(`⚠️ Correo No Registrado\n\nEl correo (${email}) no se encuentra registrado en el sistema.\n\nVerifica que esté escrito correctamente o solicita a tu administrador que dé de alta tu usuario.`);
 }
 
 function logout() {
@@ -11514,10 +11542,12 @@ async function resetAdminUserPassword(userId) {
     showToast('📧 Enviando correo de restablecimiento...');
 
     // 1. Marcar en cat_usuarios_roles que debe cambiar contraseña
-    await supabaseClient
-      .from('cat_usuarios_roles')
-      .update({ debe_cambiar_contrasenia: true, fecha_actualizacion: new Date().toISOString() })
-      .eq('id_usuario', userId);
+    const updatePayload = { debe_cambiar_contrasenia: true, fecha_actualizacion: new Date().toISOString() };
+    if (user.id_usuario && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id_usuario)) {
+      await supabaseClient.from('cat_usuarios_roles').update(updatePayload).eq('id_usuario', user.id_usuario);
+    } else {
+      await supabaseClient.from('cat_usuarios_roles').update(updatePayload).eq('correo', correoDestino);
+    }
 
     // 2. Enviar correo real via Supabase Auth (resetPasswordForEmail)
     const { error: resetErr } = await supabaseClient.auth.resetPasswordForEmail(correoDestino, {

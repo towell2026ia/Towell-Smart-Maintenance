@@ -1,4 +1,4 @@
-﻿// supabase/functions/invite-user/index.ts
+// supabase/functions/invite-user/index.ts
 // Edge Function: Invitar usuario nuevo a TSM-AI via Supabase Auth Admin API
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -50,6 +50,19 @@ Deno.serve(async (req) => {
     });
 
     if (error) {
+      // Si el usuario ya existe en Auth, enviarle enlace de restablecimiento / acceso
+      if (error.message?.toLowerCase().includes('already') || error.message?.toLowerCase().includes('registered')) {
+        const { error: resetErr } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+          redirectTo: redirectTo || "https://tsmail-towell.netlify.app"
+        });
+        if (!resetErr) {
+          return new Response(JSON.stringify({ success: true, message: "Usuario existente en Auth; correo de acceso enviado exitosamente." }), {
+            status: 200,
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": corsOrigin }
+          });
+        }
+      }
+
       return new Response(JSON.stringify({ error: error.message }), {
         status: 400,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": corsOrigin }
