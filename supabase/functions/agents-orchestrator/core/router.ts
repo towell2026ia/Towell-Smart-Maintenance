@@ -33,7 +33,9 @@ const STATIC_EVENT_CATALOG: Record<string, EventCatalogEntry> = {
   'ANALISIS_CAUSA_RAIZ_SOLICITADO': { event_code: 'ANALISIS_CAUSA_RAIZ_SOLICITADO', nombre_evento: 'Solicitud de análisis causa raíz', agent_id_destino: 'AG-010', es_conocido: true, datos_requeridos: ['maquina_id', 'falla_id'] },
   'MEMORIA_TECNICA_REGISTRAR': { event_code: 'MEMORIA_TECNICA_REGISTRAR', nombre_evento: 'Registro de memoria técnica de reparación', agent_id_destino: 'AG-011', es_conocido: true, datos_requeridos: ['maquina_id', 'diagnostico'] },
   'EVALUACION_CICLO_VIDA': { event_code: 'EVALUACION_CICLO_VIDA', nombre_evento: 'Evaluación de reparar, renovar o reemplazar', agent_id_destino: 'AG-012', es_conocido: true, datos_requeridos: ['maquina_id'] },
-  'BAD_ACTOR_DETECTADO': { event_code: 'BAD_ACTOR_DETECTADO', nombre_evento: 'Detección de activo con desempeño crítico', agent_id_destino: 'AG-013', es_conocido: true, datos_requeridos: ['maquina_id'] },
+  'PREVENTIVE_SCHEDULE_ITEM': { event_code: 'PREVENTIVE_SCHEDULE_ITEM', nombre_evento: 'Ítem de programación preventiva anual', agent_id_destino: 'AG-009.1', es_conocido: true, datos_requeridos: ['machine_id', 'service_code', 'scheduled_date'] },
+  'AUTONOMOUS_SCHEDULE_ITEM': { event_code: 'AUTONOMOUS_SCHEDULE_ITEM', nombre_evento: 'Ítem de rutina autónoma semanal', agent_id_destino: 'AG-009.2', es_conocido: true, datos_requeridos: ['machine_id', 'week_reference', 'scheduled_date'] },
+  'AUTONOMO_EJECUTAR': { event_code: 'AUTONOMO_EJECUTAR', nombre_evento: 'Ejecución de rutina de mantenimiento autónomo', agent_id_destino: 'AG-009.2', es_conocido: true, datos_requeridos: ['machine_id', 'week_reference', 'responses'] },
   'TEXTO_AMBIGUO': { event_code: 'TEXTO_AMBIGUO', nombre_evento: 'Texto libre que requiere interpretación del Capataz (IA)', agent_id_destino: 'AG-001', es_conocido: false, datos_requeridos: ['texto'] }
 };
 

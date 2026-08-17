@@ -1,0 +1,33 @@
+{
+  "machines_catalog": [
+    { "equipo_towell": "TELAR-01", "departamento_codigo": "PF", "area": "Producción", "activo": true, "criticidad": "A" },
+    { "equipo_towell": "COS-OVER-03", "departamento_codigo": "CF", "area": "Costura", "activo": true, "criticidad": "B" },
+    { "equipo_towell": "JET-02", "departamento_codigo": "TF", "area": "Tintorería", "activo": true, "criticidad": "A" },
+    { "equipo_towell": "COMP-01", "departamento_codigo": "AF", "area": "Servicios Auxiliares", "activo": true, "criticidad": "B" },
+    { "equipo_towell": "TELAR-INACTIVO", "departamento_codigo": "PF", "area": "Producción", "activo": false, "criticidad": "C" }
+  ],
+  "existing_surveys": [
+    {
+      "survey_id": "LEV-AUT-TELAR-01-W33-2026",
+      "machine_id": "TELAR-01",
+      "week_reference": 33,
+      "year": 2026,
+      "calendar_reference": "CAL-AUT-2026-W33-TELAR-01",
+      "status": "EJECUTADO"
+    }
+  ],
+  "standard_five_blocks_clean": [
+    { "item_code": "VIB-01", "block": "Vibración", "question_text": "Medición de vibración en chumacera principal", "response_type": "NUMERIC", "value": 3.2, "unit": "mm/s", "reference_max": 7.0, "required": true },
+    { "item_code": "LIM-01", "block": "Limpieza", "question_text": "Limpieza general de cabezal y guías de hilo", "response_type": "YES_NO", "value": "SI", "required": true },
+    { "item_code": "LUB-01", "block": "Lubricación", "question_text": "Nivel de lubricante y presión de bomba", "response_type": "NUMERIC", "value": 55.0, "unit": "PSI", "reference_min": 30.0, "reference_max": 100.0, "required": true },
+    { "item_code": "TMP-01", "block": "Temperatura", "question_text": "Temperatura de operación de motor principal", "response_type": "NUMERIC", "value": 52.0, "unit": "°C", "reference_max": 70.0, "required": true },
+    { "item_code": "CAB-01", "block": "Cableado", "question_text": "Inspección de canaletas, cables y conectores", "response_type": "YES_NO", "value": "SI", "required": true }
+  ],
+  "standard_five_blocks_with_findings": [
+    { "item_code": "VIB-01", "block": "Vibración", "question_text": "Medición de vibración en chumacera principal", "response_type": "NUMERIC", "value": 8.8, "unit": "mm/s", "reference_max": 7.0, "required": true },
+    { "item_code": "LIM-01", "block": "Limpieza", "question_text": "Limpieza general de cabezal y guías de hilo", "response_type": "YES_NO", "value": "NO", "required": true },
+    { "item_code": "LUB-01", "block": "Lubricación", "question_text": "Nivel de lubricante y presión de bomba", "response_type": "NUMERIC", "value": 15.0, "unit": "PSI", "reference_min": 30.0, "reference_max": 100.0, "required": true },
+    { "item_code": "TMP-01", "block": "Temperatura", "question_text": "Temperatura de operación de motor principal", "response_type": "NUMERIC", "value": 85.5, "unit": "°C", "reference_max": 70.0, "required": true },
+    { "item_code": "CAB-01", "block": "Cableado", "question_text": "Inspección de canaletas, cables y conectores", "response_type": "YES_NO", "value": "NO", "required": true }
+  ]
+}

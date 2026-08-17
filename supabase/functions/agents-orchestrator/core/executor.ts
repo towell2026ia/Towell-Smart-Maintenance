@@ -358,13 +358,13 @@ export async function executeAgentFlow(
       });
     }
 
-    // If target is AG-009 or AG-009.1 (Conector Preventivo), execute integration specialist
+    // If target is AG-009 family (AG-009, AG-009.1 Conector Preventivo, AG-009.2 Conector Autónomo), execute integration specialist
     let ag009Result = null;
-    if (route.agent_id === 'AG-009' || route.agent_id === 'AG-009.1') {
+    if (route.agent_id === 'AG-009' || route.agent_id === 'AG-009.1' || route.agent_id === 'AG-009.2') {
       ag009Result = await executeAG009(supabase, eventCode, cleanedPayload, corrId);
       await logExecutionRecord(supabase, {
         correlation_id: corrId,
-        agent_id: ag009Result.agent_id || 'AG-009.1',
+        agent_id: ag009Result.agent_id || route.agent_id || 'AG-009.2',
         execution_type: 'AGENT_EXECUTION',
         provider: 'none',
         model: 'none',
