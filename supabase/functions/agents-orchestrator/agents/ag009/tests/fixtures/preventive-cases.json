@@ -1,0 +1,32 @@
+{
+  "machines": [
+    { "equipo_towell": "COS-01", "departamento_codigo": "CF", "activo": true, "criticidad": "A" },
+    { "equipo_towell": "COS-02", "departamento_codigo": "CF", "activo": true, "criticidad": "B" },
+    { "equipo_towell": "TIN-01", "departamento_codigo": "TF", "activo": true, "criticidad": "A" },
+    { "equipo_towell": "JET-01", "departamento_codigo": "TF", "activo": true, "criticidad": "B" },
+    { "equipo_towell": "TEJ-01", "departamento_codigo": "PF", "activo": true, "criticidad": "C" },
+    { "equipo_towell": "COMP-01", "departamento_codigo": "AF", "activo": true, "criticidad": "A" },
+    { "equipo_towell": "CHIL-01", "departamento_codigo": "AF", "activo": true, "criticidad": "B" },
+    { "equipo_towell": "INACTIVA-01", "departamento_codigo": "PF", "activo": false, "criticidad": "C" }
+  ],
+  "services": [
+    { "codigo_servicio": "SRV-LUBI-01", "nombre_servicio": "Servicio de Lubricación General", "tipo_servicio": "Preventivo", "activo": true, "duracion_estimada_min": 60 },
+    { "codigo_servicio": "SRV-ELECT-01", "nombre_servicio": "Inspección de Tableros Eléctricos", "tipo_servicio": "Preventivo", "activo": true, "duracion_estimada_min": 90 },
+    { "codigo_servicio": "SRV-MEC-01", "nombre_servicio": "Ajuste y Alineación Mecánica", "tipo_servicio": "Preventivo", "activo": true, "duracion_estimada_min": 120 },
+    { "codigo_servicio": "SRV-INACTIVO-01", "nombre_servicio": "Servicio Descontinuado", "tipo_servicio": "Preventivo", "activo": false, "duracion_estimada_min": 30 },
+    { "codigo_servicio": "SRV-SIN-CHECKLIST", "nombre_servicio": "Servicio Sin Checklist Definido", "tipo_servicio": "Preventivo", "activo": true, "duracion_estimada_min": 45 }
+  ],
+  "checklists": [
+    { "id_checklist": "CHK-001", "codigo_servicio": "SRV-LUBI-01", "codigo_pregunta": "P01", "pregunta": "Verificar nivel de aceite de transmisión", "tipo_respuesta": "si_no", "obligatorio": true, "orden": 1, "activo": true },
+    { "id_checklist": "CHK-002", "codigo_servicio": "SRV-LUBI-01", "codigo_pregunta": "P02", "pregunta": "Engrasar chumaceras de rodillos principales", "tipo_respuesta": "si_no", "obligatorio": true, "orden": 2, "activo": true },
+    { "id_checklist": "CHK-003", "codigo_servicio": "SRV-LUBI-01", "codigo_pregunta": "P03", "pregunta": "Registrar presión de lubricador neumático (PSI)", "tipo_respuesta": "numerico", "obligatorio": true, "orden": 3, "activo": true },
+    { "id_checklist": "CHK-004", "codigo_servicio": "SRV-ELECT-01", "codigo_pregunta": "P01", "pregunta": "Termografía de contactores principales", "tipo_respuesta": "si_no", "obligatorio": true, "orden": 1, "activo": true },
+    { "id_checklist": "CHK-005", "codigo_servicio": "SRV-ELECT-01", "codigo_pregunta": "P02", "pregunta": "Reapriete de borneras y clemas", "tipo_respuesta": "si_no", "obligatorio": true, "orden": 2, "activo": true },
+    { "id_checklist": "CHK-006", "codigo_servicio": "SRV-MEC-01", "codigo_pregunta": "P01", "pregunta": "Revisar tensión de bandas y poleas", "tipo_respuesta": "si_no", "obligatorio": true, "orden": 1, "activo": true }
+  ],
+  "existingOrders": [
+    { "id_orden": "ORD-001", "folio": "CF00010", "maquina_id": "COS-01", "fecha_inicio": "2026-03-15", "estatus": "Ejecutada", "tipo_orden": "Preventivo" },
+    { "id_orden": "ORD-002", "folio": "PF00020", "maquina_id": "TEJ-01", "fecha_inicio": "2025-05-10", "estatus": "Cerrada", "tipo_orden": "Preventivo" },
+    { "id_orden": "ORD-003", "folio": "TF00030", "maquina_id": "TIN-01", "fecha_inicio": "2026-01-20", "estatus": "Cancelada", "tipo_orden": "Preventivo" }
+  ]
+}
