@@ -1818,47 +1818,12 @@ function showView(viewId) {
     try { renderAdminFormsList(); } catch(e) {}
     try { renderAdminUsersTable(); } catch(e) {}
     try { updateRequestsBadge(); } catch(e) {}
-
-    // Sincronización en segundo plano para actualizar datos en tiempo real sin bloquear la interfaz
-    if (supabaseClient) {
-      syncDatabases().then(() => {
-        const adminView = document.getElementById('view-admin');
-        if (adminView && adminView.classList.contains('active')) {
-          try { renderAdminDashboard(); } catch(e) {}
-          try { updateAdminKPIs(); } catch(e) {}
-          try { renderAdminRequestsTable(); } catch(e) {}
-          try { renderAdminOrdersTable(); } catch(e) {}
-          try { renderAdminCalendar(); } catch(e) {}
-          try { renderAdminLogsTable(); } catch(e) {}
-          try { renderAdminMachinesTable(); } catch(e) {}
-          try { renderAdminPartsTable(); } catch(e) {}
-          try { renderAdminFormsList(); } catch(e) {}
-          try { renderAdminUsersTable(); } catch(e) {}
-          try { updateRequestsBadge(); } catch(e) {}
-        }
-      }).catch(err => console.error('Error in background sync for admin view:', err));
-    }
   } else if (viewId === 'tech') {
     renderTechDashboard();
     renderTechOrdersTable();
     renderTechChecklistsTable();
     renderTechBitacora();
     populateTechMachineHistorySelect();
-
-    // Sincronización en segundo plano para actualizar datos en tiempo real sin bloquear la interfaz
-    if (supabaseClient) {
-      syncDatabases().then(() => {
-        // Solo volver a renderizar si seguimos en la vista de tech
-        const techView = document.getElementById('view-tech');
-        if (techView && techView.classList.contains('active')) {
-          renderTechDashboard();
-          renderTechOrdersTable();
-          renderTechChecklistsTable();
-          renderTechBitacora();
-          populateTechMachineHistorySelect();
-        }
-      }).catch(err => console.error('Error in background sync for tech view:', err));
-    }
   } else if (viewId === 'solicitante') {
     renderSolicitanteView();
   }
@@ -2763,54 +2728,80 @@ async function quickLogin(role, techId) {
 
 async function handleLoginSubmit(event) {
   if (event) event.preventDefault();
-  
-  const isSplitActive = document.getElementById('split-form-login') && document.getElementById('split-form-login').style.display !== 'none';
-  
-  const roleInput = document.getElementById('login-role-target');
-  const role = roleInput ? roleInput.value : 'users';
-  
+
+  const submitBtn = event?.target?.querySelector?.('button[type="submit"]') || 
+                    document.querySelector('#split-form-login button[type="submit"]') ||
+                    document.querySelector('#form-login button[type="submit"]');
+  let origBtnText = '';
+  if (submitBtn) {
+    origBtnText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '⏳ Verificando...';
+  }
+
+  const resetBtn = () => {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = origBtnText || 'Ingresar';
+    }
+  };
+
   let email = '';
   let password = '';
-  
-  if (isSplitActive) {
-    const splitEmail = document.getElementById('split-login-email');
-    const splitPass = document.getElementById('split-login-password');
-    email = splitEmail ? splitEmail.value.trim().toLowerCase() : '';
-    password = splitPass ? splitPass.value.trim() : '';
+
+  const splitEmail = document.getElementById('split-login-email');
+  const splitPass = document.getElementById('split-login-password');
+  const origEmail = document.getElementById('login-email');
+  const origPass = document.getElementById('login-password');
+
+  if (splitEmail && splitEmail.value.trim()) {
+    email = splitEmail.value.trim().toLowerCase();
+  } else if (origEmail && origEmail.value.trim()) {
+    email = origEmail.value.trim().toLowerCase();
   }
-  
-  if (!email) {
-    const origEmail = document.getElementById('login-email');
-    email = origEmail ? origEmail.value.trim().toLowerCase() : '';
+
+  if (splitPass && splitPass.value.trim()) {
+    password = splitPass.value.trim();
+  } else if (origPass && origPass.value.trim()) {
+    password = origPass.value.trim();
   }
-  if (!password) {
-    const origPass = document.getElementById('login-password');
-    password = origPass ? origPass.value.trim() : '';
+
+  if (!email || !password) {
+    resetBtn();
+    alert('Por favor ingresa tu correo electrónico y contraseña.');
+    return;
   }
 
   let dbUser = null;
 
-  // 1. Intentar autenticación por Supabase Auth o consulta directa a la base de datos real
+  // 1. Autenticación oficial contra Supabase Auth
   if (supabaseClient) {
     try {
       showToast('Autenticando en base de datos real...');
-      
-      // Intentar signInWithPassword
+
       const { data: authData, error: authErr } = await supabaseClient.auth.signInWithPassword({ email, password });
-      
+
       if (!authErr && authData && authData.user) {
+        // Consultar el perfil en cat_usuarios_roles por correo (case-insensitive) o por UUID
         const { data, error } = await supabaseClient
           .from('cat_usuarios_roles')
           .select('*')
-          .eq('correo', email)
+          .ilike('correo', email)
           .maybeSingle();
+
         if (!error && data) {
           dbUser = data;
+        } else {
+          // Fallback por ID de usuario
+          const { data: dataById } = await supabaseClient
+            .from('cat_usuarios_roles')
+            .select('*')
+            .eq('id_usuario', authData.user.id)
+            .maybeSingle();
+          if (dataById) dbUser = dataById;
         }
       }
-      
-      // Si Auth falló, NO hacer fallback directo a cat_usuarios_roles sin verificar contraseña (brecha de seguridad)
-      // El usuario debe autenticarse siempre via Supabase Auth.
+
       if (!dbUser && authErr) {
         console.warn('[TSMAI] Auth fallido para:', email, authErr.message);
       }
@@ -2819,10 +2810,15 @@ async function handleLoginSubmit(event) {
     }
   }
 
-  // 2. Si el usuario existe en la base de datos real (Supabase)
+  // 2. Si el usuario existe y se autenticó exitosamente
   if (dbUser) {
-    useLiveDatabase = true;
+    if (dbUser.activo === false) {
+      resetBtn();
+      alert(`⛔ Acceso Denegado\n\nLa cuenta de ${dbUser.nombre_completo} (${email}) se encuentra desactivada.\nContacta al administrador.`);
+      return;
+    }
 
+    useLiveDatabase = true;
     const roleKey = normalizeUserRole(dbUser.rol);
 
     if (roleKey === 'admin') {
@@ -2839,13 +2835,14 @@ async function handleLoginSubmit(event) {
       persistSessionUser(currentUser);
       showToast(`Sesión iniciada como Admin: ${dbUser.nombre_completo}`);
       
-      // PRIMERO mostrar la vista para que el usuario vea la pantalla de inmediato
       const targetPanel = activeAdminPanel || 'dashboard';
       showView('admin');
       switchAdminPanel(targetPanel);
+      resetBtn();
 
-      // DESPUÉS sincronizar en segundo plano sin bloquear la interfaz
+      // Sincronización en segundo plano sin bloquear interfaz
       syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
+      return;
     } else if (roleKey === 'tech') {
       const techId = dbUser.cve_tecnico || dbUser.id_usuario;
       currentUser = { 
@@ -2871,13 +2868,13 @@ async function handleLoginSubmit(event) {
       if (pSpec) pSpec.innerText = dbUser.observaciones || 'General';
       if (pAvat) pAvat.innerText = '👨‍🔧';
       
-      // PRIMERO mostrar la vista
       const targetPanel = activeTechPanel || 'dashboard';
       showView('tech');
       switchTechPanel(targetPanel);
+      resetBtn();
 
-      // DESPUÉS sincronizar en segundo plano
       syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
+      return;
     } else if (roleKey === 'solicitante') {
       const userArea = (dbUser.area || dbUser.departamento_codigo || 'CF').toUpperCase().trim();
       currentUser = { 
@@ -2896,12 +2893,12 @@ async function handleLoginSubmit(event) {
       persistSessionUser(currentUser);
       showToast(`Sesión iniciada como Solicitante (${currentUser.area}): ${dbUser.nombre_completo}`);
       
-      // PRIMERO mostrar la vista
       showView('solicitante');
       switchSolicitantePanel('home');
+      resetBtn();
 
-      // DESPUÉS sincronizar en segundo plano
       syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
+      return;
     } else if (roleKey === 'public') {
       currentUser = { 
         role: 'public', 
@@ -2914,17 +2911,19 @@ async function handleLoginSubmit(event) {
       showToast(`Sesión iniciada: ${dbUser.nombre_completo}`);
       showView('public-portal');
       showPublicPanel('home');
+      resetBtn();
+      return;
     }
-    return;
   }
 
   // 3. Si la autenticación falló, diagnosticar la causa exacta para dar un mensaje claro
+  resetBtn();
   if (supabaseClient) {
     try {
       const { data: existingUser } = await supabaseClient
         .from('cat_usuarios_roles')
         .select('nombre_completo, correo, rol, activo, debe_cambiar_contrasenia')
-        .eq('correo', email)
+        .ilike('correo', email)
         .maybeSingle();
 
       if (existingUser) {
