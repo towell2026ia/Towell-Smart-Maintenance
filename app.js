@@ -1656,6 +1656,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   localStorage.removeItem('TSMAI_current_user');
   localStorage.removeItem('TSMAI_current_route');
 
+  // ── REGLA PWA: Si NO hay sesión en sessionStorage, SIEMPRE arrancar en Home (login) ──
+  // Esto cubre el caso de cerrar la ventana/app y volver a abrirla.
+  // Supabase Auth persiste su sesión en localStorage, así que la cerramos explícitamente
+  // para que el usuario SIEMPRE tenga que volver a ingresar sus credenciales.
+  if (!currentUser && supabaseClient) {
+    try {
+      await supabaseClient.auth.signOut();
+      console.log('[TSMAI] No hay sesión de pestaña. Supabase Auth cerrada para forzar re-login.');
+    } catch (e) {
+      console.warn('[TSMAI] signOut on init:', e);
+    }
+  }
+
   // Asegurar que el seed de datos esté cargado
   if (typeof initLocalStorage === 'function') {
     initLocalStorage();
@@ -1668,8 +1681,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Restaurar de inmediato la ruta/vista según el hash o el rol del usuario logueado
   restoreRouteFromHash();
 
-  // 2. En segundo plano: Validar/Sincronizar sesión con Supabase (sin desconectar al usuario)
-  if (supabaseClient) {
+  // 2. En segundo plano: Validar la sesión actual (solo si YA hay usuario en sessionStorage)
+  if (supabaseClient && currentUser) {
     try {
       const isRecoveryHash = window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('recovery'));
       if (pendingRecovery || isRecoveryHash) {
@@ -1678,73 +1691,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         showPublicPanel('home');
         triggerRecoveryUI();
       } else {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        const sessionEmail = session?.user?.email || currentUser?.email;
-        
+        // Solo validar que el usuario sigue activo en la BD, NO restaurar desde Supabase Auth
+        const sessionEmail = currentUser.email;
         if (sessionEmail) {
           useLiveDatabase = true;
           const { data: dbUser } = await supabaseClient
             .from('cat_usuarios_roles')
-            .select('*')
+            .select('activo')
             .eq('correo', sessionEmail)
-          .maybeSingle();
-        
-        if (dbUser) {
-          if (dbUser.activo === false) {
+            .maybeSingle();
+
+          if (dbUser && dbUser.activo === false) {
             console.warn('[TSMAI] Usuario inactivo en BD. Cerrando sesión...');
             logout();
             return;
           }
-          const roleKey = normalizeUserRole(dbUser.rol);
-          if (roleKey === 'admin') {
-            currentUser = { 
-              role: 'admin', 
-              rol: dbUser.rol, 
-              name: dbUser.nombre_completo, 
-              email: dbUser.correo, 
-              uuid: dbUser.id_usuario, 
-              id: dbUser.cve_tecnico || dbUser.id_usuario, 
-              cve_tecnico: dbUser.cve_tecnico, 
-              department: dbUser.departamento,
-              specialty: dbUser.observaciones || dbUser.departamento || 'Administrador'
-            };
-          } else if (roleKey === 'tech') {
-            const techId = dbUser.cve_tecnico || dbUser.id_usuario;
-            currentUser = { 
-              role: 'tech', 
-              rol: dbUser.rol, 
-              id: techId, 
-              cve_tecnico: dbUser.cve_tecnico, 
-              uuid: dbUser.id_usuario, 
-              name: dbUser.nombre_completo, 
-              email: dbUser.correo, 
-              specialty: dbUser.observaciones || dbUser.departamento || 'General', 
-              avatar: '👨‍🔧', 
-              department: dbUser.departamento 
-            };
-          } else if (roleKey === 'solicitante' || roleKey === 'public') {
-            currentUser = { 
-              role: 'solicitante', 
-              rol: dbUser.rol, 
-              name: dbUser.nombre_completo, 
-              email: dbUser.correo, 
-              uuid: dbUser.id_usuario,
-              area: dbUser.area || dbUser.departamento || 'CF'
-            };
-          }
-          persistSessionUser(currentUser);
-          restoreRouteFromHash();
         }
       }
-    }
     } catch (e) {
       console.warn('[TSMAI] Background session validation catch:', e);
     }
   }
   
-  if (useLiveDatabase && supabaseClient) {
-    await syncDatabases();
-    refreshActiveViewSilently();
+  if (useLiveDatabase && supabaseClient && currentUser) {
+    syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
   }
   
   // Registrar listeners de eventos
@@ -2836,9 +2806,6 @@ async function handleLoginSubmit(event) {
   // 2. Si el usuario existe en la base de datos real (Supabase)
   if (dbUser) {
     useLiveDatabase = true;
-    showToast('Conectado a Base de Datos Real de Planta.');
-    
-    await syncDatabases();
 
     const roleKey = normalizeUserRole(dbUser.rol);
 
@@ -2850,14 +2817,19 @@ async function handleLoginSubmit(event) {
         email: dbUser.correo,
         uuid: dbUser.id_usuario,
         cve_tecnico: dbUser.cve_tecnico,
+        cve_empleado: dbUser.cve_empleado,
         department: dbUser.departamento
       };
       persistSessionUser(currentUser);
       showToast(`Sesión iniciada como Admin: ${dbUser.nombre_completo}`);
       
+      // PRIMERO mostrar la vista para que el usuario vea la pantalla de inmediato
       const targetPanel = activeAdminPanel || 'dashboard';
       showView('admin');
       switchAdminPanel(targetPanel);
+
+      // DESPUÉS sincronizar en segundo plano sin bloquear la interfaz
+      syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
     } else if (roleKey === 'tech') {
       const techId = dbUser.cve_tecnico || dbUser.id_usuario;
       currentUser = { 
@@ -2865,6 +2837,7 @@ async function handleLoginSubmit(event) {
         rol: dbUser.rol,
         id: techId,
         cve_tecnico: dbUser.cve_tecnico,
+        cve_empleado: dbUser.cve_empleado,
         uuid: dbUser.id_usuario,
         name: dbUser.nombre_completo, 
         email: dbUser.correo,
@@ -2882,9 +2855,13 @@ async function handleLoginSubmit(event) {
       if (pSpec) pSpec.innerText = dbUser.observaciones || 'General';
       if (pAvat) pAvat.innerText = '👨‍🔧';
       
-      const targetPanel = activeTechPanel || 'orders';
+      // PRIMERO mostrar la vista
+      const targetPanel = activeTechPanel || 'dashboard';
       showView('tech');
       switchTechPanel(targetPanel);
+
+      // DESPUÉS sincronizar en segundo plano
+      syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
     } else if (roleKey === 'solicitante') {
       const userArea = (dbUser.area || dbUser.departamento_codigo || 'CF').toUpperCase().trim();
       currentUser = { 
@@ -2894,6 +2871,7 @@ async function handleLoginSubmit(event) {
         uuid: dbUser.id_usuario,
         name: dbUser.nombre_completo, 
         email: dbUser.correo,
+        cve_empleado: dbUser.cve_empleado,
         area: ['CF', 'PF', 'AF', 'TF'].includes(userArea) ? userArea : 'CF',
         department: dbUser.departamento || 'Operación',
         supervisor: dbUser.id_supervisor || null,
@@ -2902,8 +2880,12 @@ async function handleLoginSubmit(event) {
       persistSessionUser(currentUser);
       showToast(`Sesión iniciada como Solicitante (${currentUser.area}): ${dbUser.nombre_completo}`);
       
+      // PRIMERO mostrar la vista
       showView('solicitante');
-      switchSolicitantePanel('new');
+      switchSolicitantePanel('home');
+
+      // DESPUÉS sincronizar en segundo plano
+      syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
     } else if (roleKey === 'public') {
       currentUser = { 
         role: 'public', 
