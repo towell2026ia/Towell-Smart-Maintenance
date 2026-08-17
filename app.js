@@ -1670,7 +1670,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Esto cubre el caso de cerrar la ventana/app y volver a abrirla.
   // Supabase Auth persiste su sesión en localStorage, así que la cerramos explícitamente
   // para que el usuario SIEMPRE tenga que volver a ingresar sus credenciales.
-  if (!currentUser && supabaseClient) {
+  // IMPORTANTE: NO cerrar sesión si la URL contiene un token de recuperación (#access_token=... o #type=recovery o ?code=...)
+  const isRecoveryHash = window.location.hash && (
+    window.location.hash.includes('type=recovery') || 
+    window.location.hash.includes('recovery') || 
+    window.location.hash.includes('access_token')
+  );
+  const isRecoveryQuery = window.location.search && (
+    window.location.search.includes('code=') || 
+    window.location.search.includes('type=recovery')
+  );
+  const isCurrentlyRecovering = pendingRecovery || isRecoveryHash || isRecoveryQuery;
+
+  if (!currentUser && supabaseClient && !isCurrentlyRecovering) {
     try {
       await supabaseClient.auth.signOut();
       console.log('[TSMAI] No hay sesión de pestaña. Supabase Auth cerrada para forzar re-login.');
@@ -11347,10 +11359,10 @@ async function verifyRecoveryOTP() {
 }
 
 async function submitChangedPassword() {
-  const userId = document.getElementById('change-pass-user-id').value;
-  const targetView = document.getElementById('change-pass-target-view').value;
-  const newPass = document.getElementById('change-pass-new').value.trim();
-  const confirmPass = document.getElementById('change-pass-confirm').value.trim();
+  const userId = document.getElementById('change-pass-user-id')?.value || '';
+  const targetView = document.getElementById('change-pass-target-view')?.value || 'tech';
+  const newPass = document.getElementById('change-pass-new')?.value?.trim() || '';
+  const confirmPass = document.getElementById('change-pass-confirm')?.value?.trim() || '';
 
   if (!newPass || newPass.length < 6) {
     alert('La contraseña debe tener al menos 6 caracteres.');
@@ -11361,50 +11373,56 @@ async function submitChangedPassword() {
     return;
   }
 
-  // Actualizar contraseña en Supabase Auth (módulo de autenticación nativo)
+  const submitBtn = document.querySelector('#modal-change-password button.btn-submit');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = '⏳ Guardando contraseña...';
+  }
+
   if (supabaseClient) {
     try {
-      // Primero intentar actualizar en Supabase Auth para que el login funcione con la nueva clave
-      const { error: authError } = await supabaseClient.auth.updateUser({ password: newPass });
+      // 1. Actualizar contraseña en Supabase Auth
+      const { data: updateData, error: authError } = await supabaseClient.auth.updateUser({ password: newPass });
       if (authError) {
-        console.warn('Supabase Auth updateUser warning:', authError.message);
-        // Si es un error de sesión en modo simulado, no arrojar excepción
-        if (!authError.message.includes('session') && !authError.message.includes('missing')) {
-          throw authError;
-        }
+        throw new Error(authError.message || 'Error al actualizar la contraseña en Supabase Auth');
       }
 
-      // Si no es modo recovery (tiene userId), también actualizar en cat_usuarios_roles
-      if (userId && userId !== 'RECOVERY_MODE') {
+      // 2. Localizar el correo del usuario
+      let userEmail = updateData?.user?.email || recoveryTargetEmail || recoverySession?.user?.email;
+      if (!userEmail) {
+        try {
+          const { data: { user } } = await supabaseClient.auth.getUser();
+          if (user?.email) userEmail = user.email;
+        } catch(e) {}
+      }
+
+      // 3. Remover la bandera debe_cambiar_contrasenia en cat_usuarios_roles
+      if (userEmail) {
         await supabaseClient
           .from('cat_usuarios_roles')
           .update({ 
-            debe_cambiar_contrasenia: false,
-            fecha_actualizacion: new Date().toISOString()
+            debe_cambiar_contrasenia: false, 
+            fecha_actualizacion: new Date().toISOString() 
+          })
+          .ilike('correo', userEmail.trim());
+      } else if (userId && userId !== 'RECOVERY_MODE') {
+        await supabaseClient
+          .from('cat_usuarios_roles')
+          .update({ 
+            debe_cambiar_contrasenia: false, 
+            fecha_actualizacion: new Date().toISOString() 
           })
           .eq('id_usuario', userId);
-      } else {
-        // Modo recovery: buscar por correo del usuario autenticado o de nuestra variable recoveryTargetEmail
-        let emailToUpdate = recoveryTargetEmail;
-        try {
-          const { data: { user } } = await supabaseClient.auth.getUser();
-          if (user?.email) {
-            emailToUpdate = user.email;
-          }
-        } catch(e) {}
-        
-        if (emailToUpdate) {
-          await supabaseClient
-            .from('cat_usuarios_roles')
-            .update({ debe_cambiar_contrasenia: false, fecha_actualizacion: new Date().toISOString() })
-            .eq('correo', emailToUpdate);
-        }
       }
 
       showToast('✅ Contraseña actualizada con éxito.');
     } catch (err) {
-      console.error('Error al actualizar la contraseña en Supabase:', err);
-      alert('Error al guardar: ' + err.message);
+      console.error('Error al actualizar la contraseña en Supabase:', err)
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Guardar Contraseña';
+      }
+      alert(`❌ Error al guardar la contraseña:\n\n${err.message}\n\nEs posible que el enlace de correo haya expirado o ya haya sido utilizado.\nPor favor solicita un nuevo enlace desde "¿Olvidaste tu contraseña?".`);
       return;
     }
   }
@@ -11420,7 +11438,7 @@ async function submitChangedPassword() {
       window.location.hash = '';
     }
 
-    // Cerrar sesión de recuperación temporal en Supabase
+    // Cerrar sesión de recuperación temporal en Supabase para requerir login formal
     if (supabaseClient) {
       try {
         await supabaseClient.auth.signOut();
@@ -11439,14 +11457,14 @@ async function submitChangedPassword() {
     showView('public-portal');
     showPublicPanel('home');
 
-    if (supabaseClient) {
-      try {
-        await syncDatabases();
-      } catch (e) {}
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Guardar Contraseña';
     }
+
+    alert('✅ Tu contraseña ha sido actualizada exitosamente.\n\nYa puedes iniciar sesión ingresando tu correo y tu nueva contraseña.');
     return;
   }
-
   const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
   const targetUser = users.find(u => u.id_usuario === userId);
 
