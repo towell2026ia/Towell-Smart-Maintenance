@@ -44,11 +44,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.4.0"></script>
+  <script src="config.js?v=3.4.1"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.4.0">
+  <link rel="stylesheet" href="style.css?v=3.4.1">
 </head>
 <body>
 
@@ -694,7 +694,7 @@
                 <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Histórico de 108,000+ paros y fallas.</p>
               </div>
 
-              <div onclick="switchAdminPanel('analysis')" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+              <div onclick="openAnalysisListModal()" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
                 <div style="font-size: 2rem; margin-bottom: 10px;">🔬</div>
                 <h5 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Análisis de Repetibilidad</h5>
                 <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Fallas reincidentes e IA predictiva.</p>
@@ -4951,10 +4951,10 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.4.0"></script>
-  <script src="agents-client.js?v=3.4.0"></script>
-  <script src="app.js?v=3.4.0"></script>
-  <script src="dashboard.js?v=3.4.0"></script>
+  <script src="seed.js?v=3.4.1"></script>
+  <script src="agents-client.js?v=3.4.1"></script>
+  <script src="app.js?v=3.4.1"></script>
+  <script src="dashboard.js?v=3.4.1"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>

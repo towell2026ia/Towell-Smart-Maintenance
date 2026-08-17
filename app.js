@@ -1360,6 +1360,7 @@ async function syncDatabases() {
 function refreshActiveViewSilently() {
   const adminView = document.getElementById('view-admin');
   const techView = document.getElementById('view-tech');
+  const solicitanteView = document.getElementById('view-solicitante');
   const publicView = document.getElementById('view-public-portal');
 
   if (adminView && adminView.classList.contains('active')) {
@@ -1398,6 +1399,15 @@ function refreshActiveViewSilently() {
       renderTechBitacora();
     } else if (activeTechPanel === 'history') {
       populateTechMachineHistorySelect();
+    }
+  } else if (solicitanteView && solicitanteView.classList.contains('active')) {
+    if (typeof renderSolicitanteProfileHeader === 'function') renderSolicitanteProfileHeader();
+    if (activeSolicitantePanel === 'tracking' && typeof renderSolicitanteTracking === 'function') {
+      renderSolicitanteTracking();
+    } else if (activeSolicitantePanel === 'calendar' && typeof renderSolicitanteCalendar === 'function') {
+      renderSolicitanteCalendar();
+    } else if (activeSolicitantePanel === 'validation' && typeof renderSolicitanteValidations === 'function') {
+      renderSolicitanteValidations();
     }
   } else if (publicView && publicView.classList.contains('active')) {
     const checkInput = document.getElementById('check-folio-input');
@@ -2621,11 +2631,12 @@ async function quickLogin(role, techId) {
       persistSessionUser(currentUser);
       showToast(`Sesión iniciada como Super Admin: ${currentUser.name}`);
       
-      if (useLiveDatabase && supabaseClient) {
-        await syncDatabases();
-      }
       showView('admin');
       switchAdminPanel('dashboard');
+
+      if (useLiveDatabase && supabaseClient) {
+        syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
+      }
 
     } else if (role === 'solicitante') {
       let dbUser = null;
@@ -2655,6 +2666,7 @@ async function quickLogin(role, techId) {
           uuid: dbUser.id_usuario,
           name: dbUser.nombre_completo,
           email: dbUser.correo,
+          cve_empleado: dbUser.cve_empleado,
           area: ['PF', 'CF', 'AF', 'TF'].includes(userArea) ? userArea : 'AF',
           department: dbUser.departamento || 'Servicios Auxiliares',
           supervisor: dbUser.id_supervisor || null
@@ -2673,11 +2685,12 @@ async function quickLogin(role, techId) {
       persistSessionUser(currentUser);
       showToast(`Sesión iniciada como Solicitante: ${currentUser.name}`);
       
-      if (useLiveDatabase && supabaseClient) {
-        await syncDatabases();
-      }
       showView('solicitante');
-      switchSolicitantePanel('new');
+      switchSolicitantePanel('home');
+
+      if (useLiveDatabase && supabaseClient) {
+        syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
+      }
 
     } else {
       // Técnico
@@ -2705,6 +2718,8 @@ async function quickLogin(role, techId) {
         currentUser = {
           role: 'tech',
           id: dbUser.cve_tecnico || dbUser.id_usuario,
+          cve_tecnico: dbUser.cve_tecnico,
+          cve_empleado: dbUser.cve_empleado,
           uuid: dbUser.id_usuario,
           name: dbUser.nombre_completo,
           email: dbUser.correo,
@@ -2733,11 +2748,12 @@ async function quickLogin(role, techId) {
       if (pSpec) pSpec.innerText = currentUser.specialty || 'General';
       if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
 
-      if (useLiveDatabase && supabaseClient) {
-        await syncDatabases();
-      }
       showView('tech');
       switchTechPanel('dashboard');
+
+      if (useLiveDatabase && supabaseClient) {
+        syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
+      }
     }
   } catch (err) {
     console.error('Error en quickLogin:', err);
@@ -3117,15 +3133,27 @@ function switchAdminPanel(panelId) {
     } else if (activeAdminPanel === 'kpis') {
       renderAdminKPIs();
     } else if (activeAdminPanel === 'analysis') {
-      renderAdminAnalysis();
+      if (typeof openAnalysisListModal === 'function') {
+        openAnalysisListModal();
+      } else {
+        renderAdminAnalysis();
+      }
     } else if (activeAdminPanel === 'ai') {
-      renderAdminAIRecommendations();
+      if (typeof openAIRecommendationsModal === 'function') {
+        openAIRecommendationsModal();
+      } else {
+        renderAdminAIRecommendations();
+      }
     } else if (activeAdminPanel === 'alertrules') {
       renderAdminAlertRules();
     } else if (activeAdminPanel === 'notificaciones') {
       renderAdminNotificaciones();
     } else if (activeAdminPanel === 'alertas') {
-      renderAdminAlertas();
+      if (typeof openAlertsModal === 'function') {
+        openAlertsModal();
+      } else {
+        renderAdminAlertas();
+      }
     } else if (activeAdminPanel === 'fallas') {
       renderAdminFallas();
     } else if (activeAdminPanel === 'telegram') {
@@ -3155,7 +3183,7 @@ function switchAdminPanel(panelId) {
 // ============================================================================
 function renderAdminConfig() {
   if (!currentUser) {
-    const savedUser = sessionStorage.getItem('TSMAI_current_user') || localStorage.getItem('TSMAI_current_user');
+    const savedUser = sessionStorage.getItem('TSMAI_current_user');
     if (savedUser) {
       try { currentUser = JSON.parse(savedUser); } catch (e) {}
     }
@@ -5179,10 +5207,15 @@ function applyOTFilters() {
     orders = orders.filter(o => o.status === status);
   }
   if (area) {
-    orders = orders.filter(o => o.area === area);
+    orders = orders.filter(o => resolveMachineArea(o.machine, o.area) === area);
   }
   if (tech) {
-    orders = orders.filter(o => o.assignedTech === tech);
+    const techLower = String(tech).toLowerCase();
+    orders = orders.filter(o => {
+      const assigned = String(o.assignedTech || o.cve_atendio || '').toLowerCase();
+      const techName = String(o.techName || o.nombre_atendio || '').toLowerCase();
+      return assigned === techLower || (techName && techName.includes(techLower));
+    });
   }
   if (urgency) {
     orders = orders.filter(o => o.urgency === urgency);
@@ -5824,13 +5857,13 @@ async function renderAdminMachinesTable() {
     try {
       const { data, error } = await supabaseClient
         .from('cat_maquinas')
-        .select('equipo_towell, clave, ax, criticidad, activo')
+        .select('equipo_towell, clave, ax, criticidad, activo, departamento_codigo')
         .order('equipo_towell');
       if (!error && data && data.length > 0) {
         const existingLocal = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
         machines = data.map(m => {
           const local = existingLocal.find(l => l.id === m.equipo_towell) || {};
-          const area = m.equipo_towell.includes('COS') ? 'CF' : (m.equipo_towell.includes('TIN') || m.equipo_towell.includes('JET') ? 'TF' : 'PF');
+          const area = resolveMachineArea(m.equipo_towell, m.departamento_codigo);
           return {
             id: m.equipo_towell,
             name: m.clave || m.equipo_towell,
@@ -9040,8 +9073,33 @@ async function autoCreateBitacoraOnOTClose(orderObj, status, customObs = '') {
 
 // Actualizar estado de una Orden de Trabajo
 async function updateOrderStatus(otId, newStatus) {
-  if (isSubtaskID(otId)) {
-    await updateSubtaskStatus(otId, newStatus);
+  if (typeof otId === 'string' && otId.includes('-S')) {
+    const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+    const subIndex = subtasks.findIndex(s => `${s.otId}-S${s.number}` === otId);
+    if (subIndex !== -1) {
+      const sub = subtasks[subIndex];
+      let statusToSave = newStatus;
+      if (newStatus === 'Ejecutada') statusToSave = 'Terminada';
+      subtasks[subIndex].status = statusToSave;
+      if (statusToSave === 'Terminada') subtasks[subIndex].closeDate = new Date().toISOString();
+      subtasks[subIndex].updatedAt = new Date().toISOString();
+      localStorage.setItem('TSMAI_subtasks', JSON.stringify(subtasks));
+
+      if (useLiveDatabase && supabaseClient) {
+        dbUpdateSubtask(sub.id, {
+          status: statusToSave,
+          closeDate: statusToSave === 'Terminada' ? new Date().toISOString() : null
+        }).catch(err => console.warn('Error updating subtask in Supabase:', err));
+      }
+
+      if (statusToSave === 'Terminada') {
+        checkAndUpdateMainOTState(sub.otId).catch(err => console.warn(err));
+      }
+
+      showToast(`Subtarea actualizada a ${statusToSave}.`);
+      renderTechDashboard();
+      renderTechOrdersTable();
+    }
     return;
   }
 
@@ -9872,7 +9930,7 @@ async function openNewBitacoraLogModal() {
         orders = ordRes.data.map(o => ({
           id: o.folio, uuid: o.id_orden,
           assignedTech: o.cve_atendio, status: formatStatus(o.estatus),
-          description: o.descripcion, area: o.departamento_codigo,
+          description: o.descripcion, area: o.departamento || o.departamento_codigo,
           machine: o.maquina_id
         }));
       }
@@ -9892,9 +9950,19 @@ async function openNewBitacoraLogModal() {
     otSelect.innerHTML = '<option value="NO_APLICA">No aplica (Actividad Autónoma)</option>';
     if (currentUser) {
       const isAdmin = currentUser.role === 'admin';
+      const techId = String(currentUser.id || currentUser.uuid || '').toLowerCase();
+      const techCve = String(currentUser.cve_tecnico || '').toLowerCase();
+      const techName = String(currentUser.name || currentUser.nombre_completo || '').toLowerCase();
+
       const myActive = orders.filter(o => {
         if (o.status === 'Cerrada' || o.status === 'Cancelada') return false;
-        return isAdmin ? true : (o.assignedTech === currentUser.id);
+        if (isAdmin) return true;
+        const assigned = String(o.assignedTech || o.cve_atendio || '').toLowerCase();
+        const assignedName = String(o.techName || o.nombre_atendio || '').toLowerCase();
+        return (techId && assigned === techId) || 
+               (techCve && assigned === techCve) ||
+               (techName && assignedName.includes(techName)) ||
+               (techName && assigned.includes(techName));
       });
       myActive.forEach(o => {
         otSelect.innerHTML += `<option value="${o.id}" data-machine="${o.machine || ''}" data-area="${o.area || ''}">${o.id} — ${(o.description || '').substring(0, 45)}</option>`;
@@ -10009,7 +10077,7 @@ async function loadPartsForMachine(machineId, otType = 'MP', filterName = '') {
 
 function onBitacoraPartSearchInput(searchTerm) {
   const macEl = document.getElementById('bitacora-machine');
-  const otEl = document.getElementById('bitacora-ot-id');
+  const otEl = document.getElementById('bitacora-ot');
   let selectedMac = macEl ? macEl.value : '';
   
   if ((!selectedMac || selectedMac === 'NO_APLICA') && otEl && otEl.value) {
@@ -10023,6 +10091,7 @@ function onBitacoraPartSearchInput(searchTerm) {
 
 function onBitacoraOTChange() {
   const otSelect = document.getElementById('bitacora-ot');
+  const areaSelect = document.getElementById('bitacora-area');
   const otId = otSelect ? otSelect.value : 'NO_APLICA';
 
   if (otId !== 'NO_APLICA') {
@@ -10048,7 +10117,7 @@ function onBitacoraOTChange() {
       loadPartsForMachine(resolvedMachine, resolvedType);
     }
   } else {
-    document.getElementById('bitacora-area').value = '';
+    if (areaSelect) areaSelect.value = '';
     const machSelect = document.getElementById('bitacora-machine');
     if (machSelect) {
       machSelect.innerHTML = '<option value="NO_APLICA">No aplica</option>';
@@ -10273,6 +10342,29 @@ async function submitNewBitacoraLog() {
 
   localLogs.push(newLog);
   localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(localLogs));
+
+  // Descontar inventario de refacciones y acumular costos si aplica
+  if (tempBitacoraSelectedParts.length > 0) {
+    const parts = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+    let totalAddedCost = 0;
+    tempBitacoraSelectedParts.forEach(p => {
+      const idx = parts.findIndex(x => x.id === p.partId || x.code === p.partId);
+      if (idx !== -1) {
+        parts[idx].stock = Math.max(0, (parts[idx].stock || 0) - p.quantity);
+        totalAddedCost += (p.costoUnitario || parts[idx].cost || 0) * p.quantity;
+      }
+    });
+    localStorage.setItem('TSMAI_parts', JSON.stringify(parts));
+
+    if (machine && machine !== 'NO_APLICA' && totalAddedCost > 0) {
+      const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+      const mIdx = machines.findIndex(m => m.id === machine);
+      if (mIdx !== -1) {
+        machines[mIdx].cost = (machines[mIdx].cost || 0) + totalAddedCost;
+        localStorage.setItem('TSMAI_machines', JSON.stringify(machines));
+      }
+    }
+  }
 
   closeModal('modal-tech-new-bitacora');
   showToast('Actividad registrada con éxito.');
@@ -13251,15 +13343,30 @@ function renderSolicitanteProfileHeader() {
     const valSub = document.getElementById('solic-validation-subtitle');
     if (valSub) valSub.innerText = `Valida el trabajo realizado en tus solicitudes en estatus PENDIENTE DE VALIDACIÓN.`;
 
-    // Conteos en vivo para los cuadrantes
+    // Conteos en vivo para los cuadrantes usando matching multicriterio consistente
+    const currentUserId = String(currentUser.id || currentUser.uuid || '');
+    const currentUserEmail = String(currentUser.email || '').toLowerCase();
+    const currentUserName = String(currentUser.name || currentUser.nombre_completo || '').toLowerCase();
+
+    const isMatch = (item) => {
+      const itemAppId = String(item.applicant_id || item.solicitante_id || item.created_by || '');
+      const itemAppEmail = String(item.applicant_email || item.email || item.applicant || '').toLowerCase();
+      const itemAppName = String(item.applicant || item.solicitante_nombre || '').toLowerCase();
+      return (
+        (currentUserId && itemAppId === currentUserId) ||
+        (currentUserEmail && itemAppEmail.includes(currentUserEmail)) ||
+        (currentUserName && itemAppName.includes(currentUserName))
+      );
+    };
+
     const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-    const userRequests = requests.filter(r => r && (r.applicant === currentUser.name || r.applicant === currentUser.email || r.created_by === currentUser.uuid));
+    const userRequests = requests.filter(isMatch);
     const activeRequestsCount = userRequests.filter(r => r && r.status !== 'Atendida' && r.status !== 'Rechazada').length;
     const trackCountEl = document.getElementById('badge-solic-tracking-count');
     if (trackCountEl) trackCountEl.innerText = `${activeRequestsCount} Activa${activeRequestsCount === 1 ? '' : 's'}`;
 
     const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-    const pendingVal = orders.filter(o => o && o.status === 'PENDIENTE DE VALIDACIÓN' && (o.applicant === currentUser.name || o.applicant === currentUser.email || o.area === userArea));
+    const pendingVal = orders.filter(o => o && o.status === 'PENDIENTE DE VALIDACIÓN' && isMatch(o));
     const valCountEl = document.getElementById('badge-solic-validation-count');
     const valSidebarBadge = document.getElementById('badge-solic-pending-val');
     if (valCountEl) valCountEl.innerText = `${pendingVal.length} Pendiente${pendingVal.length === 1 ? '' : 's'}`;
