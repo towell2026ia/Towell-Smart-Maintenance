@@ -8,3 +8,5 @@ lt.txt
 config.js
 ~$*
 .env.agents
+.env
+*.env
