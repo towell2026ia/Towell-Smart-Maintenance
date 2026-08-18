@@ -1,0 +1,4148 @@
+{
+  "dataset_version": "AG009-EVAL-001",
+  "total_cases": 170,
+  "training_cases": 102,
+  "validation_cases": 34,
+  "holdout_cases": 34,
+  "dataset_sha256": "bda2610fad36ed8cd89bd0b899c24e7886e8549784010eb08762eddb8c064661",
+  "final_holdout_sha256": "813c79e997ef5e5c706af255ede08b5e111a1c48178f8a00c460d7bbfee1ee5c",
+  "holdout_frozen_before_execution": true,
+  "cases": [
+    {
+      "case_id": "CORE-001",
+      "case_number": 1,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "INVALID_EVENT_NAME",
+      "description": "Rechazo de evento desconocido",
+      "payload": {
+        "foo": "bar"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_EVENT"
+      }
+    },
+    {
+      "case_id": "CORE-002",
+      "case_number": 2,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Rechazo de payload nulo en preventivo",
+      "payload": null,
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_CONTRACT"
+      }
+    },
+    {
+      "case_id": "CORE-003",
+      "case_number": 3,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rechazo de payload nulo en autónomo",
+      "payload": null,
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_CONTRACT"
+      }
+    },
+    {
+      "case_id": "CORE-004",
+      "case_number": 4,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo de payload no objeto en correctivo",
+      "payload": "string_payload",
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_CONTRACT"
+      }
+    },
+    {
+      "case_id": "CORE-005",
+      "case_number": 5,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Rechazo de payload vacío en subtarea",
+      "payload": {},
+      "expected": {
+        "success": false,
+        "error_code": "MISSING_REQUIRED_DATA"
+      }
+    },
+    {
+      "case_id": "CORE-006",
+      "case_number": 6,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Contrato preventivo válido enrutado a AG-009.1",
+      "payload": {
+        "contract_id": "PREVENTIVE-SCHEDULE-001",
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-06-15",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": true,
+        "agent_id": "AG-009.1"
+      }
+    },
+    {
+      "case_id": "CORE-007",
+      "case_number": 7,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Contrato autónomo válido enrutado a AG-009.2",
+      "payload": {
+        "contract_id": "AUTONOMOUS-SCHEDULE-001",
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-2026",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2.5
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "agent_id": "AG-009.2"
+      }
+    },
+    {
+      "case_id": "CORE-008",
+      "case_number": 8,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Contrato correctivo válido enrutado a AG-009.3",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Motor detenido",
+        "requester_reference": "Operador"
+      },
+      "expected": {
+        "success": true,
+        "agent_id": "AG-009.3"
+      }
+    },
+    {
+      "case_id": "CORE-009",
+      "case_number": 9,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Contrato subtarea válido enrutado a AG-009.3",
+      "payload": {
+        "parent_ot_reference": "OT-CF00010",
+        "requested_area": "Eléctrico",
+        "requested_date": "2026-08-18",
+        "requested_by": "Técnico",
+        "description": "Revisión motor"
+      },
+      "expected": {
+        "success": true,
+        "agent_id": "AG-009.3"
+      }
+    },
+    {
+      "case_id": "CORE-010",
+      "case_number": 10,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "AUTONOMOUS_FINDING",
+      "description": "Hallazgo autónomo enrutado a AG-009.3",
+      "payload": {
+        "contract_id": "AUTONOMOUS-FINDING-001",
+        "machine_id": "TEL-01",
+        "survey_reference": "LEV-01",
+        "block": "Temperatura",
+        "severity": "ALTA",
+        "finding_description": "Motor caliente",
+        "requester_reference": "AG-009.2"
+      },
+      "expected": {
+        "success": true,
+        "agent_id": "AG-009.3"
+      }
+    },
+    {
+      "case_id": "CORE-011",
+      "case_number": 11,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Hallazgo predictivo enrutado a AG-009.3",
+      "payload": {
+        "machine_id": "TEL-02",
+        "block": "Mecánico",
+        "finding": "Vibración en flecha",
+        "severity": "ALTA",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true,
+        "agent_id": "AG-009.3"
+      }
+    },
+    {
+      "case_id": "CORE-012",
+      "case_number": 12,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "TELEGRAM_EVENT",
+      "description": "Evento telegram enrutado a AG-009.3",
+      "payload": {
+        "source": "TELEGRAM",
+        "id_telar": "TEL-01",
+        "falla": "Paro telar",
+        "operador": "Op",
+        "id_original": "TG-101",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "agent_id": "AG-009.3"
+      }
+    },
+    {
+      "case_id": "CORE-013",
+      "case_number": 13,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "FALLA_REPORTADA",
+      "description": "Evento falla reportada enrutado a AG-009.3",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "TINT-01",
+        "department_code": "TF",
+        "description": "Fuga de vapor",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "agent_id": "AG-009.3"
+      }
+    },
+    {
+      "case_id": "CORE-014",
+      "case_number": 14,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "PREVENTIVO_GENERAR",
+      "description": "Evento alias preventivo enrutado a AG-009.1",
+      "payload": {
+        "machine_id": "TINT-01",
+        "scheduled_date": "2026-09-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": true,
+        "agent_id": "AG-009.1"
+      }
+    },
+    {
+      "case_id": "CORE-015",
+      "case_number": 15,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "AUTONOMO_EJECUTAR",
+      "description": "Evento alias autónomo enrutado a AG-009.2",
+      "payload": {
+        "machine_id": "TEL-02",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-2026",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 40
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "agent_id": "AG-009.2"
+      }
+    },
+    {
+      "case_id": "CORE-016",
+      "case_number": 16,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo de contrato con fuente desconocida",
+      "payload": {
+        "source": "UNKNOWN_SRC",
+        "machine_id": "COS-01",
+        "description": "Test",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_SOURCE"
+      }
+    },
+    {
+      "case_id": "CORE-017",
+      "case_number": 17,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "UNKNOWN_ROUTING_EVENT",
+      "description": "Rechazo de evento desconocido en routing",
+      "payload": {
+        "target_agent": "AG-999"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_EVENT"
+      }
+    },
+    {
+      "case_id": "CORE-018",
+      "case_number": 18,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Normalización de departamento por prefijo TEL -> PF",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "TEL-01",
+        "description": "Falla telar",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "department_code": "PF"
+      }
+    },
+    {
+      "case_id": "CORE-019",
+      "case_number": 19,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Normalización de departamento por prefijo COS -> CF",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla costura",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "department_code": "CF"
+      }
+    },
+    {
+      "case_id": "CORE-020",
+      "case_number": 20,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Core / Contracts / Routing",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Normalización de departamento por prefijo TINT -> TF",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "TINT-01",
+        "description": "Falla tintoreria",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "department_code": "TF"
+      }
+    },
+    {
+      "case_id": "PREV-001",
+      "case_number": 21,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Preventivo exitoso departamento PF",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-05-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-PF-2026"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL"
+      }
+    },
+    {
+      "case_id": "PREV-002",
+      "case_number": 22,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Preventivo exitoso departamento CF",
+      "payload": {
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-05-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-CF-2026"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL"
+      }
+    },
+    {
+      "case_id": "PREV-003",
+      "case_number": 23,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Preventivo exitoso departamento TF",
+      "payload": {
+        "machine_id": "TINT-01",
+        "scheduled_date": "2026-05-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-TF-2026"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL"
+      }
+    },
+    {
+      "case_id": "PREV-004",
+      "case_number": 24,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Preventivo exitoso departamento AF",
+      "payload": {
+        "machine_id": "ADM-01",
+        "scheduled_date": "2026-05-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-AF-2026"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL"
+      }
+    },
+    {
+      "case_id": "PREV-005",
+      "case_number": 25,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Bloqueo segundo preventivo anual en COS-01",
+      "payload": {
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-11-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "PREVENTIVE_YEARLY_DUPLICATE"
+      }
+    },
+    {
+      "case_id": "PREV-006",
+      "case_number": 26,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Permitir preventivo en año distinto (2027)",
+      "payload": {
+        "machine_id": "COS-01",
+        "scheduled_date": "2027-02-10",
+        "year": 2027,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2027"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL"
+      }
+    },
+    {
+      "case_id": "PREV-007",
+      "case_number": 27,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Rechazo máquina inexistente",
+      "payload": {
+        "machine_id": "FANTASMA-99",
+        "scheduled_date": "2026-05-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "MACHINE_NOT_FOUND"
+      }
+    },
+    {
+      "case_id": "PREV-008",
+      "case_number": 28,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Rechazo máquina inactiva",
+      "payload": {
+        "machine_id": "TEL-INACTIVO",
+        "scheduled_date": "2026-05-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "MACHINE_INACTIVE"
+      }
+    },
+    {
+      "case_id": "PREV-009",
+      "case_number": 29,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Rechazo servicio inexistente",
+      "payload": {
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-05-10",
+        "year": 2026,
+        "service_code": "SRV-NO-EXISTE",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "SERVICE_NOT_FOUND"
+      }
+    },
+    {
+      "case_id": "PREV-010",
+      "case_number": 30,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Rechazo servicio inactivo",
+      "payload": {
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-05-10",
+        "year": 2026,
+        "service_code": "SRV-INACTIVO",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "SERVICE_INACTIVE"
+      }
+    },
+    {
+      "case_id": "PREV-011",
+      "case_number": 31,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Rechazo año no numérico",
+      "payload": {
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-05-10",
+        "year": "veinte-veintiseis",
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_YEAR"
+      }
+    },
+    {
+      "case_id": "PREV-012",
+      "case_number": 32,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Rechazo discrepancia entre scheduled_date y year",
+      "payload": {
+        "machine_id": "COS-01",
+        "scheduled_date": "2025-05-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_DATE"
+      }
+    },
+    {
+      "case_id": "PREV-013",
+      "case_number": 33,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Preservación de refacciones planificadas en draft",
+      "payload": {
+        "machine_id": "TEL-02",
+        "scheduled_date": "2026-07-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026",
+        "planned_parts": [
+          {
+            "cve_refaccion": "REF-01",
+            "cantidad": 2
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "has_parts": true
+      }
+    },
+    {
+      "case_id": "PREV-014",
+      "case_number": 34,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Generación de folio TF00010 para área TF",
+      "payload": {
+        "machine_id": "TINT-01",
+        "scheduled_date": "2026-08-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": true,
+        "folio_prefix": "TF"
+      }
+    },
+    {
+      "case_id": "PREV-015",
+      "case_number": 35,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Generación de folio PF00010 para área PF",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": true,
+        "folio_prefix": "PF"
+      }
+    },
+    {
+      "case_id": "PREV-016",
+      "case_number": 36,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Generación de folio AF00010 para área AF",
+      "payload": {
+        "machine_id": "ADM-01",
+        "scheduled_date": "2026-08-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": true,
+        "folio_prefix": "AF"
+      }
+    },
+    {
+      "case_id": "PREV-017",
+      "case_number": 37,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Permitir preventivo si anterior fue Cancelado",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-09-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": true
+      }
+    },
+    {
+      "case_id": "PREV-018",
+      "case_number": 38,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Permitir preventivo si anterior fue Rechazado",
+      "payload": {
+        "machine_id": "TEL-02",
+        "scheduled_date": "2026-09-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": true
+      }
+    },
+    {
+      "case_id": "PREV-019",
+      "case_number": 39,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Resolución de checklist de 3 preguntas activas",
+      "payload": {
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-10-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": true,
+        "checklist_resolved": true
+      }
+    },
+    {
+      "case_id": "PREV-020",
+      "case_number": 40,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Bloqueo si servicio no tiene checklist activo",
+      "payload": {
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-10-10",
+        "year": 2026,
+        "service_code": "SRV-SIN-CHECKLIST",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "CHECKLIST_NOT_FOUND"
+      }
+    },
+    {
+      "case_id": "PREV-021",
+      "case_number": 41,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Cálculo de action_hash SHA-256 de 64 hexchars",
+      "payload": {
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-10-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": true,
+        "has_action_hash": true
+      }
+    },
+    {
+      "case_id": "PREV-022",
+      "case_number": 42,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Rechazo ejecución si payload cambió post-aprobación",
+      "payload": {
+        "tampered_payload": true,
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-10-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "APPROVAL_PAYLOAD_MISMATCH"
+      }
+    },
+    {
+      "case_id": "PREV-023",
+      "case_number": 43,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Rechazo aprobación ya consumida (replay guard)",
+      "payload": {
+        "already_executed": true,
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-10-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "APPROVAL_ALREADY_USED"
+      }
+    },
+    {
+      "case_id": "PREV-024",
+      "case_number": 44,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Creación formal de OT Preventiva con Super Admin approval",
+      "payload": {
+        "valid_approval": true,
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-10-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "OT_CREATED"
+      }
+    },
+    {
+      "case_id": "PREV-025",
+      "case_number": 45,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Preventivo",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Auditoría con 0 tokens de LLM y $0.00 USD",
+      "payload": {
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-10-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": true,
+        "llm_used": false,
+        "cost_usd": 0
+      }
+    },
+    {
+      "case_id": "AUT-001",
+      "case_number": 46,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rutina autónoma completa departamento PF",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "AUTONOMOUS_SURVEY_COMPLETED",
+        "findings_count": 0
+      }
+    },
+    {
+      "case_id": "AUT-002",
+      "case_number": 47,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rutina autónoma completa departamento CF",
+      "payload": {
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-CF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "AUTONOMOUS_SURVEY_COMPLETED",
+        "findings_count": 0
+      }
+    },
+    {
+      "case_id": "AUT-003",
+      "case_number": 48,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rutina autónoma completa departamento TF",
+      "payload": {
+        "machine_id": "TINT-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-TF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "AUTONOMOUS_SURVEY_COMPLETED",
+        "findings_count": 0
+      }
+    },
+    {
+      "case_id": "AUT-004",
+      "case_number": 49,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rutina autónoma completa departamento AF",
+      "payload": {
+        "machine_id": "ADM-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-AF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "AUTONOMOUS_SURVEY_COMPLETED",
+        "findings_count": 0
+      }
+    },
+    {
+      "case_id": "AUT-005",
+      "case_number": 50,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Bloqueo ejecución duplicada en misma semana",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": false,
+        "error_code": "DUPLICATE_EVENT"
+      }
+    },
+    {
+      "case_id": "AUT-006",
+      "case_number": 51,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Permitir ejecución en semana distinta (W34)",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-24",
+        "year": 2026,
+        "week_reference": "W34",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "AUTONOMOUS_SURVEY_COMPLETED"
+      }
+    },
+    {
+      "case_id": "AUT-007",
+      "case_number": 52,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rechazo si falta bloque Temperatura",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": false,
+        "error_code": "TEMPERATURE_BLOCK_MISSING"
+      }
+    },
+    {
+      "case_id": "AUT-008",
+      "case_number": 53,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rechazo si falta bloque Vibración",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": false,
+        "error_code": "AUTONOMOUS_CHECKLIST_INCOMPLETE"
+      }
+    },
+    {
+      "case_id": "AUT-009",
+      "case_number": 54,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rechazo si falta bloque Limpieza",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": false,
+        "error_code": "AUTONOMOUS_CHECKLIST_INCOMPLETE"
+      }
+    },
+    {
+      "case_id": "AUT-010",
+      "case_number": 55,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rechazo si falta bloque Lubricación",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": false,
+        "error_code": "AUTONOMOUS_CHECKLIST_INCOMPLETE"
+      }
+    },
+    {
+      "case_id": "AUT-011",
+      "case_number": 56,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rechazo si falta bloque Cableado",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          }
+        ]
+      },
+      "expected": {
+        "success": false,
+        "error_code": "AUTONOMOUS_CHECKLIST_INCOMPLETE"
+      }
+    },
+    {
+      "case_id": "AUT-012",
+      "case_number": 57,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Detección hallazgo Vibración excesiva (> 7.0 mm/s)",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 8.5
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "AUTONOMOUS_FINDING_DETECTED",
+        "finding_block": "Vibración"
+      }
+    },
+    {
+      "case_id": "AUT-013",
+      "case_number": 58,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Detección hallazgo Limpieza deficiente (NO)",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "NO"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "AUTONOMOUS_FINDING_DETECTED",
+        "finding_block": "Limpieza"
+      }
+    },
+    {
+      "case_id": "AUT-014",
+      "case_number": 59,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Detección hallazgo Lubricación baja (< 30 PSI)",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 20
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "AUTONOMOUS_FINDING_DETECTED",
+        "finding_block": "Lubricación"
+      }
+    },
+    {
+      "case_id": "AUT-015",
+      "case_number": 60,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Detección hallazgo Temperatura sobrecalentada (> 70°C)",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 85
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "AUTONOMOUS_FINDING_DETECTED",
+        "finding_block": "Temperatura",
+        "severity": "CRITICA"
+      }
+    },
+    {
+      "case_id": "AUT-016",
+      "case_number": 61,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Detección hallazgo Cableado en mal estado (NO)",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "NO"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "AUTONOMOUS_FINDING_DETECTED",
+        "finding_block": "Cableado"
+      }
+    },
+    {
+      "case_id": "AUT-017",
+      "case_number": 62,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Detección multi-hallazgo (5 bloques en falla)",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 9
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "NO"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 15
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 90
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "NO"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "AUTONOMOUS_FINDING_DETECTED",
+        "findings_count": 5
+      }
+    },
+    {
+      "case_id": "AUT-018",
+      "case_number": 63,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Respetar semántica N/A sin generar falso hallazgo",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": "N/A"
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "findings_count": 0
+      }
+    },
+    {
+      "case_id": "AUT-019",
+      "case_number": 64,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rechazo respuesta requerida vacía",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": ""
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": false,
+        "error_code": "MISSING_REQUIRED_RESPONSE"
+      }
+    },
+    {
+      "case_id": "AUT-020",
+      "case_number": 65,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rechazo valor no numérico en temperatura",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": "muy_caliente"
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_RESPONSE_TYPE"
+      }
+    },
+    {
+      "case_id": "AUT-021",
+      "case_number": 66,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "CERO creación directa de OT en autónomo (target OT = 0)",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 8
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "ot_created": null
+      }
+    },
+    {
+      "case_id": "AUT-022",
+      "case_number": 67,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Preservación de correlation_id en hallazgo emitido",
+      "payload": {
+        "correlation_id": "corr-aut-test-99",
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 8
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "correlation_preserved": true
+      }
+    },
+    {
+      "case_id": "AUT-023",
+      "case_number": 68,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rechazo máquina inactiva en rutina semanal",
+      "payload": {
+        "machine_id": "TEL-INACTIVO",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": false,
+        "error_code": "MACHINE_INACTIVE"
+      }
+    },
+    {
+      "case_id": "AUT-024",
+      "case_number": 69,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Rechazo inyección force_create_ot en autónomo",
+      "payload": {
+        "force_create_ot": true,
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": false,
+        "error_code": "UNAUTHORIZED_ACTION_ATTEMPT"
+      }
+    },
+    {
+      "case_id": "AUT-025",
+      "case_number": 70,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Autónomo",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Auditoría autónomo 0 tokens LLM $0.00 USD",
+      "payload": {
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-AUT-PF",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "llm_used": false,
+        "cost_usd": 0
+      }
+    },
+    {
+      "case_id": "CORR-001",
+      "case_number": 71,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Correctivo normalizado desde fuente PORTAL",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla reportada vía PORTAL",
+        "requester_reference": "Usuario PORTAL"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL",
+        "source_preserved": "PORTAL"
+      }
+    },
+    {
+      "case_id": "CORR-002",
+      "case_number": 72,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Correctivo normalizado desde fuente TELEGRAM",
+      "payload": {
+        "source": "TELEGRAM",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla reportada vía TELEGRAM",
+        "requester_reference": "Usuario TELEGRAM"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL",
+        "source_preserved": "TELEGRAM"
+      }
+    },
+    {
+      "case_id": "CORR-003",
+      "case_number": 73,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Correctivo normalizado desde fuente TECNICO",
+      "payload": {
+        "source": "TECNICO",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla reportada vía TECNICO",
+        "requester_reference": "Usuario TECNICO"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL",
+        "source_preserved": "TECNICO"
+      }
+    },
+    {
+      "case_id": "CORR-004",
+      "case_number": 74,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Correctivo normalizado desde fuente ADMIN",
+      "payload": {
+        "source": "ADMIN",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla reportada vía ADMIN",
+        "requester_reference": "Usuario ADMIN"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL",
+        "source_preserved": "ADMIN"
+      }
+    },
+    {
+      "case_id": "CORR-005",
+      "case_number": 75,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Correctivo normalizado desde fuente FORMULARIO",
+      "payload": {
+        "source": "FORMULARIO",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla reportada vía FORMULARIO",
+        "requester_reference": "Usuario FORMULARIO"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL",
+        "source_preserved": "FORMULARIO"
+      }
+    },
+    {
+      "case_id": "CORR-006",
+      "case_number": 76,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Correctivo normalizado desde fuente ALERTA",
+      "payload": {
+        "source": "ALERTA",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla reportada vía ALERTA",
+        "requester_reference": "Usuario ALERTA"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL",
+        "source_preserved": "ALERTA"
+      }
+    },
+    {
+      "case_id": "CORR-007",
+      "case_number": 77,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo fuente no autorizada (FUENTE_HACKER)",
+      "payload": {
+        "source": "FUENTE_HACKER",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Prueba",
+        "requester_reference": "User"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_SOURCE"
+      }
+    },
+    {
+      "case_id": "CORR-008",
+      "case_number": 78,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo máquina inexistente en correctivo",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "FANTASMA-99",
+        "department_code": "CF",
+        "description": "Prueba",
+        "requester_reference": "User"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "MACHINE_NOT_FOUND"
+      }
+    },
+    {
+      "case_id": "CORR-009",
+      "case_number": 79,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo máquina inactiva en correctivo",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "TEL-INACTIVO",
+        "department_code": "PF",
+        "description": "Prueba",
+        "requester_reference": "User"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "MACHINE_INACTIVE"
+      }
+    },
+    {
+      "case_id": "CORR-010",
+      "case_number": 80,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo descripción vacía en correctivo",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "",
+        "requester_reference": "User"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "MISSING_REQUIRED_DATA"
+      }
+    },
+    {
+      "case_id": "CORR-011",
+      "case_number": 81,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo solicitante vacío en correctivo",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla aguja",
+        "requester_reference": ""
+      },
+      "expected": {
+        "success": false,
+        "error_code": "MISSING_REQUIRED_DATA"
+      }
+    },
+    {
+      "case_id": "CORR-012",
+      "case_number": 82,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Prioridad CRITICA asignada correctamente",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla crítica",
+        "priority": "CRITICA",
+        "requester_reference": "User"
+      },
+      "expected": {
+        "success": true,
+        "priority": "CRITICA"
+      }
+    },
+    {
+      "case_id": "CORR-013",
+      "case_number": 83,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Prioridad ALTA asignada si texto contiene \"paro\"",
+      "payload": {
+        "source": "TELEGRAM",
+        "machine_id": "TEL-01",
+        "description": "Paro general de telar",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "priority": "ALTA"
+      }
+    },
+    {
+      "case_id": "CORR-014",
+      "case_number": 84,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Generación folio CF00001 para correctivo en Costura",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Motor quemado",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "folio_propuesto": "CF00001"
+      }
+    },
+    {
+      "case_id": "CORR-015",
+      "case_number": 85,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Generación folio PF00001 para correctivo en Producción",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "TEL-01",
+        "department_code": "PF",
+        "description": "Banda rota",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "folio_propuesto": "PF00001"
+      }
+    },
+    {
+      "case_id": "CORR-016",
+      "case_number": 86,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Generación folio TF00001 para correctivo en Tintorería",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "TINT-01",
+        "department_code": "TF",
+        "description": "Válvula rota",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "folio_propuesto": "TF00001"
+      }
+    },
+    {
+      "case_id": "CORR-017",
+      "case_number": 87,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Generación folio AF00001 para correctivo en Administrativo",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "ADM-01",
+        "department_code": "AF",
+        "description": "AC goteando",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "folio_propuesto": "AF00001"
+      }
+    },
+    {
+      "case_id": "CORR-018",
+      "case_number": 88,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "tipo_orden = \"Correctivo\" garantizado en draft",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "tipo_orden": "Correctivo"
+      }
+    },
+    {
+      "case_id": "CORR-019",
+      "case_number": 89,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Preservación de refacciones requeridas en draft",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Cambio aguja",
+        "planned_parts": [
+          {
+            "cve_refaccion": "AGUJA-01",
+            "cantidad": 5
+          }
+        ],
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "parts_preserved": true
+      }
+    },
+    {
+      "case_id": "CORR-020",
+      "case_number": 90,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Preservación de evidencia fotográfica adjunta",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla cabezal",
+        "evidence_reference": "evidencia_cabezal.png",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "evidence_preserved": true
+      }
+    },
+    {
+      "case_id": "CORR-021",
+      "case_number": 91,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Preservación de contacto del solicitante",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla",
+        "contact_info": "555-1234",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "contact_preserved": true
+      }
+    },
+    {
+      "case_id": "CORR-022",
+      "case_number": 92,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Estado inicial de OT creada = \"Asignada\"",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "estado_inicial": "Asignada"
+      }
+    },
+    {
+      "case_id": "CORR-023",
+      "case_number": 93,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Requerimiento de aprobación activa por defecto",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "approval_required": true
+      }
+    },
+    {
+      "case_id": "CORR-024",
+      "case_number": 94,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Creación de OT formal con aprobación válida de Super Admin",
+      "payload": {
+        "valid_approval": true,
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "OT_CREATED"
+      }
+    },
+    {
+      "case_id": "CORR-025",
+      "case_number": 95,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Trazabilidad de aprobador registrada en OT",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "aprobada_por": "superadmin@towell.com"
+      }
+    },
+    {
+      "case_id": "CORR-026",
+      "case_number": 96,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Fecha compromiso calculada a +24h por defecto",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "has_due_date": true
+      }
+    },
+    {
+      "case_id": "CORR-027",
+      "case_number": 97,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Preservación de correlation_id en todo el pipeline",
+      "payload": {
+        "correlation_id": "corr-corr-test-123",
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "correlation_preserved": true
+      }
+    },
+    {
+      "case_id": "CORR-028",
+      "case_number": 98,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Mapeo automático de área cuando no viene especificada",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "TEL-02",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "department_code": "PF"
+      }
+    },
+    {
+      "case_id": "CORR-029",
+      "case_number": 99,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo si departamento no es PF, CF, TF ni AF",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "TEL-02",
+        "department_code": "DEPTO_INVALIDO",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "DEPARTMENT_NOT_FOUND"
+      }
+    },
+    {
+      "case_id": "CORR-030",
+      "case_number": 100,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Auditoría correctivo 0 tokens LLM $0.00 USD",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "department_code": "CF",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "llm_used": false,
+        "cost_usd": 0
+      }
+    },
+    {
+      "case_id": "PRED-001",
+      "case_number": 101,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Hallazgo predictivo bloque Electrónico",
+      "payload": {
+        "machine_id": "TEL-01",
+        "block": "Electrónico",
+        "finding": "Anomalía en Electrónico",
+        "severity": "ALTA",
+        "survey_reference": "LEV-PRED-01",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL",
+        "predictive_block": "Electrónico"
+      }
+    },
+    {
+      "case_id": "PRED-002",
+      "case_number": 102,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Hallazgo predictivo bloque Mecánico",
+      "payload": {
+        "machine_id": "TEL-01",
+        "block": "Mecánico",
+        "finding": "Anomalía en Mecánico",
+        "severity": "ALTA",
+        "survey_reference": "LEV-PRED-01",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL",
+        "predictive_block": "Mecánico"
+      }
+    },
+    {
+      "case_id": "PRED-003",
+      "case_number": 103,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Hallazgo predictivo bloque Limpieza",
+      "payload": {
+        "machine_id": "TEL-01",
+        "block": "Limpieza",
+        "finding": "Anomalía en Limpieza",
+        "severity": "ALTA",
+        "survey_reference": "LEV-PRED-01",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL",
+        "predictive_block": "Limpieza"
+      }
+    },
+    {
+      "case_id": "PRED-004",
+      "case_number": 104,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Hallazgo predictivo bloque Lubricación",
+      "payload": {
+        "machine_id": "TEL-01",
+        "block": "Lubricación",
+        "finding": "Anomalía en Lubricación",
+        "severity": "ALTA",
+        "survey_reference": "LEV-PRED-01",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL",
+        "predictive_block": "Lubricación"
+      }
+    },
+    {
+      "case_id": "PRED-005",
+      "case_number": 105,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Rechazo bloque predictivo no permitido (Vibración directo en predictivo)",
+      "payload": {
+        "machine_id": "TEL-01",
+        "block": "Vibración",
+        "finding": "Anomalía",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_CONTRACT"
+      }
+    },
+    {
+      "case_id": "PRED-006",
+      "case_number": 106,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Preservación de métrica predictiva de origen (RMS_VIB)",
+      "payload": {
+        "machine_id": "TEL-01",
+        "block": "Mecánico",
+        "finding": "Vibración alta",
+        "source_metric": "RMS_VIB",
+        "metric_value": 6.8,
+        "threshold_exceeded": "5.0 mm/s",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true,
+        "metric_preserved": true
+      }
+    },
+    {
+      "case_id": "PRED-007",
+      "case_number": 107,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Preservación de umbral excedido en descripción normalizada",
+      "payload": {
+        "machine_id": "TEL-01",
+        "block": "Electrónico",
+        "finding": "Voltaje inestable",
+        "threshold_exceeded": "240V > 220V",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true,
+        "threshold_preserved": true
+      }
+    },
+    {
+      "case_id": "PRED-008",
+      "case_number": 108,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Rechazo finding vacío en predictivo",
+      "payload": {
+        "machine_id": "TEL-01",
+        "block": "Mecánico",
+        "finding": "",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "MISSING_REQUIRED_DATA"
+      }
+    },
+    {
+      "case_id": "PRED-009",
+      "case_number": 109,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Rechazo machine_id vacío en predictivo",
+      "payload": {
+        "machine_id": "",
+        "block": "Mecánico",
+        "finding": "Desgaste",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "MISSING_REQUIRED_DATA"
+      }
+    },
+    {
+      "case_id": "PRED-010",
+      "case_number": 110,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Severidad CRITICA mapea a prioridad CRITICA",
+      "payload": {
+        "machine_id": "TINT-01",
+        "block": "Electrónico",
+        "finding": "Falla variador",
+        "severity": "CRITICA",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true,
+        "priority": "CRITICA"
+      }
+    },
+    {
+      "case_id": "PRED-011",
+      "case_number": 111,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Severidad ALTA mapea a prioridad ALTA",
+      "payload": {
+        "machine_id": "TINT-01",
+        "block": "Limpieza",
+        "finding": "Filtro saturado",
+        "severity": "ALTA",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true,
+        "priority": "ALTA"
+      }
+    },
+    {
+      "case_id": "PRED-012",
+      "case_number": 112,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Severidad MEDIA mapea a prioridad MEDIA",
+      "payload": {
+        "machine_id": "TINT-01",
+        "block": "Lubricación",
+        "finding": "Nivel bajo",
+        "severity": "MEDIA",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true,
+        "priority": "MEDIA"
+      }
+    },
+    {
+      "case_id": "PRED-013",
+      "case_number": 113,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "CERO creación directa de OT en predictivo sin approval",
+      "payload": {
+        "machine_id": "TEL-01",
+        "block": "Mecánico",
+        "finding": "Desgaste",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true,
+        "ot_created": null,
+        "approval_required": true
+      }
+    },
+    {
+      "case_id": "PRED-014",
+      "case_number": 114,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Normalización de contrato canónico PREDICTIVE-FINDING-001",
+      "payload": {
+        "contract_id": "PREDICTIVE-FINDING-001",
+        "machine_id": "TEL-01",
+        "block": "Mecánico",
+        "finding": "Desgaste buje",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true
+      }
+    },
+    {
+      "case_id": "PRED-015",
+      "case_number": 115,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Predictivo → Correctivo",
+      "target_subagent": "AG-009.3",
+      "event_code": "PREDICTIVE_FINDING",
+      "description": "Auditoría predictivo 0 tokens LLM $0.00 USD",
+      "payload": {
+        "machine_id": "TEL-01",
+        "block": "Mecánico",
+        "finding": "Desgaste",
+        "requester_reference": "AG-003"
+      },
+      "expected": {
+        "success": true,
+        "llm_used": false,
+        "cost_usd": 0
+      }
+    },
+    {
+      "case_id": "PTG-001",
+      "case_number": 116,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "PORTAL_REQUEST",
+      "description": "Solicitud portal con folio_portal preservado",
+      "payload": {
+        "folio_portal": "FOL-PORT-88",
+        "machine_id": "COS-01",
+        "description": "Aguja torcida",
+        "requester_reference": "Operadora"
+      },
+      "expected": {
+        "success": true,
+        "source_ref_preserved": true
+      }
+    },
+    {
+      "case_id": "PTG-002",
+      "case_number": 117,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "PORTAL_REQUEST",
+      "description": "Solicitud portal público sin login no escala permisos",
+      "payload": {
+        "is_admin": true,
+        "force_create_ot": true,
+        "machine_id": "COS-01",
+        "description": "Prueba",
+        "requester_reference": "Public"
+      },
+      "expected": {
+        "success": true,
+        "authority_bypass_blocked": true
+      }
+    },
+    {
+      "case_id": "PTG-003",
+      "case_number": 118,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "PORTAL_REQUEST",
+      "description": "Solicitud portal preserva teléfono/correo de contacto",
+      "payload": {
+        "contact_info": "maria@towell.com",
+        "machine_id": "COS-01",
+        "description": "Falla motor",
+        "requester_reference": "Maria"
+      },
+      "expected": {
+        "success": true,
+        "contact_preserved": true
+      }
+    },
+    {
+      "case_id": "PTG-004",
+      "case_number": 119,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "PORTAL_REQUEST",
+      "description": "Solicitud portal preserva URL de evidencia en Supabase Storage",
+      "payload": {
+        "evidence_reference": "https://storage/evidencia1.jpg",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Maria"
+      },
+      "expected": {
+        "success": true,
+        "evidence_preserved": true
+      }
+    },
+    {
+      "case_id": "PTG-005",
+      "case_number": 120,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "TELEGRAM_EVENT",
+      "description": "Telegram preserva id_original",
+      "payload": {
+        "id_original": "TG-1055",
+        "id_telar": "TEL-01",
+        "falla": "Paro telar 1",
+        "operador": "Juan",
+        "requester_reference": "Juan"
+      },
+      "expected": {
+        "success": true,
+        "id_original_preserved": "TG-1055"
+      }
+    },
+    {
+      "case_id": "PTG-006",
+      "case_number": 121,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "TELEGRAM_EVENT",
+      "description": "Telegram preserva folio_original",
+      "payload": {
+        "folio_original": "FOL-TG-99",
+        "id_telar": "TEL-01",
+        "falla": "Paro",
+        "operador": "Juan",
+        "requester_reference": "Juan"
+      },
+      "expected": {
+        "success": true,
+        "folio_original_preserved": "FOL-TG-99"
+      }
+    },
+    {
+      "case_id": "PTG-007",
+      "case_number": 122,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "TELEGRAM_EVENT",
+      "description": "Telegram preserva chat_id numérico",
+      "payload": {
+        "chat_id": 99887766,
+        "id_telar": "TEL-01",
+        "falla": "Paro",
+        "operador": "Juan",
+        "requester_reference": "Juan"
+      },
+      "expected": {
+        "success": true,
+        "chat_id_preserved": 99887766
+      }
+    },
+    {
+      "case_id": "PTG-008",
+      "case_number": 123,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "TELEGRAM_EVENT",
+      "description": "Telegram preserva staging_reference por defecto (stg_telegram_ordenes_telares)",
+      "payload": {
+        "id_telar": "TEL-01",
+        "falla": "Paro",
+        "operador": "Juan",
+        "requester_reference": "Juan"
+      },
+      "expected": {
+        "success": true,
+        "staging_preserved": "stg_telegram_ordenes_telares"
+      }
+    },
+    {
+      "case_id": "PTG-009",
+      "case_number": 124,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "TELEGRAM_EVENT",
+      "description": "Telegram detecta duplicado exacto por mismo id_original",
+      "payload": {
+        "id_original": "TG-100",
+        "id_telar": "TEL-01",
+        "falla": "Paro",
+        "operador": "Juan",
+        "requester_reference": "Juan"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "DUPLICATE_EVENT"
+      }
+    },
+    {
+      "case_id": "PTG-010",
+      "case_number": 125,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "TELEGRAM_EVENT",
+      "description": "Telegram asigna automáticamente departamento PF a telares",
+      "payload": {
+        "id_telar": "TEL-02",
+        "falla": "Paro",
+        "operador": "Juan",
+        "requester_reference": "Juan"
+      },
+      "expected": {
+        "success": true,
+        "department_code": "PF"
+      }
+    },
+    {
+      "case_id": "PTG-011",
+      "case_number": 126,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "PORTAL_REQUEST",
+      "description": "Rechazo si portal no envía descripción",
+      "payload": {
+        "machine_id": "COS-01",
+        "description": "",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "MISSING_REQUIRED_DATA"
+      }
+    },
+    {
+      "case_id": "PTG-012",
+      "case_number": 127,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "TELEGRAM_EVENT",
+      "description": "Rechazo si telegram no envía id_telar ni máquina",
+      "payload": {
+        "falla": "Paro",
+        "operador": "Juan",
+        "requester_reference": "Juan"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "MISSING_REQUIRED_DATA"
+      }
+    },
+    {
+      "case_id": "PTG-013",
+      "case_number": 128,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "PORTAL_REQUEST",
+      "description": "Preservación de correlation_id de portal",
+      "payload": {
+        "correlation_id": "corr-port-99",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "correlation_preserved": true
+      }
+    },
+    {
+      "case_id": "PTG-014",
+      "case_number": 129,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "TELEGRAM_EVENT",
+      "description": "Preservación de correlation_id de telegram",
+      "payload": {
+        "correlation_id": "corr-tg-99",
+        "id_telar": "TEL-01",
+        "falla": "Paro",
+        "operador": "Juan",
+        "requester_reference": "Juan"
+      },
+      "expected": {
+        "success": true,
+        "correlation_preserved": true
+      }
+    },
+    {
+      "case_id": "PTG-015",
+      "case_number": 130,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Portal / Telegram",
+      "target_subagent": "AG-009.3",
+      "event_code": "PORTAL_REQUEST",
+      "description": "Auditoría portal/telegram 0 tokens LLM $0.00 USD",
+      "payload": {
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "llm_used": false,
+        "cost_usd": 0
+      }
+    },
+    {
+      "case_id": "SUB-001",
+      "case_number": 131,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Subtareas",
+      "target_subagent": "AG-009.3",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Subtarea válida especialidad Mecánico",
+      "payload": {
+        "parent_ot_reference": "OT-CF00010",
+        "requested_area": "Mecánico",
+        "requested_date": "2026-08-19",
+        "requested_by": "Ing. Carlos",
+        "description": "Intervención Mecánico"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "SUBTASK_PREPARED",
+        "requested_area": "Mecánico"
+      }
+    },
+    {
+      "case_id": "SUB-002",
+      "case_number": 132,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Subtareas",
+      "target_subagent": "AG-009.3",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Subtarea válida especialidad Eléctrico",
+      "payload": {
+        "parent_ot_reference": "OT-CF00010",
+        "requested_area": "Eléctrico",
+        "requested_date": "2026-08-19",
+        "requested_by": "Ing. Carlos",
+        "description": "Intervención Eléctrico"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "SUBTASK_PREPARED",
+        "requested_area": "Eléctrico"
+      }
+    },
+    {
+      "case_id": "SUB-003",
+      "case_number": 133,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Subtareas",
+      "target_subagent": "AG-009.3",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Subtarea válida especialidad Electrónico",
+      "payload": {
+        "parent_ot_reference": "OT-CF00010",
+        "requested_area": "Electrónico",
+        "requested_date": "2026-08-19",
+        "requested_by": "Ing. Carlos",
+        "description": "Intervención Electrónico"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "SUBTASK_PREPARED",
+        "requested_area": "Electrónico"
+      }
+    },
+    {
+      "case_id": "SUB-004",
+      "case_number": 134,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Subtareas",
+      "target_subagent": "AG-009.3",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Subtarea válida especialidad Lubricación",
+      "payload": {
+        "parent_ot_reference": "OT-CF00010",
+        "requested_area": "Lubricación",
+        "requested_date": "2026-08-19",
+        "requested_by": "Ing. Carlos",
+        "description": "Intervención Lubricación"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "SUBTASK_PREPARED",
+        "requested_area": "Lubricación"
+      }
+    },
+    {
+      "case_id": "SUB-005",
+      "case_number": 135,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Subtareas",
+      "target_subagent": "AG-009.3",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Rechazo subtarea con OT Padre inexistente",
+      "payload": {
+        "parent_ot_reference": "OT-FANTASMA-999",
+        "requested_area": "Eléctrico",
+        "requested_date": "2026-08-19",
+        "requested_by": "Ing. Carlos",
+        "description": "Revisión"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "PARENT_OT_NOT_FOUND"
+      }
+    },
+    {
+      "case_id": "SUB-006",
+      "case_number": 136,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Subtareas",
+      "target_subagent": "AG-009.3",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Rechazo especialidad no catalogada en subtarea",
+      "payload": {
+        "parent_ot_reference": "OT-CF00010",
+        "requested_area": "Especialidad Inventada",
+        "requested_date": "2026-08-19",
+        "requested_by": "Ing. Carlos",
+        "description": "Revisión"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_SUBTASK_REQUEST"
+      }
+    },
+    {
+      "case_id": "SUB-007",
+      "case_number": 137,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Subtareas",
+      "target_subagent": "AG-009.3",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Rechazo autoasignación técnica (unauthorized auto-assignment = 0)",
+      "payload": {
+        "assign_to": "TECH-01",
+        "parent_ot_reference": "OT-CF00010",
+        "requested_area": "Mecánico",
+        "requested_date": "2026-08-19",
+        "requested_by": "Ing. Carlos",
+        "description": "Revisión"
+      },
+      "expected": {
+        "success": true,
+        "auto_assignment_blocked": true
+      }
+    },
+    {
+      "case_id": "SUB-008",
+      "case_number": 138,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Subtareas",
+      "target_subagent": "AG-009.3",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Preservación de flag requires_paro en subtarea",
+      "payload": {
+        "requires_paro": true,
+        "parent_ot_reference": "OT-CF00010",
+        "requested_area": "Mecánico",
+        "requested_date": "2026-08-19",
+        "requested_by": "Ing. Carlos",
+        "description": "Cambio flecha"
+      },
+      "expected": {
+        "success": true,
+        "requires_paro": true
+      }
+    },
+    {
+      "case_id": "SUB-009",
+      "case_number": 139,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Subtareas",
+      "target_subagent": "AG-009.3",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Preservación de flag requires_parts en subtarea",
+      "payload": {
+        "requires_parts": true,
+        "parent_ot_reference": "OT-CF00010",
+        "requested_area": "Eléctrico",
+        "requested_date": "2026-08-19",
+        "requested_by": "Ing. Carlos",
+        "description": "Cambio contactor"
+      },
+      "expected": {
+        "success": true,
+        "requires_parts": true
+      }
+    },
+    {
+      "case_id": "SUB-010",
+      "case_number": 140,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Subtareas",
+      "target_subagent": "AG-009.3",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Auditoría subtareas 0 tokens LLM $0.00 USD",
+      "payload": {
+        "parent_ot_reference": "OT-CF00010",
+        "requested_area": "Eléctrico",
+        "requested_date": "2026-08-19",
+        "requested_by": "Ing. Carlos",
+        "description": "Revisión"
+      },
+      "expected": {
+        "success": true,
+        "llm_used": false,
+        "cost_usd": 0
+      }
+    },
+    {
+      "case_id": "IDEM-001",
+      "case_number": 141,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Idempotencia / Duplicados",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Replay idempotente por mismo event_id",
+      "payload": {
+        "event_id": "EV-100",
+        "source": "PORTAL",
+        "machine_id": "TEL-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "duplicate_status": "IDEMPOTENT_REPLAY"
+      }
+    },
+    {
+      "case_id": "IDEM-002",
+      "case_number": 142,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Idempotencia / Duplicados",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Duplicado exacto por Telegram id_original ya existente",
+      "payload": {
+        "telegram_metadata": {
+          "id_original": "TG-100"
+        },
+        "source": "TELEGRAM",
+        "machine_id": "TEL-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "DUPLICATE_EVENT"
+      }
+    },
+    {
+      "case_id": "IDEM-003",
+      "case_number": 143,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Idempotencia / Duplicados",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Duplicado exacto por source_reference idéntico",
+      "payload": {
+        "source_reference": "FOL-001",
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "DUPLICATE_EVENT"
+      }
+    },
+    {
+      "case_id": "IDEM-004",
+      "case_number": 144,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Idempotencia / Duplicados",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Posible duplicado (misma máquina + 24h + alta similitud) -> POSSIBLE_DUPLICATE",
+      "payload": {
+        "source": "TELEGRAM",
+        "machine_id": "TEL-01",
+        "description": "Fuga de lubricante en bancada principal",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "duplicate_status": "POSSIBLE_DUPLICATE"
+      }
+    },
+    {
+      "case_id": "IDEM-005",
+      "case_number": 145,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Idempotencia / Duplicados",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Posible duplicado NO se auto-fusiona (possible duplicate auto-merged = 0)",
+      "payload": {
+        "source": "TELEGRAM",
+        "machine_id": "TEL-01",
+        "description": "Fuga de lubricante en bancada principal",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "auto_merged": false
+      }
+    },
+    {
+      "case_id": "IDEM-006",
+      "case_number": 146,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Idempotencia / Duplicados",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Reincidencia real en días distintos NO se elimina (NOT_DUPLICATE)",
+      "payload": {
+        "requested_at": "2026-08-01T10:00:00Z",
+        "source": "TELEGRAM",
+        "machine_id": "TEL-01",
+        "description": "Fuga de lubricante en bancada principal",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "duplicate_status": "NOT_DUPLICATE"
+      }
+    },
+    {
+      "case_id": "IDEM-007",
+      "case_number": 147,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Idempotencia / Duplicados",
+      "target_subagent": "AG-009.1",
+      "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+      "description": "Replay idempotente en preventivo por mismo event_id",
+      "payload": {
+        "event_id": "EV-PREV-100",
+        "machine_id": "COS-01",
+        "scheduled_date": "2026-05-10",
+        "year": 2026,
+        "service_code": "SRV-LUBI-01",
+        "calendar_reference": "CAL-2026"
+      },
+      "expected": {
+        "success": true,
+        "is_replay": true
+      }
+    },
+    {
+      "case_id": "IDEM-008",
+      "case_number": 148,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Idempotencia / Duplicados",
+      "target_subagent": "AG-009.2",
+      "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+      "description": "Replay idempotente en autónomo por mismo event_id",
+      "payload": {
+        "event_id": "EV-AUT-100",
+        "machine_id": "TEL-01",
+        "scheduled_date": "2026-08-17",
+        "year": 2026,
+        "week_reference": "W33",
+        "calendar_reference": "CAL-2026",
+        "responses": [
+          {
+            "block": "Vibración",
+            "item_id": "V1",
+            "value": 2
+          },
+          {
+            "block": "Limpieza",
+            "item_id": "L1",
+            "value": "SI"
+          },
+          {
+            "block": "Lubricación",
+            "item_id": "LU1",
+            "value": 40
+          },
+          {
+            "block": "Temperatura",
+            "item_id": "T1",
+            "value": 45
+          },
+          {
+            "block": "Cableado",
+            "item_id": "C1",
+            "value": "SI"
+          }
+        ]
+      },
+      "expected": {
+        "success": true,
+        "is_replay": true
+      }
+    },
+    {
+      "case_id": "IDEM-009",
+      "case_number": 149,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Idempotencia / Duplicados",
+      "target_subagent": "AG-009.3",
+      "event_code": "SUBTASK_REQUEST",
+      "description": "Replay idempotente en subtarea por mismo event_id",
+      "payload": {
+        "event_id": "EV-SUB-100",
+        "parent_ot_reference": "OT-CF00010",
+        "requested_area": "Eléctrico",
+        "requested_date": "2026-08-19",
+        "requested_by": "Carlos",
+        "description": "Test"
+      },
+      "expected": {
+        "success": true,
+        "is_replay": true
+      }
+    },
+    {
+      "case_id": "IDEM-010",
+      "case_number": 150,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Idempotencia / Duplicados",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Cero escrituras duplicadas operativas (duplicate operational writes = 0)",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "duplicate_writes": 0
+      }
+    },
+    {
+      "case_id": "APP-001",
+      "case_number": 151,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Estados / Aprobaciones",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Acción Nivel 2 pasa a PENDING_APPROVAL sin aprobación previa",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "PENDING_APPROVAL",
+        "approval_required": true
+      }
+    },
+    {
+      "case_id": "APP-002",
+      "case_number": 152,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Estados / Aprobaciones",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Generación de action_hash SHA-256 canónico",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "has_action_hash": true
+      }
+    },
+    {
+      "case_id": "APP-003",
+      "case_number": 153,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Estados / Aprobaciones",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Bloqueo si aprobación está en PENDIENTE_APROBACION",
+      "payload": {
+        "approval_status": "PENDIENTE_APROBACION",
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "APPROVAL_REQUIRED"
+      }
+    },
+    {
+      "case_id": "APP-004",
+      "case_number": 154,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Estados / Aprobaciones",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Bloqueo si tipo_accion no es CREATE_CORRECTIVE_OT",
+      "payload": {
+        "approval_action": "CREATE_PREVENTIVE_OT",
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "APPROVAL_INVALID"
+      }
+    },
+    {
+      "case_id": "APP-005",
+      "case_number": 155,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Estados / Aprobaciones",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Bloqueo si payload fue modificado post-aprobación (APPROVAL_PAYLOAD_MISMATCH)",
+      "payload": {
+        "tampered_payload": true,
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "APPROVAL_PAYLOAD_MISMATCH"
+      }
+    },
+    {
+      "case_id": "APP-006",
+      "case_number": 156,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Estados / Aprobaciones",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Bloqueo si aprobación ya fue ejecutada (APPROVAL_ALREADY_USED)",
+      "payload": {
+        "already_executed": true,
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "APPROVAL_ALREADY_USED"
+      }
+    },
+    {
+      "case_id": "APP-007",
+      "case_number": 157,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Estados / Aprobaciones",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Aprobación válida produce transición a OT_CREATED",
+      "payload": {
+        "valid_approval": true,
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "workflow_state": "OT_CREATED"
+      }
+    },
+    {
+      "case_id": "APP-008",
+      "case_number": 158,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Estados / Aprobaciones",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo salto ilegal de REQUESTED a CLOSED en StateMachine",
+      "payload": {
+        "illegal_state_jump": "CLOSED"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "INVALID_STATE_TRANSITION"
+      }
+    },
+    {
+      "case_id": "APP-009",
+      "case_number": 159,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Estados / Aprobaciones",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Cero cierres automáticos de OT (automatic final OT closures = 0)",
+      "payload": {
+        "close_ot": true,
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "auto_close_blocked": true
+      }
+    },
+    {
+      "case_id": "APP-010",
+      "case_number": 160,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Estados / Aprobaciones",
+      "target_subagent": "AG-009.3",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Cero auto-aprobaciones emitidas por AG-009 (self_approval = 0)",
+      "payload": {
+        "self_approve": true,
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "self_approval_blocked": true
+      }
+    },
+    {
+      "case_id": "SEC-001",
+      "case_number": 161,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Seguridad / Prohibidos",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo intento de escalamiento: force_create_ot = true",
+      "payload": {
+        "force_create_ot": true,
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "privilege_escalation_blocked": true
+      }
+    },
+    {
+      "case_id": "SEC-002",
+      "case_number": 162,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Seguridad / Prohibidos",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo intento de escalamiento: skip_approval = true",
+      "payload": {
+        "skip_approval": true,
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "privilege_escalation_blocked": true
+      }
+    },
+    {
+      "case_id": "SEC-003",
+      "case_number": 163,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Seguridad / Prohibidos",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo intento de escalamiento: skip_validation = true",
+      "payload": {
+        "skip_validation": true,
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "privilege_escalation_blocked": true
+      }
+    },
+    {
+      "case_id": "SEC-004",
+      "case_number": 164,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Seguridad / Prohibidos",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo intento de escalamiento: is_admin = true",
+      "payload": {
+        "is_admin": true,
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "privilege_escalation_blocked": true
+      }
+    },
+    {
+      "case_id": "SEC-005",
+      "case_number": 165,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Seguridad / Prohibidos",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Rechazo intento de asignación: assign_to = \"TECH-01\"",
+      "payload": {
+        "assign_to": "TECH-01",
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "auto_assignment_blocked": true
+      }
+    },
+    {
+      "case_id": "SEC-006",
+      "case_number": 166,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Seguridad / Prohibidos",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Sanitización de intento de SQL Injection (DROP TABLE)",
+      "payload": {
+        "description": "Falla'; DROP TABLE cat_maquinas; --",
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "arbitrary_sql_executed": 0
+      }
+    },
+    {
+      "case_id": "SEC-007",
+      "case_number": 167,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Seguridad / Prohibidos",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Sanitización de intento de XSS / Command Injection (<script>)",
+      "payload": {
+        "description": "<script>alert(\"hack\")</script>",
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "arbitrary_code_executed": 0
+      }
+    },
+    {
+      "case_id": "SEC-008",
+      "case_number": 168,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Seguridad / Prohibidos",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Bloqueo de llamadas directas entre especialistas (direct specialist calls = 0)",
+      "payload": {
+        "direct_call_to": "AG-008",
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "direct_calls_blocked": true
+      }
+    },
+    {
+      "case_id": "SEC-009",
+      "case_number": 169,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Seguridad / Prohibidos",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Bloqueo si Feature Flag AG009_ENABLED = false",
+      "payload": {
+        "feature_flag_disabled": true,
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": false,
+        "error_code": "AGENT_CONNECTOR_DISABLED"
+      }
+    },
+    {
+      "case_id": "SEC-010",
+      "case_number": 170,
+      "dataset_version": "AG009-EVAL-001",
+      "category": "Seguridad / Prohibidos",
+      "target_subagent": "AG-009.0",
+      "event_code": "CORRECTIVE_REQUEST",
+      "description": "Garantía CERO consumo de LLM tokens ($0.00 USD) en seguridad",
+      "payload": {
+        "source": "PORTAL",
+        "machine_id": "COS-01",
+        "description": "Falla",
+        "requester_reference": "Op"
+      },
+      "expected": {
+        "success": true,
+        "llm_tokens": 0,
+        "cost_usd": 0
+      }
+    }
+  ]
+}
