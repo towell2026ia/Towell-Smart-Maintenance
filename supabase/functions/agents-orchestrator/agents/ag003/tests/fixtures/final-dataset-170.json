@@ -1,0 +1,2265 @@
+[
+  {
+    "id": "EVAL-001",
+    "split": "TRAINING",
+    "category": "Arquitectura / Data Mapping",
+    "description": "Mapeo canónico machine -> cat_maquinas",
+    "input": {
+      "source": "cat_maquinas",
+      "id": "TEL-01"
+    },
+    "expected": {
+      "resolved": true
+    }
+  },
+  {
+    "id": "EVAL-002",
+    "split": "TRAINING",
+    "category": "Arquitectura / Data Mapping",
+    "description": "Mapeo de calidad -> public.segundas_por_rollo",
+    "input": {
+      "source": "segundas_por_rollo"
+    },
+    "expected": {
+      "resolved": true
+    }
+  },
+  {
+    "id": "EVAL-003",
+    "split": "TRAINING",
+    "category": "Arquitectura / Data Mapping",
+    "description": "Staging no sustituye tabla analítica final",
+    "input": {
+      "source": "stg_segundas_por_rollo_excel"
+    },
+    "expected": {
+      "staging_isolated": true
+    }
+  },
+  {
+    "id": "EVAL-004",
+    "split": "TRAINING",
+    "category": "Arquitectura / Data Mapping",
+    "description": "Mapeo de paros históricos -> fallas_por_maquina y Telegram",
+    "input": {
+      "source": "fallas_por_maquina"
+    },
+    "expected": {
+      "resolved": true
+    }
+  },
+  {
+    "id": "EVAL-005",
+    "split": "TRAINING",
+    "category": "Arquitectura / Data Mapping",
+    "description": "Mapeo de contratos canónicos de planificación y hallazgo",
+    "input": {
+      "contract": "contracts"
+    },
+    "expected": {
+      "resolved": true
+    }
+  },
+  {
+    "id": "EVAL-006",
+    "split": "VALIDATION",
+    "category": "Arquitectura / Data Mapping",
+    "description": "Validación de mapeo hacia calendarios_mantenimiento",
+    "input": {
+      "target": "calendarios_mantenimiento"
+    },
+    "expected": {
+      "contract": "PREDICTIVE-SCHEDULE-001"
+    }
+  },
+  {
+    "id": "EVAL-007",
+    "split": "VALIDATION",
+    "category": "Arquitectura / Data Mapping",
+    "description": "Validación de persistencia hacia respuestas_checklist_predictivo",
+    "input": {
+      "target": "respuestas_checklist_predictivo"
+    },
+    "expected": {
+      "form_family": "LEVANTAMIENTO_PREDICTIVO"
+    }
+  },
+  {
+    "id": "EVAL-008",
+    "split": "HOLDOUT",
+    "category": "Arquitectura / Data Mapping",
+    "description": "Holdout de resolución integral de 14 fuentes mapeadas",
+    "input": {
+      "all_sources": true
+    },
+    "expected": {
+      "mapping_pass": true
+    }
+  },
+  {
+    "id": "EVAL-009",
+    "split": "TRAINING",
+    "category": "Eligibility / PF / Telares",
+    "description": "Telar activo en PF (Elegible)",
+    "input": {
+      "depto": "PF",
+      "tipo": "TELAR",
+      "activo": true
+    },
+    "expected": {
+      "eligible": true
+    }
+  },
+  {
+    "id": "EVAL-010",
+    "split": "TRAINING",
+    "category": "Eligibility / PF / Telares",
+    "description": "Telar inactivo en PF (No Elegible)",
+    "input": {
+      "depto": "PF",
+      "tipo": "TELAR",
+      "activo": false
+    },
+    "expected": {
+      "eligible": false
+    }
+  },
+  {
+    "id": "EVAL-011",
+    "split": "TRAINING",
+    "category": "Eligibility / PF / Telares",
+    "description": "Máquina no-telar en PF (URDIDOR - No Elegible)",
+    "input": {
+      "depto": "PF",
+      "tipo": "URDIDOR",
+      "activo": true
+    },
+    "expected": {
+      "eligible": false
+    }
+  },
+  {
+    "id": "EVAL-012",
+    "split": "TRAINING",
+    "category": "Eligibility / PF / Telares",
+    "description": "Máquina de CF Confección (No Elegible)",
+    "input": {
+      "depto": "CF",
+      "tipo": "COSTURA",
+      "activo": true
+    },
+    "expected": {
+      "eligible": false
+    }
+  },
+  {
+    "id": "EVAL-013",
+    "split": "TRAINING",
+    "category": "Eligibility / PF / Telares",
+    "description": "Máquina de TF Tintorería (No Elegible)",
+    "input": {
+      "depto": "TF",
+      "tipo": "RAMA",
+      "activo": true
+    },
+    "expected": {
+      "eligible": false
+    }
+  },
+  {
+    "id": "EVAL-014",
+    "split": "TRAINING",
+    "category": "Eligibility / PF / Telares",
+    "description": "Máquina de AF Acabados (No Elegible)",
+    "input": {
+      "depto": "AF",
+      "tipo": "SECADORA",
+      "activo": true
+    },
+    "expected": {
+      "eligible": false
+    }
+  },
+  {
+    "id": "EVAL-015",
+    "split": "TRAINING",
+    "category": "Eligibility / PF / Telares",
+    "description": "Máquina inexistente en catálogo (No Elegible)",
+    "input": {
+      "id": "UNKNOWN"
+    },
+    "expected": {
+      "eligible": false
+    }
+  },
+  {
+    "id": "EVAL-016",
+    "split": "VALIDATION",
+    "category": "Eligibility / PF / Telares",
+    "description": "Validación de 54 telares identificados en catálogo",
+    "input": {
+      "count": 54
+    },
+    "expected": {
+      "total_looms": 54
+    }
+  },
+  {
+    "id": "EVAL-017",
+    "split": "VALIDATION",
+    "category": "Eligibility / PF / Telares",
+    "description": "Validación de rechazo a máquinas de servicios generales",
+    "input": {
+      "depto": "SG"
+    },
+    "expected": {
+      "eligible": false
+    }
+  },
+  {
+    "id": "EVAL-018",
+    "split": "HOLDOUT",
+    "category": "Eligibility / PF / Telares",
+    "description": "Holdout de cobertura estricta de telares activos PF",
+    "input": {
+      "scan": "all"
+    },
+    "expected": {
+      "non_looms_selected": 0
+    }
+  },
+  {
+    "id": "EVAL-019",
+    "split": "HOLDOUT",
+    "category": "Eligibility / PF / Telares",
+    "description": "Holdout de rechazo inmediato a telar con activo = null/false",
+    "input": {
+      "activo": null
+    },
+    "expected": {
+      "eligible": false
+    }
+  },
+  {
+    "id": "EVAL-020",
+    "split": "HOLDOUT",
+    "category": "Eligibility / PF / Telares",
+    "description": "Holdout de discriminación por código de área PF",
+    "input": {
+      "depto": "PF"
+    },
+    "expected": {
+      "department_pass": true
+    }
+  },
+  {
+    "id": "EVAL-021",
+    "split": "TRAINING",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Training ventana móvil 30d caso 1",
+    "input": {
+      "rolls": 2,
+      "segundas": 5,
+      "target_date": "2026-08-18"
+    },
+    "expected": {
+      "valid_window": true
+    }
+  },
+  {
+    "id": "EVAL-022",
+    "split": "TRAINING",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Training ventana móvil 30d caso 2",
+    "input": {
+      "rolls": 4,
+      "segundas": 10,
+      "target_date": "2026-08-18"
+    },
+    "expected": {
+      "valid_window": true
+    }
+  },
+  {
+    "id": "EVAL-023",
+    "split": "TRAINING",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Training ventana móvil 30d caso 3",
+    "input": {
+      "rolls": 6,
+      "segundas": 15,
+      "target_date": "2026-08-18"
+    },
+    "expected": {
+      "valid_window": true
+    }
+  },
+  {
+    "id": "EVAL-024",
+    "split": "TRAINING",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Training ventana móvil 30d caso 4",
+    "input": {
+      "rolls": 8,
+      "segundas": 20,
+      "target_date": "2026-08-18"
+    },
+    "expected": {
+      "valid_window": true
+    }
+  },
+  {
+    "id": "EVAL-025",
+    "split": "TRAINING",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Training ventana móvil 30d caso 5",
+    "input": {
+      "rolls": 10,
+      "segundas": 25,
+      "target_date": "2026-08-18"
+    },
+    "expected": {
+      "valid_window": true
+    }
+  },
+  {
+    "id": "EVAL-026",
+    "split": "TRAINING",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Training ventana móvil 30d caso 6",
+    "input": {
+      "rolls": 12,
+      "segundas": 30,
+      "target_date": "2026-08-18"
+    },
+    "expected": {
+      "valid_window": true
+    }
+  },
+  {
+    "id": "EVAL-027",
+    "split": "TRAINING",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Training ventana móvil 30d caso 7",
+    "input": {
+      "rolls": 14,
+      "segundas": 35,
+      "target_date": "2026-08-18"
+    },
+    "expected": {
+      "valid_window": true
+    }
+  },
+  {
+    "id": "EVAL-028",
+    "split": "TRAINING",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Training ventana móvil 30d caso 8",
+    "input": {
+      "rolls": 16,
+      "segundas": 40,
+      "target_date": "2026-08-18"
+    },
+    "expected": {
+      "valid_window": true
+    }
+  },
+  {
+    "id": "EVAL-029",
+    "split": "TRAINING",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Training ventana móvil 30d caso 9",
+    "input": {
+      "rolls": 18,
+      "segundas": 45,
+      "target_date": "2026-08-18"
+    },
+    "expected": {
+      "valid_window": true
+    }
+  },
+  {
+    "id": "EVAL-030",
+    "split": "TRAINING",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Training ventana móvil 30d caso 10",
+    "input": {
+      "rolls": 20,
+      "segundas": 50,
+      "target_date": "2026-08-18"
+    },
+    "expected": {
+      "valid_window": true
+    }
+  },
+  {
+    "id": "EVAL-031",
+    "split": "TRAINING",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Training ventana móvil 30d caso 11",
+    "input": {
+      "rolls": 22,
+      "segundas": 55,
+      "target_date": "2026-08-18"
+    },
+    "expected": {
+      "valid_window": true
+    }
+  },
+  {
+    "id": "EVAL-032",
+    "split": "VALIDATION",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Muestra suficiente (>=10 rollos)",
+    "input": {
+      "rolls": 15
+    },
+    "expected": {
+      "status": "SUFFICIENT_DATA"
+    }
+  },
+  {
+    "id": "EVAL-033",
+    "split": "VALIDATION",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Muestra parcial (3 a 9 rollos)",
+    "input": {
+      "rolls": 5
+    },
+    "expected": {
+      "status": "PARTIAL_DATA"
+    }
+  },
+  {
+    "id": "EVAL-034",
+    "split": "VALIDATION",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Muestra insuficiente (<3 rollos)",
+    "input": {
+      "rolls": 2
+    },
+    "expected": {
+      "status": "INSUFFICIENT_DATA"
+    }
+  },
+  {
+    "id": "EVAL-035",
+    "split": "VALIDATION",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Sin producción en 30 días",
+    "input": {
+      "rolls": 0
+    },
+    "expected": {
+      "status": "NO_PRODUCTION_DATA"
+    }
+  },
+  {
+    "id": "EVAL-036",
+    "split": "HOLDOUT",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Holdout de límite temporal exacto D-30 a D",
+    "input": {
+      "window_days": 30
+    },
+    "expected": {
+      "boundary_pass": true
+    }
+  },
+  {
+    "id": "EVAL-037",
+    "split": "HOLDOUT",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Holdout de protección ante nulos en metraje/piezas",
+    "input": {
+      "has_nulls": true
+    },
+    "expected": {
+      "count_preserved": true
+    }
+  },
+  {
+    "id": "EVAL-038",
+    "split": "HOLDOUT",
+    "category": "Segundas / Window / Data Quality",
+    "description": "Holdout de segregación de registros de fecha futura/corrupta",
+    "input": {
+      "corrupt_dates": 2
+    },
+    "expected": {
+      "invalid_isolated": true
+    }
+  },
+  {
+    "id": "EVAL-039",
+    "split": "TRAINING",
+    "category": "Baseline / Deviation",
+    "description": "Training cálculo baseline/desviación caso 1",
+    "input": {
+      "rate": 2.3,
+      "baseline": 2.5,
+      "hist_samples": 16
+    },
+    "expected": {
+      "baseline_type": "MACHINE_HISTORICAL_MEAN"
+    }
+  },
+  {
+    "id": "EVAL-040",
+    "split": "TRAINING",
+    "category": "Baseline / Deviation",
+    "description": "Training cálculo baseline/desviación caso 2",
+    "input": {
+      "rate": 2.6,
+      "baseline": 2.5,
+      "hist_samples": 17
+    },
+    "expected": {
+      "baseline_type": "MACHINE_HISTORICAL_MEAN"
+    }
+  },
+  {
+    "id": "EVAL-041",
+    "split": "TRAINING",
+    "category": "Baseline / Deviation",
+    "description": "Training cálculo baseline/desviación caso 3",
+    "input": {
+      "rate": 2.9,
+      "baseline": 2.5,
+      "hist_samples": 18
+    },
+    "expected": {
+      "baseline_type": "MACHINE_HISTORICAL_MEAN"
+    }
+  },
+  {
+    "id": "EVAL-042",
+    "split": "TRAINING",
+    "category": "Baseline / Deviation",
+    "description": "Training cálculo baseline/desviación caso 4",
+    "input": {
+      "rate": 3.2,
+      "baseline": 2.5,
+      "hist_samples": 19
+    },
+    "expected": {
+      "baseline_type": "MACHINE_HISTORICAL_MEAN"
+    }
+  },
+  {
+    "id": "EVAL-043",
+    "split": "TRAINING",
+    "category": "Baseline / Deviation",
+    "description": "Training cálculo baseline/desviación caso 5",
+    "input": {
+      "rate": 3.5,
+      "baseline": 2.5,
+      "hist_samples": 20
+    },
+    "expected": {
+      "baseline_type": "MACHINE_HISTORICAL_MEAN"
+    }
+  },
+  {
+    "id": "EVAL-044",
+    "split": "TRAINING",
+    "category": "Baseline / Deviation",
+    "description": "Training cálculo baseline/desviación caso 6",
+    "input": {
+      "rate": 3.8,
+      "baseline": 2.5,
+      "hist_samples": 21
+    },
+    "expected": {
+      "baseline_type": "MACHINE_HISTORICAL_MEAN"
+    }
+  },
+  {
+    "id": "EVAL-045",
+    "split": "TRAINING",
+    "category": "Baseline / Deviation",
+    "description": "Training cálculo baseline/desviación caso 7",
+    "input": {
+      "rate": 4.1,
+      "baseline": 2.5,
+      "hist_samples": 22
+    },
+    "expected": {
+      "baseline_type": "MACHINE_HISTORICAL_MEAN"
+    }
+  },
+  {
+    "id": "EVAL-046",
+    "split": "TRAINING",
+    "category": "Baseline / Deviation",
+    "description": "Training cálculo baseline/desviación caso 8",
+    "input": {
+      "rate": 4.4,
+      "baseline": 2.5,
+      "hist_samples": 23
+    },
+    "expected": {
+      "baseline_type": "MACHINE_HISTORICAL_MEAN"
+    }
+  },
+  {
+    "id": "EVAL-047",
+    "split": "TRAINING",
+    "category": "Baseline / Deviation",
+    "description": "Training cálculo baseline/desviación caso 9",
+    "input": {
+      "rate": 4.699999999999999,
+      "baseline": 2.5,
+      "hist_samples": 24
+    },
+    "expected": {
+      "baseline_type": "MACHINE_HISTORICAL_MEAN"
+    }
+  },
+  {
+    "id": "EVAL-048",
+    "split": "TRAINING",
+    "category": "Baseline / Deviation",
+    "description": "Training cálculo baseline/desviación caso 10",
+    "input": {
+      "rate": 5,
+      "baseline": 2.5,
+      "hist_samples": 25
+    },
+    "expected": {
+      "baseline_type": "MACHINE_HISTORICAL_MEAN"
+    }
+  },
+  {
+    "id": "EVAL-049",
+    "split": "TRAINING",
+    "category": "Baseline / Deviation",
+    "description": "Training cálculo baseline/desviación caso 11",
+    "input": {
+      "rate": 5.3,
+      "baseline": 2.5,
+      "hist_samples": 26
+    },
+    "expected": {
+      "baseline_type": "MACHINE_HISTORICAL_MEAN"
+    }
+  },
+  {
+    "id": "EVAL-050",
+    "split": "VALIDATION",
+    "category": "Baseline / Deviation",
+    "description": "Auditoría de proveniencia de fallback peer group = 2.5 seg/rollo",
+    "input": {
+      "hist_samples": 5
+    },
+    "expected": {
+      "fallback": 2.5,
+      "provenance": "AG003-BASELINE-RULES-001"
+    }
+  },
+  {
+    "id": "EVAL-051",
+    "split": "VALIDATION",
+    "category": "Baseline / Deviation",
+    "description": "Desviación relativa significativa (>= +50%)",
+    "input": {
+      "rate": 4.5,
+      "baseline": 2.5
+    },
+    "expected": {
+      "trend": "SIGNIFICANT_INCREASE"
+    }
+  },
+  {
+    "id": "EVAL-052",
+    "split": "VALIDATION",
+    "category": "Baseline / Deviation",
+    "description": "Protección ante división por cero en baseline = 0",
+    "input": {
+      "rate": 3,
+      "baseline": 0
+    },
+    "expected": {
+      "division_by_zero_protected": true
+    }
+  },
+  {
+    "id": "EVAL-053",
+    "split": "VALIDATION",
+    "category": "Baseline / Deviation",
+    "description": "Desviación moderada (+15% a +49%)",
+    "input": {
+      "rate": 3.2,
+      "baseline": 2.5
+    },
+    "expected": {
+      "trend": "MODERATE_INCREASE"
+    }
+  },
+  {
+    "id": "EVAL-054",
+    "split": "HOLDOUT",
+    "category": "Baseline / Deviation",
+    "description": "Holdout de trazabilidad completa del origen del baseline",
+    "input": {
+      "track_provenance": true
+    },
+    "expected": {
+      "provenance_verified": true
+    }
+  },
+  {
+    "id": "EVAL-055",
+    "split": "HOLDOUT",
+    "category": "Baseline / Deviation",
+    "description": "Holdout de estabilidad en variación menor al 10%",
+    "input": {
+      "rate": 2.6,
+      "baseline": 2.5
+    },
+    "expected": {
+      "trend": "STABLE"
+    }
+  },
+  {
+    "id": "EVAL-056",
+    "split": "HOLDOUT",
+    "category": "Baseline / Deviation",
+    "description": "Holdout de tendencia decreciente (mejora de calidad)",
+    "input": {
+      "rate": 1.8,
+      "baseline": 2.5
+    },
+    "expected": {
+      "trend": "DECREASING"
+    }
+  },
+  {
+    "id": "EVAL-057",
+    "split": "TRAINING",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Training contexto histórico caso 1",
+    "input": {
+      "failures": 1,
+      "telegrams": 1,
+      "dupes": 0
+    },
+    "expected": {
+      "dedupe_applied": true
+    }
+  },
+  {
+    "id": "EVAL-058",
+    "split": "TRAINING",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Training contexto histórico caso 2",
+    "input": {
+      "failures": 2,
+      "telegrams": 2,
+      "dupes": 1
+    },
+    "expected": {
+      "dedupe_applied": true
+    }
+  },
+  {
+    "id": "EVAL-059",
+    "split": "TRAINING",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Training contexto histórico caso 3",
+    "input": {
+      "failures": 3,
+      "telegrams": 3,
+      "dupes": 1
+    },
+    "expected": {
+      "dedupe_applied": true
+    }
+  },
+  {
+    "id": "EVAL-060",
+    "split": "TRAINING",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Training contexto histórico caso 4",
+    "input": {
+      "failures": 4,
+      "telegrams": 4,
+      "dupes": 2
+    },
+    "expected": {
+      "dedupe_applied": true
+    }
+  },
+  {
+    "id": "EVAL-061",
+    "split": "TRAINING",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Training contexto histórico caso 5",
+    "input": {
+      "failures": 5,
+      "telegrams": 5,
+      "dupes": 2
+    },
+    "expected": {
+      "dedupe_applied": true
+    }
+  },
+  {
+    "id": "EVAL-062",
+    "split": "TRAINING",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Training contexto histórico caso 6",
+    "input": {
+      "failures": 6,
+      "telegrams": 6,
+      "dupes": 3
+    },
+    "expected": {
+      "dedupe_applied": true
+    }
+  },
+  {
+    "id": "EVAL-063",
+    "split": "TRAINING",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Training contexto histórico caso 7",
+    "input": {
+      "failures": 7,
+      "telegrams": 7,
+      "dupes": 3
+    },
+    "expected": {
+      "dedupe_applied": true
+    }
+  },
+  {
+    "id": "EVAL-064",
+    "split": "TRAINING",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Training contexto histórico caso 8",
+    "input": {
+      "failures": 8,
+      "telegrams": 8,
+      "dupes": 4
+    },
+    "expected": {
+      "dedupe_applied": true
+    }
+  },
+  {
+    "id": "EVAL-065",
+    "split": "VALIDATION",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Deduplicación estricta de paros en ventana 24h",
+    "input": {
+      "same_day": true,
+      "count": 2
+    },
+    "expected": {
+      "deduplicated_count": 1
+    }
+  },
+  {
+    "id": "EVAL-066",
+    "split": "VALIDATION",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Preservación de reincidencias reales separadas por >24h",
+    "input": {
+      "separate_days": true,
+      "count": 3
+    },
+    "expected": {
+      "deduplicated_count": 3
+    }
+  },
+  {
+    "id": "EVAL-067",
+    "split": "VALIDATION",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Tratamiento de downtime desconocido (no convertir a 0)",
+    "input": {
+      "dt": null
+    },
+    "expected": {
+      "is_unknown": true
+    }
+  },
+  {
+    "id": "EVAL-068",
+    "split": "HOLDOUT",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Holdout de deduplicación cruzada Excel + Telegram",
+    "input": {
+      "cross_source": true
+    },
+    "expected": {
+      "exact_dupes_removed": true
+    }
+  },
+  {
+    "id": "EVAL-069",
+    "split": "HOLDOUT",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Holdout de preservación de categorías de falla",
+    "input": {
+      "cat": "MECANICA"
+    },
+    "expected": {
+      "cat_preserved": true
+    }
+  },
+  {
+    "id": "EVAL-070",
+    "split": "HOLDOUT",
+    "category": "Histórico / Telegram / Dedupe",
+    "description": "Holdout de recencia respecto a último predictivo",
+    "input": {
+      "days_ago": 45
+    },
+    "expected": {
+      "recency_scored": true
+    }
+  },
+  {
+    "id": "EVAL-071",
+    "split": "TRAINING",
+    "category": "Priority / Selection",
+    "description": "Training prioridad predictiva caso 1",
+    "input": {
+      "dev": 0.1,
+      "seg": 5,
+      "failures": 0,
+      "crit": "Media"
+    },
+    "expected": {
+      "score_range": [
+        0,
+        100
+      ]
+    }
+  },
+  {
+    "id": "EVAL-072",
+    "split": "TRAINING",
+    "category": "Priority / Selection",
+    "description": "Training prioridad predictiva caso 2",
+    "input": {
+      "dev": 0.2,
+      "seg": 10,
+      "failures": 0,
+      "crit": "Alta"
+    },
+    "expected": {
+      "score_range": [
+        0,
+        100
+      ]
+    }
+  },
+  {
+    "id": "EVAL-073",
+    "split": "TRAINING",
+    "category": "Priority / Selection",
+    "description": "Training prioridad predictiva caso 3",
+    "input": {
+      "dev": 0.30000000000000004,
+      "seg": 15,
+      "failures": 1,
+      "crit": "Media"
+    },
+    "expected": {
+      "score_range": [
+        0,
+        100
+      ]
+    }
+  },
+  {
+    "id": "EVAL-074",
+    "split": "TRAINING",
+    "category": "Priority / Selection",
+    "description": "Training prioridad predictiva caso 4",
+    "input": {
+      "dev": 0.4,
+      "seg": 20,
+      "failures": 1,
+      "crit": "Alta"
+    },
+    "expected": {
+      "score_range": [
+        0,
+        100
+      ]
+    }
+  },
+  {
+    "id": "EVAL-075",
+    "split": "TRAINING",
+    "category": "Priority / Selection",
+    "description": "Training prioridad predictiva caso 5",
+    "input": {
+      "dev": 0.5,
+      "seg": 25,
+      "failures": 1,
+      "crit": "Media"
+    },
+    "expected": {
+      "score_range": [
+        0,
+        100
+      ]
+    }
+  },
+  {
+    "id": "EVAL-076",
+    "split": "TRAINING",
+    "category": "Priority / Selection",
+    "description": "Training prioridad predictiva caso 6",
+    "input": {
+      "dev": 0.6000000000000001,
+      "seg": 30,
+      "failures": 2,
+      "crit": "Alta"
+    },
+    "expected": {
+      "score_range": [
+        0,
+        100
+      ]
+    }
+  },
+  {
+    "id": "EVAL-077",
+    "split": "TRAINING",
+    "category": "Priority / Selection",
+    "description": "Training prioridad predictiva caso 7",
+    "input": {
+      "dev": 0.7000000000000001,
+      "seg": 35,
+      "failures": 2,
+      "crit": "Media"
+    },
+    "expected": {
+      "score_range": [
+        0,
+        100
+      ]
+    }
+  },
+  {
+    "id": "EVAL-078",
+    "split": "TRAINING",
+    "category": "Priority / Selection",
+    "description": "Training prioridad predictiva caso 8",
+    "input": {
+      "dev": 0.8,
+      "seg": 40,
+      "failures": 2,
+      "crit": "Alta"
+    },
+    "expected": {
+      "score_range": [
+        0,
+        100
+      ]
+    }
+  },
+  {
+    "id": "EVAL-079",
+    "split": "TRAINING",
+    "category": "Priority / Selection",
+    "description": "Training prioridad predictiva caso 9",
+    "input": {
+      "dev": 0.9,
+      "seg": 45,
+      "failures": 3,
+      "crit": "Media"
+    },
+    "expected": {
+      "score_range": [
+        0,
+        100
+      ]
+    }
+  },
+  {
+    "id": "EVAL-080",
+    "split": "TRAINING",
+    "category": "Priority / Selection",
+    "description": "Training prioridad predictiva caso 10",
+    "input": {
+      "dev": 1,
+      "seg": 50,
+      "failures": 3,
+      "crit": "Alta"
+    },
+    "expected": {
+      "score_range": [
+        0,
+        100
+      ]
+    }
+  },
+  {
+    "id": "EVAL-081",
+    "split": "TRAINING",
+    "category": "Priority / Selection",
+    "description": "Training prioridad predictiva caso 11",
+    "input": {
+      "dev": 1.1,
+      "seg": 55,
+      "failures": 3,
+      "crit": "Media"
+    },
+    "expected": {
+      "score_range": [
+        0,
+        100
+      ]
+    }
+  },
+  {
+    "id": "EVAL-082",
+    "split": "TRAINING",
+    "category": "Priority / Selection",
+    "description": "Training prioridad predictiva caso 12",
+    "input": {
+      "dev": 1.2000000000000002,
+      "seg": 60,
+      "failures": 4,
+      "crit": "Alta"
+    },
+    "expected": {
+      "score_range": [
+        0,
+        100
+      ]
+    }
+  },
+  {
+    "id": "EVAL-083",
+    "split": "VALIDATION",
+    "category": "Priority / Selection",
+    "description": "Dominancia de la señal primaria de calidad sobre fallas",
+    "input": {
+      "telarA": {
+        "dev": 1,
+        "fails": 0
+      },
+      "telarB": {
+        "dev": 0.1,
+        "fails": 4
+      }
+    },
+    "expected": {
+      "telarA_ranks_higher": true
+    }
+  },
+  {
+    "id": "EVAL-084",
+    "split": "VALIDATION",
+    "category": "Priority / Selection",
+    "description": "Auditoría de seguridad de umbral de selección (score >= 25)",
+    "input": {
+      "score": 22,
+      "seg": 0
+    },
+    "expected": {
+      "selected": false
+    }
+  },
+  {
+    "id": "EVAL-085",
+    "split": "VALIDATION",
+    "category": "Priority / Selection",
+    "description": "Desempate determinístico en 5 niveles",
+    "input": {
+      "tie_score": 75,
+      "devA": 0.5,
+      "devB": 0.3
+    },
+    "expected": {
+      "loomA_selected_first": true
+    }
+  },
+  {
+    "id": "EVAL-086",
+    "split": "VALIDATION",
+    "category": "Priority / Selection",
+    "description": "Límite absoluto Top-4 cuando califican >4 telares",
+    "input": {
+      "qualifying": 10
+    },
+    "expected": {
+      "selected_count": 4
+    }
+  },
+  {
+    "id": "EVAL-087",
+    "split": "HOLDOUT",
+    "category": "Priority / Selection",
+    "description": "Holdout de no llenado forzado (si solo 2 califican, seleccionar 2)",
+    "input": {
+      "qualifying": 2
+    },
+    "expected": {
+      "selected_count": 2
+    }
+  },
+  {
+    "id": "EVAL-088",
+    "split": "HOLDOUT",
+    "category": "Priority / Selection",
+    "description": "Holdout de cero candidatos (0 seleccionados sin error)",
+    "input": {
+      "qualifying": 0
+    },
+    "expected": {
+      "selected_count": 0
+    }
+  },
+  {
+    "id": "EVAL-089",
+    "split": "HOLDOUT",
+    "category": "Priority / Selection",
+    "description": "Holdout de reproducibilidad del ranking determinístico",
+    "input": {
+      "profile_hash": "abc"
+    },
+    "expected": {
+      "deterministic_rank": true
+    }
+  },
+  {
+    "id": "EVAL-090",
+    "split": "HOLDOUT",
+    "category": "Priority / Selection",
+    "description": "Holdout de selección máxima de 4 con 54 candidatos",
+    "input": {
+      "qualifying": 54
+    },
+    "expected": {
+      "selected_count": 4
+    }
+  },
+  {
+    "id": "EVAL-091",
+    "split": "TRAINING",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Training capacidad y scheduler caso 1",
+    "input": {
+      "existing": 1,
+      "target_month": "2026-09"
+    },
+    "expected": {
+      "available": 3
+    }
+  },
+  {
+    "id": "EVAL-092",
+    "split": "TRAINING",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Training capacidad y scheduler caso 2",
+    "input": {
+      "existing": 2,
+      "target_month": "2026-09"
+    },
+    "expected": {
+      "available": 2
+    }
+  },
+  {
+    "id": "EVAL-093",
+    "split": "TRAINING",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Training capacidad y scheduler caso 3",
+    "input": {
+      "existing": 3,
+      "target_month": "2026-09"
+    },
+    "expected": {
+      "available": 1
+    }
+  },
+  {
+    "id": "EVAL-094",
+    "split": "TRAINING",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Training capacidad y scheduler caso 4",
+    "input": {
+      "existing": 4,
+      "target_month": "2026-09"
+    },
+    "expected": {
+      "available": 0
+    }
+  },
+  {
+    "id": "EVAL-095",
+    "split": "TRAINING",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Training capacidad y scheduler caso 5",
+    "input": {
+      "existing": 0,
+      "target_month": "2026-09"
+    },
+    "expected": {
+      "available": 4
+    }
+  },
+  {
+    "id": "EVAL-096",
+    "split": "TRAINING",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Training capacidad y scheduler caso 6",
+    "input": {
+      "existing": 1,
+      "target_month": "2026-09"
+    },
+    "expected": {
+      "available": 3
+    }
+  },
+  {
+    "id": "EVAL-097",
+    "split": "TRAINING",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Training capacidad y scheduler caso 7",
+    "input": {
+      "existing": 2,
+      "target_month": "2026-09"
+    },
+    "expected": {
+      "available": 2
+    }
+  },
+  {
+    "id": "EVAL-098",
+    "split": "TRAINING",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Training capacidad y scheduler caso 8",
+    "input": {
+      "existing": 3,
+      "target_month": "2026-09"
+    },
+    "expected": {
+      "available": 1
+    }
+  },
+  {
+    "id": "EVAL-099",
+    "split": "TRAINING",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Training capacidad y scheduler caso 9",
+    "input": {
+      "existing": 4,
+      "target_month": "2026-09"
+    },
+    "expected": {
+      "available": 0
+    }
+  },
+  {
+    "id": "EVAL-100",
+    "split": "TRAINING",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Training capacidad y scheduler caso 10",
+    "input": {
+      "existing": 0,
+      "target_month": "2026-09"
+    },
+    "expected": {
+      "available": 4
+    }
+  },
+  {
+    "id": "EVAL-101",
+    "split": "VALIDATION",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Capacidad existente llena (4 existentes -> 0 nuevos)",
+    "input": {
+      "existing": 4
+    },
+    "expected": {
+      "available_slots": 0
+    }
+  },
+  {
+    "id": "EVAL-102",
+    "split": "VALIDATION",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Programación en viernes hábiles del mes objetivo",
+    "input": {
+      "month": "2026-09"
+    },
+    "expected": {
+      "scheduled_in_month": true
+    }
+  },
+  {
+    "id": "EVAL-103",
+    "split": "VALIDATION",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Prevención de duplicado del mismo telar en el mismo mes",
+    "input": {
+      "existing_loom": "TEL-01"
+    },
+    "expected": {
+      "duplicate_rejected": true
+    }
+  },
+  {
+    "id": "EVAL-104",
+    "split": "HOLDOUT",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Holdout de meses con menos de 4 viernes (distribución segura)",
+    "input": {
+      "month": "2026-02"
+    },
+    "expected": {
+      "dates_in_target_month": true
+    }
+  },
+  {
+    "id": "EVAL-105",
+    "split": "HOLDOUT",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Holdout de emisión de PREDICTIVE-SCHEDULE-001 (v1.0)",
+    "input": {
+      "format": "canonical"
+    },
+    "expected": {
+      "contract_valid": true
+    }
+  },
+  {
+    "id": "EVAL-106",
+    "split": "HOLDOUT",
+    "category": "Monthly Capacity / Scheduler",
+    "description": "Holdout de inmutabilidad del mes programado",
+    "input": {
+      "target_month": "2026-09"
+    },
+    "expected": {
+      "month_preserved": true
+    }
+  },
+  {
+    "id": "EVAL-107",
+    "split": "TRAINING",
+    "category": "MiMo Semantic Layer",
+    "description": "Training interpretación semántica caso 1",
+    "input": {
+      "mId": "TEL-1",
+      "score": 71
+    },
+    "expected": {
+      "structured_json": true
+    }
+  },
+  {
+    "id": "EVAL-108",
+    "split": "TRAINING",
+    "category": "MiMo Semantic Layer",
+    "description": "Training interpretación semántica caso 2",
+    "input": {
+      "mId": "TEL-2",
+      "score": 72
+    },
+    "expected": {
+      "structured_json": true
+    }
+  },
+  {
+    "id": "EVAL-109",
+    "split": "TRAINING",
+    "category": "MiMo Semantic Layer",
+    "description": "Training interpretación semántica caso 3",
+    "input": {
+      "mId": "TEL-3",
+      "score": 73
+    },
+    "expected": {
+      "structured_json": true
+    }
+  },
+  {
+    "id": "EVAL-110",
+    "split": "TRAINING",
+    "category": "MiMo Semantic Layer",
+    "description": "Training interpretación semántica caso 4",
+    "input": {
+      "mId": "TEL-4",
+      "score": 74
+    },
+    "expected": {
+      "structured_json": true
+    }
+  },
+  {
+    "id": "EVAL-111",
+    "split": "TRAINING",
+    "category": "MiMo Semantic Layer",
+    "description": "Training interpretación semántica caso 5",
+    "input": {
+      "mId": "TEL-5",
+      "score": 75
+    },
+    "expected": {
+      "structured_json": true
+    }
+  },
+  {
+    "id": "EVAL-112",
+    "split": "TRAINING",
+    "category": "MiMo Semantic Layer",
+    "description": "Training interpretación semántica caso 6",
+    "input": {
+      "mId": "TEL-6",
+      "score": 76
+    },
+    "expected": {
+      "structured_json": true
+    }
+  },
+  {
+    "id": "EVAL-113",
+    "split": "TRAINING",
+    "category": "MiMo Semantic Layer",
+    "description": "Training interpretación semántica caso 7",
+    "input": {
+      "mId": "TEL-7",
+      "score": 77
+    },
+    "expected": {
+      "structured_json": true
+    }
+  },
+  {
+    "id": "EVAL-114",
+    "split": "TRAINING",
+    "category": "MiMo Semantic Layer",
+    "description": "Training interpretación semántica caso 8",
+    "input": {
+      "mId": "TEL-8",
+      "score": 78
+    },
+    "expected": {
+      "structured_json": true
+    }
+  },
+  {
+    "id": "EVAL-115",
+    "split": "TRAINING",
+    "category": "MiMo Semantic Layer",
+    "description": "Training interpretación semántica caso 9",
+    "input": {
+      "mId": "TEL-9",
+      "score": 79
+    },
+    "expected": {
+      "structured_json": true
+    }
+  },
+  {
+    "id": "EVAL-116",
+    "split": "TRAINING",
+    "category": "MiMo Semantic Layer",
+    "description": "Training interpretación semántica caso 10",
+    "input": {
+      "mId": "TEL-10",
+      "score": 80
+    },
+    "expected": {
+      "structured_json": true
+    }
+  },
+  {
+    "id": "EVAL-117",
+    "split": "VALIDATION",
+    "category": "MiMo Semantic Layer",
+    "description": "Fast Path con MIMO_ENABLED = false (0 calls, 0 tokens, $0)",
+    "input": {
+      "mimo_enabled": false
+    },
+    "expected": {
+      "calls": 0,
+      "cost": 0
+    }
+  },
+  {
+    "id": "EVAL-118",
+    "split": "VALIDATION",
+    "category": "MiMo Semantic Layer",
+    "description": "Rechazo de intento de override en machine_id / score",
+    "input": {
+      "override_attempt": true
+    },
+    "expected": {
+      "deterministic_wins": true
+    }
+  },
+  {
+    "id": "EVAL-119",
+    "split": "VALIDATION",
+    "category": "MiMo Semantic Layer",
+    "description": "Aislamiento de prompt injection en histórico",
+    "input": {
+      "prompt_injection": true
+    },
+    "expected": {
+      "injection_neutralized": true
+    }
+  },
+  {
+    "id": "EVAL-120",
+    "split": "HOLDOUT",
+    "category": "MiMo Semantic Layer",
+    "description": "Holdout de preservación de frontera: señal analítica != hallazgo físico",
+    "input": {
+      "score": 98
+    },
+    "expected": {
+      "findings_created": 0
+    }
+  },
+  {
+    "id": "EVAL-121",
+    "split": "HOLDOUT",
+    "category": "MiMo Semantic Layer",
+    "description": "Holdout de sugerencia de foco en 4 bloques aprobados",
+    "input": {
+      "focus": [
+        "Mecánico"
+      ]
+    },
+    "expected": {
+      "valid_focus": true
+    }
+  },
+  {
+    "id": "EVAL-122",
+    "split": "HOLDOUT",
+    "category": "MiMo Semantic Layer",
+    "description": "Holdout de fallback determinístico ante fallo de MiMo",
+    "input": {
+      "timeout": true
+    },
+    "expected": {
+      "deterministic_plan_valid": true
+    }
+  },
+  {
+    "id": "EVAL-123",
+    "split": "TRAINING",
+    "category": "Calendario -> Levantamiento",
+    "description": "Training transición calendario a levantamiento caso 1",
+    "input": {
+      "schedule_id": "sched-1"
+    },
+    "expected": {
+      "form_family": "LEVANTAMIENTO_PREDICTIVO"
+    }
+  },
+  {
+    "id": "EVAL-124",
+    "split": "TRAINING",
+    "category": "Calendario -> Levantamiento",
+    "description": "Training transición calendario a levantamiento caso 2",
+    "input": {
+      "schedule_id": "sched-2"
+    },
+    "expected": {
+      "form_family": "LEVANTAMIENTO_PREDICTIVO"
+    }
+  },
+  {
+    "id": "EVAL-125",
+    "split": "TRAINING",
+    "category": "Calendario -> Levantamiento",
+    "description": "Training transición calendario a levantamiento caso 3",
+    "input": {
+      "schedule_id": "sched-3"
+    },
+    "expected": {
+      "form_family": "LEVANTAMIENTO_PREDICTIVO"
+    }
+  },
+  {
+    "id": "EVAL-126",
+    "split": "TRAINING",
+    "category": "Calendario -> Levantamiento",
+    "description": "Training transición calendario a levantamiento caso 4",
+    "input": {
+      "schedule_id": "sched-4"
+    },
+    "expected": {
+      "form_family": "LEVANTAMIENTO_PREDICTIVO"
+    }
+  },
+  {
+    "id": "EVAL-127",
+    "split": "TRAINING",
+    "category": "Calendario -> Levantamiento",
+    "description": "Training transición calendario a levantamiento caso 5",
+    "input": {
+      "schedule_id": "sched-5"
+    },
+    "expected": {
+      "form_family": "LEVANTAMIENTO_PREDICTIVO"
+    }
+  },
+  {
+    "id": "EVAL-128",
+    "split": "TRAINING",
+    "category": "Calendario -> Levantamiento",
+    "description": "Training transición calendario a levantamiento caso 6",
+    "input": {
+      "schedule_id": "sched-6"
+    },
+    "expected": {
+      "form_family": "LEVANTAMIENTO_PREDICTIVO"
+    }
+  },
+  {
+    "id": "EVAL-129",
+    "split": "TRAINING",
+    "category": "Calendario -> Levantamiento",
+    "description": "Training transición calendario a levantamiento caso 7",
+    "input": {
+      "schedule_id": "sched-7"
+    },
+    "expected": {
+      "form_family": "LEVANTAMIENTO_PREDICTIVO"
+    }
+  },
+  {
+    "id": "EVAL-130",
+    "split": "VALIDATION",
+    "category": "Calendario -> Levantamiento",
+    "description": "Vinculación de contexto técnico a LEVANTAMIENTO_PREDICTIVO",
+    "input": {
+      "item": "TEL-01"
+    },
+    "expected": {
+      "survey_generated": true
+    }
+  },
+  {
+    "id": "EVAL-131",
+    "split": "VALIDATION",
+    "category": "Calendario -> Levantamiento",
+    "description": "Prohibición de crear OT directamente desde el calendario",
+    "input": {
+      "create_ot": false
+    },
+    "expected": {
+      "direct_ots": 0
+    }
+  },
+  {
+    "id": "EVAL-132",
+    "split": "HOLDOUT",
+    "category": "Calendario -> Levantamiento",
+    "description": "Holdout de persistencia en calendarios_mantenimiento_detalle",
+    "input": {
+      "target": "calendario_detalle"
+    },
+    "expected": {
+      "row_valid": true
+    }
+  },
+  {
+    "id": "EVAL-133",
+    "split": "HOLDOUT",
+    "category": "Calendario -> Levantamiento",
+    "description": "Holdout de tipo_mantenimiento = PREDICTIVO en calendario",
+    "input": {
+      "type": "PREDICTIVO"
+    },
+    "expected": {
+      "type_match": true
+    }
+  },
+  {
+    "id": "EVAL-134",
+    "split": "HOLDOUT",
+    "category": "Calendario -> Levantamiento",
+    "description": "Holdout de 4 slots máximos convertidos a levantamientos",
+    "input": {
+      "max_surveys": 4
+    },
+    "expected": {
+      "max_preserved": true
+    }
+  },
+  {
+    "id": "EVAL-135",
+    "split": "TRAINING",
+    "category": "Checklist / Hallazgo",
+    "description": "Training checklist y respuestas caso 1",
+    "input": {
+      "blocks": [
+        "Electrónico",
+        "Mecánico",
+        "Limpieza",
+        "Lubricación"
+      ]
+    },
+    "expected": {
+      "all_4_blocks_present": true
+    }
+  },
+  {
+    "id": "EVAL-136",
+    "split": "TRAINING",
+    "category": "Checklist / Hallazgo",
+    "description": "Training checklist y respuestas caso 2",
+    "input": {
+      "blocks": [
+        "Electrónico",
+        "Mecánico",
+        "Limpieza",
+        "Lubricación"
+      ]
+    },
+    "expected": {
+      "all_4_blocks_present": true
+    }
+  },
+  {
+    "id": "EVAL-137",
+    "split": "TRAINING",
+    "category": "Checklist / Hallazgo",
+    "description": "Training checklist y respuestas caso 3",
+    "input": {
+      "blocks": [
+        "Electrónico",
+        "Mecánico",
+        "Limpieza",
+        "Lubricación"
+      ]
+    },
+    "expected": {
+      "all_4_blocks_present": true
+    }
+  },
+  {
+    "id": "EVAL-138",
+    "split": "TRAINING",
+    "category": "Checklist / Hallazgo",
+    "description": "Training checklist y respuestas caso 4",
+    "input": {
+      "blocks": [
+        "Electrónico",
+        "Mecánico",
+        "Limpieza",
+        "Lubricación"
+      ]
+    },
+    "expected": {
+      "all_4_blocks_present": true
+    }
+  },
+  {
+    "id": "EVAL-139",
+    "split": "TRAINING",
+    "category": "Checklist / Hallazgo",
+    "description": "Training checklist y respuestas caso 5",
+    "input": {
+      "blocks": [
+        "Electrónico",
+        "Mecánico",
+        "Limpieza",
+        "Lubricación"
+      ]
+    },
+    "expected": {
+      "all_4_blocks_present": true
+    }
+  },
+  {
+    "id": "EVAL-140",
+    "split": "TRAINING",
+    "category": "Checklist / Hallazgo",
+    "description": "Training checklist y respuestas caso 6",
+    "input": {
+      "blocks": [
+        "Electrónico",
+        "Mecánico",
+        "Limpieza",
+        "Lubricación"
+      ]
+    },
+    "expected": {
+      "all_4_blocks_present": true
+    }
+  },
+  {
+    "id": "EVAL-141",
+    "split": "TRAINING",
+    "category": "Checklist / Hallazgo",
+    "description": "Training checklist y respuestas caso 7",
+    "input": {
+      "blocks": [
+        "Electrónico",
+        "Mecánico",
+        "Limpieza",
+        "Lubricación"
+      ]
+    },
+    "expected": {
+      "all_4_blocks_present": true
+    }
+  },
+  {
+    "id": "EVAL-142",
+    "split": "VALIDATION",
+    "category": "Checklist / Hallazgo",
+    "description": "Caso E2E sin hallazgo (4 bloques OK -> 0 hallazgos, 0 OTs)",
+    "input": {
+      "condition": "ALL_OK"
+    },
+    "expected": {
+      "finding_created": false,
+      "ot_created": false
+    }
+  },
+  {
+    "id": "EVAL-143",
+    "split": "VALIDATION",
+    "category": "Checklist / Hallazgo",
+    "description": "Caso E2E con hallazgo físico en piso -> PREDICTIVE-FINDING-001",
+    "input": {
+      "condition": "MECHANICAL_ABNORMAL"
+    },
+    "expected": {
+      "finding_contract": "PREDICTIVE-FINDING-001"
+    }
+  },
+  {
+    "id": "EVAL-144",
+    "split": "HOLDOUT",
+    "category": "Checklist / Hallazgo",
+    "description": "Holdout de autoridad técnica en piso (cero prellenado de respuestas por IA)",
+    "input": {
+      "prefilled": 0
+    },
+    "expected": {
+      "prefill_count": 0
+    }
+  },
+  {
+    "id": "EVAL-145",
+    "split": "HOLDOUT",
+    "category": "Checklist / Hallazgo",
+    "description": "Holdout de validación de 14 campos obligatorios de PREDICTIVE-FINDING-001",
+    "input": {
+      "fields_count": 14
+    },
+    "expected": {
+      "contract_valid": true
+    }
+  },
+  {
+    "id": "EVAL-146",
+    "split": "HOLDOUT",
+    "category": "Checklist / Hallazgo",
+    "description": "Holdout de persistencia en respuestas_checklist_predictivo",
+    "input": {
+      "target": "respuestas_predictivo"
+    },
+    "expected": {
+      "saved": true
+    }
+  },
+  {
+    "id": "EVAL-147",
+    "split": "TRAINING",
+    "category": "AG-001 / AG-009.3 / Correctivo",
+    "description": "Training enrutamiento correctivo caso 1",
+    "input": {
+      "finding_id": "find-1"
+    },
+    "expected": {
+      "routed_via_ag001": true
+    }
+  },
+  {
+    "id": "EVAL-148",
+    "split": "TRAINING",
+    "category": "AG-001 / AG-009.3 / Correctivo",
+    "description": "Training enrutamiento correctivo caso 2",
+    "input": {
+      "finding_id": "find-2"
+    },
+    "expected": {
+      "routed_via_ag001": true
+    }
+  },
+  {
+    "id": "EVAL-149",
+    "split": "TRAINING",
+    "category": "AG-001 / AG-009.3 / Correctivo",
+    "description": "Training enrutamiento correctivo caso 3",
+    "input": {
+      "finding_id": "find-3"
+    },
+    "expected": {
+      "routed_via_ag001": true
+    }
+  },
+  {
+    "id": "EVAL-150",
+    "split": "TRAINING",
+    "category": "AG-001 / AG-009.3 / Correctivo",
+    "description": "Training enrutamiento correctivo caso 4",
+    "input": {
+      "finding_id": "find-4"
+    },
+    "expected": {
+      "routed_via_ag001": true
+    }
+  },
+  {
+    "id": "EVAL-151",
+    "split": "TRAINING",
+    "category": "AG-001 / AG-009.3 / Correctivo",
+    "description": "Training enrutamiento correctivo caso 5",
+    "input": {
+      "finding_id": "find-5"
+    },
+    "expected": {
+      "routed_via_ag001": true
+    }
+  },
+  {
+    "id": "EVAL-152",
+    "split": "TRAINING",
+    "category": "AG-001 / AG-009.3 / Correctivo",
+    "description": "Training enrutamiento correctivo caso 6",
+    "input": {
+      "finding_id": "find-6"
+    },
+    "expected": {
+      "routed_via_ag001": true
+    }
+  },
+  {
+    "id": "EVAL-153",
+    "split": "TRAINING",
+    "category": "AG-001 / AG-009.3 / Correctivo",
+    "description": "Training enrutamiento correctivo caso 7",
+    "input": {
+      "finding_id": "find-7"
+    },
+    "expected": {
+      "routed_via_ag001": true
+    }
+  },
+  {
+    "id": "EVAL-154",
+    "split": "VALIDATION",
+    "category": "AG-001 / AG-009.3 / Correctivo",
+    "description": "Enrutamiento mandatorio PREDICTIVE-FINDING-001 -> AG-001 -> AG-009.3",
+    "input": {
+      "route": "AG-001->AG-009.3"
+    },
+    "expected": {
+      "route_valid": true
+    }
+  },
+  {
+    "id": "EVAL-155",
+    "split": "VALIDATION",
+    "category": "AG-001 / AG-009.3 / Correctivo",
+    "description": "Prohibición de llamadas directas AG-003 -> AG-009.3",
+    "input": {
+      "direct_call": false
+    },
+    "expected": {
+      "direct_calls": 0
+    }
+  },
+  {
+    "id": "EVAL-156",
+    "split": "HOLDOUT",
+    "category": "AG-001 / AG-009.3 / Correctivo",
+    "description": "Generación de CORRECTIVE-REQUEST-001 y guard de aprobación",
+    "input": {
+      "requires_approval": true
+    },
+    "expected": {
+      "approval_guard_active": true
+    }
+  },
+  {
+    "id": "EVAL-157",
+    "split": "HOLDOUT",
+    "category": "AG-001 / AG-009.3 / Correctivo",
+    "description": "Holdout de creación de OT Correctiva tras aprobación válida",
+    "input": {
+      "approved": true
+    },
+    "expected": {
+      "ot_created": true
+    }
+  },
+  {
+    "id": "EVAL-158",
+    "split": "HOLDOUT",
+    "category": "AG-001 / AG-009.3 / Correctivo",
+    "description": "Holdout de bloqueo de OT ante falta de aprobación o hash inválido",
+    "input": {
+      "approved": false
+    },
+    "expected": {
+      "ot_created": false
+    }
+  },
+  {
+    "id": "EVAL-159",
+    "split": "TRAINING",
+    "category": "Seguridad / Governance / Auditoría",
+    "description": "Training seguridad y gobernanza caso 1",
+    "input": {
+      "attempt": "sec-1"
+    },
+    "expected": {
+      "blocked": true
+    }
+  },
+  {
+    "id": "EVAL-160",
+    "split": "TRAINING",
+    "category": "Seguridad / Governance / Auditoría",
+    "description": "Training seguridad y gobernanza caso 2",
+    "input": {
+      "attempt": "sec-2"
+    },
+    "expected": {
+      "blocked": true
+    }
+  },
+  {
+    "id": "EVAL-161",
+    "split": "TRAINING",
+    "category": "Seguridad / Governance / Auditoría",
+    "description": "Training seguridad y gobernanza caso 3",
+    "input": {
+      "attempt": "sec-3"
+    },
+    "expected": {
+      "blocked": true
+    }
+  },
+  {
+    "id": "EVAL-162",
+    "split": "TRAINING",
+    "category": "Seguridad / Governance / Auditoría",
+    "description": "Training seguridad y gobernanza caso 4",
+    "input": {
+      "attempt": "sec-4"
+    },
+    "expected": {
+      "blocked": true
+    }
+  },
+  {
+    "id": "EVAL-163",
+    "split": "TRAINING",
+    "category": "Seguridad / Governance / Auditoría",
+    "description": "Training seguridad y gobernanza caso 5",
+    "input": {
+      "attempt": "sec-5"
+    },
+    "expected": {
+      "blocked": true
+    }
+  },
+  {
+    "id": "EVAL-164",
+    "split": "TRAINING",
+    "category": "Seguridad / Governance / Auditoría",
+    "description": "Training seguridad y gobernanza caso 6",
+    "input": {
+      "attempt": "sec-6"
+    },
+    "expected": {
+      "blocked": true
+    }
+  },
+  {
+    "id": "EVAL-165",
+    "split": "TRAINING",
+    "category": "Seguridad / Governance / Auditoría",
+    "description": "Training seguridad y gobernanza caso 7",
+    "input": {
+      "attempt": "sec-7"
+    },
+    "expected": {
+      "blocked": true
+    }
+  },
+  {
+    "id": "EVAL-166",
+    "split": "VALIDATION",
+    "category": "Seguridad / Governance / Auditoría",
+    "description": "Prohibición de creación de OTs directas por AG-003",
+    "input": {
+      "direct_ot": false
+    },
+    "expected": {
+      "ots_created_by_ag003": 0
+    }
+  },
+  {
+    "id": "EVAL-167",
+    "split": "VALIDATION",
+    "category": "Seguridad / Governance / Auditoría",
+    "description": "Trazabilidad de correlación 100% de Calidad a OT",
+    "input": {
+      "correlation_id": "corr-003"
+    },
+    "expected": {
+      "fully_traceable": true
+    }
+  },
+  {
+    "id": "EVAL-168",
+    "split": "VALIDATION",
+    "category": "Seguridad / Governance / Auditoría",
+    "description": "Holdout de deduplicación de solicitudes correctivas ante reenvío",
+    "input": {
+      "resubmit": true
+    },
+    "expected": {
+      "duplicate_requests": 0
+    }
+  },
+  {
+    "id": "EVAL-169",
+    "split": "HOLDOUT",
+    "category": "Seguridad / Governance / Auditoría",
+    "description": "Holdout de no auto-asignación ni auto-cierre de OTs por AG-003",
+    "input": {
+      "auto_assign": 0,
+      "auto_close": 0
+    },
+    "expected": {
+      "governance_pass": true
+    }
+  },
+  {
+    "id": "EVAL-170",
+    "split": "HOLDOUT",
+    "category": "Seguridad / Governance / Auditoría",
+    "description": "Holdout de no exposición de MIMO_API_KEY en payloads ni logs",
+    "input": {
+      "secret_exposure": 0
+    },
+    "expected": {
+      "zero_exposure": true
+    }
+  }
+]

@@ -121,7 +121,7 @@ CREATE INDEX idx_aprobaciones_status ON aprobaciones_agente(estatus);
 INSERT INTO cat_agentes (agent_id, nombre, rama, tipo, requires_ai, provider, default_model, fallback_model, authority_level, activo, version) VALUES
 ('AG-001', 'Capataz Orquestador', 'ORCHESTRATION', 'AGENTE', true, 'openai', 'gpt-4.1-nano', 'gpt-4.1-mini', 1, true, '1.1'),
 ('AG-002', 'Preventivo Anual', 'PLANEACION', 'AGENTE', true, 'mimo', 'mimo-v2.5', NULL, 2, true, '1.0'),
-('AG-003', 'Predictivo Mensual', 'PLANEACION', 'AGENTE', true, 'mimo', 'mimo-v2.5', NULL, 2, false, '1.0'),
+('AG-003', 'Predictivo Mensual', 'PLANEACION', 'AGENTE', true, 'mimo', 'mimo-v2.5', NULL, 2, true, '1.0'),
 ('AG-004', 'Autónomo Semanal', 'PLANEACION', 'AGENTE', true, 'mimo', 'mimo-v2.5', NULL, 2, false, '1.0'),
 ('AG-005', 'Auditor de Bases', 'DATOS', 'AGENTE', false, 'none', 'none', NULL, 1, false, '1.0'),
 ('AG-006', 'Constructor de Formularios', 'DATOS', 'AGENTE', true, 'openai', 'gpt-4.1-mini', NULL, 2, false, '1.0'),
