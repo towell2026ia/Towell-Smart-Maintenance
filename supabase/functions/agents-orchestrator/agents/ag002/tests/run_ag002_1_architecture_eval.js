@@ -1,5 +1,6 @@
 // supabase/functions/agents-orchestrator/agents/ag002/tests/run_ag002_1_architecture_eval.js
 // Node.js Comprehensive Architecture & Data Map Evaluation Runner for PRD-AG-002.1 (§85-103 PRD)
+// Updated with Loom (Telar) 2x/year preventive rule and Standard 1x/year rule.
 
 const fs = require('fs');
 const path = require('path');
@@ -36,6 +37,7 @@ async function runArchitectureEvaluation() {
   console.log('📦 Componente:             Arquitectura Multiagente (TSM-AI)');
   console.log('🤖 Agente:                 AG-002 — Preventivo Anual');
   console.log('🎯 Subfase:                AG-002.1 — Data & Architecture Map');
+  console.log('⚙️ Regla de Frecuencia:    Estándar: 1x/año | Telares (PF): 2x/año (Semestral)');
   console.log('🔒 Contrato de Salida:     PREVENTIVE-SCHEDULE-001 (v1.0)');
   console.log('🔌 Conector Destino:       AG-009.1 (Conector Preventivo)');
   console.log('================================================================================\n');
@@ -44,10 +46,10 @@ async function runArchitectureEvaluation() {
   // GRUPO 1: Máquinas y Departamentos (6 aserciones)
   // =========================================================================
   const mockMachines = [
-    { equipo_towell: 'TOW-TEL201-TEJI', departamento_codigo: 'PF', area: 'PF', activo: true },
-    { equipo_towell: 'TOW-LOG1-COST', departamento_codigo: 'CF', area: 'CF', activo: true },
-    { equipo_towell: 'TOW-CLAY-TINT', departamento_codigo: 'TF', area: 'TF', activo: true },
-    { equipo_towell: 'ADM-01', departamento_codigo: 'AF', area: 'AF', activo: true }
+    { equipo_towell: 'TOW-TEL201-TEJI', departamento_codigo: 'PF', area: 'PF', activo: true, tipo: 'TELAR' },
+    { equipo_towell: 'TOW-LOG1-COST', departamento_codigo: 'CF', area: 'CF', activo: true, tipo: 'ESTANDAR' },
+    { equipo_towell: 'TOW-CLAY-TINT', departamento_codigo: 'TF', area: 'TF', activo: true, tipo: 'ESTANDAR' },
+    { equipo_towell: 'ADM-01', departamento_codigo: 'AF', area: 'AF', activo: true, tipo: 'ESTANDAR' }
   ];
 
   assert('MCH-01', 'Máquinas / Departamentos', 'Fuente de verdad de máquinas identificada (cat_maquinas)', true, { table: 'public.cat_maquinas' });
@@ -78,10 +80,6 @@ async function runArchitectureEvaluation() {
   const mockFallas = [
     { id_falla: 'f-1', maquina_id: 'TOW-TEL201-TEJI', descripcion_falla: 'Falla motor', fecha_creada: '2026-01-15', es_recurrente: false },
     { id_falla: 'f-2', maquina_id: 'TOW-TEL201-TEJI', descripcion_falla: 'Falla motor', fecha_creada: '2026-05-20', es_recurrente: true }
-  ];
-
-  const mockTelegram = [
-    { id: 1, folio: 'PF00001', maquina_id: '201', falla: '54', descripcion: 'Falla eléctrica', fecha: '2026-02-01' }
   ];
 
   assert('FLT-01', 'Fallas / Telegram / Dedupe', 'Fuente de fallas por máquina identificada (fallas_por_maquina)', true, { table: 'public.fallas_por_maquina' });
@@ -142,22 +140,62 @@ async function runArchitectureEvaluation() {
   assert('PRT-06', 'Refacciones / Costos', 'Modelo de estimación de presupuesto de refacciones (vw_presupuesto_preventivo_anual)', true, { view: 'public.vw_presupuesto_preventivo_anual' });
 
   // =========================================================================
-  // GRUPO 7: Preventivo Anual y Regla 1/Año (6 aserciones)
+  // GRUPO 7: Preventivo Anual y Reglas Diferenciadas de Frecuencia (6 aserciones)
   // =========================================================================
-  const mockCalendarDetalle = [
-    { id_detalle: 'det-1', maquina_id: 'TOW-TEL201-TEJI', anio_plan: 2026, tipo_mantenimiento: 'PREVENTIVO', estatus_detalle: 'PROPUESTO' },
-    { id_detalle: 'det-2', maquina_id: 'TOW-LOG1-COST', anio_plan: 2026, tipo_mantenimiento: 'PREVENTIVO', estatus_detalle: 'CANCELADO' }
-  ];
-
-  function checkPreventiveExistsInYear(machineId, year) {
-    const activeStates = ['PROPUESTO', 'APROBADO', 'ASIGNADA', 'EN_PROCESO', 'PENDIENTE_VALIDACION', 'CERRADA'];
-    return mockCalendarDetalle.some(d => d.maquina_id === machineId && d.anio_plan === year && d.tipo_mantenimiento === 'PREVENTIVO' && activeStates.includes(d.estatus_detalle.toUpperCase()));
+  function isLoomMachine(machineId) {
+    const m = String(machineId || '').toUpperCase();
+    return m.includes('TEL') || m.includes('TEJI') || m.includes('JACQ');
   }
 
-  assert('PRV-01', 'Preventivo Anual', 'Regla de unicidad 1 máquina + 1 año = máx 1 preventivo implementable', true, { rule: '1_per_machine_per_year' });
-  assert('PRV-02', 'Preventivo Anual', 'Constraint uq_preventivo_maquina_anio identificado en BD', true, { constraint: 'uq_preventivo_maquina_anio' });
-  assert('PRV-03', 'Preventivo Anual', 'Detección determinística de preventivo existente (TOW-TEL201-TEJI en 2026 -> TRUE)', checkPreventiveExistsInYear('TOW-TEL201-TEJI', 2026) === true, { machine: 'TOW-TEL201-TEJI', year: 2026, exists: true });
-  assert('PRV-04', 'Preventivo Anual', 'Permisión de re-programación si estado previo es CANCELADO (TOW-LOG1-COST en 2026 -> FALSE)', checkPreventiveExistsInYear('TOW-LOG1-COST', 2026) === false, { machine: 'TOW-LOG1-COST', year: 2026, blocked: false });
+  function getMaxPreventivesAllowedPerYear(machineId) {
+    return isLoomMachine(machineId) ? 2 : 1; // Telares = 2/año (Semestral), Estándar = 1/año
+  }
+
+  const mockCalendarDetalle = [
+    // Telar con 1 preventivo en S1 (2026-03-15) -> Puede programar un 2do en S2
+    { id_detalle: 'det-tel-1', maquina_id: 'TOW-TEL201-TEJI', anio_plan: 2026, fecha_programada: '2026-03-15', tipo_mantenimiento: 'PREVENTIVO', estatus_detalle: 'PROPUESTO' },
+    // Máquina de Costura con 1 preventivo (2026-05-10) -> Ya NO puede programar otro en 2026 (máx 1)
+    { id_detalle: 'det-cos-1', maquina_id: 'TOW-LOG1-COST', anio_plan: 2026, fecha_programada: '2026-05-10', tipo_mantenimiento: 'PREVENTIVO', estatus_detalle: 'PROPUESTO' },
+    // Máquina de Tintorería con preventivo cancelado -> Puede re-programar
+    { id_detalle: 'det-tint-1', maquina_id: 'TOW-CLAY-TINT', anio_plan: 2026, fecha_programada: '2026-04-10', tipo_mantenimiento: 'PREVENTIVO', estatus_detalle: 'CANCELADO' }
+  ];
+
+  function getActivePreventivesCountInYear(machineId, year) {
+    const activeStates = ['PROPUESTO', 'APROBADO', 'ASIGNADA', 'EN_PROCESO', 'PENDIENTE_VALIDACION', 'CERRADA'];
+    return mockCalendarDetalle.filter(d => 
+      d.maquina_id === machineId && 
+      d.anio_plan === year && 
+      d.tipo_mantenimiento === 'PREVENTIVO' && 
+      activeStates.includes(d.estatus_detalle.toUpperCase())
+    ).length;
+  }
+
+  function canSchedulePreventive(machineId, year) {
+    const activeCount = getActivePreventivesCountInYear(machineId, year);
+    const maxAllowed = getMaxPreventivesAllowedPerYear(machineId);
+    return activeCount < maxAllowed;
+  }
+
+  assert('PRV-01', 'Preventivo Anual', 'Regla de frecuencia diferenciada: Estándar = 1/año, Telares = 2/año', 
+    getMaxPreventivesAllowedPerYear('TOW-LOG1-COST') === 1 && getMaxPreventivesAllowedPerYear('TOW-TEL201-TEJI') === 2,
+    { standard_max: 1, loom_max: 2 }
+  );
+
+  assert('PRV-02', 'Preventivo Anual', 'Telares permiten segundo preventivo en el mismo año si count < 2', 
+    canSchedulePreventive('TOW-TEL201-TEJI', 2026) === true,
+    { machine: 'TOW-TEL201-TEJI', activeCount: 1, maxAllowed: 2, canSchedule: true }
+  );
+
+  assert('PRV-03', 'Preventivo Anual', 'Máquinas estándar bloquean segundo preventivo si count >= 1', 
+    canSchedulePreventive('TOW-LOG1-COST', 2026) === false,
+    { machine: 'TOW-LOG1-COST', activeCount: 1, maxAllowed: 1, canSchedule: false }
+  );
+
+  assert('PRV-04', 'Preventivo Anual', 'Permisión de re-programación si estado previo es CANCELADO / RECHAZADO', 
+    canSchedulePreventive('TOW-CLAY-TINT', 2026) === true,
+    { machine: 'TOW-CLAY-TINT', activeCount: 0, maxAllowed: 1, canSchedule: true }
+  );
+
   assert('PRV-05', 'Preventivo Anual', 'Persistencia maestra en calendarios_mantenimiento & calendario_mantenimiento_detalle', true, { tables: ['calendarios_mantenimiento', 'calendario_mantenimiento_detalle'] });
   assert('PRV-06', 'Preventivo Anual', 'Vista oficial vw_preventivo_anual evaluada como USED (CANONICAL)', true, { view: 'public.vw_preventivo_anual', status: 'USED' });
 
@@ -171,7 +209,7 @@ async function runArchitectureEvaluation() {
     scheduled_date: '2026-06-15',
     year: 2026,
     service_code: 'SRV-LUBI-01',
-    calendar_reference: 'CAL-PF-2026',
+    calendar_reference: 'CAL-PF-2026-S1',
     department: 'PF'
   };
 
