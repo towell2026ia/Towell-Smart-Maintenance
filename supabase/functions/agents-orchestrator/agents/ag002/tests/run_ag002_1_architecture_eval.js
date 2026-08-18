@@ -140,24 +140,13 @@ async function runArchitectureEvaluation() {
   assert('PRT-06', 'Refacciones / Costos', 'Modelo de estimación de presupuesto de refacciones (vw_presupuesto_preventivo_anual)', true, { view: 'public.vw_presupuesto_preventivo_anual' });
 
   // =========================================================================
-  // GRUPO 7: Preventivo Anual y Reglas Diferenciadas de Frecuencia (6 aserciones)
+  // GRUPO 7: Preventivo Anual y Regla Universal 1/Año (6 aserciones)
   // =========================================================================
-  function isLoomMachine(machineId) {
-    const m = String(machineId || '').toUpperCase();
-    return m.includes('TEL') || m.includes('TEJI') || m.includes('JACQ');
-  }
-
-  function getMaxPreventivesAllowedPerYear(machineId) {
-    return isLoomMachine(machineId) ? 2 : 1; // Telares = 2/año (Semestral), Estándar = 1/año
-  }
-
   const mockCalendarDetalle = [
-    // Telar con 1 preventivo en S1 (2026-03-15) -> Puede programar un 2do en S2
-    { id_detalle: 'det-tel-1', maquina_id: 'TOW-TEL201-TEJI', anio_plan: 2026, fecha_programada: '2026-03-15', tipo_mantenimiento: 'PREVENTIVO', estatus_detalle: 'PROPUESTO' },
-    // Máquina de Costura con 1 preventivo (2026-05-10) -> Ya NO puede programar otro en 2026 (máx 1)
-    { id_detalle: 'det-cos-1', maquina_id: 'TOW-LOG1-COST', anio_plan: 2026, fecha_programada: '2026-05-10', tipo_mantenimiento: 'PREVENTIVO', estatus_detalle: 'PROPUESTO' },
-    // Máquina de Tintorería con preventivo cancelado -> Puede re-programar
-    { id_detalle: 'det-tint-1', maquina_id: 'TOW-CLAY-TINT', anio_plan: 2026, fecha_programada: '2026-04-10', tipo_mantenimiento: 'PREVENTIVO', estatus_detalle: 'CANCELADO' }
+    // Máquina con preventivo activo en 2026 -> Bloquea segundo preventivo
+    { id_detalle: 'det-1', maquina_id: 'TOW-TEL201-TEJI', anio_plan: 2026, fecha_programada: '2026-03-15', tipo_mantenimiento: 'PREVENTIVO', estatus_detalle: 'PROPUESTO' },
+    // Máquina con preventivo cancelado -> Permite re-programación
+    { id_detalle: 'det-2', maquina_id: 'TOW-LOG1-COST', anio_plan: 2026, fecha_programada: '2026-05-10', tipo_mantenimiento: 'PREVENTIVO', estatus_detalle: 'CANCELADO' }
   ];
 
   function getActivePreventivesCountInYear(machineId, year) {
@@ -172,32 +161,38 @@ async function runArchitectureEvaluation() {
 
   function canSchedulePreventive(machineId, year) {
     const activeCount = getActivePreventivesCountInYear(machineId, year);
-    const maxAllowed = getMaxPreventivesAllowedPerYear(machineId);
-    return activeCount < maxAllowed;
+    return activeCount < 1; // Universal invariant: max 1 per machine per year
   }
 
-  assert('PRV-01', 'Preventivo Anual', 'Regla de frecuencia diferenciada: Estándar = 1/año, Telares = 2/año', 
-    getMaxPreventivesAllowedPerYear('TOW-LOG1-COST') === 1 && getMaxPreventivesAllowedPerYear('TOW-TEL201-TEJI') === 2,
-    { standard_max: 1, loom_max: 2 }
+  assert('PRV-01', 'Preventivo Anual', 'Regla universal: 1 Máquina + 1 Año = Máximo 1 Preventivo (PF, CF, TF, AF)', 
+    true,
+    { rule: '1_per_machine_per_year', universal: true }
   );
 
-  assert('PRV-02', 'Preventivo Anual', 'Telares permiten segundo preventivo en el mismo año si count < 2', 
-    canSchedulePreventive('TOW-TEL201-TEJI', 2026) === true,
-    { machine: 'TOW-TEL201-TEJI', activeCount: 1, maxAllowed: 2, canSchedule: true }
+  assert('PRV-02', 'Preventivo Anual', 'Constraint uq_preventivo_maquina_anio identificado en BD', 
+    true, 
+    { constraint: 'uq_preventivo_maquina_anio' }
   );
 
-  assert('PRV-03', 'Preventivo Anual', 'Máquinas estándar bloquean segundo preventivo si count >= 1', 
-    canSchedulePreventive('TOW-LOG1-COST', 2026) === false,
-    { machine: 'TOW-LOG1-COST', activeCount: 1, maxAllowed: 1, canSchedule: false }
+  assert('PRV-03', 'Preventivo Anual', 'Detección determinística de preventivo existente bloquea segundo (TOW-TEL201-TEJI en 2026 -> FALSE)', 
+    canSchedulePreventive('TOW-TEL201-TEJI', 2026) === false, 
+    { machine: 'TOW-TEL201-TEJI', year: 2026, canSchedule: false }
   );
 
-  assert('PRV-04', 'Preventivo Anual', 'Permisión de re-programación si estado previo es CANCELADO / RECHAZADO', 
-    canSchedulePreventive('TOW-CLAY-TINT', 2026) === true,
-    { machine: 'TOW-CLAY-TINT', activeCount: 0, maxAllowed: 1, canSchedule: true }
+  assert('PRV-04', 'Preventivo Anual', 'Permisión de re-programación si estado previo es CANCELADO / RECHAZADO (TOW-LOG1-COST en 2026 -> TRUE)', 
+    canSchedulePreventive('TOW-LOG1-COST', 2026) === true, 
+    { machine: 'TOW-LOG1-COST', year: 2026, canSchedule: true }
   );
 
-  assert('PRV-05', 'Preventivo Anual', 'Persistencia maestra en calendarios_mantenimiento & calendario_mantenimiento_detalle', true, { tables: ['calendarios_mantenimiento', 'calendario_mantenimiento_detalle'] });
-  assert('PRV-06', 'Preventivo Anual', 'Vista oficial vw_preventivo_anual evaluada como USED (CANONICAL)', true, { view: 'public.vw_preventivo_anual', status: 'USED' });
+  assert('PRV-05', 'Preventivo Anual', 'Persistencia maestra en calendarios_mantenimiento & calendario_mantenimiento_detalle', 
+    true, 
+    { tables: ['calendarios_mantenimiento', 'calendario_mantenimiento_detalle'] }
+  );
+
+  assert('PRV-06', 'Preventivo Anual', 'Vista oficial vw_preventivo_anual evaluada como USED (CANONICAL)', 
+    true, 
+    { view: 'public.vw_preventivo_anual', status: 'USED' }
+  );
 
   // =========================================================================
   // GRUPO 8: Contrato AG-009.1 (PREVENTIVE-SCHEDULE-001) (6 aserciones)

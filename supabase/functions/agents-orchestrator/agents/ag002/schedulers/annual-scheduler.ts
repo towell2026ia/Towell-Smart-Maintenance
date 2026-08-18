@@ -1,5 +1,5 @@
 // supabase/functions/agents-orchestrator/agents/ag002/schedulers/annual-scheduler.ts
-// Deterministic Annual Scheduler with Loom 2x/year rule and Priority Ordering (§63-69 PRD)
+// Deterministic Annual Scheduler with Universal 1/Year Rule and Priority Ordering (§63-69 PRD)
 
 import { MachinePreventiveProfile, PlannedPreventiveSlot } from '../types/ag002.types.ts';
 import { initializeAnnualCapacityMap } from './annual-capacity-planner.ts';
@@ -62,132 +62,38 @@ export function scheduleAnnualPreventiveCalendar(
   for (const prof of eligibleProfiles) {
     const srv = prof.selected_service!;
 
-    if (prof.is_loom && prof.max_preventives_allowed_per_year === 2) {
-      // Determine how many slots already exist
-      const existingCount = prof.active_preventives_in_target_year;
+    // Universal Rule: Exactly 1 preventive slot per machine per calendar year
+    // High priority machines (e.g. critical looms with high score) get earlier target weeks
+    const targetStartWeek = prof.priority_components.total_score >= 80 ? 2 : (prof.priority_components.total_score >= 60 ? 10 : 20);
+    const targetEndWeek = prof.priority_components.total_score >= 80 ? 20 : (prof.priority_components.total_score >= 60 ? 35 : 50);
 
-      if (existingCount === 0) {
-        // Schedule Slot 1 (S1: Weeks 2 - 24)
-        const weekS1 = allocateWeek(2, 24);
-        const slotCapS1 = capacityMap.get(weekS1)!;
+    const assignedWeek = allocateWeek(targetStartWeek, targetEndWeek);
+    const slotCap = capacityMap.get(assignedWeek)!;
 
-        slots.push({
-          slot_id: `slot-${slotCounter++}`,
-          machine_id: prof.machine_id,
-          department: prof.department_code,
-          is_loom: true,
-          period: 'S1',
-          scheduled_date: slotCapS1.approx_date,
-          year: targetYear,
-          week_number: weekS1,
-          month_number: slotCapS1.month_number,
-          priority_score: prof.priority_components.total_score,
-          priority_band: prof.priority_components.priority_band,
-          service_code: srv.codigo_servicio,
-          service_name: srv.nombre_servicio,
-          estimated_duration_min: srv.duracion_estimada_min || 180,
-          planned_parts: prof.estimated_parts.map(p => ({
-            cve_refaccion: p.cve_refaccion,
-            cantidad: p.cantidad,
-            costo_unitario: p.costo_unitario
-          })),
-          parts_cost_known: prof.estimated_parts_cost_total || 0,
-          budget_status: prof.budget_status,
-          calendar_reference: `${calendarRefPrefix}-${prof.department_code}-S1`
-        });
-
-        // Schedule Slot 2 (S2: Weeks 28 - 50, separated by >= 90 days)
-        const weekS2 = allocateWeek(Math.max(28, weekS1 + 16), 50);
-        const slotCapS2 = capacityMap.get(weekS2)!;
-
-        slots.push({
-          slot_id: `slot-${slotCounter++}`,
-          machine_id: prof.machine_id,
-          department: prof.department_code,
-          is_loom: true,
-          period: 'S2',
-          scheduled_date: slotCapS2.approx_date,
-          year: targetYear,
-          week_number: weekS2,
-          month_number: slotCapS2.month_number,
-          priority_score: prof.priority_components.total_score,
-          priority_band: prof.priority_components.priority_band,
-          service_code: srv.codigo_servicio,
-          service_name: srv.nombre_servicio,
-          estimated_duration_min: srv.duracion_estimada_min || 180,
-          planned_parts: prof.estimated_parts.map(p => ({
-            cve_refaccion: p.cve_refaccion,
-            cantidad: p.cantidad,
-            costo_unitario: p.costo_unitario
-          })),
-          parts_cost_known: prof.estimated_parts_cost_total || 0,
-          budget_status: prof.budget_status,
-          calendar_reference: `${calendarRefPrefix}-${prof.department_code}-S2`
-        });
-      } else if (existingCount === 1) {
-        // Schedule remaining Slot 2 (S2: Weeks 28 - 50)
-        const weekS2 = allocateWeek(28, 50);
-        const slotCapS2 = capacityMap.get(weekS2)!;
-
-        slots.push({
-          slot_id: `slot-${slotCounter++}`,
-          machine_id: prof.machine_id,
-          department: prof.department_code,
-          is_loom: true,
-          period: 'S2',
-          scheduled_date: slotCapS2.approx_date,
-          year: targetYear,
-          week_number: weekS2,
-          month_number: slotCapS2.month_number,
-          priority_score: prof.priority_components.total_score,
-          priority_band: prof.priority_components.priority_band,
-          service_code: srv.codigo_servicio,
-          service_name: srv.nombre_servicio,
-          estimated_duration_min: srv.duracion_estimada_min || 180,
-          planned_parts: prof.estimated_parts.map(p => ({
-            cve_refaccion: p.cve_refaccion,
-            cantidad: p.cantidad,
-            costo_unitario: p.costo_unitario
-          })),
-          parts_cost_known: prof.estimated_parts_cost_total || 0,
-          budget_status: prof.budget_status,
-          calendar_reference: `${calendarRefPrefix}-${prof.department_code}-S2`
-        });
-      }
-    } else {
-      // Standard Machine (1 slot per year)
-      // Higher priority allocated earlier in the year
-      const targetStartWeek = prof.priority_components.total_score >= 80 ? 2 : (prof.priority_components.total_score >= 60 ? 10 : 20);
-      const targetEndWeek = prof.priority_components.total_score >= 80 ? 20 : (prof.priority_components.total_score >= 60 ? 35 : 50);
-      
-      const assignedWeek = allocateWeek(targetStartWeek, targetEndWeek);
-      const slotCap = capacityMap.get(assignedWeek)!;
-
-      slots.push({
-        slot_id: `slot-${slotCounter++}`,
-        machine_id: prof.machine_id,
-        department: prof.department_code,
-        is_loom: false,
-        period: 'ANUAL',
-        scheduled_date: slotCap.approx_date,
-        year: targetYear,
-        week_number: assignedWeek,
-        month_number: slotCap.month_number,
-        priority_score: prof.priority_components.total_score,
-        priority_band: prof.priority_components.priority_band,
-        service_code: srv.codigo_servicio,
-        service_name: srv.nombre_servicio,
-        estimated_duration_min: srv.duracion_estimada_min || 180,
-        planned_parts: prof.estimated_parts.map(p => ({
-          cve_refaccion: p.cve_refaccion,
-          cantidad: p.cantidad,
-          costo_unitario: p.costo_unitario
-        })),
-        parts_cost_known: prof.estimated_parts_cost_total || 0,
-        budget_status: prof.budget_status,
-        calendar_reference: `${calendarRefPrefix}-${prof.department_code}`
-      });
-    }
+    slots.push({
+      slot_id: `slot-${slotCounter++}`,
+      machine_id: prof.machine_id,
+      department: prof.department_code,
+      is_loom: prof.is_loom,
+      period: 'ANUAL',
+      scheduled_date: slotCap.approx_date,
+      year: targetYear,
+      week_number: assignedWeek,
+      month_number: slotCap.month_number,
+      priority_score: prof.priority_components.total_score,
+      priority_band: prof.priority_components.priority_band,
+      service_code: srv.codigo_servicio,
+      service_name: srv.nombre_servicio,
+      estimated_duration_min: srv.duracion_estimada_min || 180,
+      planned_parts: prof.estimated_parts.map(p => ({
+        cve_refaccion: p.cve_refaccion,
+        cantidad: p.cantidad,
+        costo_unitario: p.costo_unitario
+      })),
+      parts_cost_known: prof.estimated_parts_cost_total || 0,
+      budget_status: prof.budget_status,
+      calendar_reference: `${calendarRefPrefix}-${prof.department_code}`
+    });
   }
 
   return slots;

@@ -1,8 +1,7 @@
 // supabase/functions/agents-orchestrator/agents/ag002/guards/preventive-year-guard.ts
-// Preventive Year Guard enforcing 1x/year for Standard and 2x/year for Telares (§4, §27-29, §110 PRD)
+// Preventive Year Guard enforcing 1 Machine + 1 Year = Maximum 1 Preventive (§4, §27-29, §110 PRD)
 
 import { PreventiveAvailability } from '../types/ag002.types.ts';
-import { isLoomMachine } from '../normalizers/historical-normalizer.ts';
 
 export interface ExistingCalendarItem {
   id_detalle?: string;
@@ -18,7 +17,6 @@ export interface YearGuardEvaluation {
   can_schedule: boolean;
   active_preventives_count: number;
   max_allowed: number;
-  is_loom: boolean;
   existing_slots: ExistingCalendarItem[];
 }
 
@@ -26,11 +24,10 @@ export function evaluatePreventiveYearGuard(
   machineId: string,
   targetYear: number,
   existingCalendarDetails: ExistingCalendarItem[] = [],
-  departmentCode?: any
+  _departmentCode?: any
 ): YearGuardEvaluation {
   const m = String(machineId || '').trim().toUpperCase();
-  const isLoom = isLoomMachine(m, departmentCode);
-  const maxAllowed = isLoom ? 2 : 1;
+  const maxAllowed = 1; // Universal invariant: 1 machine + 1 year = max 1 preventive
 
   const relevantDetails = existingCalendarDetails.filter(d => 
     String(d.maquina_id || '').trim().toUpperCase() === m &&
@@ -53,7 +50,6 @@ export function evaluatePreventiveYearGuard(
       can_schedule: false,
       active_preventives_count: activeCount,
       max_allowed: maxAllowed,
-      is_loom: isLoom,
       existing_slots: activeSlots
     };
   }
@@ -64,7 +60,6 @@ export function evaluatePreventiveYearGuard(
       can_schedule: true,
       active_preventives_count: 0,
       max_allowed: maxAllowed,
-      is_loom: isLoom,
       existing_slots: cancelledSlots
     };
   }
@@ -74,7 +69,6 @@ export function evaluatePreventiveYearGuard(
     can_schedule: true,
     active_preventives_count: activeCount,
     max_allowed: maxAllowed,
-    is_loom: isLoom,
     existing_slots: activeSlots
   };
 }

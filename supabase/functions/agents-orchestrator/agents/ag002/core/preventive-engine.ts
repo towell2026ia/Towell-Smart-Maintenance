@@ -1,5 +1,6 @@
 // supabase/functions/agents-orchestrator/agents/ag002/core/preventive-engine.ts
 // Master Deterministic Preventive Engine Pipeline for AG-002 (§1-128 PRD)
+// Universal Invariant: 1 Machine + 1 Year = Maximum 1 Preventive across PF, CF, TF, AF
 
 import { 
   AnnualCalendarProposal, 
@@ -103,7 +104,7 @@ export class DeterministicPreventiveEngine {
 
       const dept = normalizeDepartmentCode(m.departamento_codigo || m.area, machineId);
       const isLoom = isLoomMachine(machineId, dept);
-      const maxAllowed = isLoom ? FREQUENCY_RULES.loom_max_per_year : FREQUENCY_RULES.standard_max_per_year;
+      const maxAllowed = FREQUENCY_RULES.max_preventives_per_machine_per_year; // Exactly 1
 
       if (isLoom) loomsCount++;
       else standardCount++;
@@ -126,7 +127,7 @@ export class DeterministicPreventiveEngine {
       // Priority Engine
       const priorityComponents = calculatePreventivePriority(critLevel, recurrence, downtime, maintenanceHistory);
 
-      // Year Guard
+      // Year Guard (Enforcing 1 per machine per year)
       const yearGuard = evaluatePreventiveYearGuard(machineId, targetYear, input.existing_calendar_details || [], dept);
 
       // Service Resolver

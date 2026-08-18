@@ -1,5 +1,6 @@
 // supabase/functions/agents-orchestrator/agents/ag002/rules/preventive-rules.config.ts
 // Versioned Configuration and Constants for AG-002 (§32, §62, §88, §89 PRD)
+// Universal Invariant: 1 Machine + 1 Year = Maximum 1 Preventive across ALL departments (PF, CF, TF, AF)
 
 export const AG002_ENGINE_VERSION = 'AG002-ENGINE-1.0';
 
@@ -53,11 +54,9 @@ export const CAPACITY_CONFIG = {
   max_preventives_per_month: 16,
   annual_work_weeks: 50,
   start_week: 2,
-  end_week: 51,
-  loom_semester_separation_min_days: 90
+  end_week: 51
 };
 
 export const FREQUENCY_RULES = {
-  loom_max_per_year: 2,
-  standard_max_per_year: 1
+  max_preventives_per_machine_per_year: 1 // Universal across PF, CF, TF, AF
 };
