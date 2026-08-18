@@ -46,10 +46,19 @@ let recoveryGeneratedOTP = null;
 let recoveryTargetEmail = null;
 let useLiveDatabase = false;
 
-// Detectar directamente si la URL tiene type=recovery (Fallback infalible para evitar race conditions)
-if (window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('recovery'))) {
+// Detectar directamente si la URL tiene tokens de recuperación (Hash o Search / PKCE)
+const initialHash = window.location.hash || '';
+const initialSearch = window.location.search || '';
+if (
+  initialHash.includes('type=recovery') || 
+  initialHash.includes('recovery') || 
+  initialHash.includes('access_token') ||
+  initialSearch.includes('code=') ||
+  initialSearch.includes('type=recovery') ||
+  initialSearch.includes('recovery')
+) {
   pendingRecovery = true;
-  console.log('[Auth Fallback] Recovery flag set immediately from URL Hash!');
+  console.log('[Auth Recovery] Flag de recuperación activado de inmediato desde la URL.');
 }
 
 if (typeof supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 'undefined') {
@@ -58,13 +67,23 @@ if (typeof supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && ty
     useLiveDatabase = true;
     console.log('Supabase client initialized successfully with Live Database mode enabled!');
     
-    // Registrar el listener de inmediato al inicio para capturar el hash de la URL
+    // Escuchar eventos de autenticación de Supabase (PASSWORD_RECOVERY, SIGNED_IN, etc.)
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state event received:', event);
-      if (event === 'PASSWORD_RECOVERY') {
+      if (
+        event === 'PASSWORD_RECOVERY' || 
+        event === 'USER_UPDATED' ||
+        (event === 'SIGNED_IN' && (pendingRecovery || window.location.hash.includes('recovery') || window.location.search.includes('code=')))
+      ) {
         pendingRecovery = true;
-        recoverySession = session;
-        triggerRecoveryUI();
+        if (session) recoverySession = session;
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(triggerRecoveryUI, 120);
+          }, { once: true });
+        } else {
+          setTimeout(triggerRecoveryUI, 120);
+        }
       }
     });
   } catch (err) {
@@ -73,19 +92,33 @@ if (typeof supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && ty
 }
 
 function triggerRecoveryUI() {
-  const isRecoveryHash = window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('recovery'));
-  if (!pendingRecovery && !isRecoveryHash) return;
+  const currentHash = window.location.hash || '';
+  const currentSearch = window.location.search || '';
+  const isRecoveryUrl = 
+    currentHash.includes('type=recovery') || 
+    currentHash.includes('recovery') || 
+    currentHash.includes('access_token') ||
+    currentSearch.includes('code=') ||
+    currentSearch.includes('recovery');
+
+  if (!pendingRecovery && !isRecoveryUrl) return;
 
   const modal = document.getElementById('modal-change-password');
-  if (!modal) return; // Se reintentará en DOMContentLoaded
+  if (!modal) {
+    setTimeout(triggerRecoveryUI, 150);
+    return;
+  }
 
   // Mantener al usuario en la Homepage (Public Portal) sin auto-iniciar sesión en el tablero
   showView('public-portal');
   showPublicPanel('home');
 
-  document.getElementById('change-pass-user-id').value = 'RECOVERY_MODE';
+  const userIdInput = document.getElementById('change-pass-user-id');
+  if (userIdInput) userIdInput.value = 'RECOVERY_MODE';
+
   const targetRol = (recoverySession?.user?.user_metadata?.rol === 'SUPER_ADMINISTRADOR') ? 'admin' : 'tech';
-  document.getElementById('change-pass-target-view').value = targetRol;
+  const targetViewInput = document.getElementById('change-pass-target-view');
+  if (targetViewInput) targetViewInput.value = targetRol;
   
   const titleEl = document.getElementById('modal-change-pass-title');
   const subEl = document.getElementById('modal-change-pass-subtitle');
@@ -99,9 +132,8 @@ function triggerRecoveryUI() {
   if (confirmPassInput) confirmPassInput.value = '';
   
   openModal('modal-change-password');
-  pendingRecovery = false;
+  console.log('✅ Modal de restablecimiento de contraseña abierto exitosamente.');
 }
-
 // --- VARIABLES GLOBALES Y CONTROL DE ESTADO ---
 let currentUser = null; // { role: 'admin' } o { role: 'tech', id: 'T-01', ... }
 let activeAdminPanel = 'dashboard';

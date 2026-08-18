@@ -2,7 +2,7 @@
    Towell Smart Maintenance AI (TSM-AI) - Service Worker (PWA)
    ========================================================================== */
 
-const CACHE_NAME = 'tsmai-pwa-v3.4.5';
+const CACHE_NAME = 'tsmai-pwa-v3.4.6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html?v=3.4.5',
@@ -32,7 +32,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[ServiceWorker] Caching app shell assets v3.4.5');
+      console.log('[ServiceWorker] Caching app shell assets v3.4.6');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
         console.warn('[ServiceWorker] Asset cache warning:', err);
       });

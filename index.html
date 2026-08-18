@@ -43,11 +43,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.4.5"></script>
+  <script src="config.js?v=3.4.6"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.4.5">
+  <link rel="stylesheet" href="style.css?v=3.4.6">
 </head>
 <body>
 
@@ -3853,10 +3853,10 @@
   <div class="modal-overlay" id="modal-change-password" style="z-index: 1100;">
     <div class="modal-card" style="max-width: 400px;">
       <div class="modal-header" style="background: var(--color-critical); color: white;">
-        <h3 style="margin:0;">🔒 Cambio de Contraseña Requerido</h3>
+        <h3 style="margin:0;" id="modal-change-pass-title">🔒 Cambio de Contraseña Requerido</h3>
       </div>
       <div class="modal-body" style="padding: 20px;">
-        <p style="font-size: 0.9rem; margin-bottom: 16px; color: var(--text-muted); line-height:1.4;">
+        <p style="font-size: 0.9rem; margin-bottom: 16px; color: var(--text-muted); line-height:1.4;" id="modal-change-pass-subtitle">
           Por seguridad, debes actualizar tu contraseña temporal antes de continuar al sistema.
         </p>
         <input type="hidden" id="change-pass-user-id">
@@ -4950,16 +4950,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.4.5"></script>
-  <script src="agents-client.js?v=3.4.5"></script>
-  <script src="app.js?v=3.4.5"></script>
-  <script src="dashboard.js?v=3.4.5"></script>
+  <script src="seed.js?v=3.4.6"></script>
+  <script src="agents-client.js?v=3.4.6"></script>
+  <script src="app.js?v=3.4.6"></script>
+  <script src="dashboard.js?v=3.4.6"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.4.5')
+        navigator.serviceWorker.register('./sw.js?v=3.4.6')
           .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
           .catch(err => console.warn('⚠️ ServiceWorker error:', err));
       });
