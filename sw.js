@@ -2,20 +2,19 @@
    Towell Smart Maintenance AI (TSM-AI) - Service Worker (PWA)
    ========================================================================== */
 
-const CACHE_NAME = 'tsmai-pwa-v3.3.6';
+const CACHE_NAME = 'tsmai-pwa-v3.4.5';
 const ASSETS_TO_CACHE = [
   './',
-  './index.html',
-  './dashboard.html',
+  './index.html?v=3.4.5',
   './favicon.ico',
   './favicon.png',
   './apple-touch-icon.png',
-  './style.css?v=3.3.6',
-  './config.js?v=3.3.6',
-  './agents-client.js?v=3.3.6',
-  './app.js?v=3.3.6',
-  './dashboard.js?v=3.3.6',
-  './manifest.json?v=3.3.6',
+  './style.css?v=3.4.5',
+  './config.js?v=3.4.5',
+  './agents-client.js?v=3.4.5',
+  './app.js?v=3.4.5',
+  './dashboard.js?v=3.4.5',
+  './manifest.json?v=3.4.5',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
@@ -30,24 +29,25 @@ const ASSETS_TO_CACHE = [
 
 // Instalar Service Worker y cachear recursos estáticos shell
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[ServiceWorker] Caching app shell assets');
+      console.log('[ServiceWorker] Caching app shell assets v3.4.5');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
-        console.warn('[ServiceWorker] Some assets failed to cache on install:', err);
+        console.warn('[ServiceWorker] Asset cache warning:', err);
       });
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
-// Activar Service Worker y limpiar cachés obsoletas
+// Activar Service Worker y limpiar de inmediato TODOS los cachés obsoletos
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keyList) => {
       return Promise.all(
         keyList.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[ServiceWorker] Removing old cache', key);
+            console.log('[ServiceWorker] Purging old cache:', key);
             return caches.delete(key);
           }
         })
@@ -56,12 +56,12 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Interceptar peticiones (Estrategia Network-First con fallback a Caché para estáticos)
+// Interceptar peticiones (Network-First para APIs y archivos dinámicos)
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Ignorar peticiones que no sean GET o que sean de APIs de Supabase/Ext (usar red siempre)
+  // Ignorar peticiones no GET o de Supabase
   if (req.method !== 'GET' || url.hostname.includes('supabase.co')) {
     return;
   }
@@ -78,20 +78,19 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       })
       .catch(() => {
-        // En caso de estar Offline, devolver desde caché
         return caches.match(req).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
           if (req.headers.get('accept')?.includes('text/html')) {
-            return caches.match('./index.html');
+            return caches.match('./index.html?v=3.4.5') || caches.match('./index.html') || caches.match('./');
           }
         });
       })
   );
 });
 
-// Escuchar notificaciones Push (Alertas de mantenimiento)
+// Notificaciones Push
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : { title: 'Alerta TSM-AI', body: 'Nueva notificación de planta.' };
   const options = {

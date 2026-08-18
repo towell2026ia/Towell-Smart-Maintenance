@@ -1530,11 +1530,19 @@ function setupRealtimeSubscriptions() {
 function persistSessionUser(userObj) {
   currentUser = userObj;
   if (userObj) {
-    sessionStorage.setItem('TSMAI_current_user', JSON.stringify(userObj));
+    try {
+      sessionStorage.setItem('TSMAI_current_user', JSON.stringify(userObj));
+      localStorage.setItem('TSMAI_current_user', JSON.stringify(userObj));
+    } catch(e) {}
   } else {
-    sessionStorage.removeItem('TSMAI_current_user');
-    sessionStorage.removeItem('TSMAI_current_route');
+    try {
+      sessionStorage.removeItem('TSMAI_current_user');
+      sessionStorage.removeItem('TSMAI_current_route');
+      localStorage.removeItem('TSMAI_current_user');
+      localStorage.removeItem('TSMAI_current_route');
+    } catch(e) {}
   }
+}
   // Garantizar que no quede sesión permanente en localStorage (se cierra al cerrar ventana/pestaña)
   localStorage.removeItem('TSMAI_current_user');
   localStorage.removeItem('TSMAI_current_route');
@@ -1576,9 +1584,9 @@ function restoreRouteFromHash() {
     return true;
   }
 
-  // 1. Intentar recuperar usuario desde sessionStorage (memoria por pestaña/sesión)
+  // 1. Recuperar usuario desde sessionStorage o localStorage (persistencia PWA)
   if (!currentUser) {
-    const savedUser = sessionStorage.getItem('TSMAI_current_user');
+    const savedUser = sessionStorage.getItem('TSMAI_current_user') || localStorage.getItem('TSMAI_current_user');
     if (savedUser) {
       try { currentUser = JSON.parse(savedUser); } catch (e) {}
     }
@@ -1630,12 +1638,14 @@ function restoreRouteFromHash() {
 
   // 3. Si NO hay usuario autenticado:
   if (viewId === 'login') {
-    showView('login');
+    showView('public-portal');
+    showPublicPanel('home');
     return true;
   }
 
   if (viewId === 'solicitante' || viewId === 'admin' || viewId === 'tech') {
-    showView('login');
+    showView('public-portal');
+    showPublicPanel('home');
     return true;
   }
 
@@ -1653,8 +1663,8 @@ function restoreRouteFromHash() {
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Restaurar sesión activa de sessionStorage si existe en la pestaña actual
-  const savedUser = sessionStorage.getItem('TSMAI_current_user');
+  // 1. Restaurar sesión activa de sessionStorage o localStorage (PWA)
+  const savedUser = sessionStorage.getItem('TSMAI_current_user') || localStorage.getItem('TSMAI_current_user');
   if (savedUser) {
     try {
       currentUser = JSON.parse(savedUser);
@@ -1662,15 +1672,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentUser = null;
     }
   }
-  // Garantizar limpieza de localStorage para no mantener sesión abierta si se cierra la aplicación
-  localStorage.removeItem('TSMAI_current_user');
-  localStorage.removeItem('TSMAI_current_route');
 
-  // ── REGLA PWA: Si NO hay sesión en sessionStorage, SIEMPRE arrancar en Home (login) ──
-  // Esto cubre el caso de cerrar la ventana/app y volver a abrirla.
-  // Supabase Auth persiste su sesión en localStorage, así que la cerramos explícitamente
-  // para que el usuario SIEMPRE tenga que volver a ingresar sus credenciales.
-  // IMPORTANTE: NO cerrar sesión si la URL contiene un token de recuperación (#access_token=... o #type=recovery o ?code=...)
   const isRecoveryHash = window.location.hash && (
     window.location.hash.includes('type=recovery') || 
     window.location.hash.includes('recovery') || 
@@ -1682,12 +1684,63 @@ document.addEventListener('DOMContentLoaded', async () => {
   );
   const isCurrentlyRecovering = pendingRecovery || isRecoveryHash || isRecoveryQuery;
 
+  // Si no hay usuario en storage pero Supabase Auth tiene sesión viva, recuperar perfil
   if (!currentUser && supabaseClient && !isCurrentlyRecovering) {
     try {
-      await supabaseClient.auth.signOut();
-      console.log('[TSMAI] No hay sesión de pestaña. Supabase Auth cerrada para forzar re-login.');
-    } catch (e) {
-      console.warn('[TSMAI] signOut on init:', e);
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session && session.user && session.user.email) {
+        const { data: dbUser } = await supabaseClient
+          .from('cat_usuarios_roles')
+          .select('*')
+          .ilike('correo', session.user.email)
+          .maybeSingle();
+
+        if (dbUser && dbUser.activo !== false) {
+          const roleKey = normalizeUserRole(dbUser.rol);
+          if (roleKey === 'tech') {
+            currentUser = {
+              role: 'tech',
+              rol: dbUser.rol,
+              id: dbUser.cve_tecnico || dbUser.id_usuario,
+              cve_tecnico: dbUser.cve_tecnico,
+              cve_empleado: dbUser.cve_empleado,
+              uuid: dbUser.id_usuario,
+              name: dbUser.nombre_completo,
+              email: dbUser.correo,
+              specialty: dbUser.observaciones || 'General',
+              avatar: '👨‍🔧',
+              department: dbUser.departamento
+            };
+            persistSessionUser(currentUser);
+          } else if (roleKey === 'admin') {
+            currentUser = {
+              role: 'admin',
+              rol: dbUser.rol,
+              name: dbUser.nombre_completo,
+              email: dbUser.correo,
+              uuid: dbUser.id_usuario,
+              cve_tecnico: dbUser.cve_tecnico,
+              cve_empleado: dbUser.cve_empleado,
+              department: dbUser.departamento
+            };
+            persistSessionUser(currentUser);
+          } else if (roleKey === 'solicitante') {
+            currentUser = {
+              role: 'solicitante',
+              rol: 'SOLICITANTE',
+              id: dbUser.id_usuario,
+              uuid: dbUser.id_usuario,
+              name: dbUser.nombre_completo,
+              email: dbUser.correo,
+              cve_empleado: dbUser.cve_empleado,
+              area: dbUser.area || 'CF'
+            };
+            persistSessionUser(currentUser);
+          }
+        }
+      }
+    } catch(e) {
+      console.warn('[Session auto-restore]', e);
     }
   }
 
@@ -1812,32 +1865,33 @@ function showView(viewId) {
   updateMobileBottomNav();
 
   if (location.hash !== route) {
-    history.pushState(null, '', route);
+    try { history.pushState(null, '', route); } catch(e) {}
   }
-  localStorage.setItem('TSMAI_current_route', route);
+  try { localStorage.setItem('TSMAI_current_route', route); } catch(e) {}
 
-  // Ejecutar inicializaciones de datos según la vista
+  // Ejecutar inicializaciones de datos según la vista de forma segura
   if (viewId === 'admin') {
     switchAdminPanel(activeAdminPanel || 'dashboard');
-    try { renderAdminDashboard(); } catch(e) {}
-    try { updateAdminKPIs(); } catch(e) {}
-    try { renderAdminRequestsTable(); } catch(e) {}
-    try { renderAdminOrdersTable(); } catch(e) {}
-    try { renderAdminCalendar(); } catch(e) {}
-    try { renderAdminLogsTable(); } catch(e) {}
-    try { renderAdminMachinesTable(); } catch(e) {}
-    try { renderAdminPartsTable(); } catch(e) {}
-    try { renderAdminFormsList(); } catch(e) {}
-    try { renderAdminUsersTable(); } catch(e) {}
-    try { updateRequestsBadge(); } catch(e) {}
+    try { renderAdminDashboard(); } catch(e) { console.warn('[Admin Dash]', e); }
+    try { updateAdminKPIs(); } catch(e) { console.warn('[Admin KPIs]', e); }
+    try { renderAdminRequestsTable(); } catch(e) { console.warn('[Admin Requests]', e); }
+    try { renderAdminOrdersTable(); } catch(e) { console.warn('[Admin Orders]', e); }
+    try { renderAdminCalendar(); } catch(e) { console.warn('[Admin Calendar]', e); }
+    try { renderAdminLogsTable(); } catch(e) { console.warn('[Admin Logs]', e); }
+    try { renderAdminMachinesTable(); } catch(e) { console.warn('[Admin Machines]', e); }
+    try { renderAdminPartsTable(); } catch(e) { console.warn('[Admin Parts]', e); }
+    try { renderAdminFormsList(); } catch(e) { console.warn('[Admin Forms]', e); }
+    try { renderAdminUsersTable(); } catch(e) { console.warn('[Admin Users]', e); }
+    try { updateRequestsBadge(); } catch(e) { console.warn('[Admin Badge]', e); }
   } else if (viewId === 'tech') {
-    renderTechDashboard();
-    renderTechOrdersTable();
-    renderTechChecklistsTable();
-    renderTechBitacora();
-    populateTechMachineHistorySelect();
+    switchTechPanel(activeTechPanel || 'dashboard');
+    try { renderTechDashboard(); } catch(e) { console.warn('[Tech Dash]', e); }
+    try { renderTechOrdersTable(); } catch(e) { console.warn('[Tech Orders]', e); }
+    try { renderTechChecklistsTable(); } catch(e) { console.warn('[Tech Checklists]', e); }
+    try { renderTechBitacora(); } catch(e) { console.warn('[Tech Bitacora]', e); }
+    try { populateTechMachineHistorySelect(); } catch(e) { console.warn('[Tech History]', e); }
   } else if (viewId === 'solicitante') {
-    renderSolicitanteView();
+    try { renderSolicitanteView(); } catch(e) { console.warn('[Solic View]', e); }
   }
 }
 
@@ -2964,15 +3018,22 @@ async function handleLoginSubmit(event) {
 function logout() {
   currentUser = null;
   persistSessionUser(null);
-  sessionStorage.removeItem('TSMAI_current_user');
-  sessionStorage.removeItem('TSMAI_current_route');
-  localStorage.removeItem('TSMAI_current_user');
-  localStorage.removeItem('TSMAI_current_route');
-  useLiveDatabase = false;
+  try {
+    sessionStorage.clear();
+    localStorage.removeItem('TSMAI_current_user');
+    localStorage.removeItem('TSMAI_current_route');
+  } catch(e) {}
   
   if (supabaseClient) {
-    supabaseClient.auth.signOut().catch(err => console.warn('Supabase signOut error:', err));
+    try {
+      supabaseClient.auth.signOut().catch(err => console.warn('Supabase signOut error:', err));
+    } catch(e) {}
   }
+
+  showView('public-portal');
+  showPublicPanel('home');
+  showToast('Sesión cerrada correctamente.');
+}
 
   try {
     history.pushState('', document.title, window.location.pathname + window.location.search);

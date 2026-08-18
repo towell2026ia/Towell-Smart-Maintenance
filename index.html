@@ -22,10 +22,9 @@
   <script>
     (function() {
       try {
-        const u = JSON.parse(localStorage.getItem('TSMAI_current_user') || 'null');
-        const h = window.location.hash || '';
+        const u = JSON.parse(sessionStorage.getItem('TSMAI_current_user') || localStorage.getItem('TSMAI_current_user') || 'null');
         const isStaff = u && (u.role === 'admin' || u.role === 'tech' || u.role === 'solicitante' || u.rol === 'SUPER_ADMINISTRADOR' || u.rol === 'MANTENIMIENTO' || u.rol === 'SOLICITANTE');
-        if (isStaff || h.includes('#admin') || h.includes('#tech') || h.includes('#solicitante')) {
+        if (isStaff) {
           const st = document.createElement('style');
           st.id = 'preload-hide-public';
           st.textContent = '#view-public-portal { display: none !important; }';
@@ -44,11 +43,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.4.4"></script>
+  <script src="config.js?v=3.4.5"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.4.4">
+  <link rel="stylesheet" href="style.css?v=3.4.5">
 </head>
 <body>
 
@@ -4951,16 +4950,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.4.4"></script>
-  <script src="agents-client.js?v=3.4.4"></script>
-  <script src="app.js?v=3.4.4"></script>
-  <script src="dashboard.js?v=3.4.4"></script>
+  <script src="seed.js?v=3.4.5"></script>
+  <script src="agents-client.js?v=3.4.5"></script>
+  <script src="app.js?v=3.4.5"></script>
+  <script src="dashboard.js?v=3.4.5"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.3.6')
+        navigator.serviceWorker.register('./sw.js?v=3.4.5')
           .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
           .catch(err => console.warn('⚠️ ServiceWorker error:', err));
       });
