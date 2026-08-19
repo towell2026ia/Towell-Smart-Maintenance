@@ -7767,6 +7767,80 @@ function updateExcelUploadGuidelines() {
   guidelineDiv.innerHTML = `<strong>Columnas esperadas:</strong><br><span style="word-break:break-all; font-family:monospace; font-size:0.7rem;">${cols}</span>`;
 }
 
+function normalizeExcelDateToISO(val) {
+  if (!val) return null;
+  if (typeof val === 'number') {
+    // Excel serial number (days since 1899-12-30)
+    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split('T')[0];
+    }
+  }
+  if (val instanceof Date) {
+    if (!isNaN(val.getTime())) {
+      return val.toISOString().split('T')[0];
+    }
+  }
+  if (typeof val === 'string') {
+    const s = val.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      return s.substring(0, 10);
+    }
+    const parts = s.split(/[-/]/);
+    if (parts.length === 3) {
+      let d = parseInt(parts[0], 10);
+      let m = parseInt(parts[1], 10);
+      let y = parseInt(parts[2], 10);
+      if (parts[0].length === 4) { // YYYY/MM/DD
+        y = parseInt(parts[0], 10);
+        m = parseInt(parts[1], 10);
+        d = parseInt(parts[2], 10);
+      }
+      if (y < 100) y += 2000;
+      const parsed = new Date(y, m - 1, d);
+      if (!isNaN(parsed.getTime())) {
+        const mm = String(m).padStart(2, '0');
+        const dd = String(d).padStart(2, '0');
+        return `${y}-${mm}-${dd}`;
+      }
+    }
+  }
+  return val ? String(val).trim() : null;
+}
+
+function resolveTelarMachineId(candidates) {
+  const localMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  for (let cand of candidates) {
+    if (!cand) continue;
+    const str = String(cand).trim();
+    if (!str) continue;
+    const upper = str.toUpperCase();
+    
+    // 1. Direct match with id, clave, name or equipo_towell
+    const exact = localMachines.find(m => 
+      (m.id && m.id.toUpperCase() === upper) ||
+      (m.clave && m.clave.toUpperCase() === upper) ||
+      (m.name && m.name.toUpperCase() === upper) ||
+      (m.equipo_towell && m.equipo_towell.toUpperCase() === upper)
+    );
+    if (exact) return exact.id || exact.equipo_towell;
+
+    // 2. Partial match (e.g. '01' matching 'CF-01' or 'TEL-01' or 'TOW-TEL01-TEJI')
+    const partial = localMachines.find(m => 
+      (m.id && m.id.toUpperCase().includes(upper)) ||
+      (m.clave && m.clave.toUpperCase().includes(upper)) ||
+      (m.name && m.name.toUpperCase().includes(upper))
+    );
+    if (partial) return partial.id || partial.equipo_towell;
+  }
+
+  // Fallback to first non-empty candidate or default
+  for (let cand of candidates) {
+    if (cand && String(cand).trim()) return String(cand).trim();
+  }
+  return localMachines.length > 0 ? (localMachines[0].id || 'CF-01') : 'TELAR-01';
+}
+
 function mapExcelRowToStaging(row, template) {
   const cleanStr = (str) => {
     if (!str) return '';
@@ -7789,7 +7863,9 @@ function mapExcelRowToStaging(row, template) {
   const getVal = (possibleKeys) => {
     for (let pk of possibleKeys) {
       const pkClean = cleanStr(pk);
-      if (normalized[pkClean] !== undefined) return normalized[pkClean];
+      if (normalized[pkClean] !== undefined && normalized[pkClean] !== null && normalized[pkClean] !== '') {
+        return normalized[pkClean];
+      }
     }
     return null;
   };
@@ -7843,7 +7919,7 @@ function mapExcelRowToStaging(row, template) {
         id: parseInt(getVal(['id'])) || null,
         folio: getVal(['folio']),
         estatus: getVal(['estatus', 'status']),
-        fecha: getVal(['fecha']),
+        fecha: normalizeExcelDateToISO(getVal(['fecha'])) || getVal(['fecha']),
         hora: getVal(['hora']),
         depto: getVal(['depto', 'departamento']),
         maquina_id: getVal(['maquina id', 'maquina_id', 'maquina']),
@@ -7862,11 +7938,11 @@ function mapExcelRowToStaging(row, template) {
         enviado: getVal(['enviado']),
         obs_cierre: getVal(['obs cierre', 'obs_cierre']),
         calidad: parseInt(getVal(['calidad'])) || null,
-        fecha_fin: getVal(['fecha fin', 'fecha_fin'])
+        fecha_fin: normalizeExcelDateToISO(getVal(['fecha fin', 'fecha_fin'])) || getVal(['fecha_fin'])
       };
     case 'refmaquina':
       return {
-        fecha: getVal(['fecha']),
+        fecha: normalizeExcelDateToISO(getVal(['fecha'])) || getVal(['fecha']),
         maquina_id: getVal(['maquina id', 'maquina_id', 'destino']),
         destino: getVal(['destino', 'maquina_id']),
         codigo_articulo: getVal(['codigo de articulo', 'codigo_articulo', 'codigo']),
@@ -7889,40 +7965,59 @@ function mapExcelRowToStaging(row, template) {
         observaciones: getVal(['observaciones', 'comentario'])
       };
     case 'segundas':
+      const rawFecha = getVal(['fecha', 'dia', 'fecha produccion']);
+      const isoFecha = normalizeExcelDateToISO(rawFecha) || (new Date().toISOString().split('T')[0]);
+      
+      const candidateMachines = [
+        getVal(['localidad']),
+        getVal(['salon']),
+        getVal(['numero serie', 'numero_serie', 'numero de serie', 'serie']),
+        getVal(['nombre']),
+        getVal(['produccion', 'telar']),
+        getVal(['id flog', 'id_flog']),
+        getVal(['maquina id detectada', 'maquina_id_detectada', 'telar_id'])
+      ];
+      const resolvedTelar = resolveTelarMachineId(candidateMachines);
+      
+      const rawCantidad = getVal(['cantidad', 'cant', 'piezas defecto', 'cantidad defecto']);
+      const rawDefecto = getVal(['defecto', 'descripcion defecto', 'tipo defecto', 'falla']) || 'SEGUNDA CALIDAD';
+      const rawCodDefecto = getVal(['codigo defecto', 'codigo_defecto', 'cod defecto', 'cve_defecto']) || 'DEF-01';
+      const rawPzasRollo = getVal(['pzas rollo', 'pzas_rollo', 'pzasrollo', 'piezas', 'total piezas']) || 1;
+
       return {
-        produccion: getVal(['produccion', 'telar']),
-        fecha: getVal(['fecha']),
-        codigo_bodega: getVal(['codigo bodega', 'codigo_bodega', 'codigo de barras', 'codigo_barras']),
+        produccion: getVal(['produccion', 'telar', 'orden produccion', 'op']) || resolvedTelar,
+        fecha: isoFecha,
+        codigo_bodega: getVal(['codigo bodega', 'codigo_bodega', 'codigo de barras', 'codigo_barras', 'codigo barras']),
         codigo_articulo: getVal(['codigo articulo', 'codigo_articulo', 'codigo de articulo']),
         nombre_articulo: getVal(['nombre articulo', 'nombre_articulo', 'nombre del articulo']),
         configuracion: getVal(['configuracion']),
-        tamano: getVal(['tamano']),
+        tamano: getVal(['tamano', 'tamanio']),
         color: getVal(['color']),
         nombre: getVal(['nombre']),
         almacen: getVal(['almacen']),
-        numero_lote: getVal(['numero lote', 'numero_lote', 'numero de lote']),
-        localidad: getVal(['localidad']),
-        salon: getVal(['salon', 'depto']),
+        numero_lote: getVal(['numero lote', 'numero_lote', 'numero de lote', 'lote']),
+        localidad: getVal(['localidad']) || resolvedTelar,
+        salon: getVal(['salon', 'depto', 'departamento']),
         numero_serie: getVal(['numero serie', 'numero_serie', 'numero de serie']),
         id_flog: getVal(['id flog', 'id_flog']),
-        nombre_flog: getVal(['nombre flog', 'nombre_flog']),
+        nombre_flog: getVal(['nombre flog', 'nombre_flog', 'nombre_1', 'nombre 1', 'nombre2']),
         calidad_flog: getVal(['calidad flog', 'calidad_flog', 'calidadflog']),
-        pzas_rollo: getVal(['pzas rollo', 'pzas_rollo', 'pzasrollo']),
-        kg_rollo: getVal(['kg rollo', 'kg_rollo', 'kgrollo']),
-        mts_rollo: getVal(['mts rollo', 'mts_rollo', 'mtsrollo']),
-        no_tiras: getVal(['no tiras', 'no_tiras', 'notiras']),
-        medida_1: getVal(['medida 1', 'medida_1']),
-        medida_2: getVal(['medida 2', 'medida_2']),
-        pzas_t1: getVal(['pzas t1', 'pzas_t1', 'pzast1']),
-        pzas_t2: getVal(['pzas t2', 'pzas_t2', 'pzast2']),
-        pzas_t3: getVal(['pzas t3', 'pzas_t3', 'pzast3']),
-        pzas_t4: getVal(['pzas t4', 'pzas_t4', 'pzast4']),
-        turno_tejido: getVal(['turno tejido', 'turno_tejido']),
-        codigo_defecto: getVal(['codigo defecto', 'codigo_defecto']),
-        cantidad: getVal(['cantidad']),
-        defecto: getVal(['defecto']),
-        maquina_id_detectada: getVal(['maquina id detectada', 'maquina_id_detectada']),
-        observaciones: getVal(['observaciones', 'comentario'])
+        pzas_rollo: parseFloat(rawPzasRollo) || 1,
+        kg_rollo: parseFloat(getVal(['kg rollo', 'kg_rollo', 'kgrollo'])) || 0,
+        mts_rollo: parseFloat(getVal(['mts rollo', 'mts_rollo', 'mtsrollo'])) || 0,
+        no_tiras: parseInt(getVal(['no tiras', 'no_tiras', 'notiras'])) || 0,
+        medida_1: parseFloat(getVal(['medida 1', 'medida_1'])) || 0,
+        medida_2: parseFloat(getVal(['medida 2', 'medida_2'])) || 0,
+        pzas_t1: parseInt(getVal(['pzas t1', 'pzas_t1', 'pzast1'])) || 0,
+        pzas_t2: parseInt(getVal(['pzas t2', 'pzas_t2', 'pzast2'])) || 0,
+        pzas_t3: parseInt(getVal(['pzas t3', 'pzas_t3', 'pzast3'])) || 0,
+        pzas_t4: parseInt(getVal(['pzas t4', 'pzas_t4', 'pzast4'])) || 0,
+        turno_tejido: getVal(['turno tejido', 'turno_tejido', 'turno']),
+        codigo_defecto: rawCodDefecto,
+        cantidad: parseFloat(rawCantidad) || 1,
+        defecto: rawDefecto,
+        maquina_id_detectada: resolvedTelar,
+        observaciones: getVal(['observaciones', 'comentario', 'obs'])
       };
     default:
       return {};
