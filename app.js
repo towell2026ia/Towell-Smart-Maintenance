@@ -7768,7 +7768,7 @@ function updateExcelUploadGuidelines() {
 }
 
 function normalizeExcelDateToISO(val) {
-  if (!val) return null;
+  if (!val && val !== 0) return null;
   if (typeof val === 'number') {
     // Excel serial number (days since 1899-12-30)
     const d = new Date(Math.round((val - 25569) * 86400 * 1000));
@@ -7788,19 +7788,27 @@ function normalizeExcelDateToISO(val) {
     }
     const parts = s.split(/[-/]/);
     if (parts.length === 3) {
-      let d = parseInt(parts[0], 10);
-      let m = parseInt(parts[1], 10);
+      let p1 = parseInt(parts[0], 10);
+      let p2 = parseInt(parts[1], 10);
       let y = parseInt(parts[2], 10);
       if (parts[0].length === 4) { // YYYY/MM/DD
         y = parseInt(parts[0], 10);
-        m = parseInt(parts[1], 10);
-        d = parseInt(parts[2], 10);
+        p1 = parseInt(parts[1], 10);
+        p2 = parseInt(parts[2], 10);
       }
       if (y < 100) y += 2000;
-      const parsed = new Date(y, m - 1, d);
+      
+      let month = p1;
+      let day = p2;
+      // In Mexican/Latin date format, if p1 > 12 -> p1 is Day, p2 is Month
+      if (p1 > 12 && p2 <= 12) {
+        day = p1;
+        month = p2;
+      }
+      const parsed = new Date(y, month - 1, day);
       if (!isNaN(parsed.getTime())) {
-        const mm = String(m).padStart(2, '0');
-        const dd = String(d).padStart(2, '0');
+        const mm = String(month).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
         return `${y}-${mm}-${dd}`;
       }
     }
@@ -8325,7 +8333,7 @@ async function handleRealExcelUpload(event) {
       btn.disabled = validCount === 0;
 
       // Render Preview Table
-      renderExcelPreviewTable(validatedRows.slice(0, 100));
+      renderExcelPreviewTable(localValidated.slice(0, 100));
 
       showToast(`Validación completada: ${validCount} correctos, ${errorCount} con error.`);
 
@@ -11972,19 +11980,30 @@ function renderExcelPreviewTable(rows) {
   const tbody = document.getElementById('excel-preview-tbody');
   if (!thead || !tbody) return;
 
-  if (rows.length === 0) {
+  if (!rows || rows.length === 0) {
     thead.innerHTML = '';
     tbody.innerHTML = '<tr><td style="text-align:center;padding:20px;">Sin datos en vista previa.</td></tr>';
     return;
   }
 
-  // Get keys to display (exclude internal keys)
-  const keys = Object.keys(rows[0]).filter(k => !['id_carga', 'archivo_origen', 'creado_en'].includes(k));
+  // Desired column order for industrial tables (excluding technical UUIDs and system timestamps)
+  let keys = [];
+  if (rows[0].defecto !== undefined || rows[0].codigo_articulo !== undefined) {
+    const preferredOrder = [
+      'produccion', 'fecha', 'localidad', 'salon', 'codigo_articulo', 'nombre_articulo',
+      'defecto', 'cantidad', 'codigo_defecto', 'pzas_rollo', 'kg_rollo', 'mts_rollo',
+      'turno_tejido', 'nombre_flog', 'calidad_flog', 'numero_lote', 'numero_serie',
+      'configuracion', 'tamano', 'color', 'detalles_error'
+    ];
+    keys = preferredOrder.filter(k => rows[0][k] !== undefined || k === 'detalles_error');
+  } else {
+    keys = Object.keys(rows[0]).filter(k => !['id_carga', 'archivo_origen', 'creado_en', 'id_stg', 'fecha_carga', 'maquina_id_resuelta', 'score_riesgo', 'nivel_riesgo'].includes(k));
+  }
   
   // Build header
   let headHtml = '<tr>';
   keys.forEach(k => {
-    headHtml += `<th style="text-transform: capitalize;">${k.replace(/_/g, ' ')}</th>`;
+    headHtml += `<th style="text-transform: capitalize; white-space: nowrap; padding: 8px 10px;">${k.replace(/_/g, ' ')}</th>`;
   });
   headHtml += '</tr>';
   thead.innerHTML = headHtml;
@@ -11997,17 +12016,17 @@ function renderExcelPreviewTable(rows) {
     bodyHtml += `<tr style="${bgStyle}">`;
     keys.forEach(k => {
       let val = row[k];
-      if (val === null || val === undefined) val = '—';
+      if (val === null || val === undefined || val === '') val = '—';
       if (k === 'detalles_error' && !isVal) {
-        bodyHtml += `<td style="color:#ef4444; font-weight: 600;">${val}</td>`;
+        bodyHtml += `<td style="color:#ef4444; font-weight: 600; white-space: nowrap; padding: 6px 10px;">${val}</td>`;
       } else {
-        bodyHtml += `<td>${val}</td>`;
+        bodyHtml += `<td style="white-space: nowrap; padding: 6px 10px;">${val}</td>`;
       }
     });
     bodyHtml += '</tr>';
   });
   if (rows.length > 50) {
-    bodyHtml += `<tr><td colspan="${keys.length}" style="text-align: center; color: var(--text-muted); font-style: italic;">Mostrando primeros 50 de ${rows.length} registros...</td></tr>`;
+    bodyHtml += `<tr><td colspan="${keys.length}" style="text-align: center; color: var(--text-muted); font-style: italic; padding: 10px;">Mostrando primeros 50 de ${rows.length} registros...</td></tr>`;
   }
   tbody.innerHTML = bodyHtml;
 }
