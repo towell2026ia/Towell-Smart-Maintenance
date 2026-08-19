@@ -36,6 +36,9 @@ const STATIC_EVENT_CATALOG: Record<string, EventCatalogEntry> = {
   'PREVENTIVE_SCHEDULE_ITEM': { event_code: 'PREVENTIVE_SCHEDULE_ITEM', nombre_evento: 'Ítem de programación preventiva anual', agent_id_destino: 'AG-009.1', es_conocido: true, datos_requeridos: ['machine_id', 'service_code', 'scheduled_date'] },
   'AUTONOMOUS_SCHEDULE_ITEM': { event_code: 'AUTONOMOUS_SCHEDULE_ITEM', nombre_evento: 'Ítem de rutina autónoma semanal', agent_id_destino: 'AG-009.2', es_conocido: true, datos_requeridos: ['machine_id', 'week_reference', 'scheduled_date'] },
   'AUTONOMO_EJECUTAR': { event_code: 'AUTONOMO_EJECUTAR', nombre_evento: 'Ejecución de rutina de mantenimiento autónomo', agent_id_destino: 'AG-009.2', es_conocido: true, datos_requeridos: ['machine_id', 'week_reference', 'responses'] },
+  'FAILURE_ANALYSIS_REQUESTED': { event_code: 'FAILURE_ANALYSIS_REQUESTED', nombre_evento: 'Solicitud de análisis de fallas desde UI', agent_id_destino: 'AG-008', es_conocido: true, datos_requeridos: [] },
+  'AI_RECOMMENDATIONS_REQUESTED': { event_code: 'AI_RECOMMENDATIONS_REQUESTED', nombre_evento: 'Solicitud de recomendaciones contextuales IA desde UI', agent_id_destino: 'AG-001', es_conocido: true, datos_requeridos: [] },
+  'SYSTEM_ALERTS_REQUESTED': { event_code: 'SYSTEM_ALERTS_REQUESTED', nombre_evento: 'Consulta de alertas activas del sistema desde UI', agent_id_destino: 'AG-007', es_conocido: true, datos_requeridos: [] },
   'TEXTO_AMBIGUO': { event_code: 'TEXTO_AMBIGUO', nombre_evento: 'Texto libre que requiere interpretación del Capataz (IA)', agent_id_destino: 'AG-001', es_conocido: false, datos_requeridos: ['texto'] }
 };
 

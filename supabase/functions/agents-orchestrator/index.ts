@@ -36,13 +36,26 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { event_code, payload, correlation_id } = await req.json();
+    const rawBody = await req.json();
+    const event_code = rawBody.event_code || rawBody.event_type;
+    const correlation_id = rawBody.correlation_id;
 
     if (!event_code) {
-      return new Response(JSON.stringify({ error: 'event_code es requerido' }), {
+      return new Response(JSON.stringify({ error: 'event_code o event_type es requerido' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin }
       });
+    }
+
+    // Sanitización y extracción de payload y context (despojando controles de autoridad del cliente)
+    const clientPayload = { ...(rawBody.payload || {}), context: rawBody.context || {} };
+    const forbiddenClientKeys = [
+      'agent_id', 'provider', 'model', 'approval_status', 'role_override',
+      'is_admin', 'skip_approval', 'force_route', 'force_execute', 'create_ot', 'close_ot', 'execute_sql'
+    ];
+    for (const k of forbiddenClientKeys) {
+      delete clientPayload[k];
+      if (rawBody[k] !== undefined) delete rawBody[k];
     }
 
     // Inicializar cliente Supabase del proyecto usando las variables de entorno inyectadas
@@ -93,7 +106,7 @@ Deno.serve(async (req: Request) => {
       executeAgentFlow(
         supabaseAdmin,
         event_code,
-        payload || {},
+        clientPayload,
         corrId,
         secrets
       ).catch(err => {
@@ -117,7 +130,7 @@ Deno.serve(async (req: Request) => {
     const flowResult = await executeAgentFlow(
       supabaseAdmin,
       event_code,
-      payload || {},
+      clientPayload,
       correlation_id || null,
       secrets
     );

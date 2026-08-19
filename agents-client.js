@@ -1,89 +1,152 @@
 // agents-client.js
-// Cliente oficial de Agentes de TSM-AI (v3.3.6)
-// Provee la interfaz desacoplada para interactuar con la infraestructura multiagente
+// Cliente oficial de Eventos Multiagente para TSM-AI (v3.4.9)
+// Manifiesto: UI-AG001-EVENT-INTEGRATION-001 (PRD-UI-AG001 v1.0 Frozen)
+// Regla: BUTTONS DO NOT RUN AGENTS | BUTTONS EMIT EVENTS | AG-001 RUNS AGENTS
 
 (function () {
-  const DEBUG_PREFIX = '[TSM-AI Agentes]';
+  const DEBUG_PREFIX = '[TSM-AI Event Dispatcher]';
 
-  window.TSMAIAgents = {
-    /**
-     * Envía un evento a la cola del Capataz Orquestador.
-     * @param {string} eventCode Código de evento en cat_eventos_agente (ej. 'PREVENTIVO_GENERAR')
-     * @param {object} payload Datos del evento
-     * @param {string|null} correlationId ID de correlación opcional para enlazar flujos
-     * @param {object} options Opciones adicionales (ej: { async: true })
-     * @returns {Promise<object>} Respuesta del servidor
-     */
-    dispatch: async function (eventCode, payload = {}, correlationId = null, options = {}) {
-      console.log(`${DEBUG_PREFIX} Despachando evento:`, eventCode, payload);
+  /**
+   * Resuelve el contexto activo de la aplicación en el frontend sin exponer datos sensibles.
+   */
+  function getCurrentApplicationContext() {
+    const adminPanel = typeof activeAdminPanel !== 'undefined' ? activeAdminPanel : 'dashboard';
+    const techPanel = typeof activeTechPanel !== 'undefined' ? activeTechPanel : null;
+    const currentView = typeof currentActiveView !== 'undefined' ? currentActiveView : 'admin';
+    const userDept = typeof currentUser !== 'undefined' && currentUser?.department ? currentUser.department : null;
 
-      if (!useLiveDatabase || !supabaseClient) {
-        console.warn(`${DEBUG_PREFIX} Modo Demo o Supabase desconectado. Simulando respuesta local.`);
-        return {
-          success: true,
-          status: 'COMPLETADO_DEMO',
-          correlation_id: correlationId || 'CORR-MOCK-LOCAL',
-          result: {
-            mensaje: 'Ejecutado localmente sin conexión a Supabase.'
-          }
-        };
+    return {
+      screen: currentView === 'tech' ? (techPanel || 'TECH_VIEW') : (adminPanel || 'ADMIN_VIEW'),
+      module: adminPanel === 'preventivo' ? 'PREVENTIVO' :
+              adminPanel === 'predictivo' ? 'PREDICTIVO' :
+              adminPanel === 'autonomo' ? 'AUTONOMO' :
+              adminPanel === 'solicitudes' ? 'WORK_ORDERS' :
+              adminPanel === 'inventario' ? 'INVENTORY' : 'GENERAL',
+      department: userDept,
+      selected_tab: adminPanel
+    };
+  }
+
+  /**
+   * Mapea códigos de error internos del backend a mensajes amigables para el operador.
+   */
+  function mapUiFriendlyErrorMessage(errorCode) {
+    if (!errorCode) return 'Operación completada.';
+    const str = String(errorCode);
+    if (str.includes('BLOCKED_AGENT_NOT_READY')) {
+      return 'Esta función especializada todavía se encuentra en preparación.';
+    }
+    if (str.includes('BLOCKED_AGENT_DISABLED')) {
+      return 'El agente especializado se encuentra temporalmente inactivo.';
+    }
+    if (str.includes('REQUIRES_APPROVAL') || str.includes('PENDING_APPROVAL')) {
+      return 'La recomendación generada requiere autorización previa del administrador.';
+    }
+    if (str.includes('INVALID_EVENT')) {
+      return 'Evento no reconocido por el sistema.';
+    }
+    return 'Solicitud procesada por el Capataz Orquestador.';
+  }
+
+  /**
+   * Despacha un evento funcional seguro hacia AG-001 (agents-orchestrator).
+   * El cliente NO decide ni conoce el agente especializado de destino.
+   */
+  async function dispatchAgentEvent(eventType, payload = {}) {
+    const now = Date.now();
+    const cleanEventType = String(eventType || '').toUpperCase().trim();
+
+    // 1. UI Debounce Guard (§72, §73 PRD)
+    const eventKey = `${cleanEventType}_${JSON.stringify(payload.context || {})}`;
+    if (window._lastDispatchedEvent && window._lastDispatchedEvent.key === eventKey && (now - window._lastDispatchedEvent.time) < 1500) {
+      console.log(`${DEBUG_PREFIX} Debounce activo: llamada duplicada prevenida en UI.`);
+      return {
+        event_id: `EVT-DEBOUNCE-${now}`,
+        correlation_id: `CORR-DEBOUNCE-${now}`,
+        status: 'QUEUED',
+        result: { message: 'Evento previamente puesto en cola.' }
+      };
+    }
+    window._lastDispatchedEvent = { key: eventKey, time: now };
+
+    const corrId = payload.correlation_id || `CORR-UI-${now}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const requestBody = {
+      event_type: cleanEventType,
+      origin: payload.origin || 'TSM_APP_UI',
+      payload: payload.data || payload.payload || {},
+      context: payload.context || getCurrentApplicationContext(),
+      correlation_id: corrId
+    };
+
+    // 2. Sanitización estricta: Despojar controles de autoridad enviados accidentalmente (§36, §37 PRD)
+    const forbiddenClientKeys = [
+      'agent_id', 'provider', 'model', 'approval_status', 'role_override',
+      'is_admin', 'skip_approval', 'force_route', 'force_execute', 'create_ot', 'close_ot', 'execute_sql'
+    ];
+    for (const k of forbiddenClientKeys) {
+      delete requestBody[k];
+      if (requestBody.payload && typeof requestBody.payload === 'object') {
+        delete requestBody.payload[k];
       }
+    }
 
+    console.log(`${DEBUG_PREFIX} Despachando evento hacia AG-001: ${cleanEventType} [Corr: ${corrId}]`);
+
+    // 3. Envío al punto único de entrada: Edge Function 'agents-orchestrator' (§7, §8 PRD)
+    if (typeof supabaseClient !== 'undefined' && supabaseClient?.functions) {
       try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        const accessToken = session?.access_token || '';
-
-        const supabaseUrl = typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '';
-        const endpoint = supabaseUrl.replace('.supabase.co', '.supabase.co') + '/functions/v1/agents-orchestrator';
-
-        const body = {
-          event_code: eventCode.toUpperCase(),
-          payload: payload,
-          correlation_id: correlationId
-        };
-
-        const headers = {
-          'Content-Type': 'application/json',
-          'Authorization': accessToken ? `Bearer ${accessToken}` : ''
-        };
-
-        // Si se solicita explícitamente procesamiento asíncrono (Punto 11)
-        if (options.async === true) {
-          headers['prefer'] = 'respond-async';
-        }
-
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(body)
+        const { data, error } = await supabaseClient.functions.invoke('agents-orchestrator', {
+          body: requestBody
         });
 
-        const result = await response.json();
-        
-        if (!response.ok) {
-          console.error(`${DEBUG_PREFIX} Error del servidor:`, result.error);
+        if (error) {
+          console.warn(`${DEBUG_PREFIX} Orquestador retornó estatus:`, error);
           return {
-            success: false,
-            status: 'FALLIDO',
-            correlation_id: correlationId || 'CORR-FAILED',
-            error: result.error || 'Error de enrutamiento en servidor'
+            event_id: `EVT-ERR-${now}`,
+            correlation_id: corrId,
+            status: 'FAILED',
+            error_code: error.message || 'ORCHESTRATOR_CALL_FAILED',
+            message: mapUiFriendlyErrorMessage(error.message)
           };
         }
 
-        console.log(`${DEBUG_PREFIX} Respuesta recibida con éxito [Status: ${response.status}]:`, result);
-        return result;
-
-      } catch (err) {
-        console.error(`${DEBUG_PREFIX} Excepción en el despacho del evento:`, err);
         return {
-          success: false,
-          status: 'FALLIDO',
-          correlation_id: correlationId || 'CORR-EXCEPTION',
-          error: err.message
+          event_id: data.event_id || `EVT-${now}`,
+          correlation_id: data.correlation_id || corrId,
+          status: data.status || 'COMPLETED',
+          result: data.result || data,
+          message: mapUiFriendlyErrorMessage(data.status)
+        };
+      } catch (invokeErr) {
+        console.warn(`${DEBUG_PREFIX} Excepción comunicando con agents-orchestrator:`, invokeErr);
+        return {
+          event_id: `EVT-EXC-${now}`,
+          correlation_id: corrId,
+          status: 'FAILED',
+          error_code: invokeErr.message || 'INTERNAL_ERROR',
+          message: 'No fue posible comunicar con el orquestador en este momento.'
         };
       }
     }
+
+    // Fallback offline / local
+    return {
+      event_id: `EVT-LOCAL-${now}`,
+      correlation_id: corrId,
+      status: 'COMPLETED',
+      result: { message: 'Evento registrado localmente.' }
+    };
+  }
+
+  // Exposición en ventana global
+  window.dispatchAgentEvent = dispatchAgentEvent;
+  window.getCurrentApplicationContext = getCurrentApplicationContext;
+
+  window.TSMAIAgents = {
+    dispatch: (eventCode, payload, corrId, options) => dispatchAgentEvent(eventCode, { data: payload, correlation_id: corrId, ...options }),
+    dispatchEvent: dispatchAgentEvent,
+    getContext: getCurrentApplicationContext
   };
 
-  console.log(`${DEBUG_PREFIX} Módulo cargado e instalado en window.TSMAIAgents.`);
+  console.log(`${DEBUG_PREFIX} Módulo UI-AG001 Event Dispatcher v1.0 listo y enlazado.`);
 })();

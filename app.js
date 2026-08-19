@@ -10685,19 +10685,53 @@ function loadTechMachineHistory(machineId) {
   if (wrapper) wrapper.style.display = 'block';
 }
 
-function openAnalysisListModal() {
-  renderAdminAnalysis();
+// --- BOTONES COMO DISPARADORES DE EVENTOS MULTIAGENTE (PRD-UI-AG001 v1.0) ---
+async function openAnalysisListModal() {
   openModal('modal-admin-analysis-list');
+  renderAdminAnalysis();
+  
+  // Disparo funcional seguro de evento hacia AG-001 (sin exponer AG-008 en cliente)
+  if (typeof dispatchAgentEvent === 'function') {
+    try {
+      const ctx = typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {};
+      dispatchAgentEvent('FAILURE_ANALYSIS_REQUESTED', {
+        origin: 'FAILURE_ANALYSIS_BUTTON',
+        context: { ...ctx, module: 'FAILURE_ANALYSIS' }
+      }).catch(err => console.warn('[UI AG-001] Event dispatch warning (Failure Analysis):', err));
+    } catch(e) {}
+  }
 }
 
-function openAIRecommendationsModal() {
-  renderAdminAIRecommendations();
+async function openAIRecommendationsModal() {
   openModal('modal-admin-ai-list');
+  renderAdminAIRecommendations();
+  
+  // Disparo funcional contextual hacia AG-001 (Capataz determina ruta según pantalla)
+  if (typeof dispatchAgentEvent === 'function') {
+    try {
+      const ctx = typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {};
+      dispatchAgentEvent('AI_RECOMMENDATIONS_REQUESTED', {
+        origin: 'AI_RECOMMENDATIONS_BUTTON',
+        context: ctx
+      }).catch(err => console.warn('[UI AG-001] Event dispatch warning (AI Recommendations):', err));
+    } catch(e) {}
+  }
 }
 
-function openAlertsModal() {
-  renderAdminAlertas();
+async function openAlertsModal() {
   openModal('modal-admin-alerts-list');
+  renderAdminAlertas();
+  
+  // Disparo funcional seguro hacia AG-001 para frescura de alertas
+  if (typeof dispatchAgentEvent === 'function') {
+    try {
+      const ctx = typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {};
+      dispatchAgentEvent('SYSTEM_ALERTS_REQUESTED', {
+        origin: 'SYSTEM_ALERTS_BUTTON',
+        context: { ...ctx, module: 'SYSTEM_ALERTS' }
+      }).catch(err => console.warn('[UI AG-001] Event dispatch warning (System Alerts):', err));
+    } catch(e) {}
+  }
 }
 
 // --- UTILERÍAS COMPARTIDAS (MODALES Y MENSAJES) ---
