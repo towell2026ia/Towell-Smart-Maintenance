@@ -4409,29 +4409,30 @@
 
   <!-- Modal: Recuperación de Contraseña -->
   <div class="modal-overlay" id="modal-password-recovery" style="z-index: 1100;">
-    <div class="modal-card" style="max-width: 420px; border: 2px solid var(--accent-cyan);">
-      <div class="modal-header" style="background: var(--dark-bg); color: white; border-bottom: 2px solid var(--accent-cyan);">
-        <h3 style="margin:0; display:flex; align-items:center; gap:8px;">&#128272; Recuperar Contrase&#241;a</h3>
-        <button class="btn-close-modal" onclick="closeModal('modal-password-recovery')" style="color: white; border: none; background: transparent; font-size: 1.5rem; cursor: pointer;">&#215;</button>
+    <div class="modal-card" style="max-width: 440px; border: 2px solid var(--accent-cyan); border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);">
+      <div class="modal-header" style="background: var(--dark-bg); color: white; border-bottom: 2px solid var(--accent-cyan); padding: 16px 20px;">
+        <h3 style="margin:0; font-size: 1.15rem; font-weight: 700; display:flex; align-items:center; gap:8px;">🔒 Recuperar Contraseña</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-password-recovery')" style="color: white; border: none; background: transparent; font-size: 1.5rem; cursor: pointer;">×</button>
       </div>
       <div class="modal-body" style="padding: 24px;">
 
         <div id="recovery-step-1">
-          <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px;">
-            Ingresa tu correo electr&#243;nico registrado y te enviaremos un enlace para restablecer tu contrase&#241;a.
+          <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 18px;">
+            Ingresa tu correo electrónico registrado. El sistema verificará tu usuario en la base de datos y te enviará un enlace oficial para crear tu nueva contraseña.
           </p>
           <div class="form-group" style="margin-bottom: 20px;">
-            <label for="recovery-email">Correo Electr&#243;nico *</label>
+            <label for="recovery-email" style="display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 6px;">Correo Electrónico Registrado *</label>
             <input type="email" id="recovery-email" class="form-control"
-              placeholder="tu@correo.com"
+              placeholder="tu.usuario@towell.com.mx"
+              style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem;"
               onkeydown="if(event.key==='Enter') submitRecoveryRequest2FA()" required>
           </div>
-          <button class="btn-action-primary" onclick="submitRecoveryRequest2FA()"
-            style="width: 100%; background: var(--accent-cyan); color: black; font-weight: 700; border-radius: 6px; padding: 12px; font-size: 0.95rem;">
-            &#128231; Enviar Correo de Restablecimiento
+          <button id="btn-submit-recovery" class="btn-action-primary" onclick="submitRecoveryRequest2FA()"
+            style="width: 100%; background: var(--accent-cyan); color: #0f172a; font-weight: 700; border-radius: 8px; padding: 12px; font-size: 0.95rem; cursor: pointer; border: none; transition: all 0.2s;">
+            📧 Enviar Correo de Restablecimiento
           </button>
-          <p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-top: 14px; line-height: 1.4;">
-            Recibir&#225;s un correo con un enlace v&#225;lido por 24 horas.<br>
+          <p style="font-size: 0.78rem; color: var(--text-muted); text-align: center; margin-top: 16px; line-height: 1.4;">
+            ℹ️ Solo se enviará el enlace a cuentas activas dadas de alta en el sistema.<br>
             Revisa tu bandeja de entrada y carpeta de spam.
           </p>
         </div>
@@ -4950,16 +4951,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.4.7"></script>
-  <script src="agents-client.js?v=3.4.7"></script>
-  <script src="app.js?v=3.4.7"></script>
-  <script src="dashboard.js?v=3.4.7"></script>
+  <script src="seed.js?v=3.4.8"></script>
+  <script src="agents-client.js?v=3.4.8"></script>
+  <script src="app.js?v=3.4.8"></script>
+  <script src="dashboard.js?v=3.4.8"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.4.7')
+        navigator.serviceWorker.register('./sw.js?v=3.4.8')
           .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
           .catch(err => console.warn('⚠️ ServiceWorker error:', err));
       });

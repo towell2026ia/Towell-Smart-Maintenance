@@ -11303,65 +11303,138 @@ function showSimulatedEmail(to, subject, bodyHtml, actionText, actionCallback) {
   openModal('modal-email-simulator');
 }
 
-// --- PASSWORD RECOVERY WITH 2FA (EMAIL + SMS OTP) ---
+// --- PASSWORD RECOVERY WITH DB VALIDATION ---
 function openPasswordRecoveryRequest() {
   const emailInput = document.getElementById('recovery-email');
-  const phoneInput = document.getElementById('recovery-phone');
-  const otpInput = document.getElementById('recovery-otp');
   
-  if (emailInput) emailInput.value = '';
-  if (phoneInput) phoneInput.value = '';
-  if (otpInput) otpInput.value = '';
+  // Pre-llenar con el correo ya escrito en el formulario de login si existe
+  const existingLoginEmail = document.getElementById('split-login-email')?.value?.trim() || 
+                             document.getElementById('login-email')?.value?.trim() || '';
   
-  document.getElementById('recovery-step-1').style.display = 'block';
-  document.getElementById('recovery-step-2').style.display = 'none';
+  if (emailInput) {
+    emailInput.value = existingLoginEmail;
+  }
+  
+  const step1 = document.getElementById('recovery-step-1');
+  const step2 = document.getElementById('recovery-step-2');
+  if (step1) step1.style.display = 'block';
+  if (step2) step2.style.display = 'none';
   
   openModal('modal-password-recovery');
+  
+  if (emailInput) {
+    setTimeout(() => emailInput.focus(), 100);
+  }
 }
 
 function goBackToStep1() {
-  document.getElementById('recovery-step-1').style.display = 'block';
-  document.getElementById('recovery-step-2').style.display = 'none';
+  const step1 = document.getElementById('recovery-step-1');
+  const step2 = document.getElementById('recovery-step-2');
+  if (step1) step1.style.display = 'block';
+  if (step2) step2.style.display = 'none';
 }
 
 async function submitRecoveryRequest2FA() {
-  const email = document.getElementById('recovery-email').value.trim().toLowerCase();
+  const emailInput = document.getElementById('recovery-email');
+  const email = (emailInput ? emailInput.value : '').trim().toLowerCase();
 
-  if (!email) {
-    alert('Por favor ingresa tu correo electrónico registrado.');
+  if (!email || !email.includes('@') || !email.includes('.')) {
+    alert('⚠️ Por favor ingresa un correo electrónico válido registrado en el sistema.');
+    if (emailInput) emailInput.focus();
     return;
   }
 
-  if (!supabaseClient) {
-    alert('Sin conexión. Por favor intenta más tarde.');
+  const btn = document.getElementById('btn-submit-recovery') || document.querySelector('#recovery-step-1 button');
+  const originalBtnText = btn ? btn.innerHTML : '📧 Enviar Correo de Restablecimiento';
+  
+  const resetBtn = () => {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalBtnText;
+    }
+  };
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Verificando en base de datos...';
+  }
+
+  // 1. REGLA ESTRICTA: Validar si el correo existe en la base de datos (cat_usuarios_roles)
+  let dbUser = null;
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('cat_usuarios_roles')
+        .select('id_usuario, nombre_completo, correo, rol, activo')
+        .ilike('correo', email)
+        .maybeSingle();
+
+      if (!error && data) {
+        dbUser = data;
+      }
+    } catch (err) {
+      console.warn('[Recovery] DB check query error:', err);
+    }
+  }
+
+  // Backup: Verificar en catálogo local sincronizado si no hubo respuesta directa
+  if (!dbUser) {
+    try {
+      const localUsers = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+      const match = localUsers.find(u => (u.correo || u.email || '').trim().toLowerCase() === email);
+      if (match) {
+        dbUser = match;
+      }
+    } catch (e) {}
+  }
+
+  // 2. Si el correo NO existe en la base de datos: NO SE MANDA NINGÚN CORREO
+  if (!dbUser) {
+    resetBtn();
+    alert(`⚠️ Correo No Registrado\n\nEl correo (${email}) no se encuentra dado de alta en la base de datos de usuarios de la planta.\n\nPor seguridad operativa, NO se ha enviado ningún correo de recuperación.\n\nVerifica que esté escrito correctamente o solicita a tu administrador que dé de alta tu usuario.`);
+    if (emailInput) emailInput.focus();
     return;
+  }
+
+  // 3. Si el usuario existe pero está inactivo: NO SE MANDA NINGÚN CORREO
+  if (dbUser.activo === false) {
+    resetBtn();
+    alert(`⛔ Cuenta Desactivada\n\nLa cuenta asociada a ${dbUser.nombre_completo || 'tu usuario'} (${email}) se encuentra desactivada en el sistema.\n\nNo es posible enviar el enlace de recuperación. Contacta al administrador para reactivar tu cuenta.`);
+    return;
+  }
+
+  // 4. El correo SÍ existe y está activo -> Proceder con el envío oficial por Supabase Auth
+  if (btn) {
+    btn.innerHTML = '📨 Enviando correo de restablecimiento...';
   }
 
   try {
-    const btn = document.querySelector('#recovery-step-1 button');
-    if (btn) { btn.disabled = true; btn.innerText = '⏳ Enviando...'; }
+    const redirectUrl = window.location.origin + window.location.pathname;
+    
+    if (supabaseClient) {
+      const { error: resetError } = await supabaseClient.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl
+      });
 
-    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://tsmail-towell.netlify.app'
-    });
-
-    if (btn) { btn.disabled = false; btn.innerText = '📧 Enviar Correo de Restablecimiento'; }
-
-    if (error) {
-      console.warn('[Recovery] resetPasswordForEmail error:', error.message);
-      // Por seguridad: no revelar si el correo existe o no
+      if (resetError) {
+        console.error('[Recovery] resetPasswordForEmail error:', resetError);
+        resetBtn();
+        alert(`⚠️ Error al Enviar Correo\n\nNo fue posible despachar el correo en este momento (${resetError.message}).\nPor favor intenta más tarde.`);
+        return;
+      }
     }
 
+    resetBtn();
     closeModal('modal-password-recovery');
-    alert('Si el correo está registrado en el sistema, recibirás un enlace para restablecer tu contraseña.\n\nRevisa tu bandeja de entrada (y carpeta de spam).');
-    return;
-  } catch (err) {
-    console.error('[Recovery] Error:', err);
-    alert('Error al procesar la solicitud. Por favor intenta más tarde.');
-  }
+    
+    alert(`✅ Correo de Restablecimiento Enviado\n\nSe ha enviado con éxito el enlace para restablecer tu contraseña a:\n\n👤 Usuario: ${dbUser.nombre_completo || 'Usuario Registrado'}\n📧 Correo: ${email}\n\nPor favor revisa tu bandeja de entrada o carpeta de spam para ingresar tu nueva clave.`);
+    showToast('📧 Enlace de restablecimiento enviado correctamente.');
 
-  // Función simplificada — el flujo SMS/OTP anterior fue eliminado en v3.3.5
-  // El correo de restablecimiento se envía directamente por Supabase Auth arriba.
+  } catch (err) {
+    console.error('[Recovery] Unexpected error:', err);
+    resetBtn();
+    alert('Ocurrió un error inesperado al procesar la solicitud. Por favor intenta más tarde.');
+  }
 }
 
 
