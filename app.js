@@ -1575,10 +1575,6 @@ function persistSessionUser(userObj) {
     } catch(e) {}
   }
 }
-  // Garantizar que no quede sesión permanente en localStorage (se cierra al cerrar ventana/pestaña)
-  localStorage.removeItem('TSMAI_current_user');
-  localStorage.removeItem('TSMAI_current_route');
-}
 
 function normalizeUserRole(rawRol) {
   if (!rawRol) return 'public';
@@ -3054,23 +3050,15 @@ function logout() {
     sessionStorage.clear();
     localStorage.removeItem('TSMAI_current_user');
     localStorage.removeItem('TSMAI_current_route');
-  } catch(e) {}
+    history.pushState('', document.title, window.location.pathname + window.location.search);
+  } catch(e) {
+    try { window.location.hash = ''; } catch(err) {}
+  }
   
   if (supabaseClient) {
     try {
       supabaseClient.auth.signOut().catch(err => console.warn('Supabase signOut error:', err));
     } catch(e) {}
-  }
-
-  showView('public-portal');
-  showPublicPanel('home');
-  showToast('Sesión cerrada correctamente.');
-}
-
-  try {
-    history.pushState('', document.title, window.location.pathname + window.location.search);
-  } catch (e) {
-    window.location.hash = '';
   }
 
   showView('public-portal');
