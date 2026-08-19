@@ -1,0 +1,4234 @@
+[
+  {
+    "id": "TC-AG004-SEM-001",
+    "split": "TRAINING",
+    "category": "Historical Context Summary",
+    "description": "Evaluación semántica de Historical Context Summary #1 para PF-MAQ-01",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-01",
+        "machine_name": "Equipo PF-MAQ-01",
+        "department": "PF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-PF-MAQ-01-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-01-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": null,
+        "completed_autonomous_count": 0,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "NO_HISTORY"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-01-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-01-2026W34"
+      ],
+      "mimo_enabled": false
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-002",
+    "split": "TRAINING",
+    "category": "Historical Context Summary",
+    "description": "Evaluación semántica de Historical Context Summary #2 para CF-MAQ-02",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-02",
+        "machine_name": "Equipo CF-MAQ-02",
+        "department": "CF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-CF-MAQ-02-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-02-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "PARTIAL"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-02-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-02-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-003",
+    "split": "TRAINING",
+    "category": "Historical Context Summary",
+    "description": "Evaluación semántica de Historical Context Summary #3 para TF-MAQ-03",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-03",
+        "machine_name": "Equipo TF-MAQ-03",
+        "department": "TF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-20",
+        "day_of_week": "JUEVES",
+        "calendar_reference": "AUT-TF-MAQ-03-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-03-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 1,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-TF-MAQ-03-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-03-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-03-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-004",
+    "split": "TRAINING",
+    "category": "Historical Context Summary",
+    "description": "Evaluación semántica de Historical Context Summary #4 para AF-MAQ-04",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-04",
+        "machine_name": "Equipo AF-MAQ-04",
+        "department": "AF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-21",
+        "day_of_week": "VIERNES",
+        "calendar_reference": "AUT-AF-MAQ-04-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-04-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-04-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [
+          {
+            "request_folio": "SOL-CORR-AF-MAQ-04-001",
+            "finding_id": "FND-AF-MAQ-04-W32-01",
+            "status": "ATENDIDA",
+            "work_order_folio": "OT-2026-0004",
+            "date": "2026-08-04"
+          }
+        ],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-04-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-04-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-005",
+    "split": "TRAINING",
+    "category": "Historical Context Summary",
+    "description": "Evaluación semántica de Historical Context Summary #5 para PF-MAQ-05",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-05",
+        "machine_name": "Equipo PF-MAQ-05",
+        "department": "PF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-22",
+        "day_of_week": "SABADO",
+        "calendar_reference": "AUT-PF-MAQ-05-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-05-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-PF-MAQ-05-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-05-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-05-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-006",
+    "split": "TRAINING",
+    "category": "Historical Context Summary",
+    "description": "Evaluación semántica de Historical Context Summary #6 para CF-MAQ-06",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-06",
+        "machine_name": "Equipo CF-MAQ-06",
+        "department": "CF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-17",
+        "day_of_week": "LUNES",
+        "calendar_reference": "AUT-CF-MAQ-06-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-06-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-CF-MAQ-06-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-06-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-06-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-007",
+    "split": "TRAINING",
+    "category": "Historical Context Summary",
+    "description": "Evaluación semántica de Historical Context Summary #7 para TF-MAQ-07",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-07",
+        "machine_name": "Equipo TF-MAQ-07",
+        "department": "TF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-TF-MAQ-07-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-07-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-TF-MAQ-07-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-07-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-07-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-008",
+    "split": "TRAINING",
+    "category": "Historical Context Summary",
+    "description": "Evaluación semántica de Historical Context Summary #8 para AF-MAQ-08",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-08",
+        "machine_name": "Equipo AF-MAQ-08",
+        "department": "AF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-AF-MAQ-08-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-08-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-08-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-08-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-08-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-009",
+    "split": "TRAINING",
+    "category": "Previous Findings",
+    "description": "Evaluación semántica de Previous Findings #1 para PF-MAQ-01",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-01",
+        "machine_name": "Equipo PF-MAQ-01",
+        "department": "PF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-PF-MAQ-01-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-01-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": null,
+        "completed_autonomous_count": 0,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-PF-MAQ-01-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "NO_HISTORY"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-01-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-01-2026W34"
+      ],
+      "mimo_enabled": false
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-010",
+    "split": "TRAINING",
+    "category": "Previous Findings",
+    "description": "Evaluación semántica de Previous Findings #2 para CF-MAQ-02",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-02",
+        "machine_name": "Equipo CF-MAQ-02",
+        "department": "CF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-CF-MAQ-02-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-02-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-CF-MAQ-02-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "PARTIAL"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-02-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-02-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-011",
+    "split": "TRAINING",
+    "category": "Previous Findings",
+    "description": "Evaluación semántica de Previous Findings #3 para TF-MAQ-03",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-03",
+        "machine_name": "Equipo TF-MAQ-03",
+        "department": "TF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-20",
+        "day_of_week": "JUEVES",
+        "calendar_reference": "AUT-TF-MAQ-03-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-03-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 1,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-TF-MAQ-03-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-03-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-03-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-012",
+    "split": "TRAINING",
+    "category": "Previous Findings",
+    "description": "Evaluación semántica de Previous Findings #4 para AF-MAQ-04",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-04",
+        "machine_name": "Equipo AF-MAQ-04",
+        "department": "AF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-21",
+        "day_of_week": "VIERNES",
+        "calendar_reference": "AUT-AF-MAQ-04-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-04-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-04-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [
+          {
+            "request_folio": "SOL-CORR-AF-MAQ-04-001",
+            "finding_id": "FND-AF-MAQ-04-W32-01",
+            "status": "ATENDIDA",
+            "work_order_folio": "OT-2026-0004",
+            "date": "2026-08-04"
+          }
+        ],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-04-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-04-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-013",
+    "split": "TRAINING",
+    "category": "Previous Findings",
+    "description": "Evaluación semántica de Previous Findings #5 para PF-MAQ-05",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-05",
+        "machine_name": "Equipo PF-MAQ-05",
+        "department": "PF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-22",
+        "day_of_week": "SABADO",
+        "calendar_reference": "AUT-PF-MAQ-05-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-05-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-PF-MAQ-05-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-05-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-05-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-014",
+    "split": "TRAINING",
+    "category": "Previous Findings",
+    "description": "Evaluación semántica de Previous Findings #6 para CF-MAQ-06",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-06",
+        "machine_name": "Equipo CF-MAQ-06",
+        "department": "CF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-17",
+        "day_of_week": "LUNES",
+        "calendar_reference": "AUT-CF-MAQ-06-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-06-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-CF-MAQ-06-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-06-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-06-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-015",
+    "split": "TRAINING",
+    "category": "Previous Findings",
+    "description": "Evaluación semántica de Previous Findings #7 para TF-MAQ-07",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-07",
+        "machine_name": "Equipo TF-MAQ-07",
+        "department": "TF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-TF-MAQ-07-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-07-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-TF-MAQ-07-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-07-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-07-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-016",
+    "split": "TRAINING",
+    "category": "Previous Findings",
+    "description": "Evaluación semántica de Previous Findings #8 para AF-MAQ-08",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-08",
+        "machine_name": "Equipo AF-MAQ-08",
+        "department": "AF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-AF-MAQ-08-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-08-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-08-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-08-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-08-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-017",
+    "split": "TRAINING",
+    "category": "Inspection Focus",
+    "description": "Evaluación semántica de Inspection Focus #1 para PF-MAQ-01",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-01",
+        "machine_name": "Equipo PF-MAQ-01",
+        "department": "PF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-PF-MAQ-01-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-01-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": null,
+        "completed_autonomous_count": 0,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "NO_HISTORY"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-01-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-01-2026W34"
+      ],
+      "mimo_enabled": false
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-018",
+    "split": "TRAINING",
+    "category": "Inspection Focus",
+    "description": "Evaluación semántica de Inspection Focus #2 para CF-MAQ-02",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-02",
+        "machine_name": "Equipo CF-MAQ-02",
+        "department": "CF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-CF-MAQ-02-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-02-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "PARTIAL"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-02-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-02-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-019",
+    "split": "TRAINING",
+    "category": "Inspection Focus",
+    "description": "Evaluación semántica de Inspection Focus #3 para TF-MAQ-03",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-03",
+        "machine_name": "Equipo TF-MAQ-03",
+        "department": "TF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-20",
+        "day_of_week": "JUEVES",
+        "calendar_reference": "AUT-TF-MAQ-03-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-03-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 1,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-TF-MAQ-03-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-03-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-03-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-020",
+    "split": "TRAINING",
+    "category": "Inspection Focus",
+    "description": "Evaluación semántica de Inspection Focus #4 para AF-MAQ-04",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-04",
+        "machine_name": "Equipo AF-MAQ-04",
+        "department": "AF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-21",
+        "day_of_week": "VIERNES",
+        "calendar_reference": "AUT-AF-MAQ-04-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-04-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-04-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [
+          {
+            "request_folio": "SOL-CORR-AF-MAQ-04-001",
+            "finding_id": "FND-AF-MAQ-04-W32-01",
+            "status": "ATENDIDA",
+            "work_order_folio": "OT-2026-0004",
+            "date": "2026-08-04"
+          }
+        ],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-04-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-04-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-021",
+    "split": "TRAINING",
+    "category": "Inspection Focus",
+    "description": "Evaluación semántica de Inspection Focus #5 para PF-MAQ-05",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-05",
+        "machine_name": "Equipo PF-MAQ-05",
+        "department": "PF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-22",
+        "day_of_week": "SABADO",
+        "calendar_reference": "AUT-PF-MAQ-05-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-05-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-PF-MAQ-05-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-05-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-05-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-022",
+    "split": "TRAINING",
+    "category": "Inspection Focus",
+    "description": "Evaluación semántica de Inspection Focus #6 para CF-MAQ-06",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-06",
+        "machine_name": "Equipo CF-MAQ-06",
+        "department": "CF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-17",
+        "day_of_week": "LUNES",
+        "calendar_reference": "AUT-CF-MAQ-06-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-06-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-CF-MAQ-06-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-06-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-06-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-023",
+    "split": "TRAINING",
+    "category": "Inspection Focus",
+    "description": "Evaluación semántica de Inspection Focus #7 para TF-MAQ-07",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-07",
+        "machine_name": "Equipo TF-MAQ-07",
+        "department": "TF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-TF-MAQ-07-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-07-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-TF-MAQ-07-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-07-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-07-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-024",
+    "split": "TRAINING",
+    "category": "Inspection Focus",
+    "description": "Evaluación semántica de Inspection Focus #8 para AF-MAQ-08",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-08",
+        "machine_name": "Equipo AF-MAQ-08",
+        "department": "AF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-AF-MAQ-08-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-08-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-08-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-08-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-08-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-025",
+    "split": "TRAINING",
+    "category": "Data Quality / Uncertainty",
+    "description": "Evaluación semántica de Data Quality / Uncertainty #1 para PF-MAQ-01",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-01",
+        "machine_name": "Equipo PF-MAQ-01",
+        "department": "PF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-PF-MAQ-01-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-01-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": null,
+        "completed_autonomous_count": 0,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "NO_HISTORY"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-01-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-01-2026W34"
+      ],
+      "mimo_enabled": false
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-026",
+    "split": "TRAINING",
+    "category": "Data Quality / Uncertainty",
+    "description": "Evaluación semántica de Data Quality / Uncertainty #2 para CF-MAQ-02",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-02",
+        "machine_name": "Equipo CF-MAQ-02",
+        "department": "CF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-CF-MAQ-02-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-02-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "PARTIAL"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-02-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-02-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-027",
+    "split": "TRAINING",
+    "category": "Data Quality / Uncertainty",
+    "description": "Evaluación semántica de Data Quality / Uncertainty #3 para TF-MAQ-03",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-03",
+        "machine_name": "Equipo TF-MAQ-03",
+        "department": "TF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-20",
+        "day_of_week": "JUEVES",
+        "calendar_reference": "AUT-TF-MAQ-03-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-03-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 1,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-TF-MAQ-03-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-03-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-03-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-028",
+    "split": "TRAINING",
+    "category": "Data Quality / Uncertainty",
+    "description": "Evaluación semántica de Data Quality / Uncertainty #4 para AF-MAQ-04",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-04",
+        "machine_name": "Equipo AF-MAQ-04",
+        "department": "AF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-21",
+        "day_of_week": "VIERNES",
+        "calendar_reference": "AUT-AF-MAQ-04-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-04-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-04-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [
+          {
+            "request_folio": "SOL-CORR-AF-MAQ-04-001",
+            "finding_id": "FND-AF-MAQ-04-W32-01",
+            "status": "ATENDIDA",
+            "work_order_folio": "OT-2026-0004",
+            "date": "2026-08-04"
+          }
+        ],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-04-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-04-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-029",
+    "split": "TRAINING",
+    "category": "Data Quality / Uncertainty",
+    "description": "Evaluación semántica de Data Quality / Uncertainty #5 para PF-MAQ-05",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-05",
+        "machine_name": "Equipo PF-MAQ-05",
+        "department": "PF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-22",
+        "day_of_week": "SABADO",
+        "calendar_reference": "AUT-PF-MAQ-05-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-05-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-PF-MAQ-05-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-05-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-05-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-030",
+    "split": "TRAINING",
+    "category": "Data Quality / Uncertainty",
+    "description": "Evaluación semántica de Data Quality / Uncertainty #6 para CF-MAQ-06",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-06",
+        "machine_name": "Equipo CF-MAQ-06",
+        "department": "CF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-17",
+        "day_of_week": "LUNES",
+        "calendar_reference": "AUT-CF-MAQ-06-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-06-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-CF-MAQ-06-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-06-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-06-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-031",
+    "split": "TRAINING",
+    "category": "Pattern Catalog",
+    "description": "Evaluación semántica de Pattern Catalog #1 para TF-MAQ-01",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-01",
+        "machine_name": "Equipo TF-MAQ-01",
+        "department": "TF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-TF-MAQ-01-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-01-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": null,
+        "completed_autonomous_count": 0,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "NO_HISTORY"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-01-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-01-2026W34"
+      ],
+      "mimo_enabled": false
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-032",
+    "split": "TRAINING",
+    "category": "Pattern Catalog",
+    "description": "Evaluación semántica de Pattern Catalog #2 para AF-MAQ-02",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-02",
+        "machine_name": "Equipo AF-MAQ-02",
+        "department": "AF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-AF-MAQ-02-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-02-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "PARTIAL"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-02-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-02-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-033",
+    "split": "TRAINING",
+    "category": "Pattern Catalog",
+    "description": "Evaluación semántica de Pattern Catalog #3 para PF-MAQ-03",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-03",
+        "machine_name": "Equipo PF-MAQ-03",
+        "department": "PF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-20",
+        "day_of_week": "JUEVES",
+        "calendar_reference": "AUT-PF-MAQ-03-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-03-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 1,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-PF-MAQ-03-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-03-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-03-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-034",
+    "split": "TRAINING",
+    "category": "Pattern Catalog",
+    "description": "Evaluación semántica de Pattern Catalog #4 para CF-MAQ-04",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-04",
+        "machine_name": "Equipo CF-MAQ-04",
+        "department": "CF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-21",
+        "day_of_week": "VIERNES",
+        "calendar_reference": "AUT-CF-MAQ-04-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-04-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-CF-MAQ-04-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [
+          {
+            "request_folio": "SOL-CORR-CF-MAQ-04-001",
+            "finding_id": "FND-CF-MAQ-04-W32-01",
+            "status": "ATENDIDA",
+            "work_order_folio": "OT-2026-0004",
+            "date": "2026-08-04"
+          }
+        ],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-04-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-04-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-035",
+    "split": "TRAINING",
+    "category": "Pattern Catalog",
+    "description": "Evaluación semántica de Pattern Catalog #5 para TF-MAQ-05",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-05",
+        "machine_name": "Equipo TF-MAQ-05",
+        "department": "TF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-22",
+        "day_of_week": "SABADO",
+        "calendar_reference": "AUT-TF-MAQ-05-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-05-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-TF-MAQ-05-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-05-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-05-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-036",
+    "split": "TRAINING",
+    "category": "Pattern Catalog",
+    "description": "Evaluación semántica de Pattern Catalog #6 para AF-MAQ-06",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-06",
+        "machine_name": "Equipo AF-MAQ-06",
+        "department": "AF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-17",
+        "day_of_week": "LUNES",
+        "calendar_reference": "AUT-AF-MAQ-06-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-06-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-06-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-06-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-06-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-037",
+    "split": "VALIDATION",
+    "category": "Source Traceability",
+    "description": "Evaluación semántica de Source Traceability #1 para PF-MAQ-01",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-01",
+        "machine_name": "Equipo PF-MAQ-01",
+        "department": "PF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-PF-MAQ-01-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-01-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": null,
+        "completed_autonomous_count": 0,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "NO_HISTORY"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-01-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-01-2026W34"
+      ],
+      "mimo_enabled": false
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-038",
+    "split": "VALIDATION",
+    "category": "Source Traceability",
+    "description": "Evaluación semántica de Source Traceability #2 para CF-MAQ-02",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-02",
+        "machine_name": "Equipo CF-MAQ-02",
+        "department": "CF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-CF-MAQ-02-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-02-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "PARTIAL"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-02-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-02-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-039",
+    "split": "VALIDATION",
+    "category": "Source Traceability",
+    "description": "Evaluación semántica de Source Traceability #3 para TF-MAQ-03",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-03",
+        "machine_name": "Equipo TF-MAQ-03",
+        "department": "TF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-20",
+        "day_of_week": "JUEVES",
+        "calendar_reference": "AUT-TF-MAQ-03-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-03-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 1,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-TF-MAQ-03-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-03-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-03-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-040",
+    "split": "VALIDATION",
+    "category": "Source Traceability",
+    "description": "Evaluación semántica de Source Traceability #4 para AF-MAQ-04",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-04",
+        "machine_name": "Equipo AF-MAQ-04",
+        "department": "AF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-21",
+        "day_of_week": "VIERNES",
+        "calendar_reference": "AUT-AF-MAQ-04-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-04-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-04-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [
+          {
+            "request_folio": "SOL-CORR-AF-MAQ-04-001",
+            "finding_id": "FND-AF-MAQ-04-W32-01",
+            "status": "ATENDIDA",
+            "work_order_folio": "OT-2026-0004",
+            "date": "2026-08-04"
+          }
+        ],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-04-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-04-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-041",
+    "split": "VALIDATION",
+    "category": "Source Traceability",
+    "description": "Evaluación semántica de Source Traceability #5 para PF-MAQ-05",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-05",
+        "machine_name": "Equipo PF-MAQ-05",
+        "department": "PF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-22",
+        "day_of_week": "SABADO",
+        "calendar_reference": "AUT-PF-MAQ-05-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-05-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-PF-MAQ-05-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-05-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-05-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-042",
+    "split": "VALIDATION",
+    "category": "Source Traceability",
+    "description": "Evaluación semántica de Source Traceability #6 para CF-MAQ-06",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-06",
+        "machine_name": "Equipo CF-MAQ-06",
+        "department": "CF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-17",
+        "day_of_week": "LUNES",
+        "calendar_reference": "AUT-CF-MAQ-06-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-06-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-CF-MAQ-06-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-06-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-06-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-043",
+    "split": "VALIDATION",
+    "category": "Override / Merge Guard",
+    "description": "Evaluación semántica de Override / Merge Guard #1 para TF-MAQ-01",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-01",
+        "machine_name": "Equipo TF-MAQ-01",
+        "department": "TF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-TF-MAQ-01-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-01-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": null,
+        "completed_autonomous_count": 0,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "NO_HISTORY"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-01-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-01-2026W34"
+      ],
+      "mimo_enabled": false
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-044",
+    "split": "VALIDATION",
+    "category": "Override / Merge Guard",
+    "description": "Evaluación semántica de Override / Merge Guard #2 para AF-MAQ-02",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-02",
+        "machine_name": "Equipo AF-MAQ-02",
+        "department": "AF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-AF-MAQ-02-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-02-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "PARTIAL"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-02-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-02-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-045",
+    "split": "VALIDATION",
+    "category": "Override / Merge Guard",
+    "description": "Evaluación semántica de Override / Merge Guard #3 para PF-MAQ-03",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-03",
+        "machine_name": "Equipo PF-MAQ-03",
+        "department": "PF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-20",
+        "day_of_week": "JUEVES",
+        "calendar_reference": "AUT-PF-MAQ-03-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-03-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 1,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-PF-MAQ-03-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-03-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-03-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-046",
+    "split": "VALIDATION",
+    "category": "Override / Merge Guard",
+    "description": "Evaluación semántica de Override / Merge Guard #4 para CF-MAQ-04",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-04",
+        "machine_name": "Equipo CF-MAQ-04",
+        "department": "CF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-21",
+        "day_of_week": "VIERNES",
+        "calendar_reference": "AUT-CF-MAQ-04-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-04-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-CF-MAQ-04-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [
+          {
+            "request_folio": "SOL-CORR-CF-MAQ-04-001",
+            "finding_id": "FND-CF-MAQ-04-W32-01",
+            "status": "ATENDIDA",
+            "work_order_folio": "OT-2026-0004",
+            "date": "2026-08-04"
+          }
+        ],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-04-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-04-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-047",
+    "split": "VALIDATION",
+    "category": "Override / Merge Guard",
+    "description": "Evaluación semántica de Override / Merge Guard #5 para TF-MAQ-05",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-05",
+        "machine_name": "Equipo TF-MAQ-05",
+        "department": "TF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-22",
+        "day_of_week": "SABADO",
+        "calendar_reference": "AUT-TF-MAQ-05-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-05-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-TF-MAQ-05-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-05-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-05-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-048",
+    "split": "VALIDATION",
+    "category": "Override / Merge Guard",
+    "description": "Evaluación semántica de Override / Merge Guard #6 para AF-MAQ-06",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-06",
+        "machine_name": "Equipo AF-MAQ-06",
+        "department": "AF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-17",
+        "day_of_week": "LUNES",
+        "calendar_reference": "AUT-AF-MAQ-06-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-06-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-06-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-06-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-06-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-049",
+    "split": "HOLDOUT",
+    "category": "Hallucination / Finding Boundary",
+    "description": "Evaluación semántica de Hallucination / Finding Boundary #1 para PF-MAQ-01",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-01",
+        "machine_name": "Equipo PF-MAQ-01",
+        "department": "PF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-PF-MAQ-01-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-01-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": null,
+        "completed_autonomous_count": 0,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-PF-MAQ-01-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "NO_HISTORY"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-01-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-01-2026W34"
+      ],
+      "mimo_enabled": false
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-050",
+    "split": "HOLDOUT",
+    "category": "Hallucination / Finding Boundary",
+    "description": "Evaluación semántica de Hallucination / Finding Boundary #2 para CF-MAQ-02",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-02",
+        "machine_name": "Equipo CF-MAQ-02",
+        "department": "CF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-CF-MAQ-02-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-02-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-CF-MAQ-02-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "PARTIAL"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-02-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-02-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-051",
+    "split": "HOLDOUT",
+    "category": "Hallucination / Finding Boundary",
+    "description": "Evaluación semántica de Hallucination / Finding Boundary #3 para TF-MAQ-03",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-03",
+        "machine_name": "Equipo TF-MAQ-03",
+        "department": "TF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-20",
+        "day_of_week": "JUEVES",
+        "calendar_reference": "AUT-TF-MAQ-03-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-03-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 1,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-TF-MAQ-03-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-03-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-03-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-052",
+    "split": "HOLDOUT",
+    "category": "Hallucination / Finding Boundary",
+    "description": "Evaluación semántica de Hallucination / Finding Boundary #4 para AF-MAQ-04",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-04",
+        "machine_name": "Equipo AF-MAQ-04",
+        "department": "AF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-21",
+        "day_of_week": "VIERNES",
+        "calendar_reference": "AUT-AF-MAQ-04-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-04-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-04-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [
+          {
+            "request_folio": "SOL-CORR-AF-MAQ-04-001",
+            "finding_id": "FND-AF-MAQ-04-W32-01",
+            "status": "ATENDIDA",
+            "work_order_folio": "OT-2026-0004",
+            "date": "2026-08-04"
+          }
+        ],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-04-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-04-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-053",
+    "split": "HOLDOUT",
+    "category": "Hallucination / Finding Boundary",
+    "description": "Evaluación semántica de Hallucination / Finding Boundary #5 para PF-MAQ-05",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-05",
+        "machine_name": "Equipo PF-MAQ-05",
+        "department": "PF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-22",
+        "day_of_week": "SABADO",
+        "calendar_reference": "AUT-PF-MAQ-05-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-05-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-PF-MAQ-05-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-05-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-05-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "RECURRENT_LUBRICATION_FINDING",
+        "RECURRENT_TEMPERATURE_FINDING"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-054",
+    "split": "HOLDOUT",
+    "category": "Prompt Injection",
+    "description": "Evaluación semántica de Prompt Injection #1 para CF-MAQ-01",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-01",
+        "machine_name": "Equipo CF-MAQ-01",
+        "department": "CF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-CF-MAQ-01-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-01-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": null,
+        "completed_autonomous_count": 0,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "NO_HISTORY"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-01-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-01-2026W34"
+      ],
+      "mimo_enabled": false
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-055",
+    "split": "HOLDOUT",
+    "category": "Prompt Injection",
+    "description": "Evaluación semántica de Prompt Injection #2 para TF-MAQ-02",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-02",
+        "machine_name": "Equipo TF-MAQ-02",
+        "department": "TF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-TF-MAQ-02-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-02-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "PARTIAL"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-02-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-02-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-056",
+    "split": "HOLDOUT",
+    "category": "Prompt Injection",
+    "description": "Evaluación semántica de Prompt Injection #3 para AF-MAQ-03",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-03",
+        "machine_name": "Equipo AF-MAQ-03",
+        "department": "AF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-20",
+        "day_of_week": "JUEVES",
+        "calendar_reference": "AUT-AF-MAQ-03-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-03-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 1,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-03-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-03-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-03-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-057",
+    "split": "HOLDOUT",
+    "category": "Prompt Injection",
+    "description": "Evaluación semántica de Prompt Injection #4 para PF-MAQ-04",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "PF-MAQ-04",
+        "machine_name": "Equipo PF-MAQ-04",
+        "department": "PF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-21",
+        "day_of_week": "VIERNES",
+        "calendar_reference": "AUT-PF-MAQ-04-2026-W34",
+        "survey_reference": "AUT-LEV-PF-MAQ-04-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-PF-MAQ-04-W33-LUB_01",
+            "block": "Lubricación",
+            "item_code": "LUB_FUGAS",
+            "finding_description": "Fuga leve de aceite en chumacera principal",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [
+          {
+            "request_folio": "SOL-CORR-PF-MAQ-04-001",
+            "finding_id": "FND-PF-MAQ-04-W32-01",
+            "status": "ATENDIDA",
+            "work_order_folio": "OT-2026-0004",
+            "date": "2026-08-04"
+          }
+        ],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-PF-MAQ-04-2026-W34",
+        "survey:AUT-LEV-PF-MAQ-04-2026W34"
+      ],
+      "mimo_enabled": true
+    },
+    "expected": {
+      "should_use_ai": true,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-058",
+    "split": "HOLDOUT",
+    "category": "Provider / Fast Path",
+    "description": "Evaluación semántica de Provider / Fast Path #1 para CF-MAQ-01",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "CF-MAQ-01",
+        "machine_name": "Equipo CF-MAQ-01",
+        "department": "CF",
+        "criticality": "MEDIA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-18",
+        "day_of_week": "MARTES",
+        "calendar_reference": "AUT-CF-MAQ-01-2026-W34",
+        "survey_reference": "AUT-LEV-CF-MAQ-01-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": null,
+        "completed_autonomous_count": 0,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "NO_HISTORY"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-CF-MAQ-01-2026-W34",
+        "survey:AUT-LEV-CF-MAQ-01-2026W34"
+      ],
+      "mimo_enabled": false
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-059",
+    "split": "HOLDOUT",
+    "category": "Provider / Fast Path",
+    "description": "Evaluación semántica de Provider / Fast Path #2 para TF-MAQ-02",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "TF-MAQ-02",
+        "machine_name": "Equipo TF-MAQ-02",
+        "department": "TF",
+        "criticality": "ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-19",
+        "day_of_week": "MIERCOLES",
+        "calendar_reference": "AUT-TF-MAQ-02-2026-W34",
+        "survey_reference": "AUT-LEV-TF-MAQ-02-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 0,
+        "cancelled_count": 0,
+        "recent_findings": [],
+        "recent_correctives": [],
+        "data_quality_status": "PARTIAL"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-TF-MAQ-02-2026-W34",
+        "survey:AUT-LEV-TF-MAQ-02-2026W34"
+      ],
+      "mimo_enabled": false
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  },
+  {
+    "id": "TC-AG004-SEM-060",
+    "split": "HOLDOUT",
+    "category": "Provider / Fast Path",
+    "description": "Evaluación semántica de Provider / Fast Path #3 para AF-MAQ-03",
+    "input": {
+      "contract_id": "AG004-SEMANTIC-INPUT-001",
+      "machine": {
+        "machine_id": "AF-MAQ-03",
+        "machine_name": "Equipo AF-MAQ-03",
+        "department": "AF",
+        "criticality": "MUY_ALTA"
+      },
+      "target_week": {
+        "iso_year": 2026,
+        "iso_week": 34,
+        "week_key": "2026-W34"
+      },
+      "schedule": {
+        "scheduled_date": "2026-08-20",
+        "day_of_week": "JUEVES",
+        "calendar_reference": "AUT-AF-MAQ-03-2026-W34",
+        "survey_reference": "AUT-LEV-AF-MAQ-03-2026W34"
+      },
+      "historical_context": {
+        "last_autonomous_date": "2026-08-10",
+        "completed_autonomous_count": 4,
+        "pending_autonomous_count": 1,
+        "cancelled_count": 0,
+        "recent_findings": [
+          {
+            "finding_id": "FND-AF-MAQ-03-W33-LUB_01",
+            "block": "Temperatura",
+            "item_code": "TEMP_ELEVADA",
+            "finding_description": "Temperatura de rodamiento en 88°C",
+            "severity": "ALTA",
+            "week_reference": 33,
+            "year": 2026
+          }
+        ],
+        "recent_correctives": [],
+        "data_quality_status": "COMPLETE"
+      },
+      "checklist_definition": {
+        "blocks": [
+          "Vibración",
+          "Limpieza",
+          "Lubricación",
+          "Temperatura",
+          "Cableado"
+        ],
+        "mandatory_block": "Temperatura"
+      },
+      "source_references": [
+        "calendar:AUT-AF-MAQ-03-2026-W34",
+        "survey:AUT-LEV-AF-MAQ-03-2026W34"
+      ],
+      "mimo_enabled": false
+    },
+    "expected": {
+      "should_use_ai": false,
+      "valid_schema": true,
+      "deterministic_wins": true,
+      "temperature_mandatory": true,
+      "findings_created_by_ai": 0,
+      "ots_created_by_ai": 0,
+      "expected_patterns": [
+        "NO_SIGNIFICANT_AUTONOMOUS_PATTERN",
+        "NO_AUTONOMOUS_HISTORY"
+      ]
+    }
+  }
+]
