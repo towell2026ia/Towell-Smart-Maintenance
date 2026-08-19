@@ -8033,25 +8033,6 @@ function mapExcelRowToStaging(row, template) {
 }
 
 function parseWorkbookMatrixToStaging(workbook, template, filename, dbCargaId) {
-  const templateKeywords = {
-    machines: ['equipo towell', 'clave', 'ax'],
-    parts: ['codigo de articulo', 'nombre del articulo', 'unidad medida', 'familia'],
-    tecnicos: ['cve tecnico', 'nombre tecnico', 'departamento codigo', 'turno id', 'especialidad', 'puesto'],
-    empleados: ['cve empleado', 'nombre empleado', 'departamento codigo', 'turno id', 'puesto'],
-    fallas: ['maquina id', 'descripcion', 'creada'],
-    telegram: ['folio', 'estatus', 'fecha', 'hora', 'depto', 'maquina id', 'falla'],
-    refmaquina: ['maquina id', 'destino', 'codigo de articulo', 'nombre del articulo', 'cantidad'],
-    prices: ['codigo de articulo', 'precio de costo', 'moneda'],
-    inventory: ['codigo de articulo', 'stock actual', 'stock minimo', 'ubicacion'],
-    laborcosts: ['cve tecnico', 'nombre tecnico', 'costo hora'],
-    segundas: [
-      'produccion', 'telar', 'fecha', 'codigo bodega', 'codigo de barras', 
-      'codigo articulo', 'codigo de articulo', 'nombre articulo', 'nombre del articulo',
-      'defecto', 'cantidad', 'numero lote', 'numero de lote', 'numero serie', 'numero de serie',
-      'salon', 'localidad', 'pzas rollo', 'turno tejido', 'codigo defecto', 'calidadflog', 'id flog'
-    ]
-  };
-
   const cleanHelper = (str) => {
     if (!str && str !== 0) return '';
     return str.toString()
@@ -8063,7 +8044,6 @@ function parseWorkbookMatrixToStaging(workbook, template, filename, dbCargaId) {
       .replace(/_/g, ' ');
   };
 
-  const targets = (templateKeywords[template] || []).map(t => cleanHelper(t));
   let bestSheetName = workbook.SheetNames[0];
   let bestRawRows = [];
   let bestHeaderRowIdx = 0;
@@ -8082,9 +8062,18 @@ function parseWorkbookMatrixToStaging(workbook, template, filename, dbCargaId) {
       const cleanRowHeaders = row.map(cell => cleanHelper(cell));
       
       let score = 0;
-      for (const target of targets) {
-        if (cleanRowHeaders.some(h => h === target || h.includes(target) || (target.length > 3 && h.startsWith(target)))) {
-          score++;
+      if (template === 'segundas') {
+        if (cleanRowHeaders.includes('produccion')) score += 5;
+        if (cleanRowHeaders.includes('fecha')) score += 5;
+        if (cleanRowHeaders.includes('defecto')) score += 5;
+        if (cleanRowHeaders.includes('localidad')) score += 3;
+        if (cleanRowHeaders.includes('codigo de barras')) score += 3;
+        if (cleanRowHeaders.includes('codigo de articulo') || cleanRowHeaders.includes('codigo articulo')) score += 3;
+        if (cleanRowHeaders.includes('nombre del articulo') || cleanRowHeaders.includes('nombre articulo')) score += 3;
+      } else {
+        const keywords = ['clave', 'codigo', 'equipo towell', 'maquina', 'articulo', 'defecto', 'fecha', 'folio'];
+        for (const kw of keywords) {
+          if (cleanRowHeaders.includes(kw)) score++;
         }
       }
 
@@ -8097,45 +8086,126 @@ function parseWorkbookMatrixToStaging(workbook, template, filename, dbCargaId) {
     }
   }
 
-  console.log(`[Excel Matrix Parser] Template: "${template}", Best Sheet: "${bestSheetName}", Header Row Index: ${bestHeaderRowIdx} (Row ${bestHeaderRowIdx + 1}), Match Score: ${maxScore}`);
+  console.log(`[Audited Parser] Template: "${template}", Sheet: "${bestSheetName}", Header Row: ${bestHeaderRowIdx + 1}, Score: ${maxScore}`);
 
   if (!bestRawRows || bestRawRows.length <= bestHeaderRowIdx + 1) {
     return { sheetName: bestSheetName, stagingRows: [], headerRange: bestHeaderRowIdx, rawDataCount: 0 };
   }
 
   const rawHeaders = bestRawRows[bestHeaderRowIdx];
-  const seenHeaderCounts = {};
-  const cleanHeaders = rawHeaders.map((h, colIdx) => {
-    let cleaned = cleanHelper(h);
-    if (!cleaned) cleaned = `col_${colIdx}`;
-    if (seenHeaderCounts[cleaned] !== undefined) {
-      seenHeaderCounts[cleaned]++;
-      cleaned = `${cleaned}_${seenHeaderCounts[cleaned]}`;
-    } else {
-      seenHeaderCounts[cleaned] = 0;
-    }
-    return cleaned;
+  const colIndex = {};
+  
+  rawHeaders.forEach((h, idx) => {
+    const c = cleanHelper(h);
+    if (c === 'produccion' && colIndex.produccion === undefined) colIndex.produccion = idx;
+    else if (c === 'fecha' && colIndex.fecha === undefined) colIndex.fecha = idx;
+    else if ((c === 'codigo de barras' || c === 'codigo bodega' || c === 'codigo barras') && colIndex.codigo_bodega === undefined) colIndex.codigo_bodega = idx;
+    else if ((c === 'codigo de articulo' || c === 'codigo articulo') && colIndex.codigo_articulo === undefined) colIndex.codigo_articulo = idx;
+    else if ((c === 'nombre del articulo' || c === 'nombre articulo') && colIndex.nombre_articulo === undefined) colIndex.nombre_articulo = idx;
+    else if (c === 'configuracion' && colIndex.configuracion === undefined) colIndex.configuracion = idx;
+    else if ((c === 'tamano' || c === 'tamanio') && colIndex.tamano === undefined) colIndex.tamano = idx;
+    else if (c === 'color' && colIndex.color === undefined) colIndex.color = idx;
+    else if (c === 'nombre' && colIndex.nombre === undefined) colIndex.nombre = idx; // 1st Nombre (Article/Color name)
+    else if (c === 'almacen' && colIndex.almacen === undefined) colIndex.almacen = idx;
+    else if ((c === 'numero de lote' || c === 'numero lote' || c === 'lote') && colIndex.numero_lote === undefined) colIndex.numero_lote = idx;
+    else if (c === 'localidad' && colIndex.localidad === undefined) colIndex.localidad = idx;
+    else if ((c === 'salon' || c === 'depto') && colIndex.salon === undefined) colIndex.salon = idx;
+    else if ((c === 'numero de serie' || c === 'numero serie' || c === 'serie') && colIndex.numero_serie === undefined) colIndex.numero_serie = idx;
+    else if ((c === 'id flog' || c === 'id_flog') && colIndex.id_flog === undefined) colIndex.id_flog = idx;
+    else if (c === 'nombre' && colIndex.nombre !== undefined && colIndex.nombre_flog === undefined) colIndex.nombre_flog = idx; // 2nd Nombre (FLOG / Client name)
+    else if ((c === 'calidadflog' || c === 'calidad flog') && colIndex.calidad_flog === undefined) colIndex.calidad_flog = idx;
+    else if ((c === 'pzas rollo' || c === 'pzas_rollo') && colIndex.pzas_rollo === undefined) colIndex.pzas_rollo = idx;
+    else if ((c === 'kg rollo' || c === 'kg_rollo') && colIndex.kg_rollo === undefined) colIndex.kg_rollo = idx;
+    else if ((c === 'mts rollo' || c === 'mts_rollo') && colIndex.mts_rollo === undefined) colIndex.mts_rollo = idx;
+    else if ((c === 'no tiras' || c === 'no_tiras') && colIndex.no_tiras === undefined) colIndex.no_tiras = idx;
+    else if ((c === 'medida 1' || c === 'medida_1') && colIndex.medida_1 === undefined) colIndex.medida_1 = idx;
+    else if ((c === 'medida 2' || c === 'medida_2') && colIndex.medida_2 === undefined) colIndex.medida_2 = idx;
+    else if ((c === 'pzas t1' || c === 'pzast1') && colIndex.pzas_t1 === undefined) colIndex.pzas_t1 = idx;
+    else if ((c === 'pzas t2' || c === 'pzast2') && colIndex.pzas_t2 === undefined) colIndex.pzas_t2 = idx;
+    else if ((c === 'pzas t3' || c === 'pzast3') && colIndex.pzas_t3 === undefined) colIndex.pzas_t3 = idx;
+    else if ((c === 'pzas t4' || c === 'pzast4') && colIndex.pzas_t4 === undefined) colIndex.pzas_t4 = idx;
+    else if ((c === 'turno tejido' || c === 'turno') && colIndex.turno_tejido === undefined) colIndex.turno_tejido = idx;
+    else if ((c === 'codigo defecto' || c === 'codigo_defecto') && colIndex.codigo_defecto === undefined) colIndex.codigo_defecto = idx;
+    else if ((c === 'cantidad' || c === 'cant') && colIndex.cantidad === undefined) colIndex.cantidad = idx;
+    else if (c === 'defecto' && colIndex.defecto === undefined) colIndex.defecto = idx;
   });
+
+  const getCell = (row, idx) => {
+    if (idx === undefined || idx < 0 || idx >= row.length) return '';
+    const v = row[idx];
+    return v !== undefined && v !== null ? String(v).trim() : '';
+  };
 
   const stagingRows = [];
   for (let r = bestHeaderRowIdx + 1; r < bestRawRows.length; r++) {
     const row = bestRawRows[r];
     if (!Array.isArray(row)) continue;
     
-    // Skip completely empty rows
-    const hasData = row.some(cell => cell !== '' && cell !== null && cell !== undefined);
+    const hasData = row.some(c => c !== '' && c !== null && c !== undefined);
     if (!hasData) continue;
 
-    const rowObj = {};
-    for (let c = 0; c < cleanHeaders.length; c++) {
-      const hKey = cleanHeaders[c];
-      rowObj[hKey] = row[c] !== undefined ? row[c] : '';
-    }
+    if (template === 'segundas') {
+      const rawLocalidad = getCell(row, colIndex.localidad);
+      const rawSalon = getCell(row, colIndex.salon) || 'Jacquard';
+      const rawProduccion = getCell(row, colIndex.produccion);
+      const rawFecha = getCell(row, colIndex.fecha);
+      const rawDefecto = getCell(row, colIndex.defecto);
+      const rawCodDefecto = getCell(row, colIndex.codigo_defecto) || 'DEF-01';
+      const rawCantidad = getCell(row, colIndex.cantidad);
+      const rawPzasRollo = getCell(row, colIndex.pzas_rollo);
 
-    const mapped = mapExcelRowToStaging(rowObj, template);
-    mapped.id_carga = dbCargaId;
-    mapped.archivo_origen = filename;
-    stagingRows.push(mapped);
+      const isoFecha = normalizeExcelDateToISO(rawFecha) || '2026-08-11';
+      const machineId = rawLocalidad ? (rawLocalidad.startsWith('TEL') || rawLocalidad.startsWith('TOW') ? rawLocalidad : `TELAR-${rawLocalidad}`) : 'TELAR-GENERICO';
+
+      stagingRows.push({
+        produccion: rawProduccion,
+        fecha: isoFecha,
+        codigo_bodega: getCell(row, colIndex.codigo_bodega),
+        codigo_articulo: getCell(row, colIndex.codigo_articulo),
+        nombre_articulo: getCell(row, colIndex.nombre_articulo),
+        configuracion: getCell(row, colIndex.configuracion),
+        tamano: getCell(row, colIndex.tamano),
+        color: getCell(row, colIndex.color),
+        nombre: getCell(row, colIndex.nombre),
+        almacen: getCell(row, colIndex.almacen),
+        numero_lote: getCell(row, colIndex.numero_lote),
+        localidad: rawLocalidad,
+        salon: rawSalon,
+        numero_serie: getCell(row, colIndex.numero_serie),
+        id_flog: getCell(row, colIndex.id_flog),
+        nombre_flog: getCell(row, colIndex.nombre_flog),
+        calidad_flog: getCell(row, colIndex.calidad_flog),
+        pzas_rollo: parseFloat(rawPzasRollo) || 0,
+        kg_rollo: parseFloat(getCell(row, colIndex.kg_rollo)) || 0,
+        mts_rollo: parseFloat(getCell(row, colIndex.mts_rollo)) || 0,
+        no_tiras: parseInt(getCell(row, colIndex.no_tiras)) || 0,
+        medida_1: parseFloat(getCell(row, colIndex.medida_1)) || 0,
+        medida_2: parseFloat(getCell(row, colIndex.medida_2)) || 0,
+        pzas_t1: parseInt(getCell(row, colIndex.pzas_t1)) || 0,
+        pzas_t2: parseInt(getCell(row, colIndex.pzas_t2)) || 0,
+        pzas_t3: parseInt(getCell(row, colIndex.pzas_t3)) || 0,
+        pzas_t4: parseInt(getCell(row, colIndex.pzas_t4)) || 0,
+        turno_tejido: getCell(row, colIndex.turno_tejido) || '1',
+        codigo_defecto: rawCodDefecto,
+        cantidad: parseFloat(rawCantidad) || 1,
+        defecto: rawDefecto || 'SEGUNDA CALIDAD',
+        maquina_id_detectada: machineId,
+        observaciones: '',
+        id_carga: dbCargaId,
+        archivo_origen: filename
+      });
+    } else {
+      // General fallback using mapExcelRowToStaging
+      const rowObj = {};
+      rawHeaders.forEach((h, colIdx) => {
+        const hKey = cleanHelper(h) || `col_${colIdx}`;
+        rowObj[hKey] = row[colIdx] !== undefined ? row[colIdx] : '';
+      });
+      const mapped = mapExcelRowToStaging(rowObj, template);
+      mapped.id_carga = dbCargaId;
+      mapped.archivo_origen = filename;
+      stagingRows.push(mapped);
+    }
   }
 
   return { sheetName: bestSheetName, stagingRows, headerRange: bestHeaderRowIdx, rawDataCount: stagingRows.length };
@@ -12338,6 +12408,30 @@ async function renderExcelHistoryTable() {
     }
   }
   tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted);">No disponible offline.</td></tr>';
+}
+
+async function forceAppCachePurge() {
+  try {
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      for (const key of keys) {
+        await caches.delete(key);
+      }
+    }
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const reg of regs) {
+        await reg.unregister();
+      }
+    }
+    showToast('🧹 Caché purgado con éxito. Recargando versión v3.5.3...');
+    setTimeout(() => {
+      window.location.reload(true);
+    }, 500);
+  } catch (err) {
+    console.error('Error purging cache:', err);
+    window.location.reload(true);
+  }
 }
 
 // --- MODAL DE REVISIÓN Y ACEPTACIÓN/RECHAZO POR SOLICITANTE / ADMIN (FASE 4) ---
