@@ -8024,8 +8024,8 @@ function mapExcelRowToStaging(row, template) {
   }
 }
 
-function findBestSheetAndRange(workbook, template) {
-  const templateKeys = {
+function parseWorkbookMatrixToStaging(workbook, template, filename, dbCargaId) {
+  const templateKeywords = {
     machines: ['equipo towell', 'clave', 'ax'],
     parts: ['codigo de articulo', 'nombre del articulo', 'unidad medida', 'familia'],
     tecnicos: ['cve tecnico', 'nombre tecnico', 'departamento codigo', 'turno id', 'especialidad', 'puesto'],
@@ -8039,65 +8039,98 @@ function findBestSheetAndRange(workbook, template) {
     segundas: [
       'produccion', 'telar', 'fecha', 'codigo bodega', 'codigo de barras', 
       'codigo articulo', 'codigo de articulo', 'nombre articulo', 'nombre del articulo',
-      'defecto', 'cantidad', 'numero lote', 'numero de lote', 'numero serie', 'numero de serie'
+      'defecto', 'cantidad', 'numero lote', 'numero de lote', 'numero serie', 'numero de serie',
+      'salon', 'localidad', 'pzas rollo', 'turno tejido', 'codigo defecto', 'calidadflog', 'id flog'
     ]
   };
 
-  const targets = templateKeys[template] || [];
-  if (targets.length === 0) {
-    return { sheetName: workbook.SheetNames[0], range: 0 };
-  }
-
-  const cleanStr = (str) => {
-    if (!str) return '';
+  const cleanHelper = (str) => {
+    if (!str && str !== 0) return '';
     return str.toString()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .trim()
-      .replace(/_/g, ' ')
-      .replace(/\s+/g, ' ');
+      .replace(/[\s\u00A0\uFEFF\u200B]+/g, ' ')
+      .replace(/_/g, ' ');
   };
 
-  const targetCleans = targets.map(t => cleanStr(t));
-
+  const targets = (templateKeywords[template] || []).map(t => cleanHelper(t));
   let bestSheetName = workbook.SheetNames[0];
-  let bestRange = 0;
-  let maxMatches = -1;
+  let bestRawRows = [];
+  let bestHeaderRowIdx = 0;
+  let maxScore = -1;
 
-  for (let sheetName of workbook.SheetNames) {
-    const worksheet = workbook.Sheets[sheetName];
-    if (!worksheet || !worksheet['!ref']) continue;
+  for (const sName of workbook.SheetNames) {
+    const ws = workbook.Sheets[sName];
+    if (!ws) continue;
+    const rawMatrix = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+    if (!rawMatrix || rawMatrix.length === 0) continue;
 
-    const range = XLSX.utils.decode_range(worksheet['!ref']);
-    const maxHeaderRowToTest = Math.min(range.e.r, range.s.r + 10);
-    for (let r = range.s.r; r <= maxHeaderRowToTest; r++) {
-      const rowKeys = [];
-      for (let c = range.s.c; c <= range.e.c; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
-        const cell = worksheet[cellRef];
-        if (cell && cell.v !== undefined && cell.v !== null) {
-          rowKeys.push(cleanStr(cell.v));
+    const maxHeaderScan = Math.min(rawMatrix.length, 15);
+    for (let r = 0; r < maxHeaderScan; r++) {
+      const row = rawMatrix[r];
+      if (!Array.isArray(row)) continue;
+      const cleanRowHeaders = row.map(cell => cleanHelper(cell));
+      
+      let score = 0;
+      for (const target of targets) {
+        if (cleanRowHeaders.some(h => h === target || h.includes(target) || (target.length > 3 && h.startsWith(target)))) {
+          score++;
         }
       }
 
-      let matches = 0;
-      for (let target of targetCleans) {
-        if (rowKeys.includes(target)) {
-          matches++;
-        }
-      }
-
-      if (matches > maxMatches) {
-        maxMatches = matches;
-        bestSheetName = sheetName;
-        bestRange = r;
+      if (score > maxScore) {
+        maxScore = score;
+        bestSheetName = sName;
+        bestRawRows = rawMatrix;
+        bestHeaderRowIdx = r;
       }
     }
   }
 
-  console.log(`[AutoDetect] Best sheet: "${bestSheetName}" at header row index: ${bestRange} (matches: ${maxMatches})`);
-  return { sheetName: bestSheetName, range: bestRange };
+  console.log(`[Excel Matrix Parser] Template: "${template}", Best Sheet: "${bestSheetName}", Header Row Index: ${bestHeaderRowIdx} (Row ${bestHeaderRowIdx + 1}), Match Score: ${maxScore}`);
+
+  if (!bestRawRows || bestRawRows.length <= bestHeaderRowIdx + 1) {
+    return { sheetName: bestSheetName, stagingRows: [], headerRange: bestHeaderRowIdx, rawDataCount: 0 };
+  }
+
+  const rawHeaders = bestRawRows[bestHeaderRowIdx];
+  const seenHeaderCounts = {};
+  const cleanHeaders = rawHeaders.map((h, colIdx) => {
+    let cleaned = cleanHelper(h);
+    if (!cleaned) cleaned = `col_${colIdx}`;
+    if (seenHeaderCounts[cleaned] !== undefined) {
+      seenHeaderCounts[cleaned]++;
+      cleaned = `${cleaned}_${seenHeaderCounts[cleaned]}`;
+    } else {
+      seenHeaderCounts[cleaned] = 0;
+    }
+    return cleaned;
+  });
+
+  const stagingRows = [];
+  for (let r = bestHeaderRowIdx + 1; r < bestRawRows.length; r++) {
+    const row = bestRawRows[r];
+    if (!Array.isArray(row)) continue;
+    
+    // Skip completely empty rows
+    const hasData = row.some(cell => cell !== '' && cell !== null && cell !== undefined);
+    if (!hasData) continue;
+
+    const rowObj = {};
+    for (let c = 0; c < cleanHeaders.length; c++) {
+      const hKey = cleanHeaders[c];
+      rowObj[hKey] = row[c] !== undefined ? row[c] : '';
+    }
+
+    const mapped = mapExcelRowToStaging(rowObj, template);
+    mapped.id_carga = dbCargaId;
+    mapped.archivo_origen = filename;
+    stagingRows.push(mapped);
+  }
+
+  return { sheetName: bestSheetName, stagingRows, headerRange: bestHeaderRowIdx, rawDataCount: stagingRows.length };
 }
 
 async function handleRealExcelUpload(event) {
@@ -8135,88 +8168,54 @@ async function handleRealExcelUpload(event) {
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
       
-      const { sheetName, range: headerRange } = findBestSheetAndRange(workbook, selectedTemplate);
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { range: headerRange });
+      let dbCargaId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-4000-8000-' + Date.now().toString().substring(0, 12);
+
+      // Usar el parser matricial para lectura precisa de columnas sin desfases ni ceros/guiones
+      const { sheetName, stagingRows, headerRange, rawDataCount } = parseWorkbookMatrixToStaging(workbook, selectedTemplate, filename, dbCargaId);
       
       if (templateConf && templateConf.isDynamic) {
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         await processDynamicExcelFormIngestion(filename, jsonData, templateConf);
         return;
       }
       
-      console.log('--- EXCEL DEBUG LOGS ---');
+      console.log('--- EXCEL MATRIX PARSER DEBUG LOGS ---');
       console.log('Template:', selectedTemplate);
-      console.log('All Sheets:', workbook.SheetNames);
-      console.log('Selected Sheet:', sheetName, 'Header Row Index:', headerRange);
-      console.log('JSON Data Row Count:', jsonData.length);
-      if (jsonData.length > 0) {
-        console.log('Parsed Row 0 Keys:', Object.keys(jsonData[0]));
-        console.log('Parsed Row 0 Values:', jsonData[0]);
-      }
-      try {
-        const range = XLSX.utils.decode_range(worksheet['!ref']);
-        console.log('Sheet cell range:', worksheet['!ref']);
-        for (let r = range.s.r; r <= Math.min(range.e.r, range.s.r + 5); r++) {
-          const rowCells = [];
-          for (let c = range.s.c; c <= range.e.c; c++) {
-            const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
-            const cell = worksheet[cellRef];
-            rowCells.push(cell ? cell.v : '');
-          }
-          console.log(`Sheet Row ${r}:`, rowCells);
-        }
-      } catch (rangeErr) {
-        console.warn('Error reading raw sheet cells:', rangeErr);
+      console.log('Sheet Selected:', sheetName, 'Header Row:', headerRange + 1);
+      console.log('Staging Rows Count:', stagingRows.length);
+      if (stagingRows.length > 0) {
+        console.log('Mapped Staging Row 0:\n', stagingRows[0]);
       }
       
-      if (jsonData.length === 0) {
-        showToast('El archivo Excel está vacío.');
+      if (stagingRows.length === 0) {
+        showToast('El archivo Excel está vacío o no contiene filas con datos válidos.');
         return;
       }
       
       // Crear registro de control de carga en Supabase
       const logRecord = {
+        id_carga: dbCargaId,
         nombre_archivo: filename,
         tipo_archivo: filename.split('.').pop().toLowerCase(),
         fuente: 'Excel Import: ' + templateConf.label,
         fecha_carga: new Date().toISOString(),
         usuario_carga: currentUser ? currentUser.name : 'Super Admin',
-        registros_leidos: jsonData.length,
+        registros_leidos: stagingRows.length,
         registros_correctos: 0,
         registros_error: 0,
         estatus_carga: 'Staging',
         observaciones: `Datos cargados en staging (Pestaña: ${sheetName}, Fila Cabecera: ${headerRange + 1})`
       };
       
-      let dbCargaId = null;
       if (supabaseClient) {
-        const { data: cData, error: cErr } = await supabaseClient
-          .from('control_cargas_archivos')
-          .insert([logRecord])
-          .select();
-        if (cErr) {
-          console.error('Error inserting control_cargas_archivos:', cErr);
+        try {
+          await supabaseClient
+            .from('control_cargas_archivos')
+            .insert([logRecord]);
+        } catch (logErr) {
+          console.warn('Error inserting control_cargas_archivos (non-blocking):', logErr);
         }
-        if (!cErr && cData && cData.length > 0) {
-          dbCargaId = cData[0].id_carga;
-        }
-      }
-
-      if (!dbCargaId) {
-        dbCargaId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-4000-8000-' + Date.now().toString().substring(0, 12);
-      }
-
-      // Map rows to staging format
-      const stagingRows = jsonData.map(row => {
-        const mapped = mapExcelRowToStaging(row, selectedTemplate);
-        mapped.id_carga = dbCargaId;
-        mapped.archivo_origen = filename;
-        return mapped;
-      });
-
-      console.log('Staging rows count:', stagingRows.length);
-      if (stagingRows.length > 0) {
-        console.log('Mapped Staging Row 0:', stagingRows[0]);
       }
 
       // Insert in Supabase staging table in chunks
@@ -8229,7 +8228,10 @@ async function handleRealExcelUpload(event) {
           const { error: insErr } = await supabaseClient
             .from(templateConf.stagingTable)
             .insert(chunk);
-          if (insErr) throw insErr;
+          if (insErr) {
+            console.error('Staging insert error:', insErr);
+            throw insErr;
+          }
         }
       }
 
@@ -8241,7 +8243,7 @@ async function handleRealExcelUpload(event) {
 
       if (supabaseClient) {
         showToast('Consultando vista de validación...');
-        if (selectedTemplate === 'segundas' && jsonData.length > 1000) {
+        if (selectedTemplate === 'segundas' && stagingRows.length > 1000) {
           // Fetch only first 100 rows for the preview table
           const { data: valData, error: valErr } = await supabaseClient
             .from(templateConf.validationView)
