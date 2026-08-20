@@ -13,6 +13,8 @@ export interface QualityWindowCollectionResult {
   invalidRows: NormalizedQualityRow[];
   totalSegundas: number;
   totalRolls: number;
+  totalPzas: number;
+  defectPercentage: number;
   defectSummary: Record<string, { code: string; name: string; count: number }>;
 }
 
@@ -66,6 +68,8 @@ export function collectQualityWindow(
 
   const totalSegundas = validRows.reduce((acc, r) => acc + r.cantidad_defecto, 0);
   const totalRolls = seenRolls.size > 0 ? seenRolls.size : validRows.length;
+  const totalPzas = validRows.reduce((acc, r) => acc + (r.pzas_rollo || 0), 0);
+  const defectPercentage = totalPzas > 0 ? Number(((totalSegundas / totalPzas) * 100).toFixed(2)) : 0;
 
   return {
     machineId: normMachine,
@@ -76,6 +80,8 @@ export function collectQualityWindow(
     invalidRows,
     totalSegundas,
     totalRolls,
+    totalPzas,
+    defectPercentage,
     defectSummary
   };
 }

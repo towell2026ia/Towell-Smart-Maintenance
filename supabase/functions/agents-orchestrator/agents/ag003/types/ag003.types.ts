@@ -125,7 +125,9 @@ export interface PredictiveCandidate {
   quality_metrics: {
     total_segundas: number;
     total_rolls: number;
+    total_pzas?: number;
     segundas_rate: number;
+    defect_percentage?: number;
   };
   baseline: BaselineCalculationResult;
   deviation: DeviationCalculationResult;

@@ -127,7 +127,7 @@ export function runDeterministicPredictiveEngine(input: EngineInput): Predictive
     }
 
     // Quality Metric Calculation
-    const qualityMetric = calculateSecondsPerRoll(qualityWindow.totalSegundas, qualityWindow.totalRolls);
+    const qualityMetric = calculateSecondsPerRoll(qualityWindow.totalSegundas, qualityWindow.totalRolls, qualityWindow.totalPzas);
 
     // Data Quality & Sufficiency Guard
     const dataQuality = evaluateDataQuality(
@@ -139,10 +139,11 @@ export function runDeterministicPredictiveEngine(input: EngineInput): Predictive
 
     // Historical Baseline Calculation
     const histQuality = collectQualityWindow(machineId, input.historicalQualityRows || [], targetDate, 180);
-    const baseline = calculateBaseline(histQuality.totalSegundas, histQuality.totalRolls);
+    const baseline = calculateBaseline(histQuality.totalSegundas, histQuality.totalRolls, histQuality.totalPzas);
 
     // Deviation Calculation
-    const deviation = calculateDeviation(qualityMetric.segundasPerRoll, baseline.baseline_value);
+    const metricToCompare = qualityMetric.defectPercentage > 0 ? qualityMetric.defectPercentage : qualityMetric.segundasPerRoll;
+    const deviation = calculateDeviation(metricToCompare, baseline.baseline_value);
 
     // Historical Breakdown & Paros Context
     const histContext = collectHistoricalContext(
@@ -178,7 +179,9 @@ export function runDeterministicPredictiveEngine(input: EngineInput): Predictive
       quality_metrics: {
         total_segundas: qualityWindow.totalSegundas,
         total_rolls: qualityWindow.totalRolls,
-        segundas_rate: qualityMetric.segundasPerRoll
+        total_pzas: qualityWindow.totalPzas,
+        segundas_rate: qualityMetric.segundasPerRoll,
+        defect_percentage: qualityMetric.defectPercentage
       },
       baseline,
       deviation,

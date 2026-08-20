@@ -12309,6 +12309,10 @@ async function commitExcelUpload() {
             const dateObj = new Date(r.fecha);
             const anio = !isNaN(dateObj.getFullYear()) ? dateObj.getFullYear() : 2026;
             const mes = !isNaN(dateObj.getMonth()) ? dateObj.getMonth() + 1 : 8;
+            const pzas = parseFloat(r.pzas_rollo) || 0;
+            const cant = parseFloat(r.cantidad) || 0;
+            const pct = pzas > 0 ? Number(((cant / pzas) * 100).toFixed(2)) : 0;
+            const nivel = pct >= 5.0 ? 'Alto' : pct >= 2.0 ? 'Medio' : 'Bajo';
             return {
               fecha: r.fecha,
               anio: anio,
@@ -12325,8 +12329,8 @@ async function commitExcelUpload() {
               color: String(r.color || ''),
               codigo_defecto: String(r.codigo_defecto || '1'),
               defecto: r.defecto,
-              cantidad_defecto: parseFloat(r.cantidad) || 0,
-              pzas_rollo: parseFloat(r.pzas_rollo) || 0,
+              cantidad_defecto: cant,
+              pzas_rollo: pzas,
               kg_rollo: parseFloat(r.kg_rollo) || 0,
               mts_rollo: parseFloat(r.mts_rollo) || 0,
               no_tiras: parseInt(r.no_tiras) || 0,
@@ -12341,8 +12345,8 @@ async function commitExcelUpload() {
               numero_serie: r.numero_serie || '',
               origen: 'EXCEL_SEGUNDAS_X_ROLLO',
               id_carga: idCarga,
-              score_riesgo: (parseFloat(r.cantidad) || 0) * 10,
-              nivel_riesgo: 'Bajo'
+              score_riesgo: pct,
+              nivel_riesgo: nivel
             };
           });
           await executeChunkedInsert('segundas_por_rollo', toInsert);
@@ -13069,6 +13073,7 @@ async function handleGenerateCalendarProposal(event) {
             };
           }
           groups[key].cantidad_defecto += parseFloat(s.cantidad_defecto || 0);
+          groups[key].pzas_rollo = (groups[key].pzas_rollo || 0) + parseFloat(s.pzas_rollo || 0);
           groups[key].mts_rollo += parseFloat(s.mts_rollo || 0);
           if (s.turno_tejido) {
             groups[key].turnos[s.turno_tejido] = (groups[key].turnos[s.turno_tejido] || 0) + parseFloat(s.cantidad_defecto || 0);
@@ -13091,6 +13096,8 @@ async function handleGenerateCalendarProposal(event) {
           if (!machine) continue;
 
           const currentVal = g.cantidad_defecto;
+          const totalPzas = g.pzas_rollo || 0;
+          const defectPct = totalPzas > 0 ? (currentVal / totalPzas) * 100 : 0;
           const prevVal = prevGroups[key] || 0;
           let incrementPercent = 0;
           if (prevVal > 0) {
@@ -13165,19 +13172,20 @@ async function handleGenerateCalendarProposal(event) {
           let priority = 'BAJA';
           const crit = (machine.criticidad || 'B').toUpperCase();
           
-          if (currentVal >= 50 || incrementPercent >= 25 || (crit.includes('A') && currentVal >= 20)) {
+          if (defectPct >= 5.0 || currentVal >= 50 || incrementPercent >= 25 || (crit.includes('A') && (defectPct >= 2.0 || currentVal >= 20))) {
             priority = 'ALTA';
-          } else if (currentVal >= 20 || incrementPercent >= 10) {
+          } else if (defectPct >= 2.0 || currentVal >= 20 || incrementPercent >= 10) {
             priority = 'MEDIA';
           }
 
           // Si el incremento contra la semana anterior disminuye y está bajo control, no generar acción
-          if (currentVal < 5 && incrementPercent < 0) {
+          if (defectPct < 1.0 && currentVal < 5 && incrementPercent < 0) {
             continue;
           }
 
           const motivos = [
-            `Registra ${currentVal} segundas por defecto "${g.defecto}" esta semana.`,
+            `Tasa de defectos: ${defectPct.toFixed(2)}% (${currentVal} segundas en ${totalPzas} piezas producidas).`,
+            `Defecto dominante: "${g.defecto}".`,
             `Turno de mayor incidencia: ${worstTurno}.`,
             `Variación contra semana anterior: ${incrementPercent >= 0 ? '+' : ''}${incrementPercent.toFixed(1)}%.`
           ];
@@ -13193,12 +13201,14 @@ async function handleGenerateCalendarProposal(event) {
             motivos: motivos,
             defecto_principal: g.defecto,
             cantidad_segundas: currentVal,
+            total_piezas: totalPzas,
+            porcentaje_defectos: Number(defectPct.toFixed(2)),
             incremento_semanal: incrementPercent,
             turno_incidencia: worstTurno,
             tipo_revision: relation ? relation.categoria_falla : 'Calidad Textil',
             especialidad: 'Operador / Técnico Autónomo',
             actividades_recomendadas: activityDetails.split('\n').map(a => a.replace('- ', '').trim()).filter(Boolean),
-            evidencia: `Reporte semanal de Segundas por Rollo. Total metros: ${g.mts_rollo.toFixed(1)} mts.`
+            evidencia: `Reporte semanal de Segundas por Rollo. Tasa de defectos: ${defectPct.toFixed(2)}%. Total metros: ${g.mts_rollo.toFixed(1)} mts.`
           };
 
           // Programar fecha balanceada
@@ -13213,10 +13223,10 @@ async function handleGenerateCalendarProposal(event) {
             fecha_programada: balancedDateStr,
             tipo_mantenimiento: 'AUTONOMO',
             prioridad: priority,
-            actividad_sugerida: `Mantenimiento Autónomo: Corregir defecto "${g.defecto}"`,
+            actividad_sugerida: `Mantenimiento Autónomo: Corregir defecto "${g.defecto}" (${defectPct.toFixed(1)}% segundas)`,
             responsable_sugerido: 'Operador de Planta',
             fuente_principal: g.codigo_defecto,
-            score_riesgo: currentVal,
+            score_riesgo: parseFloat(defectPct.toFixed(2)),
             observaciones: JSON.stringify(obsJson),
             estatus_detalle: 'PROPUESTO'
           });

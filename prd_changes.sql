@@ -732,7 +732,14 @@ SELECT
     semana, 
     SUM(pzas_rollo) as total_piezas, 
     SUM(cantidad_defecto) as total_defectos,
-    DENSE_RANK() OVER (PARTITION BY anio, semana ORDER BY SUM(cantidad_defecto) DESC) as ranking_defecto
+    CASE 
+        WHEN SUM(pzas_rollo) > 0 THEN ROUND((SUM(cantidad_defecto)::numeric / SUM(pzas_rollo)::numeric) * 100, 2)
+        ELSE 0.00
+    END as porcentaje_defectos,
+    DENSE_RANK() OVER (
+        PARTITION BY anio, semana 
+        ORDER BY (CASE WHEN SUM(pzas_rollo) > 0 THEN (SUM(cantidad_defecto)::numeric / SUM(pzas_rollo)::numeric) ELSE 0 END) DESC
+    ) as ranking_defecto
 FROM public.segundas_por_rollo
 WHERE activo = TRUE
 GROUP BY maquina_id, anio, semana;
@@ -764,6 +771,10 @@ SELECT
     s.semana,
     SUM(s.cantidad_defecto) as total_segundas,
     SUM(s.pzas_rollo) as total_piezas,
+    CASE 
+        WHEN SUM(s.pzas_rollo) > 0 THEN ROUND((SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100, 2)
+        ELSE 0.00
+    END as porcentaje_defectos,
     (SELECT d.defecto_principal FROM public.vw_defectos_por_telar d WHERE d.maquina_id = s.maquina_id) as defecto_principal,
     COALESCE(COUNT(DISTINCT f.id_falla), 0) as total_fallas,
     COALESCE(
@@ -773,13 +784,13 @@ SELECT
         'Sin clasificar'
     ) as falla_principal,
     CASE 
-        WHEN SUM(s.cantidad_defecto) > 10 AND COUNT(DISTINCT f.id_falla) > 0 THEN 'Alta'
-        WHEN SUM(s.cantidad_defecto) > 5 OR COUNT(DISTINCT f.id_falla) > 0 THEN 'Media'
+        WHEN (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) >= 5.0 AND COUNT(DISTINCT f.id_falla) > 0 THEN 'Alta'
+        WHEN (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) >= 2.0 OR COUNT(DISTINCT f.id_falla) > 0 THEN 'Media'
         ELSE 'Baja'
     END as coincidencia_calidad_mantenimiento,
     CASE 
-        WHEN SUM(s.cantidad_defecto) > 10 AND COUNT(DISTINCT f.id_falla) > 0 THEN 'Programar mantenimiento predictivo urgente y revisar guías.'
-        WHEN SUM(s.cantidad_defecto) > 5 THEN 'Programar inspección autónoma semanal.'
+        WHEN (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) >= 5.0 AND COUNT(DISTINCT f.id_falla) > 0 THEN 'Programar mantenimiento predictivo urgente y revisar guías.'
+        WHEN (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) >= 2.0 THEN 'Programar inspección autónoma semanal.'
         ELSE 'Monitorear comportamiento.'
     END as recomendacion
 FROM public.segundas_por_rollo s
@@ -813,6 +824,10 @@ SELECT
     s.mes,
     SUM(s.cantidad_defecto) as total_segundas,
     SUM(s.pzas_rollo) as total_piezas,
+    CASE 
+        WHEN SUM(s.pzas_rollo) > 0 THEN ROUND((SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100, 2)
+        ELSE 0.00
+    END as porcentaje_defectos,
     COALESCE(
         (SELECT d.defecto_principal FROM public.vw_defectos_por_telar d WHERE d.maquina_id = s.maquina_id LIMIT 1),
         'Sin clasificar'
@@ -825,13 +840,13 @@ SELECT
         'Sin clasificar'
     ) as falla_principal,
     CASE 
-        WHEN SUM(s.cantidad_defecto) > 10 AND COUNT(DISTINCT f.id_falla) > 0 THEN 'Alta'
-        WHEN SUM(s.cantidad_defecto) > 5 OR COUNT(DISTINCT f.id_falla) > 0 THEN 'Media'
+        WHEN (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) >= 5.0 AND COUNT(DISTINCT f.id_falla) > 0 THEN 'Alta'
+        WHEN (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) >= 2.0 OR COUNT(DISTINCT f.id_falla) > 0 THEN 'Media'
         ELSE 'Baja'
     END as coincidencia_calidad_mantenimiento,
     CASE 
-        WHEN SUM(s.cantidad_defecto) > 10 AND COUNT(DISTINCT f.id_falla) > 0 THEN 'Programar mantenimiento predictivo urgente y revisar guías.'
-        WHEN SUM(s.cantidad_defecto) > 5 THEN 'Programar inspección autónoma semanal.'
+        WHEN (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) >= 5.0 AND COUNT(DISTINCT f.id_falla) > 0 THEN 'Programar mantenimiento predictivo urgente y revisar guías.'
+        WHEN (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) >= 2.0 THEN 'Programar inspección autónoma semanal.'
         ELSE 'Monitorear comportamiento.'
     END as recomendacion
 FROM public.segundas_por_rollo s
@@ -921,14 +936,21 @@ SELECT
     SUM(s.pzas_rollo) as total_piezas,
     SUM(s.cantidad_defecto) as total_segundas,
     CASE 
-        WHEN SUM(s.cantidad_defecto) > 10 THEN 'Alta'::varchar
-        WHEN SUM(s.cantidad_defecto) > 5 THEN 'Media'::varchar
+        WHEN SUM(s.pzas_rollo) > 0 THEN ROUND((SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100, 2)
+        ELSE 0.00
+    END as porcentaje_defectos,
+    CASE 
+        WHEN (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) >= 5.0 THEN 'Alta'::varchar
+        WHEN (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) >= 2.0 THEN 'Media'::varchar
         ELSE 'Baja'::varchar
     END as prioridad,
-    (SUM(s.cantidad_defecto) * 5 + COALESCE((SELECT COUNT(*) FROM public.fallas_por_maquina f WHERE f.maquina_id = s.maquina_id AND EXTRACT(WEEK FROM f.fecha_hora_creada) = s.semana), 0) * 10) as score_riesgo,
+    (
+        (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) * 10 + 
+        COALESCE((SELECT COUNT(*) FROM public.fallas_por_maquina f WHERE f.maquina_id = s.maquina_id AND EXTRACT(WEEK FROM f.fecha_hora_creada) = s.semana), 0) * 10
+    ) as score_riesgo,
     CASE 
-        WHEN SUM(s.cantidad_defecto) > 10 THEN 'Alto'::varchar
-        WHEN SUM(s.cantidad_defecto) > 5 THEN 'Medio'::varchar
+        WHEN (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) >= 5.0 THEN 'Alto'::varchar
+        WHEN (CASE WHEN SUM(s.pzas_rollo) > 0 THEN (SUM(s.cantidad_defecto)::numeric / SUM(s.pzas_rollo)::numeric) * 100 ELSE 0 END) >= 2.0 THEN 'Medio'::varchar
         ELSE 'Baja'::varchar
     END as nivel_riesgo_calidad
 FROM public.segundas_por_rollo s
