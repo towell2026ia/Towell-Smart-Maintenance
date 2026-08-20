@@ -11,7 +11,11 @@ function checkDenoCompatibility() {
   console.log('================================================================\n');
 
   const baseDir = path.resolve(__dirname, '..');
-  const sourceDirs = ['guards', 'resolvers', 'classifiers', 'dedupers', 'attributors', 'completeness', 'aggregators', 'calculators', 'rules', 'core', 'types'];
+  const sourceDirs = [
+    'guards', 'resolvers', 'classifiers', 'dedupers', 'attributors',
+    'completeness', 'aggregators', 'calculators', 'rules', 'core',
+    'types', 'contracts', 'catalog', 'prompts', 'decision', 'validators', 'adapters'
+  ];
 
   let totalFilesChecked = 0;
   let syntaxErrors = 0;

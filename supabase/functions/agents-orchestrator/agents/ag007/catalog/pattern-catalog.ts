@@ -1,0 +1,33 @@
+// supabase/functions/agents-orchestrator/agents/ag007/catalog/pattern-catalog.ts
+// Pattern Catalog for AG-007 (v1.0)
+// Frozen under Token: AG007-PATTERN-CATALOG-001
+// Closed Pattern Catalog (§36-39 PRD-AG-007.3)
+
+export const AUTHORIZED_ECONOMIC_PATTERNS = [
+  'BUDGET_WITHIN_RANGE',
+  'BUDGET_WARNING',
+  'BUDGET_EXCEEDED',
+  'FORECAST_WITHIN_BUDGET',
+  'FORECAST_OVER_BUDGET',
+  'PART_COST_CONCENTRATION',
+  'LABOR_COST_CONCENTRATION',
+  'DOWNTIME_COST_CONCENTRATION',
+  'SERVICE_COST_CONCENTRATION',
+  'CORRECTIVE_COST_CONCENTRATION',
+  'PREVENTIVE_COST_CONCENTRATION',
+  'MACHINE_COST_CONCENTRATION',
+  'DEPARTMENT_COST_CONCENTRATION',
+  'COST_SPIKE_DETECTED',
+  'PART_COST_INCREASE',
+  'PARTIAL_COST_INFORMATION',
+  'MISSING_BUDGET',
+  'FORECAST_DATA_PARTIAL',
+  'UNKNOWN_COST_COMPONENTS',
+  'NO_SIGNIFICANT_COST_PATTERN'
+] as const;
+
+export type AuthorizedEconomicPattern = typeof AUTHORIZED_ECONOMIC_PATTERNS[number];
+
+export function isAuthorizedPattern(pattern: string): boolean {
+  return (AUTHORIZED_ECONOMIC_PATTERNS as readonly string[]).includes(pattern);
+}
