@@ -1,0 +1,131 @@
+{
+  "version": "M011-DET-EVAL-001",
+  "generated_at": "2026-08-20T23:39:06.779Z",
+  "assets": [
+    {
+      "asset_id": "TELAR-201",
+      "description": "Activo con salud óptima y criticidad alta",
+      "context": {
+        "asset_id": "TELAR-201",
+        "identity": {
+          "nombre": "Telar Tsudakoma ZAX 201",
+          "depto": "PF",
+          "tipo": "TELAR DE AIRE",
+          "criticidad": "ALTA",
+          "estatus": "OPERANDO",
+          "activo": true
+        },
+        "failure_metrics": {
+          "total_failures_90d": 0,
+          "failure_recurrence_score": 0,
+          "failure_trend": "STABLE"
+        },
+        "maintenance_history": {
+          "preventive_compliance_rate": 1,
+          "autonomous_compliance_rate": 1,
+          "overdue_maintenances_count": 0
+        },
+        "findings": {
+          "active_critical_findings_count": 0,
+          "active_moderate_findings_count": 0,
+          "active_mild_findings_count": 0
+        },
+        "downtime_history": {
+          "total_downtime_minutes_90d": 0,
+          "downtime_events_count_90d": 0
+        },
+        "alerts": {
+          "active_critical_alerts": 0,
+          "active_warning_alerts": 0
+        },
+        "source_references": [
+          {
+            "source_name": "cat_maquinas",
+            "source_table": "public.cat_maquinas",
+            "source_id": "MACH-01",
+            "retrieved_at": "2026-08-20T10:00:00Z",
+            "relationship_type": "DIRECT_FK"
+          }
+        ]
+      },
+      "expected": {
+        "health_score": 100,
+        "health_state": "HEALTHY",
+        "risk_score": 25,
+        "risk_state": "MODERATE"
+      }
+    },
+    {
+      "asset_id": "TELAR-202",
+      "description": "Activo con degradación moderada y criticidad alta",
+      "context": {
+        "asset_id": "TELAR-202",
+        "identity": {
+          "nombre": "Telar Tsudakoma ZAX 202",
+          "depto": "PF",
+          "tipo": "TELAR DE AIRE",
+          "criticidad": "ALTA",
+          "estatus": "OPERANDO",
+          "activo": true
+        },
+        "failure_metrics": {
+          "total_failures_90d": 2,
+          "failure_recurrence_score": 40,
+          "failure_trend": "UP"
+        },
+        "maintenance_history": {
+          "preventive_compliance_rate": 1,
+          "autonomous_compliance_rate": 0.8,
+          "overdue_maintenances_count": 0
+        },
+        "findings": {
+          "active_critical_findings_count": 0,
+          "active_moderate_findings_count": 1,
+          "active_mild_findings_count": 0
+        },
+        "downtime_history": {
+          "total_downtime_minutes_90d": 120,
+          "downtime_events_count_90d": 1
+        },
+        "alerts": {
+          "active_critical_alerts": 0,
+          "active_warning_alerts": 1
+        },
+        "source_references": [
+          {
+            "source_name": "cat_maquinas",
+            "source_table": "public.cat_maquinas",
+            "source_id": "MACH-02",
+            "retrieved_at": "2026-08-20T10:00:00Z",
+            "relationship_type": "DIRECT_FK"
+          }
+        ]
+      },
+      "expected": {
+        "health_state": "WATCH",
+        "risk_state": "HIGH"
+      }
+    },
+    {
+      "asset_id": "CARDA-01",
+      "description": "Activo con datos insuficientes (inactivo / sin mantenimiento)",
+      "context": {
+        "asset_id": "CARDA-01",
+        "identity": {
+          "nombre": "Carda Trutzschler 1",
+          "depto": "PF",
+          "tipo": "CARDA",
+          "criticidad": "MEDIA",
+          "estatus": "INACTIVA",
+          "activo": false
+        }
+      },
+      "expected": {
+        "health_score": null,
+        "health_state": "INSUFFICIENT_DATA",
+        "risk_score": null,
+        "risk_state": "INSUFFICIENT_DATA"
+      }
+    }
+  ]
+}
