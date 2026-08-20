@@ -1,0 +1,2953 @@
+{
+  "version": "M010-EVAL-001",
+  "freeze_token": "M010-EVAL-001-FROZEN",
+  "generated_at": "2026-08-20T23:16:03.727Z",
+  "total_cases": 170,
+  "splits": {
+    "training": 102,
+    "validation": 34,
+    "final_holdout": 34
+  },
+  "mockData": {
+    "machines": [
+      {
+        "id": "MACH-01",
+        "codigo_maquina": "TELAR-201",
+        "nombre": "Telar Tsudakoma ZAX 201",
+        "depto": "PF",
+        "tipo": "TELAR DE AIRE",
+        "modelo": "ZAX-9100",
+        "marca": "TSUDAKOMA",
+        "serie": "SN-201-99",
+        "criticidad": "ALTA",
+        "estatus": "OPERANDO",
+        "activo": true,
+        "created_at": "2025-01-10T08:00:00Z"
+      },
+      {
+        "id": "MACH-02",
+        "codigo_maquina": "TELAR-202",
+        "nombre": "Telar Tsudakoma ZAX 202",
+        "depto": "PF",
+        "tipo": "TELAR DE AIRE",
+        "modelo": "ZAX-9100",
+        "marca": "TSUDAKOMA",
+        "serie": "SN-202-99",
+        "criticidad": "ALTA",
+        "estatus": "OPERANDO",
+        "activo": true,
+        "created_at": "2025-01-10T08:00:00Z"
+      },
+      {
+        "id": "MACH-03",
+        "codigo_maquina": "RAMA-01",
+        "nombre": "Rama Termofijadora Monforts 1",
+        "depto": "AF",
+        "tipo": "RAMA",
+        "modelo": "MONF-800",
+        "marca": "MONFORTS",
+        "serie": "SN-RAMA-01",
+        "criticidad": "ALTA",
+        "estatus": "OPERANDO",
+        "activo": true,
+        "created_at": "2025-01-10T08:00:00Z"
+      },
+      {
+        "id": "MACH-04",
+        "codigo_maquina": "CARDA-01",
+        "nombre": "Carda Trutzschler 1",
+        "depto": "PF",
+        "tipo": "CARDA",
+        "modelo": "TC-19",
+        "marca": "TRUTZSCHLER",
+        "serie": null,
+        "criticidad": "MEDIA",
+        "estatus": "INACTIVA",
+        "activo": false,
+        "created_at": "2025-01-10T08:00:00Z"
+      }
+    ],
+    "workOrders": [
+      {
+        "id": "WO-101",
+        "folio": "OT-2026-001",
+        "tipo_mantenimiento": "CORRECTIVO",
+        "maquina_id": "TELAR-202",
+        "estatus": "CERRADA",
+        "fecha_creacion": "2026-08-01T08:30:00Z",
+        "fecha_cierre": "2026-08-01T10:30:00Z",
+        "descripcion": "Fuga de aceite en reductor principal",
+        "trabajo_realizado": "Cambio de empaque de retén"
+      },
+      {
+        "id": "WO-102",
+        "folio": "OT-2026-002",
+        "tipo_mantenimiento": "PREVENTIVO",
+        "maquina_id": "TELAR-202",
+        "estatus": "CERRADA",
+        "fecha_creacion": "2026-06-15T09:00:00Z",
+        "fecha_cierre": "2026-06-15T15:00:00Z",
+        "descripcion": "Servicio Preventivo Anual 2026",
+        "trabajo_realizado": "Revisión general y lubricación"
+      },
+      {
+        "id": "WO-103",
+        "folio": "SUB-2026-001",
+        "tipo_mantenimiento": "CORRECTIVO",
+        "maquina_id": "TELAR-202",
+        "parent_ot_id": "WO-101",
+        "estatus": "CERRADA",
+        "fecha_creacion": "2026-08-01T09:00:00Z",
+        "fecha_cierre": "2026-08-01T10:00:00Z",
+        "descripcion": "Torneado de flecha en taller mecánico",
+        "trabajo_realizado": "Ajuste de flecha"
+      }
+    ],
+    "maintenancePlans": [
+      {
+        "id": "MP-01",
+        "maquina_id": "TELAR-202",
+        "tipo": "PREVENTIVO_ANUAL",
+        "anio": 2026,
+        "periodo_referencia": "06",
+        "fecha_programada": "2026-06-15",
+        "fecha_ejecutada": "2026-06-15",
+        "estado": "EJECUTADO"
+      },
+      {
+        "id": "MP-02",
+        "maquina_id": "TELAR-202",
+        "tipo": "AUTONOMO_SEMANAL",
+        "anio": 2026,
+        "periodo_referencia": "W32",
+        "fecha_programada": "2026-08-10",
+        "fecha_ejecutada": "2026-08-10",
+        "estado": "EJECUTADO"
+      }
+    ],
+    "checklistDefinitions": [
+      {
+        "id": "CHK-DEF-01",
+        "nombre": "Checklist Preventivo Telares",
+        "tipo_mantenimiento": "PREVENTIVO",
+        "depto": "PF",
+        "preguntas_count": 15
+      }
+    ],
+    "checklistExecutions": [
+      {
+        "id": "CHK-EXEC-01",
+        "orden_id": "WO-102",
+        "maquina_id": "TELAR-202",
+        "checklist_id": "CHK-DEF-01",
+        "fecha_ejecucion": "2026-06-15T10:00:00Z",
+        "respuestas_aprobadas": 15,
+        "respuestas_fallidas": 0
+      }
+    ],
+    "surveys": [
+      {
+        "id": "SRV-01",
+        "maquina_id": "TELAR-202",
+        "tipo_levantamiento": "LEVANTAMIENTO_PREDICTIVO",
+        "fecha": "2026-08-05T11:00:00Z",
+        "tecnico_id": "TECH-01",
+        "estado": "COMPLETADO",
+        "observaciones": "Medición de vibraciones en chumaceras"
+      }
+    ],
+    "findings": [
+      {
+        "id": "FIND-01",
+        "levantamiento_id": "SRV-01",
+        "maquina_id": "TELAR-202",
+        "fecha": "2026-08-05T11:15:00Z",
+        "bloque_o_item": "CHUMACERA_LADO_MANDO",
+        "hallazgo": "Vibración excesiva en rodamiento 6208",
+        "gravedad": "MODERADA",
+        "evidencia": "Espectro de vibración pico 4.2 mm/s"
+      }
+    ],
+    "failures": [
+      {
+        "id": "FAIL-01",
+        "maquina_id": "TELAR-202",
+        "falla_normalizada": "FUGA_ACEITE",
+        "falla_raw": "fuga de aceite en reductor",
+        "fecha": "2026-08-01",
+        "depto": "PF",
+        "source_type": "OT",
+        "associated_ot_folio": "OT-2026-001"
+      },
+      {
+        "id": "FAIL-02",
+        "maquina_id": "TELAR-202",
+        "falla_normalizada": "FALLA_TRAMA",
+        "falla_raw": "paro de trama tensor",
+        "fecha": "2026-08-10",
+        "depto": "PF",
+        "source_type": "TELEGRAM",
+        "associated_ot_folio": null
+      }
+    ],
+    "parts": [
+      {
+        "id": "PART-01",
+        "maquina_id": "TELAR-202",
+        "refaccion_id": "REF-RETEN-45",
+        "codigo_refaccion": "RETEN-45X65X10",
+        "nombre_refaccion": "Retén de aceite 45x65x10",
+        "cantidad": 1,
+        "unidad": "PZA",
+        "fecha_uso": "2026-08-01",
+        "associated_ot_folio": "OT-2026-001",
+        "costo_unitario": 180.5
+      }
+    ],
+    "downtime": [
+      {
+        "id": "DT-01",
+        "maquina_id": "TELAR-202",
+        "fecha_inicio": "2026-08-01T08:30:00Z",
+        "fecha_fin": "2026-08-01T10:30:00Z",
+        "duracion_minutos": 120,
+        "causa_aparente": "Fuga de aceite en reductor",
+        "associated_ot_folio": "OT-2026-001"
+      }
+    ],
+    "alerts": [
+      {
+        "signal_id": "ALT-REC-01",
+        "signal_type": "FAILURE_RECURRENCE_ALERT",
+        "target_id": "TELAR-202",
+        "severity": "Advertencia",
+        "message": "Falla recurrente detectada",
+        "created_at": "2026-08-12T10:00:00Z",
+        "status": "ACTIVE",
+        "source_agent": "AG-008"
+      }
+    ]
+  },
+  "testCases": [
+    {
+      "case_id": "CASE-M010-001",
+      "category": "Asset Identity",
+      "index_in_category": 1,
+      "split": "TRAINING",
+      "description": "Evaluación de Asset Identity caso 1 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-002",
+      "category": "Asset Identity",
+      "index_in_category": 2,
+      "split": "TRAINING",
+      "description": "Evaluación de Asset Identity caso 2 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-003",
+      "category": "Asset Identity",
+      "index_in_category": 3,
+      "split": "TRAINING",
+      "description": "Evaluación de Asset Identity caso 3 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-004",
+      "category": "Asset Identity",
+      "index_in_category": 4,
+      "split": "TRAINING",
+      "description": "Evaluación de Asset Identity caso 4 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-005",
+      "category": "Asset Identity",
+      "index_in_category": 5,
+      "split": "TRAINING",
+      "description": "Evaluación de Asset Identity caso 5 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-006",
+      "category": "Asset Identity",
+      "index_in_category": 6,
+      "split": "TRAINING",
+      "description": "Evaluación de Asset Identity caso 6 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-007",
+      "category": "Asset Identity",
+      "index_in_category": 7,
+      "split": "TRAINING",
+      "description": "Evaluación de Asset Identity caso 7 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-008",
+      "category": "Asset Identity",
+      "index_in_category": 8,
+      "split": "TRAINING",
+      "description": "Evaluación de Asset Identity caso 8 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-009",
+      "category": "Asset Identity",
+      "index_in_category": 9,
+      "split": "TRAINING",
+      "description": "Evaluación de Asset Identity caso 9 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-010",
+      "category": "Asset Identity",
+      "index_in_category": 10,
+      "split": "TRAINING",
+      "description": "Evaluación de Asset Identity caso 10 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-011",
+      "category": "Asset Identity",
+      "index_in_category": 11,
+      "split": "TRAINING",
+      "description": "Evaluación de Asset Identity caso 11 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-012",
+      "category": "Asset Identity",
+      "index_in_category": 12,
+      "split": "TRAINING",
+      "description": "Evaluación de Asset Identity caso 12 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-013",
+      "category": "Source Fetchers",
+      "index_in_category": 1,
+      "split": "TRAINING",
+      "description": "Evaluación de Source Fetchers caso 1 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-014",
+      "category": "Source Fetchers",
+      "index_in_category": 2,
+      "split": "TRAINING",
+      "description": "Evaluación de Source Fetchers caso 2 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-015",
+      "category": "Source Fetchers",
+      "index_in_category": 3,
+      "split": "TRAINING",
+      "description": "Evaluación de Source Fetchers caso 3 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-016",
+      "category": "Source Fetchers",
+      "index_in_category": 4,
+      "split": "TRAINING",
+      "description": "Evaluación de Source Fetchers caso 4 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-017",
+      "category": "Source Fetchers",
+      "index_in_category": 5,
+      "split": "TRAINING",
+      "description": "Evaluación de Source Fetchers caso 5 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-018",
+      "category": "Source Fetchers",
+      "index_in_category": 6,
+      "split": "TRAINING",
+      "description": "Evaluación de Source Fetchers caso 6 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-019",
+      "category": "Source Fetchers",
+      "index_in_category": 7,
+      "split": "TRAINING",
+      "description": "Evaluación de Source Fetchers caso 7 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-020",
+      "category": "Source Fetchers",
+      "index_in_category": 8,
+      "split": "TRAINING",
+      "description": "Evaluación de Source Fetchers caso 8 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-021",
+      "category": "Source Fetchers",
+      "index_in_category": 9,
+      "split": "TRAINING",
+      "description": "Evaluación de Source Fetchers caso 9 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-022",
+      "category": "Source Fetchers",
+      "index_in_category": 10,
+      "split": "TRAINING",
+      "description": "Evaluación de Source Fetchers caso 10 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-023",
+      "category": "Source Fetchers",
+      "index_in_category": 11,
+      "split": "TRAINING",
+      "description": "Evaluación de Source Fetchers caso 11 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-024",
+      "category": "Source Fetchers",
+      "index_in_category": 12,
+      "split": "TRAINING",
+      "description": "Evaluación de Source Fetchers caso 12 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-025",
+      "category": "OT / Subtasks",
+      "index_in_category": 1,
+      "split": "TRAINING",
+      "description": "Evaluación de OT / Subtasks caso 1 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-026",
+      "category": "OT / Subtasks",
+      "index_in_category": 2,
+      "split": "TRAINING",
+      "description": "Evaluación de OT / Subtasks caso 2 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-027",
+      "category": "OT / Subtasks",
+      "index_in_category": 3,
+      "split": "TRAINING",
+      "description": "Evaluación de OT / Subtasks caso 3 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-028",
+      "category": "OT / Subtasks",
+      "index_in_category": 4,
+      "split": "TRAINING",
+      "description": "Evaluación de OT / Subtasks caso 4 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-029",
+      "category": "OT / Subtasks",
+      "index_in_category": 5,
+      "split": "TRAINING",
+      "description": "Evaluación de OT / Subtasks caso 5 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-030",
+      "category": "OT / Subtasks",
+      "index_in_category": 6,
+      "split": "TRAINING",
+      "description": "Evaluación de OT / Subtasks caso 6 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-031",
+      "category": "OT / Subtasks",
+      "index_in_category": 7,
+      "split": "TRAINING",
+      "description": "Evaluación de OT / Subtasks caso 7 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-032",
+      "category": "OT / Subtasks",
+      "index_in_category": 8,
+      "split": "TRAINING",
+      "description": "Evaluación de OT / Subtasks caso 8 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-033",
+      "category": "OT / Subtasks",
+      "index_in_category": 9,
+      "split": "TRAINING",
+      "description": "Evaluación de OT / Subtasks caso 9 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-034",
+      "category": "OT / Subtasks",
+      "index_in_category": 10,
+      "split": "TRAINING",
+      "description": "Evaluación de OT / Subtasks caso 10 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-035",
+      "category": "OT / Subtasks",
+      "index_in_category": 11,
+      "split": "TRAINING",
+      "description": "Evaluación de OT / Subtasks caso 11 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-036",
+      "category": "OT / Subtasks",
+      "index_in_category": 12,
+      "split": "TRAINING",
+      "description": "Evaluación de OT / Subtasks caso 12 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-037",
+      "category": "Maintenance Plans",
+      "index_in_category": 1,
+      "split": "TRAINING",
+      "description": "Evaluación de Maintenance Plans caso 1 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-038",
+      "category": "Maintenance Plans",
+      "index_in_category": 2,
+      "split": "TRAINING",
+      "description": "Evaluación de Maintenance Plans caso 2 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-039",
+      "category": "Maintenance Plans",
+      "index_in_category": 3,
+      "split": "TRAINING",
+      "description": "Evaluación de Maintenance Plans caso 3 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-040",
+      "category": "Maintenance Plans",
+      "index_in_category": 4,
+      "split": "TRAINING",
+      "description": "Evaluación de Maintenance Plans caso 4 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-041",
+      "category": "Maintenance Plans",
+      "index_in_category": 5,
+      "split": "TRAINING",
+      "description": "Evaluación de Maintenance Plans caso 5 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-042",
+      "category": "Maintenance Plans",
+      "index_in_category": 6,
+      "split": "TRAINING",
+      "description": "Evaluación de Maintenance Plans caso 6 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-043",
+      "category": "Maintenance Plans",
+      "index_in_category": 7,
+      "split": "TRAINING",
+      "description": "Evaluación de Maintenance Plans caso 7 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-044",
+      "category": "Maintenance Plans",
+      "index_in_category": 8,
+      "split": "TRAINING",
+      "description": "Evaluación de Maintenance Plans caso 8 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-045",
+      "category": "Maintenance Plans",
+      "index_in_category": 9,
+      "split": "TRAINING",
+      "description": "Evaluación de Maintenance Plans caso 9 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-046",
+      "category": "Maintenance Plans",
+      "index_in_category": 10,
+      "split": "TRAINING",
+      "description": "Evaluación de Maintenance Plans caso 10 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-047",
+      "category": "Checklists Definition vs Execution",
+      "index_in_category": 1,
+      "split": "TRAINING",
+      "description": "Evaluación de Checklists Definition vs Execution caso 1 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-048",
+      "category": "Checklists Definition vs Execution",
+      "index_in_category": 2,
+      "split": "TRAINING",
+      "description": "Evaluación de Checklists Definition vs Execution caso 2 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-049",
+      "category": "Checklists Definition vs Execution",
+      "index_in_category": 3,
+      "split": "TRAINING",
+      "description": "Evaluación de Checklists Definition vs Execution caso 3 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-050",
+      "category": "Checklists Definition vs Execution",
+      "index_in_category": 4,
+      "split": "TRAINING",
+      "description": "Evaluación de Checklists Definition vs Execution caso 4 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-051",
+      "category": "Checklists Definition vs Execution",
+      "index_in_category": 5,
+      "split": "TRAINING",
+      "description": "Evaluación de Checklists Definition vs Execution caso 5 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-052",
+      "category": "Checklists Definition vs Execution",
+      "index_in_category": 6,
+      "split": "TRAINING",
+      "description": "Evaluación de Checklists Definition vs Execution caso 6 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-053",
+      "category": "Checklists Definition vs Execution",
+      "index_in_category": 7,
+      "split": "TRAINING",
+      "description": "Evaluación de Checklists Definition vs Execution caso 7 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-054",
+      "category": "Checklists Definition vs Execution",
+      "index_in_category": 8,
+      "split": "TRAINING",
+      "description": "Evaluación de Checklists Definition vs Execution caso 8 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-055",
+      "category": "Checklists Definition vs Execution",
+      "index_in_category": 9,
+      "split": "TRAINING",
+      "description": "Evaluación de Checklists Definition vs Execution caso 9 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-056",
+      "category": "Checklists Definition vs Execution",
+      "index_in_category": 10,
+      "split": "TRAINING",
+      "description": "Evaluación de Checklists Definition vs Execution caso 10 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-057",
+      "category": "Checklists Definition vs Execution",
+      "index_in_category": 11,
+      "split": "TRAINING",
+      "description": "Evaluación de Checklists Definition vs Execution caso 11 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-058",
+      "category": "Checklists Definition vs Execution",
+      "index_in_category": 12,
+      "split": "TRAINING",
+      "description": "Evaluación de Checklists Definition vs Execution caso 12 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-059",
+      "category": "Surveys & Physical Findings",
+      "index_in_category": 1,
+      "split": "TRAINING",
+      "description": "Evaluación de Surveys & Physical Findings caso 1 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-060",
+      "category": "Surveys & Physical Findings",
+      "index_in_category": 2,
+      "split": "TRAINING",
+      "description": "Evaluación de Surveys & Physical Findings caso 2 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-061",
+      "category": "Surveys & Physical Findings",
+      "index_in_category": 3,
+      "split": "TRAINING",
+      "description": "Evaluación de Surveys & Physical Findings caso 3 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-062",
+      "category": "Surveys & Physical Findings",
+      "index_in_category": 4,
+      "split": "TRAINING",
+      "description": "Evaluación de Surveys & Physical Findings caso 4 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-063",
+      "category": "Surveys & Physical Findings",
+      "index_in_category": 5,
+      "split": "TRAINING",
+      "description": "Evaluación de Surveys & Physical Findings caso 5 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-064",
+      "category": "Surveys & Physical Findings",
+      "index_in_category": 6,
+      "split": "TRAINING",
+      "description": "Evaluación de Surveys & Physical Findings caso 6 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-065",
+      "category": "Surveys & Physical Findings",
+      "index_in_category": 7,
+      "split": "TRAINING",
+      "description": "Evaluación de Surveys & Physical Findings caso 7 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-066",
+      "category": "Surveys & Physical Findings",
+      "index_in_category": 8,
+      "split": "TRAINING",
+      "description": "Evaluación de Surveys & Physical Findings caso 8 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-067",
+      "category": "Surveys & Physical Findings",
+      "index_in_category": 9,
+      "split": "TRAINING",
+      "description": "Evaluación de Surveys & Physical Findings caso 9 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-068",
+      "category": "Surveys & Physical Findings",
+      "index_in_category": 10,
+      "split": "TRAINING",
+      "description": "Evaluación de Surveys & Physical Findings caso 10 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-069",
+      "category": "Surveys & Physical Findings",
+      "index_in_category": 11,
+      "split": "TRAINING",
+      "description": "Evaluación de Surveys & Physical Findings caso 11 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-070",
+      "category": "Surveys & Physical Findings",
+      "index_in_category": 12,
+      "split": "TRAINING",
+      "description": "Evaluación de Surveys & Physical Findings caso 12 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-071",
+      "category": "Failures & AG-008 Boundary",
+      "index_in_category": 1,
+      "split": "TRAINING",
+      "description": "Evaluación de Failures & AG-008 Boundary caso 1 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-072",
+      "category": "Failures & AG-008 Boundary",
+      "index_in_category": 2,
+      "split": "TRAINING",
+      "description": "Evaluación de Failures & AG-008 Boundary caso 2 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-073",
+      "category": "Failures & AG-008 Boundary",
+      "index_in_category": 3,
+      "split": "TRAINING",
+      "description": "Evaluación de Failures & AG-008 Boundary caso 3 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-074",
+      "category": "Failures & AG-008 Boundary",
+      "index_in_category": 4,
+      "split": "TRAINING",
+      "description": "Evaluación de Failures & AG-008 Boundary caso 4 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-075",
+      "category": "Failures & AG-008 Boundary",
+      "index_in_category": 5,
+      "split": "TRAINING",
+      "description": "Evaluación de Failures & AG-008 Boundary caso 5 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-076",
+      "category": "Failures & AG-008 Boundary",
+      "index_in_category": 6,
+      "split": "TRAINING",
+      "description": "Evaluación de Failures & AG-008 Boundary caso 6 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-077",
+      "category": "Failures & AG-008 Boundary",
+      "index_in_category": 7,
+      "split": "TRAINING",
+      "description": "Evaluación de Failures & AG-008 Boundary caso 7 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-078",
+      "category": "Failures & AG-008 Boundary",
+      "index_in_category": 8,
+      "split": "TRAINING",
+      "description": "Evaluación de Failures & AG-008 Boundary caso 8 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-079",
+      "category": "Failures & AG-008 Boundary",
+      "index_in_category": 9,
+      "split": "TRAINING",
+      "description": "Evaluación de Failures & AG-008 Boundary caso 9 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-080",
+      "category": "Failures & AG-008 Boundary",
+      "index_in_category": 10,
+      "split": "TRAINING",
+      "description": "Evaluación de Failures & AG-008 Boundary caso 10 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-081",
+      "category": "Failures & AG-008 Boundary",
+      "index_in_category": 11,
+      "split": "TRAINING",
+      "description": "Evaluación de Failures & AG-008 Boundary caso 11 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-082",
+      "category": "Failures & AG-008 Boundary",
+      "index_in_category": 12,
+      "split": "TRAINING",
+      "description": "Evaluación de Failures & AG-008 Boundary caso 12 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-083",
+      "category": "Parts & AG-007 Boundary",
+      "index_in_category": 1,
+      "split": "TRAINING",
+      "description": "Evaluación de Parts & AG-007 Boundary caso 1 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-084",
+      "category": "Parts & AG-007 Boundary",
+      "index_in_category": 2,
+      "split": "TRAINING",
+      "description": "Evaluación de Parts & AG-007 Boundary caso 2 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-085",
+      "category": "Parts & AG-007 Boundary",
+      "index_in_category": 3,
+      "split": "TRAINING",
+      "description": "Evaluación de Parts & AG-007 Boundary caso 3 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-086",
+      "category": "Parts & AG-007 Boundary",
+      "index_in_category": 4,
+      "split": "TRAINING",
+      "description": "Evaluación de Parts & AG-007 Boundary caso 4 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-087",
+      "category": "Parts & AG-007 Boundary",
+      "index_in_category": 5,
+      "split": "TRAINING",
+      "description": "Evaluación de Parts & AG-007 Boundary caso 5 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-088",
+      "category": "Parts & AG-007 Boundary",
+      "index_in_category": 6,
+      "split": "TRAINING",
+      "description": "Evaluación de Parts & AG-007 Boundary caso 6 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-089",
+      "category": "Parts & AG-007 Boundary",
+      "index_in_category": 7,
+      "split": "TRAINING",
+      "description": "Evaluación de Parts & AG-007 Boundary caso 7 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-090",
+      "category": "Parts & AG-007 Boundary",
+      "index_in_category": 8,
+      "split": "TRAINING",
+      "description": "Evaluación de Parts & AG-007 Boundary caso 8 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-091",
+      "category": "Parts & AG-007 Boundary",
+      "index_in_category": 9,
+      "split": "TRAINING",
+      "description": "Evaluación de Parts & AG-007 Boundary caso 9 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-092",
+      "category": "Parts & AG-007 Boundary",
+      "index_in_category": 10,
+      "split": "TRAINING",
+      "description": "Evaluación de Parts & AG-007 Boundary caso 10 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-093",
+      "category": "Parts & AG-007 Boundary",
+      "index_in_category": 11,
+      "split": "TRAINING",
+      "description": "Evaluación de Parts & AG-007 Boundary caso 11 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-094",
+      "category": "Parts & AG-007 Boundary",
+      "index_in_category": 12,
+      "split": "TRAINING",
+      "description": "Evaluación de Parts & AG-007 Boundary caso 12 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-095",
+      "category": "Relationships & Dedupe",
+      "index_in_category": 1,
+      "split": "TRAINING",
+      "description": "Evaluación de Relationships & Dedupe caso 1 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-096",
+      "category": "Relationships & Dedupe",
+      "index_in_category": 2,
+      "split": "TRAINING",
+      "description": "Evaluación de Relationships & Dedupe caso 2 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-097",
+      "category": "Relationships & Dedupe",
+      "index_in_category": 3,
+      "split": "TRAINING",
+      "description": "Evaluación de Relationships & Dedupe caso 3 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-098",
+      "category": "Relationships & Dedupe",
+      "index_in_category": 4,
+      "split": "TRAINING",
+      "description": "Evaluación de Relationships & Dedupe caso 4 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-099",
+      "category": "Relationships & Dedupe",
+      "index_in_category": 5,
+      "split": "TRAINING",
+      "description": "Evaluación de Relationships & Dedupe caso 5 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-100",
+      "category": "Relationships & Dedupe",
+      "index_in_category": 6,
+      "split": "TRAINING",
+      "description": "Evaluación de Relationships & Dedupe caso 6 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-101",
+      "category": "Relationships & Dedupe",
+      "index_in_category": 7,
+      "split": "TRAINING",
+      "description": "Evaluación de Relationships & Dedupe caso 7 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-102",
+      "category": "Relationships & Dedupe",
+      "index_in_category": 8,
+      "split": "TRAINING",
+      "description": "Evaluación de Relationships & Dedupe caso 8 bajo split TRAINING",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-103",
+      "category": "Relationships & Dedupe",
+      "index_in_category": 9,
+      "split": "VALIDATION",
+      "description": "Evaluación de Relationships & Dedupe caso 9 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-104",
+      "category": "Relationships & Dedupe",
+      "index_in_category": 10,
+      "split": "VALIDATION",
+      "description": "Evaluación de Relationships & Dedupe caso 10 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-105",
+      "category": "Relationships & Dedupe",
+      "index_in_category": 11,
+      "split": "VALIDATION",
+      "description": "Evaluación de Relationships & Dedupe caso 11 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-106",
+      "category": "Relationships & Dedupe",
+      "index_in_category": 12,
+      "split": "VALIDATION",
+      "description": "Evaluación de Relationships & Dedupe caso 12 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-107",
+      "category": "Timeline & Time Semantics",
+      "index_in_category": 1,
+      "split": "VALIDATION",
+      "description": "Evaluación de Timeline & Time Semantics caso 1 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-108",
+      "category": "Timeline & Time Semantics",
+      "index_in_category": 2,
+      "split": "VALIDATION",
+      "description": "Evaluación de Timeline & Time Semantics caso 2 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-109",
+      "category": "Timeline & Time Semantics",
+      "index_in_category": 3,
+      "split": "VALIDATION",
+      "description": "Evaluación de Timeline & Time Semantics caso 3 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-110",
+      "category": "Timeline & Time Semantics",
+      "index_in_category": 4,
+      "split": "VALIDATION",
+      "description": "Evaluación de Timeline & Time Semantics caso 4 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-111",
+      "category": "Timeline & Time Semantics",
+      "index_in_category": 5,
+      "split": "VALIDATION",
+      "description": "Evaluación de Timeline & Time Semantics caso 5 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-112",
+      "category": "Timeline & Time Semantics",
+      "index_in_category": 6,
+      "split": "VALIDATION",
+      "description": "Evaluación de Timeline & Time Semantics caso 6 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-113",
+      "category": "Timeline & Time Semantics",
+      "index_in_category": 7,
+      "split": "VALIDATION",
+      "description": "Evaluación de Timeline & Time Semantics caso 7 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-114",
+      "category": "Timeline & Time Semantics",
+      "index_in_category": 8,
+      "split": "VALIDATION",
+      "description": "Evaluación de Timeline & Time Semantics caso 8 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-115",
+      "category": "Timeline & Time Semantics",
+      "index_in_category": 9,
+      "split": "VALIDATION",
+      "description": "Evaluación de Timeline & Time Semantics caso 9 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-116",
+      "category": "Timeline & Time Semantics",
+      "index_in_category": 10,
+      "split": "VALIDATION",
+      "description": "Evaluación de Timeline & Time Semantics caso 10 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-117",
+      "category": "Timeline & Time Semantics",
+      "index_in_category": 11,
+      "split": "VALIDATION",
+      "description": "Evaluación de Timeline & Time Semantics caso 11 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-118",
+      "category": "Timeline & Time Semantics",
+      "index_in_category": 12,
+      "split": "VALIDATION",
+      "description": "Evaluación de Timeline & Time Semantics caso 12 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-119",
+      "category": "Record Completeness & Missing Fields",
+      "index_in_category": 1,
+      "split": "VALIDATION",
+      "description": "Evaluación de Record Completeness & Missing Fields caso 1 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-120",
+      "category": "Record Completeness & Missing Fields",
+      "index_in_category": 2,
+      "split": "VALIDATION",
+      "description": "Evaluación de Record Completeness & Missing Fields caso 2 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-121",
+      "category": "Record Completeness & Missing Fields",
+      "index_in_category": 3,
+      "split": "VALIDATION",
+      "description": "Evaluación de Record Completeness & Missing Fields caso 3 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-122",
+      "category": "Record Completeness & Missing Fields",
+      "index_in_category": 4,
+      "split": "VALIDATION",
+      "description": "Evaluación de Record Completeness & Missing Fields caso 4 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-123",
+      "category": "Record Completeness & Missing Fields",
+      "index_in_category": 5,
+      "split": "VALIDATION",
+      "description": "Evaluación de Record Completeness & Missing Fields caso 5 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-124",
+      "category": "Record Completeness & Missing Fields",
+      "index_in_category": 6,
+      "split": "VALIDATION",
+      "description": "Evaluación de Record Completeness & Missing Fields caso 6 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-125",
+      "category": "Record Completeness & Missing Fields",
+      "index_in_category": 7,
+      "split": "VALIDATION",
+      "description": "Evaluación de Record Completeness & Missing Fields caso 7 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-126",
+      "category": "Record Completeness & Missing Fields",
+      "index_in_category": 8,
+      "split": "VALIDATION",
+      "description": "Evaluación de Record Completeness & Missing Fields caso 8 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-127",
+      "category": "Record Completeness & Missing Fields",
+      "index_in_category": 9,
+      "split": "VALIDATION",
+      "description": "Evaluación de Record Completeness & Missing Fields caso 9 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-128",
+      "category": "Record Completeness & Missing Fields",
+      "index_in_category": 10,
+      "split": "VALIDATION",
+      "description": "Evaluación de Record Completeness & Missing Fields caso 10 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-129",
+      "category": "Context Filtering for Consumers",
+      "index_in_category": 1,
+      "split": "VALIDATION",
+      "description": "Evaluación de Context Filtering for Consumers caso 1 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-130",
+      "category": "Context Filtering for Consumers",
+      "index_in_category": 2,
+      "split": "VALIDATION",
+      "description": "Evaluación de Context Filtering for Consumers caso 2 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-131",
+      "category": "Context Filtering for Consumers",
+      "index_in_category": 3,
+      "split": "VALIDATION",
+      "description": "Evaluación de Context Filtering for Consumers caso 3 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-132",
+      "category": "Context Filtering for Consumers",
+      "index_in_category": 4,
+      "split": "VALIDATION",
+      "description": "Evaluación de Context Filtering for Consumers caso 4 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-133",
+      "category": "Context Filtering for Consumers",
+      "index_in_category": 5,
+      "split": "VALIDATION",
+      "description": "Evaluación de Context Filtering for Consumers caso 5 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-134",
+      "category": "Context Filtering for Consumers",
+      "index_in_category": 6,
+      "split": "VALIDATION",
+      "description": "Evaluación de Context Filtering for Consumers caso 6 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-135",
+      "category": "Context Filtering for Consumers",
+      "index_in_category": 7,
+      "split": "VALIDATION",
+      "description": "Evaluación de Context Filtering for Consumers caso 7 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-136",
+      "category": "Context Filtering for Consumers",
+      "index_in_category": 8,
+      "split": "VALIDATION",
+      "description": "Evaluación de Context Filtering for Consumers caso 8 bajo split VALIDATION",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-137",
+      "category": "Context Filtering for Consumers",
+      "index_in_category": 9,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Context Filtering for Consumers caso 9 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-138",
+      "category": "Context Filtering for Consumers",
+      "index_in_category": 10,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Context Filtering for Consumers caso 10 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-139",
+      "category": "Pagination & Freshness Fingerprint",
+      "index_in_category": 1,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Pagination & Freshness Fingerprint caso 1 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-140",
+      "category": "Pagination & Freshness Fingerprint",
+      "index_in_category": 2,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Pagination & Freshness Fingerprint caso 2 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-141",
+      "category": "Pagination & Freshness Fingerprint",
+      "index_in_category": 3,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Pagination & Freshness Fingerprint caso 3 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-142",
+      "category": "Pagination & Freshness Fingerprint",
+      "index_in_category": 4,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Pagination & Freshness Fingerprint caso 4 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-143",
+      "category": "Pagination & Freshness Fingerprint",
+      "index_in_category": 5,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Pagination & Freshness Fingerprint caso 5 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-144",
+      "category": "Pagination & Freshness Fingerprint",
+      "index_in_category": 6,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Pagination & Freshness Fingerprint caso 6 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-145",
+      "category": "Pagination & Freshness Fingerprint",
+      "index_in_category": 7,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Pagination & Freshness Fingerprint caso 7 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-146",
+      "category": "Pagination & Freshness Fingerprint",
+      "index_in_category": 8,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Pagination & Freshness Fingerprint caso 8 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-147",
+      "category": "Pagination & Freshness Fingerprint",
+      "index_in_category": 9,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Pagination & Freshness Fingerprint caso 9 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-148",
+      "category": "Pagination & Freshness Fingerprint",
+      "index_in_category": 10,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Pagination & Freshness Fingerprint caso 10 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-149",
+      "category": "Audit & Traceability",
+      "index_in_category": 1,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Audit & Traceability caso 1 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-150",
+      "category": "Audit & Traceability",
+      "index_in_category": 2,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Audit & Traceability caso 2 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-151",
+      "category": "Audit & Traceability",
+      "index_in_category": 3,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Audit & Traceability caso 3 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-152",
+      "category": "Audit & Traceability",
+      "index_in_category": 4,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Audit & Traceability caso 4 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-153",
+      "category": "Audit & Traceability",
+      "index_in_category": 5,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Audit & Traceability caso 5 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-154",
+      "category": "Audit & Traceability",
+      "index_in_category": 6,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Audit & Traceability caso 6 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-155",
+      "category": "Audit & Traceability",
+      "index_in_category": 7,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Audit & Traceability caso 7 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-156",
+      "category": "Audit & Traceability",
+      "index_in_category": 8,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Audit & Traceability caso 8 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-157",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 1,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 1 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-158",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 2,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 2 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-159",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 3,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 3 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-160",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 4,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 4 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-161",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 5,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 5 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-162",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 6,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 6 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-163",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 7,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 7 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-164",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 8,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 8 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-165",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 9,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 9 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-166",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 10,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 10 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "CONTEXT"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-167",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 11,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 11 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-168",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 12,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 12 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "SUMMARY"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-169",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 13,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 13 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-201",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    },
+    {
+      "case_id": "CASE-M010-170",
+      "category": "Read-Only, Security & Runtime",
+      "index_in_category": 14,
+      "split": "FINAL_HOLDOUT",
+      "description": "Evaluación de Read-Only, Security & Runtime caso 14 bajo split FINAL_HOLDOUT",
+      "input": {
+        "asset_id": "TELAR-202",
+        "mode": "DETAIL"
+      },
+      "expected": {
+        "must_pass": true,
+        "zero_mutation": true,
+        "zero_llm_tokens": true
+      }
+    }
+  ]
+}
