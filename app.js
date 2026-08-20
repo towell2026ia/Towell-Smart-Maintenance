@@ -8059,7 +8059,7 @@ function parseWorkbookMatrixToStaging(workbook, template, filename, dbCargaId) {
   for (const sName of workbook.SheetNames) {
     const ws = workbook.Sheets[sName];
     if (!ws) continue;
-    const rawMatrix = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    const rawMatrix = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
     if (!rawMatrix || rawMatrix.length === 0) continue;
 
     const maxHeaderScan = Math.min(rawMatrix.length, 15);
