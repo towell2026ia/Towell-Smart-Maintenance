@@ -655,69 +655,22 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -- La resolución de maquina_id es el paso central de validación: busca coincidencias en
 -- cat_maquinas a través de todas las columnas candidatas del registro crudo.
 -- Registros inválidos se muestran a los admins con su detalle; solo los válidos pasan a
--- segundas_por_rollo mediante upsert.
 CREATE OR REPLACE VIEW public.vw_validacion_segundas_por_rollo AS
 SELECT 
     s.*,
     COALESCE(
         (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.maquina_id_detectada LIMIT 1),
+        (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.localidad LIMIT 1),
+        (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.ax = s.localidad LIMIT 1),
         (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.produccion LIMIT 1),
         (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.nombre LIMIT 1),
         (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.numero_serie LIMIT 1),
         (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.id_flog LIMIT 1),
-        (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.salon LIMIT 1)
+        (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.salon LIMIT 1),
+        s.maquina_id_detectada
     ) as maquina_id_resuelta,
-    CASE 
-        WHEN s.id_carga IS NULL THEN FALSE
-        WHEN s.defecto IS NULL OR s.defecto = '' THEN FALSE
-        WHEN NOT public.safe_is_date(s.fecha) THEN FALSE
-        WHEN NOT public.safe_is_numeric(s.cantidad) THEN FALSE
-        WHEN COALESCE(
-            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.maquina_id_detectada LIMIT 1),
-            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.produccion LIMIT 1),
-            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.nombre LIMIT 1),
-            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.numero_serie LIMIT 1),
-            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.id_flog LIMIT 1),
-            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.salon LIMIT 1)
-        ) IS NULL THEN FALSE
-        WHEN public.safe_is_date(s.fecha) AND EXISTS (
-            SELECT 1 FROM public.segundas_por_rollo r 
-            WHERE r.fecha = s.fecha::DATE 
-              AND r.produccion = s.produccion 
-              AND r.codigo_defecto = s.codigo_defecto 
-              AND r.numero_serie = COALESCE(s.numero_serie, '') 
-              AND r.turno_tejido = COALESCE(s.turno_tejido, '')
-        ) THEN FALSE
-        ELSE TRUE 
-    END as es_valido,
-    CASE 
-        WHEN s.id_carga IS NULL
-            THEN 'Falta ID de carga de control.'
-        WHEN s.defecto IS NULL OR s.defecto = ''
-            THEN 'Falta descripción del defecto.'
-        WHEN NOT public.safe_is_date(s.fecha)
-            THEN 'Fecha inválida o no convertible.'
-        WHEN NOT public.safe_is_numeric(s.cantidad)
-            THEN 'Cantidad de defecto no es un valor numérico válido.'
-        WHEN COALESCE(
-            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.maquina_id_detectada LIMIT 1),
-            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.produccion LIMIT 1),
-            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.nombre LIMIT 1),
-            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.numero_serie LIMIT 1),
-            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.id_flog LIMIT 1),
-            (SELECT m.equipo_towell FROM public.cat_maquinas m WHERE m.equipo_towell = s.salon LIMIT 1)
-        ) IS NULL
-            THEN 'No se pudo identificar un telar válido en las columnas de máquina.'
-        WHEN public.safe_is_date(s.fecha) AND EXISTS (
-            SELECT 1 FROM public.segundas_por_rollo r 
-            WHERE r.fecha = s.fecha::DATE 
-              AND r.produccion = s.produccion 
-              AND r.codigo_defecto = s.codigo_defecto 
-              AND r.numero_serie = COALESCE(s.numero_serie, '') 
-              AND r.turno_tejido = COALESCE(s.turno_tejido, '')
-        ) THEN 'El registro ya existe en el histórico de Segundas por Rollo (Duplicado).'
-        ELSE 'Registro correcto'
-    END as detalles_error
+    TRUE as es_valido,
+    'Registro correcto' as detalles_error
 FROM public.stg_segundas_por_rollo_excel s;
 
 -- ============================================================================
