@@ -7786,6 +7786,12 @@ function normalizeExcelDateToISO(val) {
     if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
       return s.substring(0, 10);
     }
+    // Numeric string like "46245"
+    if (!isNaN(Number(s)) && Number(s) > 20000 && Number(s) < 60000) {
+      const num = Number(s);
+      const d = new Date(Math.round((num - 25569) * 86400 * 1000));
+      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    }
     const parts = s.split(/[-/]/);
     if (parts.length === 3) {
       let p1 = parseInt(parts[0], 10);
@@ -8033,15 +8039,16 @@ function mapExcelRowToStaging(row, template) {
 }
 
 function parseWorkbookMatrixToStaging(workbook, template, filename, dbCargaId) {
-  const cleanHelper = (str) => {
+  const ultraClean = (str) => {
     if (!str && str !== 0) return '';
     return str.toString()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[\x00-\x1F\x7F-\x9F\u00A0\uFEFF\u200B]/g, ' ')
       .toLowerCase()
       .trim()
-      .replace(/[\s\u00A0\uFEFF\u200B]+/g, ' ')
-      .replace(/_/g, ' ');
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ');
   };
 
   let bestSheetName = workbook.SheetNames[0];
@@ -8052,28 +8059,26 @@ function parseWorkbookMatrixToStaging(workbook, template, filename, dbCargaId) {
   for (const sName of workbook.SheetNames) {
     const ws = workbook.Sheets[sName];
     if (!ws) continue;
-    const rawMatrix = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+    const rawMatrix = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
     if (!rawMatrix || rawMatrix.length === 0) continue;
 
     const maxHeaderScan = Math.min(rawMatrix.length, 15);
     for (let r = 0; r < maxHeaderScan; r++) {
       const row = rawMatrix[r];
       if (!Array.isArray(row)) continue;
-      const cleanRowHeaders = row.map(cell => cleanHelper(cell));
+      const cleanRowHeaders = row.map(cell => ultraClean(cell));
       
       let score = 0;
       if (template === 'segundas') {
-        if (cleanRowHeaders.includes('produccion')) score += 5;
-        if (cleanRowHeaders.includes('fecha')) score += 5;
-        if (cleanRowHeaders.includes('defecto')) score += 5;
-        if (cleanRowHeaders.includes('localidad')) score += 3;
-        if (cleanRowHeaders.includes('codigo de barras')) score += 3;
-        if (cleanRowHeaders.includes('codigo de articulo') || cleanRowHeaders.includes('codigo articulo')) score += 3;
-        if (cleanRowHeaders.includes('nombre del articulo') || cleanRowHeaders.includes('nombre articulo')) score += 3;
+        if (cleanRowHeaders.some(c => c.includes('produc'))) score += 5;
+        if (cleanRowHeaders.some(c => c.includes('fech'))) score += 5;
+        if (cleanRowHeaders.some(c => c.includes('defect'))) score += 5;
+        if (cleanRowHeaders.some(c => c.includes('local'))) score += 3;
+        if (cleanRowHeaders.some(c => c.includes('artic'))) score += 3;
       } else {
         const keywords = ['clave', 'codigo', 'equipo towell', 'maquina', 'articulo', 'defecto', 'fecha', 'folio'];
         for (const kw of keywords) {
-          if (cleanRowHeaders.includes(kw)) score++;
+          if (cleanRowHeaders.some(c => c.includes(kw))) score++;
         }
       }
 
@@ -8092,43 +8097,51 @@ function parseWorkbookMatrixToStaging(workbook, template, filename, dbCargaId) {
     return { sheetName: bestSheetName, stagingRows: [], headerRange: bestHeaderRowIdx, rawDataCount: 0 };
   }
 
-  const rawHeaders = bestRawRows[bestHeaderRowIdx];
-  const colIndex = {};
-  
-  rawHeaders.forEach((h, idx) => {
-    const c = cleanHelper(h);
-    if (c === 'produccion' && colIndex.produccion === undefined) colIndex.produccion = idx;
-    else if (c === 'fecha' && colIndex.fecha === undefined) colIndex.fecha = idx;
-    else if ((c === 'codigo de barras' || c === 'codigo bodega' || c === 'codigo barras') && colIndex.codigo_bodega === undefined) colIndex.codigo_bodega = idx;
-    else if ((c === 'codigo de articulo' || c === 'codigo articulo') && colIndex.codigo_articulo === undefined) colIndex.codigo_articulo = idx;
-    else if ((c === 'nombre del articulo' || c === 'nombre articulo') && colIndex.nombre_articulo === undefined) colIndex.nombre_articulo = idx;
-    else if (c === 'configuracion' && colIndex.configuracion === undefined) colIndex.configuracion = idx;
-    else if ((c === 'tamano' || c === 'tamanio') && colIndex.tamano === undefined) colIndex.tamano = idx;
-    else if (c === 'color' && colIndex.color === undefined) colIndex.color = idx;
-    else if (c === 'nombre' && colIndex.nombre === undefined) colIndex.nombre = idx; // 1st Nombre (Article/Color name)
-    else if (c === 'almacen' && colIndex.almacen === undefined) colIndex.almacen = idx;
-    else if ((c === 'numero de lote' || c === 'numero lote' || c === 'lote') && colIndex.numero_lote === undefined) colIndex.numero_lote = idx;
-    else if (c === 'localidad' && colIndex.localidad === undefined) colIndex.localidad = idx;
-    else if ((c === 'salon' || c === 'depto') && colIndex.salon === undefined) colIndex.salon = idx;
-    else if ((c === 'numero de serie' || c === 'numero serie' || c === 'serie') && colIndex.numero_serie === undefined) colIndex.numero_serie = idx;
-    else if ((c === 'id flog' || c === 'id_flog') && colIndex.id_flog === undefined) colIndex.id_flog = idx;
-    else if (c === 'nombre' && colIndex.nombre !== undefined && colIndex.nombre_flog === undefined) colIndex.nombre_flog = idx; // 2nd Nombre (FLOG / Client name)
-    else if ((c === 'calidadflog' || c === 'calidad flog') && colIndex.calidad_flog === undefined) colIndex.calidad_flog = idx;
-    else if ((c === 'pzas rollo' || c === 'pzas_rollo') && colIndex.pzas_rollo === undefined) colIndex.pzas_rollo = idx;
-    else if ((c === 'kg rollo' || c === 'kg_rollo') && colIndex.kg_rollo === undefined) colIndex.kg_rollo = idx;
-    else if ((c === 'mts rollo' || c === 'mts_rollo') && colIndex.mts_rollo === undefined) colIndex.mts_rollo = idx;
-    else if ((c === 'no tiras' || c === 'no_tiras') && colIndex.no_tiras === undefined) colIndex.no_tiras = idx;
-    else if ((c === 'medida 1' || c === 'medida_1') && colIndex.medida_1 === undefined) colIndex.medida_1 = idx;
-    else if ((c === 'medida 2' || c === 'medida_2') && colIndex.medida_2 === undefined) colIndex.medida_2 = idx;
-    else if ((c === 'pzas t1' || c === 'pzast1') && colIndex.pzas_t1 === undefined) colIndex.pzas_t1 = idx;
-    else if ((c === 'pzas t2' || c === 'pzast2') && colIndex.pzas_t2 === undefined) colIndex.pzas_t2 = idx;
-    else if ((c === 'pzas t3' || c === 'pzast3') && colIndex.pzas_t3 === undefined) colIndex.pzas_t3 = idx;
-    else if ((c === 'pzas t4' || c === 'pzast4') && colIndex.pzas_t4 === undefined) colIndex.pzas_t4 = idx;
-    else if ((c === 'turno tejido' || c === 'turno') && colIndex.turno_tejido === undefined) colIndex.turno_tejido = idx;
-    else if ((c === 'codigo defecto' || c === 'codigo_defecto') && colIndex.codigo_defecto === undefined) colIndex.codigo_defecto = idx;
-    else if ((c === 'cantidad' || c === 'cant') && colIndex.cantidad === undefined) colIndex.cantidad = idx;
-    else if (c === 'defecto' && colIndex.defecto === undefined) colIndex.defecto = idx;
-  });
+  const rawHeaders = bestRawRows[bestHeaderRowIdx] || [];
+  const cleanHeaders = rawHeaders.map(h => ultraClean(h));
+
+  const findCol = (aliases, defaultPos) => {
+    for (const alias of aliases) {
+      const target = ultraClean(alias);
+      const idx = cleanHeaders.findIndex(h => h === target || h.includes(target) || target.includes(h));
+      if (idx !== -1) return idx;
+    }
+    return defaultPos !== undefined ? defaultPos : -1;
+  };
+
+  const colIndex = {
+    produccion: findCol(['produccion', 'op', 'orden produccion'], 0),
+    fecha: findCol(['fecha', 'dia'], 1),
+    codigo_bodega: findCol(['codigo de barras', 'codigo bodega', 'codigo barras', 'barras'], 2),
+    codigo_articulo: findCol(['codigo de articulo', 'codigo articulo', 'cve articulo'], 3),
+    nombre_articulo: findCol(['nombre del articulo', 'nombre articulo', 'descripcion articulo'], 4),
+    configuracion: findCol(['configuracion', 'config'], 5),
+    tamano: findCol(['tamano', 'tamanio', 'medida'], 6),
+    color: findCol(['color'], 7),
+    nombre: 8,
+    almacen: findCol(['almacen', 'alm'], 9),
+    numero_lote: findCol(['numero de lote', 'numero lote', 'lote'], 10),
+    localidad: findCol(['localidad', 'telar', 'loc'], 11),
+    salon: findCol(['salon', 'depto', 'departamento'], 12),
+    numero_serie: findCol(['numero de serie', 'numero serie', 'serie'], 13),
+    id_flog: findCol(['id flog', 'id_flog', 'flog'], 14),
+    nombre_flog: 15,
+    calidad_flog: findCol(['calidadflog', 'calidad flog', 'calidad'], 16),
+    pzas_rollo: findCol(['pzas rollo', 'pzas_rollo', 'piezas rollo'], 17),
+    kg_rollo: findCol(['kg rollo', 'kg_rollo', 'kilos'], 18),
+    mts_rollo: findCol(['mts rollo', 'mts_rollo', 'metros'], 19),
+    no_tiras: findCol(['no tiras', 'no_tiras', 'tiras'], 20),
+    medida_1: findCol(['medida 1', 'medida_1'], 21),
+    medida_2: findCol(['medida 2', 'medida_2'], 22),
+    pzas_t1: findCol(['pzas t1', 'pzast1'], 23),
+    pzas_t2: findCol(['pzas t2', 'pzast2'], 24),
+    pzas_t3: findCol(['pzas t3', 'pzast3'], 25),
+    pzas_t4: findCol(['pzas t4', 'pzast4'], 26),
+    turno_tejido: findCol(['turno tejido', 'turno_tejido', 'turno'], 27),
+    codigo_defecto: findCol(['codigo defecto', 'codigo_defecto', 'cve defecto'], 28),
+    cantidad: findCol(['cantidad', 'cant', 'piezas'], 29),
+    defecto: 30
+  };
 
   const getCell = (row, idx) => {
     if (idx === undefined || idx < 0 || idx >= row.length) return '';
@@ -8198,7 +8211,7 @@ function parseWorkbookMatrixToStaging(workbook, template, filename, dbCargaId) {
       // General fallback using mapExcelRowToStaging
       const rowObj = {};
       rawHeaders.forEach((h, colIdx) => {
-        const hKey = cleanHelper(h) || `col_${colIdx}`;
+        const hKey = ultraClean(h) || `col_${colIdx}`;
         rowObj[hKey] = row[colIdx] !== undefined ? row[colIdx] : '';
       });
       const mapped = mapExcelRowToStaging(rowObj, template);

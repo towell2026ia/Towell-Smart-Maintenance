@@ -1237,7 +1237,7 @@
                 <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">Sube bases de datos autorizadas para importación masiva y validación en staging.</p>
               </div>
               <button type="button" class="btn-nav btn-nav-outline" onclick="forceAppCachePurge()" style="width: auto; padding: 6px 14px; font-size: 0.8rem; border-color: #3b82f6; color: #1d4ed8; background: #eff6ff;">
-                🔄 Actualizar App / Limpiar Caché (v3.5.3)
+                🔄 Actualizar App / Limpiar Caché (v3.5.4)
               </button>
             </div>
 
@@ -4956,16 +4956,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.5.3"></script>
-  <script src="agents-client.js?v=3.5.3"></script>
-  <script src="app.js?v=3.5.3"></script>
-  <script src="dashboard.js?v=3.5.3"></script>
+  <script src="seed.js?v=3.5.4"></script>
+  <script src="agents-client.js?v=3.5.4"></script>
+  <script src="app.js?v=3.5.4"></script>
+  <script src="dashboard.js?v=3.5.4"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.5.3')
+        navigator.serviceWorker.register('./sw.js?v=3.5.4')
           .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
           .catch(err => console.warn('⚠️ ServiceWorker error:', err));
       });
