@@ -13,6 +13,7 @@ import { calculateCost, fetchModelRates, logExecutionRecord } from './cost-track
 import { executeAG005Audit } from '../agents/ag005/ag005-executor.ts';
 import { executeAG006FormBuilder } from '../agents/ag006/ag006-executor.ts';
 import { executeAG009 } from '../agents/ag009/ag009-executor.ts';
+import { executeAG010 } from '../agents/ag010/ag010-executor.ts';
 
 export interface SecretsConfig {
   OPENAI_API_KEY?: string;
@@ -377,6 +378,36 @@ export async function executeAgentFlow(
         status: ag009Result.success ? 'SUCCESS' : 'FAILED',
         result: ag009Result
       });
+    // If target is AG-010 (Cinco Porqués y Casos Anteriores), execute reliability specialist
+    let ag010Result = null;
+    if (route.agent_id === 'AG-010') {
+      ag010Result = await executeAG010({
+        request_id: humanEventId,
+        event_id: humanEventId,
+        correlation_id: corrId,
+        asset_id: cleanedPayload.asset_id || cleanedPayload.id_maquina || 'UNKNOWN_ASSET',
+        problem_statement: cleanedPayload.problem_statement || cleanedPayload.descripcion || 'Falla no especificada',
+        evaluation_at: cleanedPayload.evaluation_at || new Date().toISOString(),
+        m010_context: cleanedPayload.m010_context || cleanedPayload.context || {},
+        ag008_context: cleanedPayload.ag008_context,
+        m011_context: cleanedPayload.m011_context,
+        api_key: secrets.MIMO_API_KEY
+      });
+      await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-010',
+        execution_type: 'AGENT_EXECUTION',
+        provider: ag010Result.execution_mode === 'FAST_PATH' ? 'none' : 'mimo',
+        model: ag010Result.execution_mode === 'FAST_PATH' ? 'none' : 'mimo-v2.5',
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - new Date(startedAt).getTime(),
+        input_tokens: ag010Result.telemetry.tokens.input_tokens,
+        output_tokens: ag010Result.telemetry.tokens.output_tokens,
+        estimated_cost_usd: ag010Result.telemetry.cost_usd,
+        status: ag010Result.success ? 'SUCCESS' : 'FAILED',
+        result: ag010Result
+      });
     }
 
     if (supabase && dbEventId) {
@@ -395,13 +426,14 @@ export async function executeAgentFlow(
       correlation_id: corrId,
       event_id: humanEventId,
       execution_id: execId,
-      llm_used: false,
+      llm_used: ag010Result?.execution_mode === 'MIMO_V2_5',
       sequence_executed: sequenceExecuted,
       result: {
         target_agent: route.agent_id,
         sequence_executed: sequenceExecuted,
         audit_result: ag005AuditResult,
-        form_builder_result: ag006Result
+        form_builder_result: ag006Result,
+        ag010_result: ag010Result
       }
     };
   }
