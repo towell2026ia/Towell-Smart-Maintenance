@@ -128,6 +128,9 @@ export interface AG011MemoryCandidate {
 export interface AG011MemoryQuery {
   query_id?: string;
   asset_id: string;
+  machine_model?: string | null;
+  machine_family?: string | null;
+  department?: string | null;
   evaluation_at: string;
   problem_context: {
     statement: string;

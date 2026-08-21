@@ -12,6 +12,9 @@ export const AG011_MEMORY_QUERY_SCHEMA = {
   properties: {
     query_id: { type: 'string' },
     asset_id: { type: 'string' },
+    machine_model: { type: ['string', 'null'] },
+    machine_family: { type: ['string', 'null'] },
+    department: { type: ['string', 'null'] },
     evaluation_at: { type: 'string', format: 'date-time' },
     problem_context: {
       type: 'object',

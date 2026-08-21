@@ -23,8 +23,8 @@ export class AG011MemoryRetriever {
     // 1. Anti-Loop: Exclude memories originating from current case
     let candidates = AG011CircularDependencyGuard.filterOutOriginCases(memoryStore, currentCaseId);
 
-    // 2. Filter by Productive Status: APPROVED only by default
-    candidates = candidates.filter(m => m.status === 'APPROVED');
+    // 2. Filter by Productive/Historical Status: APPROVED or SUPERSEDED (superseded valid only if query evaluation_at was within its active window)
+    candidates = candidates.filter(m => m.status === 'APPROVED' || m.status === 'SUPERSEDED');
 
     // 3. Temporal Cutoff Filter: Must be effective at evaluation_at
     candidates = candidates.filter(m => AG011MemoryVersionEngine.isEffectiveAt(m, queryTimestamp));
@@ -33,6 +33,9 @@ export class AG011MemoryRetriever {
     candidates = candidates.filter(m => {
       const match = AG011ApplicabilityResolver.evaluateScopeMatch(m.scope, {
         asset_id: query.asset_id,
+        machine_model: query.machine_model || undefined,
+        machine_family: query.machine_family || undefined,
+        department: query.department || undefined,
         component_id: query.problem_context.component || undefined
       });
       return match.matches;
@@ -45,6 +48,7 @@ export class AG011MemoryRetriever {
     const rankedResults = AG011MemoryRanker.rankMemories({
       memories: candidates,
       asset_id: query.asset_id,
+      machine_model: query.machine_model,
       component_id: query.problem_context.component,
       problem_text: query.problem_context.statement
     });

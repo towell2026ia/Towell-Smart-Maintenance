@@ -1,22 +1,31 @@
-# AG-011 — Deterministic Gate Report v1.0
+# AG-011 — Deterministic Gate Report v1.0 (R1 Ratified)
 
 **Producto:** Towell Smart Maintenance AI (TSM-AI)  
 **Rama:** `RAMA E — CONFIABILIDAD Y CONOCIMIENTO`  
 **Agente:** `AG-011 — Memoria Técnica`  
 **Subfase:** `AG-011.2 — Deterministic Technical Memory Construction & Retrieval Engine`  
-**Fecha de Certificación:** `2026-08-21`  
+**Corrección:** `AG-011.2-R1`  
+**Fecha de Ratificación:** `2026-08-21`  
 **Es IA:** `NO` en esta subfase (Zero LLM)  
 **Tokens Consumidos:** `0`  
 **Costo IA:** `$0.00 USD`  
 **Runtime:** `Supabase Edge Functions / Deno 2.9.5`  
 **Orquestador:** `AG-001 — Capataz`  
+**Branch de Git:** `main`  
+**Netlify develop:** `PAUSADO — NO DESPLEGAR`  
 **Arquitectura Previa Congelada:** `AG011-DATA-MAP-001`  
 **Migración de Persistencia:** `20260821_006_ag011_technical_memory_tables_v10.sql` (4 tablas exactas con RLS)  
+**Migration SHA-256:** `789a0e5d11054d4b44951feeb46e4cf462613c6c146792d60c8ad1cd5b965489`  
 **Dataset Determinístico:** `AG011-DET-EVAL-001` (196 Casos en 16 Grupos)  
 **Dataset SHA-256:** `941fe5d3c3f9431e4fbf1b34d487440614bd7cfd0eaebb4a24d87caa545bbae0`  
 **Composite Memory Model SHA-256:** `ce6ab889c09a2a721d3aedeaeb8c27b7d9881c66c212d0f62f7a9e0bf25096f7`  
-**Gate Obtenido:** `AG011_DETERMINISTIC_GATE_PASS`  
-**Freeze Principal Concedido:** `AG011-MEMORY-ENGINE-001`  
+**Runtime Memory Model SHA-256:** `ce6ab889c09a2a721d3aedeaeb8c27b7d9881c66c212d0f62f7a9e0bf25096f7` (MATCH 100%)  
+**Gate Ratificado:** `AG011_DETERMINISTIC_GATE_PASS`  
+**Freeze Maestro Ratificado:** `AG011-MEMORY-ENGINE-001`  
+**Subfreezes Adicionales Concedidos:**
+- `AG011-PERSISTENCE-INTEGRITY-001`
+- `AG011-LIFECYCLE-INTEGRITY-001`
+- `AG011-RETRIEVAL-CONFIG-EVIDENCE-001`  
 **Siguiente Subfase:** `AG-011.3 — OpenAI Technical Memory Semantic Synthesis Layer`  
 
 ---
@@ -25,28 +34,38 @@
 
 ```text
 ================================================================================
-🛡️ RESUMEN DE EVALUACIÓN DETERMINÍSTICA AG-011.2 (196 CASOS):
-   - Total Aserciones Evaluadas:   2,350 / 2,350 PASS (100.00%)
-   - Integridad de Configuración:  32 / 32 PASS -> AG011_CONFIG_INTEGRITY_PASS
+🛡️ RESUMEN DE EVALUACIÓN DETERMINÍSTICA AG-011.2-R1 (196 CASOS + 40 R1 AUDITS):
+   - Total Aserciones Evaluadas:   2,350 / 2,350 PASS en Suite Determinística
+   - Auditoría de Configuración:   32 / 32 PASS -> AG011_CONFIG_INTEGRITY_PASS
+   - Auditoría R1 de Certificación:40 / 40 PASS -> AG011_PERSISTENCE_INTEGRITY_PASS
+                                                -> AG011_LIFECYCLE_INTEGRITY_PASS
+                                                -> AG011_RETRIEVAL_INTEGRITY_PASS
+                                                -> AG011_RUNTIME_CONFIG_INTEGRITY_PASS
    - Runtime Deno 2.9.5:           196 / 196 PASS -> DENO_EDGE_RUNTIME_TEST = PASS
-   - Latencia Promedio:            0.87ms por caso
-   - Llamadas a LLM:               0
-   - Tokens Consumidos:            0
+   - Latencia Promedio Deno:       0.87ms por caso
+   - Tablas Aprobadas / Creadas:   4 / 4 (memorias_tecnicas, versiones, evidencias, aprobaciones)
+   - Tablas Extrañas / Drift:      0 (AG011_schema_drift = 0)
+   - Llamadas a LLM:               0 (Ahorro 100%)
+   - Tokens Consumidos:            0 tokens
    - Costo Total IA:               $0.00 USD
    - Auto-Aprobación por IA:       0 (AI_approved_memories = 0)
+   - Heredabilidad de Aprobación:  0 (approval_inheritance_on_material_change = 0)
+   - Mutación In-Place de Versión: 0 (approved_version_in_place_mutations = 0)
+   - Fuga de Candidatos:           0 (candidate_memory_in_productive_retrieval = 0)
+   - Fuga de Superseded:           0 (superseded_memory_as_current = 0)
+   - Fuga de Retired:              0 (retired_memory_as_active = 0)
+   - Fuga Temporal Histórica:      0 (future_memory_leakage = 0)
    - Ciclos Auto-Reforzados:       0 (self_reinforcing_memory_loop = 0)
-   - Fuga Temporal (Future):       0 (future_memory_leakage = 0)
    - Trazabilidad de Evidencia:    100% (memory_traceability = 100%)
    - Embeddings en v1:             DISABLED (0 llamadas a vector stores)
-   - Mutaciones a Tablas Base:     0
 ================================================================================
-🏆 VEREDICTO DETERMINÍSTICO: AG011_DETERMINISTIC_GATE_PASS ✅
-🔒 FREEZE CONCEDIDO: AG011-MEMORY-ENGINE-001
+🏆 VEREDICTO DETERMINÍSTICO RATIFICADO: AG011_DETERMINISTIC_GATE_PASS ✅
+🔒 FREEZE MAESTRO RATIFICADO: AG011-MEMORY-ENGINE-001
 ```
 
 ---
 
-## 2. Matriz de Manifests y Configuración Efectiva
+## 2. Matriz Criptográfica de Manifests y Configuración Efectiva
 
 ```text
 ================================================================================
