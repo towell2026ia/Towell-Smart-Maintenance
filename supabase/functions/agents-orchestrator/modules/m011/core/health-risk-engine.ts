@@ -14,6 +14,8 @@ import { HealthRiskResultBuilder } from './health-risk-result-builder.ts';
 import { HealthRiskEvidenceBuilder } from '../evidence/health-risk-evidence-builder.ts';
 import { computeHealthRiskFingerprint } from '../freshness/health-risk-freshness-resolver.ts';
 import { HealthRiskAuditor } from '../audit/health-risk-calculation-audit.ts';
+import { HealthRiskBoundaryValidator } from '../validators/health-risk-boundary-validator.ts';
+import { ScoringConfigRegistry } from '../config/m011-scoring-config-registry.ts';
 import { HEALTH_MODEL_VERSION } from '../contracts/m011-health-model.contract.ts';
 import { RISK_MODEL_VERSION } from '../contracts/m011-risk-model.contract.ts';
 import type { M011AssetInputContext } from '../contracts/m011-asset-input.contract.ts';
@@ -44,6 +46,7 @@ export interface HealthRiskEvaluationResponse {
     risk_evidence: any;
   };
   calculation_fingerprint: string;
+  m011_model_sha256: string;
   duration_ms: number;
 }
 
@@ -56,8 +59,9 @@ export class HealthRiskEngine {
     const evaluationAt = request.evaluation_at || new Date().toISOString();
     const context = request.context;
 
-    // 1. Guard against client payload tampering
+    // 1. Guard against client payload tampering & validate weight separation
     HealthRiskScoreGuard.assertNoClientOverrides(context as any);
+    HealthRiskBoundaryValidator.validateWeightSeparation();
 
     const assetId = context.asset_id;
     const criticality: AssetCriticality = context.identity?.criticidad || 'MEDIA';
@@ -71,10 +75,12 @@ export class HealthRiskEngine {
 
     // 4. Build Health Components and Aggregate Health Score
     const healthComponents = HealthComponentEngine.buildHealthComponents(resolvedFeatures);
+    HealthRiskBoundaryValidator.validateHealthComponentsIsolation(healthComponents);
     const healthScore = HealthScoreAggregator.aggregateHealthScore(healthComponents, healthSufficiency.is_sufficient);
 
     // 5. Build Risk Components and Aggregate Risk Score
     const riskComponents = RiskComponentEngine.buildRiskComponents(resolvedFeatures, healthScore);
+    HealthRiskBoundaryValidator.validateRiskComponentsIsolation(riskComponents);
     const riskScore = RiskScoreAggregator.aggregateRiskScore(riskComponents, riskSufficiency.is_sufficient);
 
     // 6. Build Results & Summary
@@ -91,9 +97,10 @@ export class HealthRiskEngine {
       sourceReferences: context.source_references || []
     });
 
-    // 7. Build Explainability Evidence
+    // 7. Build Explainability Evidence & Composite SHA-256
     const healthEvidence = HealthRiskEvidenceBuilder.buildEvidence('HEALTH', healthScore, healthComponents);
     const riskEvidence = HealthRiskEvidenceBuilder.buildEvidence('RISK', riskScore, riskComponents);
+    const compositeModel = ScoringConfigRegistry.getCompositeModelEvidence();
 
     // 8. Compute Calculation Fingerprint
     const fingerprint = computeHealthRiskFingerprint({
@@ -117,6 +124,7 @@ export class HealthRiskEngine {
       evaluation_at: evaluationAt,
       health_model_version: HEALTH_MODEL_VERSION,
       risk_model_version: RISK_MODEL_VERSION,
+      m011_model_sha256: compositeModel.m011_model_sha256,
       health_score: healthScore,
       health_state: results.health.health_state,
       risk_score: riskScore,
@@ -140,6 +148,7 @@ export class HealthRiskEngine {
         risk_evidence: riskEvidence
       },
       calculation_fingerprint: fingerprint,
+      m011_model_sha256: compositeModel.m011_model_sha256,
       duration_ms: durationMs
     };
   }

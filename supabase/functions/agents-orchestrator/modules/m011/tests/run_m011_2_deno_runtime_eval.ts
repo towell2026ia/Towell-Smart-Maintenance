@@ -68,6 +68,7 @@ async function runDenoRuntimeEvaluation() {
   console.log(`   - Componentes Health:  ${res.health.components.length}`);
   console.log(`   - Componentes Risk:    ${res.risk.components.length}`);
   console.log(`   - Fingerprint:         ${res.calculation_fingerprint}`);
+  console.log(`   - Composite Model SHA: ${res.m011_model_sha256}`);
   console.log(`   - Duración:            ${res.duration_ms}ms\n`);
 
   if (
@@ -75,7 +76,9 @@ async function runDenoRuntimeEvaluation() {
     res.health.health_score === 100.0 &&
     res.health.health_state === 'HEALTHY' &&
     res.risk.risk_score === 25.0 &&
-    res.risk.risk_state === 'MODERATE'
+    res.risk.risk_state === 'MODERATE' &&
+    typeof res.m011_model_sha256 === 'string' &&
+    res.m011_model_sha256.length > 0
   ) {
     console.log('🏆 VEREDICTO DENO RUNTIME: DENO_EDGE_RUNTIME_TEST = PASS ✅\n');
   } else {

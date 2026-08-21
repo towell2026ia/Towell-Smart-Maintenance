@@ -14,6 +14,7 @@ export interface HealthRiskAuditRecord {
   evaluation_at: string;
   health_model_version: string;
   risk_model_version: string;
+  m011_model_sha256: string;
   health_score: number | null;
   health_state: HealthState;
   risk_score: number | null;
