@@ -1,0 +1,64 @@
+{
+  "version": "AG011-ARCH-EVAL-001",
+  "description": "Architecture & Knowledge Governance Evaluation Dataset for AG-011 (156 Assertions)",
+  "total_assertions": 156,
+  "groups": [
+    {
+      "group": "M-010 / Source Mapping",
+      "count": 12
+    },
+    {
+      "group": "AG-010 / AG-008 / M-011 Boundaries",
+      "count": 12
+    },
+    {
+      "group": "Memory Definition",
+      "count": 12
+    },
+    {
+      "group": "Memory Candidate Rules",
+      "count": 12
+    },
+    {
+      "group": "Evidence / Traceability",
+      "count": 14
+    },
+    {
+      "group": "Memory Scope / Applicability",
+      "count": 12
+    },
+    {
+      "group": "Status / Approval",
+      "count": 12
+    },
+    {
+      "group": "Versioning / Supersession",
+      "count": 12
+    },
+    {
+      "group": "Retrieval / Ranking",
+      "count": 14
+    },
+    {
+      "group": "Freshness",
+      "count": 8
+    },
+    {
+      "group": "Circular Dependency Protection",
+      "count": 10
+    },
+    {
+      "group": "Persistence Analysis",
+      "count": 8
+    },
+    {
+      "group": "Security / Authority",
+      "count": 10
+    },
+    {
+      "group": "No-LLM / Foreign Boundaries",
+      "count": 8
+    }
+  ],
+  "generated_at": "2026-08-21T22:40:35.475Z"
+}
