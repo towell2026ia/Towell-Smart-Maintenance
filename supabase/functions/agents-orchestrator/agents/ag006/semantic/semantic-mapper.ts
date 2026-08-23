@@ -28,9 +28,9 @@ export interface SemanticMapperOptions {
   mockResponse?: any;
 }
 
-// Tariff Model Snapshot for gpt-4.1-mini ($0.15 / 1M input tokens, $0.60 / 1M output tokens)
+// Tariff Model Snapshot for gpt-4o-mini ($0.15 / 1M input tokens, $0.60 / 1M output tokens)
 const TARIFF_SNAPSHOT = {
-  model: 'gpt-4.1-mini',
+  model: 'gpt-4o-mini',
   price_input_per_1m: 0.15,
   price_output_per_1m: 0.60
 };
