@@ -61,9 +61,10 @@ export async function executeAG009(
     'AUTONOMOUS_FINDING',
     'PREDICTIVE_FINDING',
     'ALERTA_CORRECTIVA',
-    'LEVANTAMIENTO_NO_CONFORME',
     'CORRECTIVE_OT_CREATE',
-    'CORRECTIVE_REQUEST_VALIDATE'
+    'CORRECTIVE_REQUEST_VALIDATE',
+    'GENERAR_ORDEN_TRABAJO',
+    'ORDEN_TRABAJO_GENERAR'
   ].includes(normEvent);
 
   if (isCorrectiveEvent || payload.contract_id === 'CORRECTIVE-REQUEST-001' || payload.contract_id === 'PREDICTIVE-FINDING-001') {

@@ -379,6 +379,8 @@ export async function executeAgentFlow(
         status: ag009Result.success ? 'SUCCESS' : 'FAILED',
         result: ag009Result
       });
+    }
+
     // If target is AG-010 (Cinco Porqués y Casos Anteriores), execute reliability specialist
     let ag010Result = null;
     if (route.agent_id === 'AG-010') {
