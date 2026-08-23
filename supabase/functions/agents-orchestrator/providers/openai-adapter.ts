@@ -11,6 +11,8 @@ export interface AIResponse {
   reasoningTokens: number;
   modelUsed: string;
   durationMs: number;
+  responseId?: string;
+  httpStatus?: number;
 }
 
 export const CAPATAZ_NANO_SYSTEM_PROMPT = `
@@ -140,7 +142,9 @@ export async function callOpenAIWithRetry(
         cachedInputTokens: usage.prompt_tokens_details?.cached_tokens || 0,
         reasoningTokens: usage.completion_tokens_details?.reasoning_tokens || 0,
         modelUsed: model,
-        durationMs
+        durationMs,
+        responseId: data.id || `chatcmpl-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+        httpStatus: response.status
       };
     } catch (err: any) {
       lastError = err;

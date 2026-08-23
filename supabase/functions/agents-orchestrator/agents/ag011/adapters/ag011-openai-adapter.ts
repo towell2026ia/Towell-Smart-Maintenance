@@ -15,7 +15,11 @@ export interface AG011OpenAIExecutionResult {
   total_tokens: number;
   cost_usd: number;
   latency_ms: number;
+  network_provider_latency_ms: number;
+  provider_response_id: string;
+  http_status: number;
   model: string;
+  cache_hit: boolean;
 }
 
 export class AG011OpenAIAdapter {
@@ -45,7 +49,11 @@ export class AG011OpenAIAdapter {
         total_tokens: estInputTokens + estOutputTokens,
         cost_usd: estCost,
         latency_ms: Date.now() - startTime,
-        model: this.MODEL
+        network_provider_latency_ms: Date.now() - startTime,
+        provider_response_id: `mock-chatcmpl-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+        http_status: 200,
+        model: this.MODEL,
+        cache_hit: false
       };
     }
 
@@ -79,7 +87,11 @@ export class AG011OpenAIAdapter {
       total_tokens: response.inputTokens + response.outputTokens,
       cost_usd: costUsd,
       latency_ms: response.durationMs,
-      model: response.modelUsed
+      network_provider_latency_ms: response.durationMs,
+      provider_response_id: response.responseId || `chatcmpl-${Date.now()}`,
+      http_status: response.httpStatus || 200,
+      model: response.modelUsed,
+      cache_hit: false
     };
   }
 }

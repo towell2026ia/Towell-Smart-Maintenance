@@ -40,6 +40,10 @@ export interface AG011SemanticLayerResponse {
   };
   cost_usd: number;
   latency_ms: number;
+  network_provider_latency_ms?: number;
+  provider_response_id?: string;
+  http_status?: number;
+  cache_hit?: boolean;
   semantic_model_sha256: string;
 }
 
@@ -78,6 +82,10 @@ export class AG011SemanticLayer {
     let outputTokens = 0;
     let totalTokens = 0;
     let costUsd = 0;
+    let networkProviderLatencyMs = 0;
+    let providerResponseId = 'NONE';
+    let httpStatus = 200;
+    let cacheHit = false;
     let executionMode: 'OPENAI_GPT41_MINI' | 'FAST_PATH' = 'OPENAI_GPT41_MINI';
     let providerName: 'OpenAI' | 'FAST_PATH' = 'OpenAI';
     let modelName: 'gpt-4o-mini' | 'NONE' = 'gpt-4o-mini';
@@ -100,6 +108,10 @@ export class AG011SemanticLayer {
       outputTokens = openaiResult.output_tokens;
       totalTokens = openaiResult.total_tokens;
       costUsd = openaiResult.cost_usd;
+      networkProviderLatencyMs = openaiResult.network_provider_latency_ms;
+      providerResponseId = openaiResult.provider_response_id;
+      httpStatus = openaiResult.http_status;
+      cacheHit = openaiResult.cache_hit;
     }
 
     // 6. Execute Semantic Output Validation Pipeline
@@ -152,6 +164,10 @@ export class AG011SemanticLayer {
       },
       cost_usd: costUsd,
       latency_ms: latencyMs,
+      network_provider_latency_ms: networkProviderLatencyMs,
+      provider_response_id: providerResponseId,
+      http_status: httpStatus,
+      cache_hit: cacheHit,
       semantic_model_sha256: semanticModelEvidence.ag011_semantic_model_sha256
     };
   }
