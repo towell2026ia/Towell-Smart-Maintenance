@@ -12657,12 +12657,24 @@ function generateCalendarProposalModal() {
   if (proposalYear) {
     proposalYear.value = new Date().getFullYear();
   }
+  const proposalMonth = document.getElementById('proposal-month');
+  if (proposalMonth) {
+    proposalMonth.value = String(new Date().getMonth());
+  }
+  const proposalWeek = document.getElementById('proposal-week');
+  if (proposalWeek) {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const diff = now - start;
+    const oneWeek = 1000 * 60 * 60 * 24 * 7;
+    proposalWeek.value = Math.max(1, Math.min(52, Math.ceil(diff / oneWeek)));
+  }
   toggleProposalPeriodFields();
   openModal('modal-generate-calendar-proposal');
 }
 
 function toggleProposalPeriodFields() {
-  const type = document.getElementById('proposal-type').value;
+  const type = document.getElementById('proposal-type')?.value || 'PREVENTIVO';
   const monthGroup = document.getElementById('proposal-month-group');
   const weekGroup = document.getElementById('proposal-week-group');
   
@@ -12684,16 +12696,20 @@ async function validateProposalPeriod() {
   const submitBtn = document.getElementById('btn-submit-proposal');
   if (!warningEl || !submitBtn) return;
 
-  const type = document.getElementById('proposal-type').value;
-  const year = parseInt(document.getElementById('proposal-year').value) || new Date().getFullYear();
+  const type = document.getElementById('proposal-type')?.value || 'PREVENTIVO';
+  const year = parseInt(document.getElementById('proposal-year')?.value) || new Date().getFullYear();
   
   let month = null;
   let week = null;
+  let periodLabel = `${type} ${year}`;
 
   if (type === 'PREDICTIVO') {
-    month = parseInt(document.getElementById('proposal-month').value);
+    month = parseInt(document.getElementById('proposal-month')?.value ?? new Date().getMonth());
+    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    periodLabel = `Predictivo ${monthNames[month] || month} ${year}`;
   } else if (type === 'AUTONOMO') {
-    week = parseInt(document.getElementById('proposal-week').value);
+    week = parseInt(document.getElementById('proposal-week')?.value ?? 1);
+    periodLabel = `Autónomo Semana ${week} de ${year}`;
   }
 
   if (useLiveDatabase && supabaseClient) {
@@ -12712,6 +12728,7 @@ async function validateProposalPeriod() {
 
       const { data, error } = await query;
       if (!error && data && data.length > 0) {
+        warningEl.innerHTML = `⚠️ Ya existe un calendario registrado para este período (${periodLabel}). Selecciona otro período o consulta el calendario existente.`;
         warningEl.style.display = 'block';
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.5';
@@ -12724,7 +12741,14 @@ async function validateProposalPeriod() {
       }
     } catch (e) {
       console.warn('[validateProposalPeriod] Error checking periods:', e);
+      warningEl.style.display = 'none';
+      submitBtn.disabled = false;
+      submitBtn.style.opacity = '1';
     }
+  } else {
+    warningEl.style.display = 'none';
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = '1';
   }
 }
 

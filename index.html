@@ -4510,24 +4510,24 @@
           
           <div class="form-group">
             <label for="chk-new-service">Servicio de Mantenimiento *</label>
-            <select id="chk-new-service" class="form-control" required style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+            <select id="chk-new-service" class="form-control" required style="background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; padding: 10px 12px; border-radius: 6px; width: 100%; font-size: 0.95rem;">
               <option value="">Selecciona servicio...</option>
             </select>
           </div>
 
           <div class="form-group">
             <label for="chk-new-code">Código de la Pregunta (Ej. P01) *</label>
-            <input type="text" id="chk-new-code" class="form-control" placeholder="Ej. P01" required style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+            <input type="text" id="chk-new-code" class="form-control" placeholder="Ej. P01" required style="background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; padding: 10px 12px; border-radius: 6px; width: 100%; font-size: 0.95rem;">
           </div>
 
           <div class="form-group">
             <label for="chk-new-question">Pregunta / Tarea del Checklist *</label>
-            <input type="text" id="chk-new-question" class="form-control" placeholder="Ej. Verificar tensión de bandas" required style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+            <input type="text" id="chk-new-question" class="form-control" placeholder="Ej. Verificar tensión de bandas" required style="background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; padding: 10px 12px; border-radius: 6px; width: 100%; font-size: 0.95rem;">
           </div>
 
           <div class="form-group">
             <label for="chk-new-type">Tipo de Respuesta *</label>
-            <select id="chk-new-type" class="form-control" required style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+            <select id="chk-new-type" class="form-control" required style="background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; padding: 10px 12px; border-radius: 6px; width: 100%; font-size: 0.95rem;">
               <option value="si_no">Sí / No</option>
               <option value="texto">Texto Libre</option>
               <option value="numerico">Valor Numérico</option>
@@ -4541,17 +4541,17 @@
 
           <div class="form-group">
             <label for="chk-new-order">Orden de Aparición</label>
-            <input type="number" id="chk-new-order" class="form-control" value="1" min="1" required style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+            <input type="number" id="chk-new-order" class="form-control" value="1" min="1" required style="background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; padding: 10px 12px; border-radius: 6px; width: 100%; font-size: 0.95rem;">
           </div>
 
           <div class="form-group">
             <label for="chk-new-obs">Observaciones / Guía para el técnico</label>
-            <input type="text" id="chk-new-obs" class="form-control" placeholder="Ej. Revisar con calibrador" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+            <input type="text" id="chk-new-obs" class="form-control" placeholder="Ej. Revisar con calibrador" style="background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; padding: 10px 12px; border-radius: 6px; width: 100%; font-size: 0.95rem;">
           </div>
 
           <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
             <button type="button" class="btn-action-secondary" onclick="closeModal('modal-admin-new-checklist-question')">Cancelar</button>
-            <button type="submit" class="btn-action-primary" style="background: var(--accent-blue); color: white;">💾 Guardar Pregunta</button>
+            <button type="submit" class="btn-action-primary" style="background: #2563eb; color: #ffffff; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; border: none;">💾 Guardar Pregunta</button>
           </div>
         </form>
       </div>
@@ -4564,30 +4564,30 @@
   
   <!-- Modal: Proponer Calendario -->
   <div class="modal-overlay" id="modal-generate-calendar-proposal">
-    <div class="modal-card" style="max-width: 500px;">
-      <div class="modal-header">
-        <h4 style="font-weight:700; margin:0; font-size:1.15rem;">⚡ Proponer Calendario de Mantenimiento</h4>
-        <button class="btn-close-modal" onclick="closeModal('modal-generate-calendar-proposal')">×</button>
+    <div class="modal-card" style="max-width: 500px; background: #ffffff; color: #1e293b; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border-radius: 12px;">
+      <div class="modal-header" style="border-bottom: 1px solid #e2e8f0; padding: 16px 20px;">
+        <h4 style="font-weight:700; margin:0; font-size:1.15rem; color: #0f172a;">⚡ Proponer Calendario de Mantenimiento</h4>
+        <button class="btn-close-modal" onclick="closeModal('modal-generate-calendar-proposal')" style="color: #64748b; font-size: 1.5rem;">×</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="padding: 20px;">
         <form id="form-generate-proposal" onsubmit="handleGenerateCalendarProposal(event)">
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label for="proposal-type" style="font-weight: 600; display: block; margin-bottom: 4px;">Tipo de Calendario</label>
-            <select id="proposal-type" class="form-control" onchange="toggleProposalPeriodFields()" required style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="proposal-type" style="font-weight: 600; display: block; margin-bottom: 6px; color: #334155;">Tipo de Calendario</label>
+            <select id="proposal-type" class="form-control" onchange="toggleProposalPeriodFields()" required style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size: 0.95rem;">
               <option value="PREVENTIVO">Preventivo Anual</option>
               <option value="PREDICTIVO">Predictivo Mensual</option>
               <option value="AUTONOMO">Autónomo Semanal</option>
             </select>
           </div>
 
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label for="proposal-year" style="font-weight: 600; display: block; margin-bottom: 4px;">Año</label>
-            <input type="number" id="proposal-year" class="form-control" value="2026" min="2020" max="2035" onchange="validateProposalPeriod()" required style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="proposal-year" style="font-weight: 600; display: block; margin-bottom: 6px; color: #334155;">Año</label>
+            <input type="number" id="proposal-year" class="form-control" value="2026" min="2020" max="2035" onchange="validateProposalPeriod()" required style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size: 0.95rem;">
           </div>
 
-          <div class="form-group" id="proposal-month-group" style="margin-bottom: 12px; display: none;">
-            <label for="proposal-month" style="font-weight: 600; display: block; margin-bottom: 4px;">Mes</label>
-            <select id="proposal-month" class="form-control" onchange="validateProposalPeriod()" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+          <div class="form-group" id="proposal-month-group" style="margin-bottom: 16px; display: none;">
+            <label for="proposal-month" style="font-weight: 600; display: block; margin-bottom: 6px; color: #334155;">Mes</label>
+            <select id="proposal-month" class="form-control" onchange="validateProposalPeriod()" style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size: 0.95rem;">
               <option value="0">Enero</option>
               <option value="1">Febrero</option>
               <option value="2">Marzo</option>
@@ -4603,19 +4603,19 @@
             </select>
           </div>
 
-          <div class="form-group" id="proposal-week-group" style="margin-bottom: 12px; display: none;">
-            <label for="proposal-week" style="font-weight: 600; display: block; margin-bottom: 4px;">Semana del Año (1-52)</label>
-            <input type="number" id="proposal-week" class="form-control" value="1" min="1" max="52" onchange="validateProposalPeriod()" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+          <div class="form-group" id="proposal-week-group" style="margin-bottom: 16px; display: none;">
+            <label for="proposal-week" style="font-weight: 600; display: block; margin-bottom: 6px; color: #334155;">Semana del Año (1-52)</label>
+            <input type="number" id="proposal-week" class="form-control" value="1" min="1" max="52" onchange="validateProposalPeriod()" style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size: 0.95rem;">
           </div>
 
           <!-- Live warning badge for validations -->
-          <div id="proposal-validation-warning" style="display:none; background: rgba(245, 158, 11, 0.15); border: 1px dashed var(--color-warning); color: #fbbf24; padding: 10px; border-radius: 6px; font-size: 0.8rem; margin: 12px 0; font-weight: 500;">
+          <div id="proposal-validation-warning" style="display:none; background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; padding: 12px; border-radius: 8px; font-size: 0.85rem; margin: 16px 0; font-weight: 500;">
             ⚠️ Ya existe un calendario registrado para este período.
           </div>
 
-          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
-            <button type="button" class="btn-action-secondary" onclick="closeModal('modal-generate-calendar-proposal')">Cancelar</button>
-            <button type="submit" id="btn-submit-proposal" class="btn-action-primary" style="background: var(--primary-color); color: white;">⚡ Generar Propuesta</button>
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+            <button type="button" class="btn-action-secondary" onclick="closeModal('modal-generate-calendar-proposal')" style="padding: 10px 18px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; color: #475569; font-weight: 600; cursor: pointer;">Cancelar</button>
+            <button type="submit" id="btn-submit-proposal" class="btn-action-primary" style="background: #0284c7; color: #ffffff; padding: 10px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; border: none; font-size: 0.95rem; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.3);">⚡ Generar Propuesta</button>
           </div>
         </form>
       </div>
@@ -4624,29 +4624,29 @@
 
   <!-- Modal: Editar Fecha de Propuesta -->
   <div class="modal-overlay" id="modal-edit-proposal-date">
-    <div class="modal-card" style="max-width: 400px;">
-      <div class="modal-header">
-        <h4 style="font-weight:700; margin:0; font-size:1.15rem;">✏️ Reprogramar Fecha</h4>
-        <button class="btn-close-modal" onclick="closeModal('modal-edit-proposal-date')">×</button>
+    <div class="modal-card" style="max-width: 400px; background: #ffffff; color: #1e293b; border-radius: 12px;">
+      <div class="modal-header" style="border-bottom: 1px solid #e2e8f0; padding: 16px 20px;">
+        <h4 style="font-weight:700; margin:0; font-size:1.15rem; color: #0f172a;">✏️ Reprogramar Fecha</h4>
+        <button class="btn-close-modal" onclick="closeModal('modal-edit-proposal-date')" style="color: #64748b;">×</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="padding: 20px;">
         <form id="form-edit-proposal-date" onsubmit="handleSaveProposalDate(event)">
           <input type="hidden" id="edit-proposal-detail-id">
           <div class="form-group" style="margin-bottom: 12px;">
-            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Máquina</label>
-            <div id="edit-proposal-machine" style="font-weight: 700; font-size: 1rem; margin-bottom: 8px; color: var(--accent-blue);">--</div>
+            <label style="font-weight: 600; display: block; margin-bottom: 4px; color: #334155;">Máquina</label>
+            <div id="edit-proposal-machine" style="font-weight: 700; font-size: 1rem; margin-bottom: 8px; color: #0284c7;">--</div>
           </div>
           <div class="form-group" style="margin-bottom: 12px;">
-            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Servicio</label>
-            <div id="edit-proposal-service" style="font-size: 0.9rem; margin-bottom: 8px; color: var(--text-color-light);">--</div>
+            <label style="font-weight: 600; display: block; margin-bottom: 4px; color: #334155;">Servicio</label>
+            <div id="edit-proposal-service" style="font-size: 0.9rem; margin-bottom: 8px; color: #64748b;">--</div>
           </div>
           <div class="form-group" style="margin-bottom: 12px;">
-            <label for="edit-proposal-new-date" style="font-weight: 600; display: block; margin-bottom: 4px;">Nueva Fecha Programada</label>
-            <input type="date" id="edit-proposal-new-date" class="form-control" required style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border-subtle);">
+            <label for="edit-proposal-new-date" style="font-weight: 600; display: block; margin-bottom: 4px; color: #334155;">Nueva Fecha Programada</label>
+            <input type="date" id="edit-proposal-new-date" class="form-control" required style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%;">
           </div>
           <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
             <button type="button" class="btn-action-secondary" onclick="closeModal('modal-edit-proposal-date')">Cancelar</button>
-            <button type="submit" class="btn-action-primary" style="background: var(--color-preventive); color: white;">💾 Guardar Fecha</button>
+            <button type="submit" class="btn-action-primary" style="background: #059669; color: #ffffff; padding: 10px 18px; border-radius: 6px; font-weight: 600; border: none;">💾 Guardar Fecha</button>
           </div>
         </form>
       </div>
