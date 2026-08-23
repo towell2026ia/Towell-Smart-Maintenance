@@ -13937,7 +13937,7 @@ function renderSolicitanteProfileHeader() {
 function initSolicitanteNewForm() {
   if (!currentUser) return;
   const userArea = (currentUser.area || 'CF').toUpperCase().trim();
-  const userDept = currentUser.department || (userArea === 'CF' ? 'Costura' : userArea === 'PRF' ? 'Tejido / Producción' : userArea === 'TF' ? 'Tintorería' : 'Servicios Auxiliares');
+  const userDept = currentUser.department || (userArea === 'PF' ? 'Producción / Tejido' : userArea === 'CF' ? 'Costura' : userArea === 'TF' ? 'Tintorería' : 'Administrativo');
 
   // 1. Cargar datos obtenidos automáticamente (Lectura únicamente)
   const appEl = document.getElementById('solic-auto-applicant');
