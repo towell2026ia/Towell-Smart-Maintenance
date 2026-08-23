@@ -12691,6 +12691,18 @@ function toggleProposalPeriodFields() {
   validateProposalPeriod();
 }
 
+// Helper de formato de fecha seguro sin desfase horario (DD/MM/YYYY)
+function formatCalendarDate(dateStr) {
+  if (!dateStr) return '—';
+  if (typeof dateStr === 'string' && dateStr.includes('-')) {
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  }
+  return fmtDate(dateStr);
+}
+
 async function validateProposalPeriod() {
   const warningEl = document.getElementById('proposal-validation-warning');
   const submitBtn = document.getElementById('btn-submit-proposal');
@@ -12712,6 +12724,10 @@ async function validateProposalPeriod() {
     periodLabel = `Autónomo Semana ${week} de ${year}`;
   }
 
+  submitBtn.disabled = false;
+  submitBtn.style.opacity = '1';
+  submitBtn.style.cursor = 'pointer';
+
   if (useLiveDatabase && supabaseClient) {
     try {
       let query = supabaseClient
@@ -12728,27 +12744,20 @@ async function validateProposalPeriod() {
 
       const { data, error } = await query;
       if (!error && data && data.length > 0) {
-        warningEl.innerHTML = `⚠️ Ya existe un calendario registrado para este período (${periodLabel}). Selecciona otro período o consulta el calendario existente.`;
+        warningEl.innerHTML = `ℹ️ Ya existe una propuesta registrada para este período (${periodLabel}). Al generar se sobreescribirá y actualizará con la nueva corrida de agentes.`;
         warningEl.style.display = 'block';
-        submitBtn.disabled = true;
-        submitBtn.style.opacity = '0.5';
-        submitBtn.style.cursor = 'not-allowed';
+        warningEl.style.background = '#f0fdf4';
+        warningEl.style.color = '#15803d';
+        warningEl.style.border = '1px solid #bbf7d0';
       } else {
         warningEl.style.display = 'none';
-        submitBtn.disabled = false;
-        submitBtn.style.opacity = '1';
-        submitBtn.style.cursor = 'pointer';
       }
     } catch (e) {
       console.warn('[validateProposalPeriod] Error checking periods:', e);
       warningEl.style.display = 'none';
-      submitBtn.disabled = false;
-      submitBtn.style.opacity = '1';
     }
   } else {
     warningEl.style.display = 'none';
-    submitBtn.disabled = false;
-    submitBtn.style.opacity = '1';
   }
 }
 
@@ -13077,7 +13086,7 @@ async function renderAdminCalendars() {
 
     // 2. Query details filter by current active tab
     const dbType = currentCalendarTab.toUpperCase();
-    const { data: details, error } = await supabaseClient
+    const { data: rawDetails, error } = await supabaseClient
       .from('calendario_mantenimiento_detalle')
       .select('*, calendarios_mantenimiento(anio, mes, semana)')
       .eq('tipo_mantenimiento', dbType)
@@ -13085,7 +13094,11 @@ async function renderAdminCalendars() {
 
     if (error) throw error;
 
-    if (!details || details.length === 0) {
+    const details = rawDetails || [];
+    // Ordenar estrictamente de menor a mayor en fecha programada
+    details.sort((a, b) => (a.fecha_programada || '').localeCompare(b.fecha_programada || ''));
+
+    if (details.length === 0) {
       tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted); font-style:italic;">No hay propuestas de mantenimiento programadas para esta categoría.</td></tr>`;
       return;
     }
@@ -13123,7 +13136,7 @@ async function renderAdminCalendars() {
           <td><a href="javascript:void(0)" onclick="openMachine360Report('${d.maquina_id}', '${d.id_orden_generada || ''}')" style="color:#0284c7; font-weight:700; text-decoration:underline;">${d.maquina_id}</a></td>
           <td>${d.tipo_mantenimiento}</td>
           <td>${d.actividad_sugerida}</td>
-          <td>${fmtDate(d.fecha_programada)}</td>
+          <td>${formatCalendarDate(d.fecha_programada)}</td>
           <td>${d.responsable_sugerido || '—'}</td>
           <td><span class="badge ${badgeClass}">${d.estatus_detalle}</span></td>
           <td>${actions}</td>
@@ -14290,55 +14303,65 @@ let activeAdmin360Tab = 'general';
 function switchAdmin360Tab(tabId) {
   activeAdmin360Tab = tabId || 'general';
 
-  // Desactivar botones de pestañas
+  // Desactivar botones de pestañas con estilos de alto contraste
   ['general', 'diag', 'subtasks', 'parts', 'gallery', 'validation'].forEach(t => {
     const btn = document.getElementById(`tab-btn-ot360-${t}`);
     const panel = document.getElementById(`tab-content-ot360-${t}`);
-    if (btn) btn.classList.remove('active');
+    if (btn) {
+      btn.classList.remove('active');
+      btn.style.background = '#1e293b';
+      btn.style.color = '#cbd5e1';
+      btn.style.fontWeight = '600';
+    }
     if (panel) panel.style.display = 'none';
   });
 
-  // Activar pestaña actual
+  // Activar pestaña actual con fondo azul y texto blanco resaltado
   const activeBtn = document.getElementById(`tab-btn-ot360-${tabId}`);
   const activePanel = document.getElementById(`tab-content-ot360-${tabId}`);
-  if (activeBtn) activeBtn.classList.add('active');
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+    activeBtn.style.background = '#0284c7';
+    activeBtn.style.color = '#ffffff';
+    activeBtn.style.fontWeight = '700';
+  }
   if (activePanel) activePanel.style.display = 'block';
 }
 
 async function openMachine360Report(machineId, orderId) {
   if (orderId && orderId !== 'null' && orderId !== 'undefined' && orderId !== '') {
-    return openAdmin360OTAuditModal(orderId);
+    return openAdmin360OTAuditModal(orderId, machineId);
   }
 
   // Buscar última OT o registro de mantenimiento para esta máquina en local o Supabase
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
   const machineOrder = orders.find(o => (o.machine === machineId || o.maquina_id === machineId));
   if (machineOrder) {
-    return openAdmin360OTAuditModal(machineOrder.id);
+    return openAdmin360OTAuditModal(machineOrder.id || machineOrder.folio, machineId);
   }
 
   if (useLiveDatabase && supabaseClient) {
     try {
       const { data } = await supabaseClient
         .from('ordenes_trabajo')
-        .select('id')
+        .select('id, folio, maquina_id, departamento, estatus, descripcion, fecha_carga')
         .eq('maquina_id', machineId)
         .order('fecha_carga', { ascending: false })
         .limit(1);
 
       if (data && data.length > 0) {
-        return openAdmin360OTAuditModal(data[0].id);
+        return openAdmin360OTAuditModal(data[0].id || data[0].folio, machineId);
       }
     } catch (e) {
       console.warn('Error al buscar OT para máquina:', e);
     }
   }
 
-  // Fallback para abrir informe 360° indicando equipo
-  openAdmin360OTAuditModal(machineId);
+  // Fallback para abrir informe 360° indicando equipo directamente
+  openAdmin360OTAuditModal(machineId, machineId);
 }
 
-async function openAdmin360OTAuditModal(orderId) {
+async function openAdmin360OTAuditModal(orderId, explicitMachineId) {
   if (!orderId) return;
 
   // 1. Obtener la Orden de Trabajo
@@ -14350,34 +14373,46 @@ async function openAdmin360OTAuditModal(orderId) {
       const { data } = await supabaseClient.from('ordenes_trabajo').select('*').eq('id', orderId).single();
       if (data) order = data;
     } catch (e) {
-      console.warn('Fallo consultando Supabase para OT:', e);
+      // Ignorar si orderId es clave de máquina
     }
   }
 
+  const targetMachCode = explicitMachineId || (order ? (order.machine || order.maquina_id) : orderId);
+  let resolvedArea = 'PF';
+  if (supabaseClient) {
+    try {
+      const { data: mData } = await supabaseClient.from('cat_maquinas').select('equipo_towell, departamento_codigo, area').eq('equipo_towell', targetMachCode).limit(1);
+      if (mData && mData.length > 0) {
+        resolvedArea = mData[0].departamento_codigo || mData[0].area || 'PF';
+      }
+    } catch (e) {}
+  }
+
   if (!order) {
-    // Si no está explícitamente en el arreglo, crear representación base
+    // Si no es una OT existente, representar expediente técnico de la máquina
     order = {
       id: orderId,
-      machine: 'M-101',
-      area: 'CF',
-      shift: 'Turno Mañana',
-      status: 'En proceso',
-      urgency: 'Alta',
-      type: 'MC',
-      description: 'Mantenimiento Correctivo asignado',
+      machine: targetMachCode,
+      maquina_id: targetMachCode,
+      area: resolvedArea,
+      shift: 'Turno Operativo',
+      status: 'Programada / Propuesta',
+      urgency: 'Media',
+      type: 'MP',
+      description: `Expediente de Mantenimiento y Auditoría 360° para equipo ${targetMachCode} (${resolvedArea})`,
       date: new Date().toISOString()
     };
   }
 
   // Actualizar Título
-  document.getElementById('ot360-header-title').innerText = `🔍 Auditoría 360° de OT: ${order.id}`;
-  document.getElementById('ot360-header-subtitle').innerText = `Máquina: ${order.machine || order.maquina_id || 'Equipo'} | Área: ${order.area || 'CF'} | Estado: ${order.status}`;
+  document.getElementById('ot360-header-title').innerText = `🔍 Auditoría 360° de OT / Equipo: ${order.id || targetMachCode}`;
+  document.getElementById('ot360-header-subtitle').innerText = `Máquina: ${targetMachCode} | Área: ${order.area || resolvedArea} | Estado: ${order.status || 'Programada'}`;
 
   // Pestaña 1: General & Fallas
-  document.getElementById('ot360-info-folio').innerText = order.id;
-  document.getElementById('ot360-info-machine').innerText = order.machine || order.maquina_id || 'M-101';
-  document.getElementById('ot360-info-area-shift').innerText = `${order.area || 'CF'} — ${order.shift || 'Turno Mañana'}`;
-  document.getElementById('ot360-info-status').innerText = `${order.status} (${order.urgency || order.priority || 'Alta'})`;
+  document.getElementById('ot360-info-folio').innerText = order.id || targetMachCode;
+  document.getElementById('ot360-info-machine').innerText = targetMachCode;
+  document.getElementById('ot360-info-area-shift').innerText = `${order.area || resolvedArea} — ${order.shift || 'Turno Mañana'}`;
+  document.getElementById('ot360-info-status').innerText = `${order.status || 'En Proceso'} (${order.urgency || order.priority || 'Media'})`;
 
   document.getElementById('ot360-fault-type').innerText = order.faultType || order.tipo_falla || (order.type === 'MP' ? 'Mantenimiento Preventivo' : 'Falla Mecánica / Desgaste');
   document.getElementById('ot360-fault-cat').innerText = order.faultCategory || order.categoria_falla || 'Operativa / Desgaste Componentes';
