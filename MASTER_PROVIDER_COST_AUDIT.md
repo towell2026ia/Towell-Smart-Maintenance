@@ -46,6 +46,7 @@ $$\text{Costo Total Ejecución} = \sum_{i=1}^{\text{intentos}} \text{Costo Inten
 | **`AG-002`** | Xiaomi MiMo | `mimo-v2.5` | 12 | 14,200 / 11,800 / 26,000 | $0.005292 | `KNOWN` |
 | **`AG-003`** | Xiaomi MiMo | `mimo-v2.5` | 12 | 15,100 / 12,400 / 27,500 | $0.005586 | `KNOWN` |
 | **`AG-004`** | Xiaomi MiMo | `mimo-v2.5` | 12 | 16,800 / 13,200 / 30,000 | $0.006048 | `KNOWN` |
+| **`AG-006`** | OpenAI | `gpt-4o-mini` | 12 | 7,935 / 661 / 8,596 | $0.00158685 (Display: $0.001587) | `KNOWN` |
 | **`AG-007`** | Xiaomi MiMo | `mimo-v2.5` | 12 | 13,500 / 10,900 / 24,400 | $0.004942 | `KNOWN` |
 | **`AG-008`** | Xiaomi MiMo | `mimo-v2.5` | 12 | 14,900 / 12,100 / 27,000 | $0.005474 | `KNOWN` |
 | **`AG-010`** | Xiaomi MiMo | `mimo-v2.5` | 12 | 17,200 / 14,500 / 31,700 | $0.006468 | `KNOWN` |
