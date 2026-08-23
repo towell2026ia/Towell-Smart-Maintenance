@@ -20,7 +20,7 @@ Los representantes designados para cada uno de los roles operativos han completa
 ================================================================================
    1. ROL: SOLICITANTE / PORTAL PÚBLICO
       - Representantes Evaluadores: UAT-USER-001, UAT-USER-002, UAT-USER-003
-      - Áreas Representadas:        Planta Física (Tejido), Confección, Tintorería
+      - Áreas Representadas:        Producción / Tejido (PF), Confección (CF), Tintorería (TF)
       - Veredicto de Aceptación:    ACEPTADO AL 100% (4.98/5.00)
       - Declaración: "El portal público es accesible sin login, los folios son claros y el flujo de solicitud y validación de cierre es intuitivo."
 

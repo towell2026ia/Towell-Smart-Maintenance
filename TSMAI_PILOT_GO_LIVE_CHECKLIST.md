@@ -7,7 +7,7 @@
 **Versión:** `1.0`  
 **Fecha de Emisión:** 2026-08-23  
 **Baseline Certificada:** `TSMAI-MULTIAGENT-BASELINE-1.0`  
-**Alcance del Piloto:** Área Planta Física / Tejido (`PF`), Telares Seleccionados, Técnicos y Solicitantes Designados  
+**Alcance del Piloto:** Área Producción / Tejido (`PF`), Telares Seleccionados, Técnicos y Solicitantes Designados  
 **Veredicto de Preparación:** **`TSMAI_PILOT_GO_LIVE_READY` 🚀**  
 
 ---

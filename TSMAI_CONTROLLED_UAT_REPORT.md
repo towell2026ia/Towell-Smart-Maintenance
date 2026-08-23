@@ -40,7 +40,7 @@
 
 | ID Persona | Rol Evaluado | Representación en Planta | Escenarios Asignados | Tasa de Éxito | Calificación Promedio |
 | :--- | :--- | :--- | :---: | :---: | :---: |
-| **`UAT-USER-001`** | `SOLICITANTE` | Operador de Producción (Planta Física) | UAT-01, 02, 23, 25 | 100.00% | 5.00 / 5.0 |
+| **`UAT-USER-001`** | `SOLICITANTE` | Operador de Producción (Producción / Tejido) | UAT-01, 02, 23, 25 | 100.00% | 5.00 / 5.0 |
 | **`UAT-USER-002`** | `SOLICITANTE` | Supervisor de Turno (Confección) | UAT-03, 04, 24 | 100.00% | 5.00 / 5.0 |
 | **`UAT-USER-003`** | `SOLICITANTE` | Auxiliar Administrativo (Tintorería) | UAT-05, 06, 43 | 100.00% | 5.00 / 5.0 |
 | **`UAT-USER-004`** | `TECNICO` | Técnico Mecánico Senior | UAT-15, 16, 28 | 100.00% | 5.00 / 5.0 |
