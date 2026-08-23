@@ -13057,16 +13057,51 @@ async function handleGenerateCalendarProposal(event) {
   }
 }
 
-// 3. Renderizar Tabla de Propuestas (Lista de Propuestas)
+// 3. Controladores de Filtros Rápidos de Fecha para el Calendario
+function setCalendarQuickFilter(filterType) {
+  const fromEl = document.getElementById('calendar-filter-from-date');
+  const toEl = document.getElementById('calendar-filter-to-date');
+  const searchEl = document.getElementById('calendar-filter-search');
+  const sortEl = document.getElementById('calendar-filter-sort-order');
+  if (!fromEl || !toEl) return;
+
+  const now = new Date();
+  const year = now.getFullYear();
+
+  if (filterType === 'all') {
+    fromEl.value = `${year}-01-01`;
+    toEl.value = `${year}-12-31`;
+  } else if (filterType === 'month') {
+    const m = now.getMonth();
+    const firstDay = new Date(year, m, 1);
+    const lastDay = new Date(year, m + 1, 0);
+    fromEl.value = firstDay.toISOString().split('T')[0];
+    toEl.value = lastDay.toISOString().split('T')[0];
+  } else if (filterType === 'next30') {
+    const next30 = new Date();
+    next30.setDate(now.getDate() + 30);
+    fromEl.value = now.toISOString().split('T')[0];
+    toEl.value = next30.toISOString().split('T')[0];
+  } else if (filterType === 'clear') {
+    fromEl.value = '';
+    toEl.value = '';
+    if (searchEl) searchEl.value = '';
+    if (sortEl) sortEl.value = 'ASC';
+  }
+
+  renderAdminCalendars();
+}
+
+// 4. Renderizar Tabla de Propuestas con Filtro de Fechas y Orden Temporal
 async function renderAdminCalendars() {
   const tbody = document.getElementById('table-calendar-tbody');
   const thead = document.getElementById('table-calendar-thead');
   if (!tbody || !thead) return;
 
-  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Cargando propuestas…</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted); padding:20px;">Cargando propuestas…</td></tr>`;
 
   if (!supabaseClient) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--color-critical);">⚠️ Sin conexión a base de datos.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--color-critical); padding:20px;">⚠️ Sin conexión a base de datos.</td></tr>`;
     return;
   }
 
@@ -13094,12 +13129,48 @@ async function renderAdminCalendars() {
 
     if (error) throw error;
 
-    const details = rawDetails || [];
-    // Ordenar estrictamente de menor a mayor en fecha programada
-    details.sort((a, b) => (a.fecha_programada || '').localeCompare(b.fecha_programada || ''));
+    const allItems = rawDetails || [];
+
+    // 3. Aplicar Filtros de Fecha, Búsqueda y Orden Temporal
+    const fromDate = document.getElementById('calendar-filter-from-date')?.value || '';
+    const toDate = document.getElementById('calendar-filter-to-date')?.value || '';
+    const sortOrder = document.getElementById('calendar-filter-sort-order')?.value || 'ASC';
+    const search = (document.getElementById('calendar-filter-search')?.value || '').toLowerCase().trim();
+
+    let details = [...allItems];
+
+    if (fromDate) {
+      details = details.filter(d => (d.fecha_programada || '').split('T')[0] >= fromDate);
+    }
+    if (toDate) {
+      details = details.filter(d => (d.fecha_programada || '').split('T')[0] <= toDate);
+    }
+    if (search) {
+      details = details.filter(d => 
+        (d.maquina_id || '').toLowerCase().includes(search) ||
+        (d.actividad_sugerida || '').toLowerCase().includes(search) ||
+        (d.prioridad || '').toLowerCase().includes(search) ||
+        (d.responsable_sugerido || '').toLowerCase().includes(search)
+      );
+    }
+
+    // Ordenar: ASC = del más cercano al más lejano en tiempo, DESC = del más lejano al más cercano
+    details.sort((a, b) => {
+      const dateA = (a.fecha_programada || '').split('T')[0];
+      const dateB = (b.fecha_programada || '').split('T')[0];
+      return sortOrder === 'DESC' ? dateB.localeCompare(dateA) : dateA.localeCompare(dateB);
+    });
+
+    // Actualizar Resumen de Filtros
+    const summaryEl = document.getElementById('calendar-filter-summary');
+    if (summaryEl) {
+      const orderText = sortOrder === 'ASC' ? 'del más cercano al más lejano en tiempo ⏳' : 'del más lejano al más cercano en tiempo ⌛';
+      summaryEl.innerHTML = `<span>Mostrando <strong>${details.length}</strong> de <strong>${allItems.length}</strong> propuestas (${orderText})</span>
+      ${(fromDate || toDate || search) ? `<span style="color:#0284c7; font-weight:700;">Filtro: ${fromDate ? 'Desde ' + formatCalendarDate(fromDate) : ''} ${toDate ? 'Hasta ' + formatCalendarDate(toDate) : ''} ${search ? 'Texto: "' + search + '"' : ''}</span>` : ''}`;
+    }
 
     if (details.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted); font-style:italic;">No hay propuestas de mantenimiento programadas para esta categoría.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted); padding:24px; font-style:italic;">No hay propuestas que coincidan con los filtros de fecha y búsqueda seleccionados.</td></tr>`;
       return;
     }
 

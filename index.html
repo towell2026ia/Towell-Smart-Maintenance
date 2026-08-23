@@ -1063,6 +1063,46 @@
                 <button class="tab-btn" id="tab-btn-autonomo-sub" onclick="switchCalendarTab('autonomo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🛠️ Autónomo Semanal</button>
               </div>
 
+              <!-- Barra de Filtros de Fechas y Búsqueda -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
+                <!-- Rango de Fechas -->
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85rem;">
+                  <span style="font-weight: 700; color: #334155;">📅 Rango de Fechas:</span>
+                  <label style="display: flex; align-items: center; gap: 4px; color: #64748b;">
+                    Desde:
+                    <input type="date" id="calendar-filter-from-date" onchange="renderAdminCalendars()" style="padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; background: white;">
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 4px; color: #64748b;">
+                    Hasta:
+                    <input type="date" id="calendar-filter-to-date" onchange="renderAdminCalendars()" style="padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; background: white;">
+                  </label>
+                  <!-- Botones Rápidos -->
+                  <div style="display: flex; gap: 4px; margin-left: 4px;">
+                    <button type="button" class="btn-table-action" onclick="setCalendarQuickFilter('all')" style="padding: 4px 8px; font-size: 0.78rem; background: #e2e8f0; border: none; border-radius: 4px; cursor: pointer;">Todo el Año</button>
+                    <button type="button" class="btn-table-action" onclick="setCalendarQuickFilter('month')" style="padding: 4px 8px; font-size: 0.78rem; background: #e2e8f0; border: none; border-radius: 4px; cursor: pointer;">Este Mes</button>
+                    <button type="button" class="btn-table-action" onclick="setCalendarQuickFilter('next30')" style="padding: 4px 8px; font-size: 0.78rem; background: #e2e8f0; border: none; border-radius: 4px; cursor: pointer;">Próximos 30 días</button>
+                    <button type="button" class="btn-table-action" onclick="setCalendarQuickFilter('clear')" style="padding: 4px 8px; font-size: 0.78rem; background: #fee2e2; color: #b91c1c; border: none; border-radius: 4px; cursor: pointer;">✕ Limpiar</button>
+                  </div>
+                </div>
+
+                <!-- Orden y Buscador -->
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85rem;">
+                  <label style="display: flex; align-items: center; gap: 4px; color: #334155; font-weight: 600;">
+                    Orden:
+                    <select id="calendar-filter-sort-order" onchange="renderAdminCalendars()" style="padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; background: white; font-weight: 600; color: #0369a1;">
+                      <option value="ASC" selected>⏳ Más cercano al más lejano (Ascendente)</option>
+                      <option value="DESC">⌛ Más lejano al más cercano (Descendente)</option>
+                    </select>
+                  </label>
+                  <input type="text" id="calendar-filter-search" oninput="renderAdminCalendars()" placeholder="🔍 Filtrar máquina o actividad..." style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; background: white; min-width: 200px;">
+                </div>
+              </div>
+
+              <!-- Indicador de Registros Filtrados -->
+              <div id="calendar-filter-summary" style="font-size: 0.82rem; color: #64748b; font-weight: 600; padding: 0 4px; display: flex; justify-content: space-between; align-items: center;">
+                <span>Mostrando propuestas ordenadas de la más cercana a la más lejana.</span>
+              </div>
+
               <!-- Tabla de datos -->
               <div class="responsive-table-wrapper">
                 <table class="custom-table" id="table-calendar-general">
