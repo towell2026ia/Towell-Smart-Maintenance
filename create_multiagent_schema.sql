@@ -124,7 +124,7 @@ INSERT INTO cat_agentes (agent_id, nombre, rama, tipo, requires_ai, provider, de
 ('AG-003', 'Predictivo Mensual', 'PLANEACION', 'AGENTE', true, 'mimo', 'mimo-v2.5', NULL, 2, true, '1.0'),
 ('AG-004', 'Autónomo Semanal', 'PLANEACION', 'AGENTE', true, 'mimo', 'mimo-v2.5', NULL, 2, true, '1.0'),
 ('AG-005', 'Auditor de Bases', 'DATOS', 'AGENTE', false, 'none', 'none', NULL, 1, false, '1.0'),
-('AG-006', 'Constructor de Formularios', 'DATOS', 'AGENTE', true, 'openai', 'gpt-4.1-mini', NULL, 2, false, '1.0'),
+('AG-006', 'Constructor de Formularios', 'DATOS', 'AGENTE', true, 'openai', 'gpt-4o-mini', NULL, 2, true, '1.0'),
 ('AG-007', 'Presupuestos y Costos', 'VIGILANCIA', 'AGENTE', true, 'mimo', 'mimo-v2.5', NULL, 1, true, '1.0'),
 ('AG-008', 'Fallas, Tendencias y Reincidencias', 'VIGILANCIA', 'AGENTE', true, 'mimo', 'mimo-v2.5', NULL, 1, false, '1.0'),
 ('AG-009', 'Gestor Formularios-Solicitudes-OT', 'INTEGRACION', 'AGENTE', false, 'none', 'none', NULL, 2, true, '1.0'),

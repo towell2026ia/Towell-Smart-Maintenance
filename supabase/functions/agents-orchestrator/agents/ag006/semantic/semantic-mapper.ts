@@ -36,6 +36,15 @@ const TARIFF_SNAPSHOT = {
 };
 
 function getEnvVar(key: string): string | undefined {
+  try {
+    const envPath = path.resolve(__dirname, '../../../../../../.env');
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      const match = content.match(new RegExp(`^${key}=([^\\r\\n]+)`, 'm'));
+      if (match && match[1].trim()) return match[1].trim();
+    }
+  } catch (_) {}
+
   if (typeof Deno !== 'undefined' && Deno.env) {
     return Deno.env.get(key);
   }

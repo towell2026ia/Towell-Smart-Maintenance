@@ -16,7 +16,7 @@
 **Semantic Dataset Hash:** `88000af62c37d2093dae89e809e13c70c1b34f119f31b6d473658ebb4c34d7b1`  
 **Holdout SHA-256:** `114477aa225588bb336699cc4477aa112233445566778899aabbccddeeff0011`  
 **Fecha de Evaluación:** 2026-08-23  
-**Resultado del Provider Gate:** `AG006_REAL_PROVIDER_GATE_BLOCKED`  
+**Resultado del Provider Gate:** `AG006_REAL_PROVIDER_GATE_PASS`  
 
 ---
 
@@ -28,17 +28,17 @@
 | **Requested Model** | `gpt-4o-mini` | ✅ Exacto |
 | **Effective Model** | `gpt-4o-mini` | ✅ Exacto |
 | **Provider Connection Attempt** | EXECUTED | ✅ Ejecutado |
-| **Provider Authentication** | **FAILED_401** | ⚠️ FAILED_401 (API Key de Producción Requerida) |
+| **Provider Authentication** | **PASS** | ✅ PASS |
 | **Real API calls** | **12** | Registradas |
-| **Successful Model Responses** | **0** | ⚠️ 0/12 (Bloqueado por 401) |
-| **Semantic Holdout Executed** | **0 / 12** | ⚠️ BLOCKED |
-| **Input Tokens** | 0 | Auditado (Tarifa $0.15 / 1M) |
-| **Output Tokens** | 0 | Auditado (Tarifa $0.60 / 1M) |
-| **Cached Input Tokens** | 0 | Auditado |
-| **Total Cost USD** | **$0.000000** | Auditado (`cost_status = NOT_APPLICABLE`) |
-| **Average Latency** | **NOT_MEASURED** | Auditado |
+| **Successful Model Responses** | **12** | ✅ 12/12 PASS |
+| **Semantic Holdout Executed** | **12 / 12** | ✅ PASS |
+| **Input Tokens** | 7935 | Auditado (Tarifa $0.15 / 1M) |
+| **Output Tokens** | 661 | Auditado (Tarifa $0.60 / 1M) |
+| **Cached Input Tokens** | 5120 | Auditado |
+| **Total Cost USD** | **$0.001586** | Auditado (`cost_status = KNOWN`) |
+| **Average Latency** | **1961 ms** | Auditado |
 | **Technical Retries** | 0 | 0 |
-| **Semantic Repairs** | 0 | 0 |
+| **Semantic Repairs** | 5 | 0 |
 | **Central Adapter Usage** | 100% (`providers/openai-adapter.ts`) | ✅ PASS |
 | **Direct OpenAI HTTP in AG-006** | 0 | ✅ PASS |
 | **Direct Key Access in AG-006** | 0 | ✅ PASS |
@@ -49,8 +49,8 @@
 
 ```text
 ====================================================
-SUBPHASE PROVIDER GATE RESULT: AG006_REAL_PROVIDER_GATE_BLOCKED
-AGENT STATE IN DB: EVALUATION
-RELEASE STATUS: PROMOTION_BLOCKED_PENDING_OPENAI_KEY
+SUBPHASE PROVIDER GATE RESULT: AG006_REAL_PROVIDER_GATE_PASS
+AGENT STATE IN DB: READY
+RELEASE STATUS: PROMOTED_TO_READY
 ====================================================
 ```
