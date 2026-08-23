@@ -1,0 +1,70 @@
+{
+  "dataset_id": "AG013-ARCH-EVAL-001",
+  "version": "1.0",
+  "total_cases": 20,
+  "cases": [
+    {
+      "case_id": "ARCH-001",
+      "description": "Una sola falla aislada en un activo sano no clasifica como Mal Actor",
+      "asset_id": "TELAR-001",
+      "input": {
+        "health_score": 85,
+        "failure_count_window": 1,
+        "recurrence_rate": 0.0,
+        "chronicity_score": 0.0,
+        "cost_window": 5000
+      },
+      "expected_classification": "NOT_BAD_ACTOR"
+    },
+    {
+      "case_id": "ARCH-002",
+      "description": "Máquina con alto conteo de fallas pero no crónicas ni costosas no es Mal Actor automático",
+      "asset_id": "TELAR-002",
+      "input": {
+        "health_score": 75,
+        "failure_count_window": 8,
+        "recurrence_rate": 0.1,
+        "chronicity_score": 20.0,
+        "cost_window": 8000
+      },
+      "expected_classification": "WATCHLIST"
+    },
+    {
+      "case_id": "ARCH-003",
+      "description": "Alto costo por mantenimiento preventivo mayor no califica como Mal Actor",
+      "asset_id": "TELAR-003",
+      "input": {
+        "health_score": 80,
+        "failure_count_window": 0,
+        "recurrence_rate": 0.0,
+        "chronicity_score": 0.0,
+        "cost_window": 150000
+      },
+      "expected_classification": "NOT_BAD_ACTOR"
+    },
+    {
+      "case_id": "ARCH-004",
+      "description": "Fallas recurrentes en múltiples períodos con alta reincidencia post-reparación es Mal Actor",
+      "asset_id": "TELAR-004",
+      "input": {
+        "health_score": 45,
+        "failure_count_window": 12,
+        "recurrence_rate": 0.65,
+        "chronicity_score": 85.0,
+        "cost_window": 220000
+      },
+      "expected_classification": "SEVERE_BAD_ACTOR"
+    },
+    {
+      "case_id": "ARCH-005",
+      "description": "Falta de información crítica obliga a clasificar como INSUFFICIENT_DATA",
+      "asset_id": "TELAR-005",
+      "input": {
+        "health_score": null,
+        "failure_count_window": null,
+        "cost_window": null
+      },
+      "expected_classification": "INSUFFICIENT_DATA"
+    }
+  ]
+}
