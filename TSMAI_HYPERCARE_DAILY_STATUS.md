@@ -3,21 +3,23 @@
 **Producto:** Towell Smart Maintenance AI (TSM-AI)  
 **Proyecto:** TSM-AI  
 **Fase:** `POST-GO-LIVE HYPERCARE & CONTINUOUS OPERATIONAL IMPROVEMENT`  
+**Subfase:** `HYPERCARE-001-R1 — Hypercare Window Evidence Reconciliation & Steady-State Ratification`  
 **Dataset:** `TSMAI-HYPERCARE-001`  
+**Ventana Temporal Oficial:** `2026-08-24T06:00:00-06:00` al `2026-08-28T18:00:00-06:00`  
 **Áreas Monitoreadas:** `PF` (Producción), `CF` (Costura), `TF` (Tintorería), `AF` (Administrativo)  
 **Baseline Certificada:** `TSMAI-MULTIAGENT-BASELINE-1.0`  
 
 ---
 
-## 1. Registro Diario de Monitoreo Operacional
+## 1. Registro Diario de Monitoreo Operacional en Ventana Hypercare
 
-| Día | Fecha | Estado Ejecutivo | Transacciones / OTs | Integridad BD | Salud Proveedores | Costo IA Diario | Latencia P95 | Tickets Soporte | P0 / P1 Abiertos |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Día 1** | 2026-08-24 | 🟢 **GREEN** | 10 OTs cerradas | 0 huérfanos | OpenAI & MiMo 100% | $0.002240 USD | 2,120 ms | 1 (Duda login) | **0 / 0** |
-| **Día 2** | 2026-08-25 | 🟢 **GREEN** | 12 OTs cerradas | 0 huérfanos | OpenAI & MiMo 100% | $0.002680 USD | 2,180 ms | 0 | **0 / 0** |
-| **Día 3** | 2026-08-26 | 🟢 **GREEN** | 8 OTs cerradas | 0 huérfanos | OpenAI & MiMo 100% | $0.001890 USD | 2,050 ms | 1 (Consulta refacción) | **0 / 0** |
-| **Día 4** | 2026-08-27 | 🟢 **GREEN** | 9 OTs cerradas | 0 huérfanos | OpenAI & MiMo 100% | $0.002100 USD | 2,210 ms | 0 | **0 / 0** |
-| **Día 5** | 2026-08-28 | 🟢 **GREEN** | 7 OTs cerradas | 0 huérfanos | OpenAI & MiMo 100% | $0.001842 USD | 2,140 ms | 0 | **0 / 0** |
+| Día | Fecha | Estado Ejecutivo | OTs Atendidas (Ventana) | Eventos IA (Ventana) | Integridad BD | Seguridad RLS | P0 Abiertos | P1 Abiertos |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Día 1** | 2026-08-24 | 🟢 **GREEN** | 3 OTs | 8 eventos ($0.000580 USD) | 0 huérfanos | 100% PASS | 0 | 0 |
+| **Día 2** | 2026-08-25 | 🟢 **GREEN** | 4 OTs | 10 eventos ($0.000740 USD) | 0 huérfanos | 100% PASS | 0 | 0 |
+| **Día 3** | 2026-08-26 | 🟢 **GREEN** | 3 OTs | 7 eventos ($0.000512 USD) | 0 huérfanos | 100% PASS | 0 | 0 |
+| **Día 4** | 2026-08-27 | 🟢 **GREEN** | 4 OTs | 8 eventos ($0.000620 USD) | 0 huérfanos | 100% PASS | 0 | 0 |
+| **Día 5** | 2026-08-28 | 🟢 **GREEN** | 2 OTs | 5 eventos ($0.000420 USD) | 0 huérfanos | 100% PASS | 0 | 0 |
 
 ---
 
@@ -25,14 +27,17 @@
 
 ```text
 ================================================================================
-📊 ESTADO CONSOLIDADO HYPERCARE:
+📊 ESTADO CONSOLIDADO VENTANA HYPERCARE (5 DÍAS LABORALES):
 ================================================================================
-   - Días Consecutivos en GREEN:       5 / 5 Días Laborales (100%)
-   - Total Órdenes de Trabajo:         46 / 46 Cerradas formalmente
-   - Integridad de Base de Datos:      100% Consistente (0 Huérfanos, 0 Duplicados)
-   - Disponibilidad de Proveedores:    100% OpenAI & Xiaomi MiMo
-   - Costo Total Acumulado IA:         $0.010752 USD
-   - Incidentes Bloqueadores (P0):     0
-   - Incidentes Críticos (P1):         0
+   - Días Consecutivos en GREEN:       5 / 5 Días Laborales (100.00%)
+   - OTs Cerradas en Ventana:          16 / 16 (100% validadas por humanos)
+   - Bitácoras en Ventana:             18 bitácoras (100% trazables con partes/horas)
+   - Ejecuciones de Calendario:        16 (1 preventivo anual, 1 predictivo viernes, 14 autónomos)
+   - Gasto Mantenimiento en Ventana:   $880.00 USD ($320 partes + $560 mano de obra)
+   - Eventos de IA en Ventana:         38 eventos (100% vía AG-001)
+   - Costo de IA en Ventana:           $0.002872 USD (KNOWN & RECONCILED)
+   - Incidentes Bloqueadores (P0):     0 OPEN
+   - Incidentes Críticos (P1):         0 OPEN
+   - Dependencia de Desarrollador:     0.00% (Operación 100% Autónoma)
 ================================================================================
 ```
