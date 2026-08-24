@@ -8587,6 +8587,7 @@ function switchTechPanel(panelId) {
 
   const titleLabels = {
     dashboard: '📋 Mi Tablero Técnico',
+    calendar: '📅 Calendario de Mantenimiento de Planta',
     checklists: '📋 Checklists y Formatos de Trabajo',
     bitacora: '📝 Bitácora de Actividades',
     history: '⚙️ Historial de Máquinas en Planta',
@@ -8597,6 +8598,8 @@ function switchTechPanel(panelId) {
   if (panelId === 'dashboard') {
     renderTechDashboard();
     renderTechOrdersTable();
+  } else if (panelId === 'calendar') {
+    renderTechCalendar();
   } else if (panelId === 'checklists') {
     renderTechChecklistsTable();
   } else if (panelId === 'bitacora') {
@@ -8631,7 +8634,7 @@ function renderTechProfile() {
   }
 }
 
-// Renderizar KPI cards del Técnico
+// Renderizar KPI cards del Técnico y Widget de Calendario
 function renderTechDashboard() {
   if (!currentUser) return;
   const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
@@ -8686,6 +8689,259 @@ function renderTechDashboard() {
   document.getElementById('kpi-tech-hold').innerText = hold;
   document.getElementById('kpi-tech-overdue').innerText = overdue;
   document.getElementById('kpi-tech-done-today').innerText = doneToday;
+
+  // Cargar widget de calendario en el tablero técnico
+  populateTechDashboardCalendar();
+}
+
+function setTechCalendarQuickFilter(filterType) {
+  const fromEl = document.getElementById('tech-cal-filter-from');
+  const toEl = document.getElementById('tech-cal-filter-to');
+  const searchEl = document.getElementById('tech-cal-filter-search');
+  const sortEl = document.getElementById('tech-cal-sort-order');
+  const areaEl = document.getElementById('filter-tech-cal-area');
+  const typeEl = document.getElementById('filter-tech-cal-type');
+  if (!fromEl || !toEl) return;
+
+  const now = new Date();
+  const year = now.getFullYear();
+
+  if (filterType === 'all') {
+    fromEl.value = `${year}-01-01`;
+    toEl.value = `${year}-12-31`;
+  } else if (filterType === 'month') {
+    const m = now.getMonth();
+    const firstDay = new Date(year, m, 1);
+    const lastDay = new Date(year, m + 1, 0);
+    fromEl.value = firstDay.toISOString().split('T')[0];
+    toEl.value = lastDay.toISOString().split('T')[0];
+  } else if (filterType === 'next30') {
+    const next30 = new Date();
+    next30.setDate(now.getDate() + 30);
+    fromEl.value = now.toISOString().split('T')[0];
+    toEl.value = next30.toISOString().split('T')[0];
+  } else if (filterType === 'clear') {
+    fromEl.value = '';
+    toEl.value = '';
+    if (searchEl) searchEl.value = '';
+    if (sortEl) sortEl.value = 'ASC';
+    if (areaEl) areaEl.value = 'ALL';
+    if (typeEl) typeEl.value = 'ALL';
+  }
+
+  renderTechCalendar();
+}
+
+async function renderTechCalendar() {
+  const tbody = document.getElementById('tbody-tech-calendar');
+  const counterEl = document.getElementById('tech-cal-counter');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:25px; color:#64748b;">Cargando calendario de planta...</td></tr>';
+
+  try {
+    const allDetails = await fetchCalendarDetailsFromDb();
+
+    // Plant KPI stats
+    const prevCount = allDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREVENTIVO').length;
+    const predCount = allDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREDICTIVO').length;
+    const autoCount = allDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'AUTONOMO').length;
+    const totalCount = allDetails.length;
+
+    const statPrev = document.getElementById('tech-cal-stat-prev');
+    const statPred = document.getElementById('tech-cal-stat-pred');
+    const statAuto = document.getElementById('tech-cal-stat-auto');
+    const statTotal = document.getElementById('tech-cal-stat-total');
+
+    if (statPrev) statPrev.innerText = prevCount;
+    if (statPred) statPred.innerText = predCount;
+    if (statAuto) statAuto.innerText = autoCount;
+    if (statTotal) statTotal.innerText = totalCount;
+
+    // Filters
+    const filterArea = document.getElementById('filter-tech-cal-area')?.value || 'ALL';
+    const filterType = document.getElementById('filter-tech-cal-type')?.value || 'ALL';
+    const fromDate = document.getElementById('tech-cal-filter-from')?.value || '';
+    const toDate = document.getElementById('tech-cal-filter-to')?.value || '';
+    const search = (document.getElementById('tech-cal-filter-search')?.value || '').toLowerCase().trim();
+    const sortOrder = document.getElementById('tech-cal-sort-order')?.value || 'ASC';
+
+    let filtered = allDetails.filter(item => {
+      const machId = item.maquina_id || '';
+      let itemArea = null;
+      if (item.observaciones) {
+        try {
+          const obs = typeof item.observaciones === 'object' ? item.observaciones : JSON.parse(item.observaciones);
+          if (obs.area) itemArea = String(obs.area).toUpperCase().trim();
+        } catch (e) {}
+      }
+      if (!itemArea || itemArea === 'NONE' || itemArea === 'UNKNOWN') {
+        itemArea = typeof resolveAreaFromMachineCode === 'function'
+          ? resolveAreaFromMachineCode(machId, item.actividad_sugerida || '')
+          : 'PF';
+      }
+
+      // Area filter
+      if (filterArea !== 'ALL' && itemArea !== filterArea) return false;
+
+      // Type filter
+      if (filterType !== 'ALL') {
+        const t = (item.tipo_mantenimiento || '').toUpperCase();
+        if (filterType === 'PREVENTIVO' && t !== 'PREVENTIVO') return false;
+        if (filterType === 'PREDICTIVO' && t !== 'PREDICTIVO') return false;
+        if (filterType === 'AUTONOMO' && t !== 'AUTONOMO') return false;
+      }
+
+      // Date range
+      const itemDate = (item.fecha_programada || '').split('T')[0];
+      if (fromDate && itemDate && itemDate < fromDate) return false;
+      if (toDate && itemDate && itemDate > toDate) return false;
+
+      // Text search
+      if (search) {
+        const text = `${item.maquina_id || ''} ${item.actividad_sugerida || ''} ${item.responsable_sugerido || ''} ${itemArea}`.toLowerCase();
+        if (!text.includes(search)) return false;
+      }
+
+      return true;
+    });
+
+    // Dynamic sort
+    filtered.sort((a, b) => {
+      const dateA = a.fecha_programada || '';
+      const dateB = b.fecha_programada || '';
+      return sortOrder === 'DESC' ? dateB.localeCompare(dateA) : dateA.localeCompare(dateB);
+    });
+
+    if (counterEl) {
+      counterEl.innerText = `Mostrando ${filtered.length} de ${totalCount} actividades programadas en planta`;
+    }
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:#64748b;">No hay actividades de mantenimiento que coincidan con los filtros.</td></tr>`;
+      return;
+    }
+
+    const typeBadge = (t) => {
+      const clean = (t || '').toUpperCase();
+      if (clean === 'PREVENTIVO' || clean === 'MP') return `<span class="badge" style="background:#0284c7; color:white; font-weight:700; font-size:0.75rem;">🛠️ PREVENTIVO</span>`;
+      if (clean === 'PREDICTIVO' || clean === 'PRED') return `<span class="badge" style="background:#7c3aed; color:white; font-weight:700; font-size:0.75rem;">🔮 PREDICTIVO</span>`;
+      if (clean === 'AUTONOMO') return `<span class="badge" style="background:#059669; color:white; font-weight:700; font-size:0.75rem;">🤖 AUTÓNOMO</span>`;
+      return `<span class="badge badge-priority-media">${clean}</span>`;
+    };
+
+    const prioBadge = (p) => {
+      const clean = (p || '').toUpperCase();
+      if (clean.includes('CRIT')) return `<span class="badge badge-priority-critica">${clean}</span>`;
+      if (clean.includes('ALT')) return `<span class="badge badge-priority-alta">${clean}</span>`;
+      if (clean.includes('MED')) return `<span class="badge badge-priority-media">${clean}</span>`;
+      return `<span class="badge badge-priority-baja">${clean || 'BAJA'}</span>`;
+    };
+
+    const statusBadge = (s) => {
+      const clean = (s || 'PROPUESTO').toUpperCase();
+      if (clean === 'APROBADO' || clean === 'APROBADA') return `<span class="badge" style="background:#10b981; color:white; font-weight:600;">Aprobado</span>`;
+      if (clean === 'PROGRAMADO' || clean === 'PROGRAMADA') return `<span class="badge" style="background:#3b82f6; color:white; font-weight:600;">Programado</span>`;
+      if (clean === 'EN EJECUCIÓN' || clean === 'EN PROCESO') return `<span class="badge" style="background:#f59e0b; color:white; font-weight:600;">En Proceso</span>`;
+      if (clean === 'TERMINADA' || clean === 'CERRADA') return `<span class="badge" style="background:#64748b; color:white; font-weight:600;">Cerrada</span>`;
+      return `<span class="badge" style="background:#e0e7ff; color:#3730a3; font-weight:600;">Propuesto</span>`;
+    };
+
+    tbody.innerHTML = filtered.map(item => {
+      const dateDisplay = typeof formatCalendarDate === 'function' ? formatCalendarDate(item.fecha_programada) : (item.fecha_programada || '').split('T')[0];
+      const machId = item.maquina_id || '';
+      let area = 'PF';
+      if (item.observaciones) {
+        try {
+          const obs = typeof item.observaciones === 'object' ? item.observaciones : JSON.parse(item.observaciones);
+          if (obs.area) area = obs.area;
+        } catch (e) {}
+      }
+      if (!area || area === 'NONE') {
+        area = typeof resolveAreaFromMachineCode === 'function' ? resolveAreaFromMachineCode(machId, item.actividad_sugerida || '') : 'PF';
+      }
+
+      return `<tr>
+        <td><strong style="color:#0f172a;">${machId}</strong></td>
+        <td><span class="badge badge-priority-baja">${area}</span></td>
+        <td>${typeBadge(item.tipo_mantenimiento)}</td>
+        <td><div style="font-weight:500; color:#334155; max-width:320px;">${item.actividad_sugerida || 'Mantenimiento General'}</div></td>
+        <td><div style="font-weight:600; color:#1e293b; white-space:nowrap;">📅 ${dateDisplay}</div></td>
+        <td>${prioBadge(item.prioridad)}</td>
+        <td><span style="font-size:0.85rem; color:#475569;">👤 ${item.responsable_sugerido || 'Operador / Técnico'}</span></td>
+        <td>${statusBadge(item.estatus_detalle)}</td>
+      </tr>`;
+    }).join('');
+
+  } catch (err) {
+    console.error('[renderTechCalendar] Error:', err);
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:#ef4444;">❌ Error al cargar calendario: ${err.message}</td></tr>`;
+  }
+}
+
+// Populate the dashboard preview widget in technician dashboard
+async function populateTechDashboardCalendar() {
+  const tbody = document.getElementById('table-tech-dash-calendar-body');
+  const countBadge = document.getElementById('badge-tech-dash-cal-count');
+  if (!tbody) return;
+
+  try {
+    const allDetails = await fetchCalendarDetailsFromDb();
+    if (countBadge) {
+      countBadge.innerText = `${allDetails.length} Actividades`;
+    }
+
+    if (allDetails.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#64748b;">No hay actividades programadas en el calendario.</td></tr>';
+      return;
+    }
+
+    // Top 5 upcoming
+    const top5 = allDetails.slice(0, 5);
+    const typeBadge = (t) => {
+      const clean = (t || '').toUpperCase();
+      if (clean === 'PREVENTIVO' || clean === 'MP') return `<span class="badge" style="background:#0284c7; color:white; font-size:0.75rem;">🛠️ PREVENTIVO</span>`;
+      if (clean === 'PREDICTIVO' || clean === 'PRED') return `<span class="badge" style="background:#7c3aed; color:white; font-size:0.75rem;">🔮 PREDICTIVO</span>`;
+      if (clean === 'AUTONOMO') return `<span class="badge" style="background:#059669; color:white; font-size:0.75rem;">🤖 AUTÓNOMO</span>`;
+      return `<span class="badge badge-priority-media">${clean}</span>`;
+    };
+
+    const prioBadge = (p) => {
+      const clean = (p || '').toUpperCase();
+      if (clean.includes('CRIT')) return `<span class="badge badge-priority-critica">${clean}</span>`;
+      if (clean.includes('ALT')) return `<span class="badge badge-priority-alta">${clean}</span>`;
+      if (clean.includes('MED')) return `<span class="badge badge-priority-media">${clean}</span>`;
+      return `<span class="badge badge-priority-baja">${clean || 'BAJA'}</span>`;
+    };
+
+    tbody.innerHTML = top5.map(item => {
+      const dateDisplay = typeof formatCalendarDate === 'function' ? formatCalendarDate(item.fecha_programada) : (item.fecha_programada || '').split('T')[0];
+      const machId = item.maquina_id || '';
+      let area = 'PF';
+      if (item.observaciones) {
+        try {
+          const obs = typeof item.observaciones === 'object' ? item.observaciones : JSON.parse(item.observaciones);
+          if (obs.area) area = obs.area;
+        } catch (e) {}
+      }
+      if (!area || area === 'NONE') {
+        area = typeof resolveAreaFromMachineCode === 'function' ? resolveAreaFromMachineCode(machId, item.actividad_sugerida || '') : 'PF';
+      }
+
+      return `<tr>
+        <td><strong>${machId}</strong></td>
+        <td><span class="badge badge-priority-baja">${area}</span></td>
+        <td>${typeBadge(item.tipo_mantenimiento)}</td>
+        <td><div style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.actividad_sugerida || 'Mantenimiento'}</div></td>
+        <td><div style="font-weight:600; color:#1e293b;">📅 ${dateDisplay}</div></td>
+        <td>${prioBadge(item.prioridad)}</td>
+        <td><span style="font-size:0.85rem; color:#475569;">${item.responsable_sugerido || 'Técnico'}</span></td>
+      </tr>`;
+    }).join('');
+
+  } catch (err) {
+    console.warn('[populateTechDashboardCalendar]', err);
+  }
 }
 
 // --- LÓGICA DE SLA Y CUMPLIMIENTO DE FECHA COMPROMISO (FASE 3) ---
@@ -13897,6 +14153,9 @@ function renderSolicitanteProfileHeader() {
       valSidebarBadge.innerText = pendingVal.length;
       valSidebarBadge.style.display = pendingVal.length > 0 ? 'inline-block' : 'none';
     }
+
+    // Cargar sección de mantenimientos programados en el Home del Solicitante
+    renderSolicitanteHomeUpcomingCalendar();
   } catch (err) {
     console.warn('Error en renderSolicitanteProfileHeader:', err);
   }
@@ -13939,19 +14198,23 @@ function initSolicitanteNewForm() {
     macSelect.innerHTML = html;
   }
 
-  // Ocultar campo ubicación inicialmente
+  // Ocultar campo ubicación y alerta de calendario inicialmente
   const locGroup = document.getElementById('solic-group-location');
   if (locGroup) locGroup.style.display = 'none';
+  const noticeEl = document.getElementById('solic-machine-calendar-notice');
+  if (noticeEl) noticeEl.style.display = 'none';
 }
 
 function onSolicitanteMachineSelectChange(machineId) {
   const locGroup = document.getElementById('solic-group-location');
   const locInput = document.getElementById('solic-req-location');
   const urgencySelect = document.getElementById('solic-req-urgency');
+  const noticeEl = document.getElementById('solic-machine-calendar-notice');
 
   if (machineId === 'NO_APLICA') {
     if (locGroup) locGroup.style.display = 'block';
     if (locInput) locInput.required = true;
+    if (noticeEl) noticeEl.style.display = 'none';
     return;
   } else {
     if (locGroup) locGroup.style.display = 'none';
@@ -13966,6 +14229,22 @@ function onSolicitanteMachineSelectChange(machineId) {
       else if (found.criticality === 'B') urgencySelect.value = 'Alta';
       else urgencySelect.value = 'Media';
     }
+
+    // Verificar si la máquina seleccionada tiene mantenimientos programados próximos
+    if (noticeEl) {
+      checkMachineUpcomingMaintenance(machineId).then(events => {
+        if (events && events.length > 0) {
+          const nextEvt = events[0];
+          const dateStr = typeof formatCalendarDate === 'function' ? formatCalendarDate(nextEvt.fecha_programada) : (nextEvt.fecha_programada || '').split('T')[0];
+          noticeEl.innerHTML = `<strong>ℹ️ Mantenimiento Programado en Calendario:</strong> Esta máquina tiene agendado un mantenimiento <strong>${nextEvt.tipo_mantenimiento}</strong> para el <strong>📅 ${dateStr}</strong> (${nextEvt.actividad_sugerida || 'Intervención'}).`;
+          noticeEl.style.display = 'block';
+        } else {
+          noticeEl.style.display = 'none';
+        }
+      }).catch(() => { if (noticeEl) noticeEl.style.display = 'none'; });
+    }
+  } else {
+    if (noticeEl) noticeEl.style.display = 'none';
   }
 }
 
@@ -14136,6 +14415,114 @@ async function renderSolicitanteTracking() {
       <td>${item.dueDate ? fmtDate(item.dueDate) : 'Por definir'}</td>
     </tr>`;
   }).join('');
+}
+
+// Funciones de consulta compartida y widgets de calendario
+async function fetchCalendarDetailsFromDb() {
+  if (window._cachedCalendarDetails && (Date.now() - (window._cachedCalendarDetailsTime || 0) < 15000)) {
+    return window._cachedCalendarDetails;
+  }
+  if (!supabaseClient) {
+    return [];
+  }
+  try {
+    const { data, error } = await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .select('*, calendarios_mantenimiento(anio, mes, semana, tipo_calendario)')
+      .order('fecha_programada', { ascending: true });
+    if (!error && data) {
+      window._cachedCalendarDetails = data;
+      window._cachedCalendarDetailsTime = Date.now();
+      return data;
+    }
+  } catch (e) {
+    console.warn('[fetchCalendarDetailsFromDb]', e);
+  }
+  return [];
+}
+
+async function checkMachineUpcomingMaintenance(machineId) {
+  if (!machineId || machineId === 'NO_APLICA') return [];
+  const details = await fetchCalendarDetailsFromDb();
+  const cleanId = String(machineId).toUpperCase().trim();
+  const today = new Date().toISOString().split('T')[0];
+  return details.filter(d => {
+    const m = String(d.maquina_id || '').toUpperCase().trim();
+    const date = (d.fecha_programada || '').split('T')[0];
+    return m === cleanId && date >= today;
+  }).slice(0, 3);
+}
+
+// Renderizar el widget de próximos mantenimientos directamente en el Home del Solicitante
+async function renderSolicitanteHomeUpcomingCalendar() {
+  const container = document.getElementById('solic-home-upcoming-list');
+  const countBadge = document.getElementById('badge-solic-calendar-count');
+  const homeBadge = document.getElementById('solic-home-cal-badge');
+  if (!currentUser) return;
+
+  const userArea = (currentUser.area || 'PF').toUpperCase().trim();
+  if (homeBadge) homeBadge.innerText = `ÁREA: ${userArea}`;
+
+  try {
+    const allDetails = await fetchCalendarDetailsFromDb();
+    const areaDetails = allDetails.filter(item => {
+      const machId = item.maquina_id || '';
+      let itemArea = null;
+      if (item.observaciones) {
+        try {
+          const obs = typeof item.observaciones === 'object' ? item.observaciones : JSON.parse(item.observaciones);
+          if (obs.area) itemArea = String(obs.area).toUpperCase().trim();
+        } catch (e) {}
+      }
+      if (!itemArea || itemArea === 'NONE' || itemArea === 'UNKNOWN') {
+        itemArea = typeof resolveAreaFromMachineCode === 'function'
+          ? resolveAreaFromMachineCode(machId, item.actividad_sugerida || '')
+          : 'PF';
+      }
+      return itemArea === userArea;
+    });
+
+    if (countBadge) {
+      countBadge.innerText = `${areaDetails.length} Programada${areaDetails.length === 1 ? '' : 's'}`;
+    }
+
+    if (!container) return;
+
+    if (areaDetails.length === 0) {
+      container.innerHTML = `<p style="color:#64748b; padding:12px 0; grid-column:1/-1;">No hay intervenciones agendadas para el Área ${userArea}.</p>`;
+      return;
+    }
+
+    // Top upcoming 4
+    const upcoming = areaDetails.slice(0, 4);
+    const typeBadge = (t) => {
+      const clean = (t || '').toUpperCase();
+      if (clean === 'PREVENTIVO' || clean === 'MP') return `<span class="badge" style="background:#0284c7; color:white; font-size:0.72rem;">🛠️ PREVENTIVO</span>`;
+      if (clean === 'PREDICTIVO' || clean === 'PRED') return `<span class="badge" style="background:#7c3aed; color:white; font-size:0.72rem;">🔮 PREDICTIVO</span>`;
+      if (clean === 'AUTONOMO') return `<span class="badge" style="background:#059669; color:white; font-size:0.72rem;">🤖 AUTÓNOMO</span>`;
+      return `<span class="badge badge-priority-media">${clean}</span>`;
+    };
+
+    container.innerHTML = upcoming.map(item => {
+      const dateDisplay = typeof formatCalendarDate === 'function' ? formatCalendarDate(item.fecha_programada) : (item.fecha_programada || '').split('T')[0];
+      return `<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; gap:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong style="color:#0f172a; font-size:0.9rem;">${item.maquina_id}</strong>
+          ${typeBadge(item.tipo_mantenimiento)}
+        </div>
+        <div style="font-size:0.8rem; color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          ${item.actividad_sugerida || 'Mantenimiento General'}
+        </div>
+        <div style="font-size:0.75rem; color:#64748b; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:6px; margin-top:2px;">
+          <span>📅 ${dateDisplay}</span>
+          <span style="font-weight:600; color:#3b82f6;">${item.prioridad || 'Media'}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+  } catch (err) {
+    console.warn('[renderSolicitanteHomeUpcomingCalendar]', err);
+  }
 }
 
 let solicCalendarViewMode = 'table'; // 'table' | 'cards'

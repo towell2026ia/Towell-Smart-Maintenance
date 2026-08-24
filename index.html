@@ -1778,6 +1778,9 @@
         <li class="menu-item active" id="menu-tech-dashboard" onclick="switchTechPanel('dashboard')">
           <a>📋 Mi Tablero Técnico</a>
         </li>
+        <li class="menu-item" id="menu-tech-calendar" onclick="switchTechPanel('calendar')">
+          <a>📅 Calendario Planta</a>
+        </li>
         <li class="menu-item" id="menu-tech-checklists" onclick="switchTechPanel('checklists')">
           <a>📋 Checklists / Formatos</a>
         </li>
@@ -1883,6 +1886,35 @@
               </table>
             </div>
           </div>
+
+          <!-- Widget: Próximos Mantenimientos en Planta (Calendario Programado) -->
+          <div class="table-container" style="margin-top: 20px;">
+            <div class="table-header-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="table-title">📅 Próximos Mantenimientos en Planta (Calendario Oficial)</span>
+                <span class="badge badge-priority-media" id="badge-tech-dash-cal-count">0 Actividades</span>
+              </div>
+              <button class="btn-nav btn-nav-secondary" onclick="switchTechPanel('calendar')" style="font-size: 0.8rem; padding: 4px 10px;">Ver Calendario Completo ➔</button>
+            </div>
+            <div class="responsive-table-wrapper">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Máquina / Equipo</th>
+                    <th>Área</th>
+                    <th>Tipo</th>
+                    <th>Actividad Sugerida</th>
+                    <th>Fecha Programada</th>
+                    <th>Prioridad</th>
+                    <th>Responsable</th>
+                  </tr>
+                </thead>
+                <tbody id="table-tech-dash-calendar-body">
+                  <tr><td colspan="7" style="text-align:center; padding:20px; color:#64748b;">Cargando calendario programado...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <!-- Panel Técnico 2: Checklists / Formatos -->
@@ -1973,6 +2005,123 @@
                 </thead>
                 <tbody id="table-tech-machine-history-body">
                   <!-- JS Rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel Técnico: Calendario de Mantenimiento de Planta -->
+        <div id="panel-tech-calendar" class="tech-panel-content" style="display: none;">
+          <div style="background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap;">
+                <h3 style="margin: 0; font-weight: 700; font-size: 1.25rem;">📅 Calendario de Mantenimiento de Planta</h3>
+                <span class="badge" style="background:#0284c7; color:white; font-weight:700; font-size:0.85rem; padding:4px 10px; border-radius:6px;">135 ACTIVOS</span>
+                <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:600; font-size:0.78rem; padding:4px 8px; border-radius:6px;">🔒 Solo Lectura</span>
+              </div>
+              <p style="margin: 0; color: #64748b; font-size: 0.85rem;">Consulta integral de mantenimientos Preventivos (AG-002), Predictivos (AG-003) y Autónomos (AG-004) en todas las áreas (PF, CF, TF, AF).</p>
+            </div>
+            <button class="btn-nav btn-nav-primary" onclick="renderTechCalendar()" style="display: flex; align-items: center; gap: 6px;">↻ Recargar Calendario</button>
+          </div>
+
+          <!-- Métricas Resumen Planta -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #0284c7;">
+              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🛠️ Preventivo Anual</div>
+              <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="tech-cal-stat-prev">135</div>
+              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">1 intervención anual / máq</div>
+            </div>
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #7c3aed;">
+              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🔮 Predictivo Mensual</div>
+              <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="tech-cal-stat-pred">4</div>
+              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Viernes certificados PF</div>
+            </div>
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #059669;">
+              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🤖 Autónomo Semanal</div>
+              <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="tech-cal-stat-auto">135</div>
+              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Balanceado Lun-Sáb</div>
+            </div>
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #f59e0b;">
+              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">📅 Total Programado</div>
+              <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="tech-cal-stat-total">274</div>
+              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Actividades consolidadas</div>
+            </div>
+          </div>
+
+          <!-- Barra de Filtros y Búsqueda para Técnico -->
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Filtrar Área:</label>
+              <select id="filter-tech-cal-area" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderTechCalendar()">
+                <option value="ALL">TODAS LAS ÁREAS (Planta)</option>
+                <option value="PF">PF — Tejido / Urdido (56)</option>
+                <option value="CF">CF — Costura / Confección (53)</option>
+                <option value="TF">TF — Tintorería / Acabados (19)</option>
+                <option value="AF">AF — Servicios Auxiliares (7)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Tipo Mantenimiento:</label>
+              <select id="filter-tech-cal-type" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderTechCalendar()">
+                <option value="ALL">TODOS (Todos los tipos)</option>
+                <option value="PREVENTIVO">🛠️ PREVENTIVO ANUAL</option>
+                <option value="PREDICTIVO">🔮 PREDICTIVO MENSUAL</option>
+                <option value="AUTONOMO">🤖 AUTÓNOMO SEMANAL</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Desde:</label>
+              <input type="date" id="tech-cal-filter-from" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderTechCalendar()">
+            </div>
+
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Hasta:</label>
+              <input type="date" id="tech-cal-filter-to" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderTechCalendar()">
+            </div>
+
+            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+              <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setTechCalendarQuickFilter('all')">Todo el Año</button>
+              <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setTechCalendarQuickFilter('month')">Este Mes</button>
+              <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setTechCalendarQuickFilter('next30')">Próx. 30 Días</button>
+              <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setTechCalendarQuickFilter('clear')">Limpiar</button>
+            </div>
+
+            <div style="flex: 1; min-width: 180px;">
+              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Buscar Máquina / Actividad:</label>
+              <input type="text" id="tech-cal-filter-search" class="form-control" placeholder="Ej. TEL201, Revisión, Vibración..." style="font-size: 0.85rem; height: 36px;" oninput="renderTechCalendar()">
+            </div>
+
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Orden:</label>
+              <select id="tech-cal-sort-order" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderTechCalendar()">
+                <option value="ASC">Más cercano primero (ASC)</option>
+                <option value="DESC">Más lejano primero (DESC)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Contenedor Tabla Técnico -->
+          <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #cbd5e1;">
+            <div id="tech-cal-counter" style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px; font-weight: 600;">Mostrando 0 actividades</div>
+            <div style="overflow-x: auto;">
+              <table class="custom-table" style="width: 100%;">
+                <thead>
+                  <tr>
+                    <th>Máquina / Equipo</th>
+                    <th>Área</th>
+                    <th>Tipo</th>
+                    <th>Actividad Sugerida</th>
+                    <th>Fecha Programada</th>
+                    <th>Prioridad</th>
+                    <th>Responsable</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-tech-calendar">
+                  <tr><td colspan="8" style="text-align: center; padding: 30px; color: #64748b;">Cargando calendario de planta...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -2113,9 +2262,10 @@
             <div class="solic-quadrant-card" onclick="switchSolicitantePanel('calendar')">
               <div class="solic-quadrant-icon">📅</div>
               <h3 class="solic-quadrant-title">3. Calendario por Área</h3>
-              <p class="solic-quadrant-desc">Revisa preventivos y mantenimientos autónomos agendados para tu área de trabajo.</p>
+              <p class="solic-quadrant-desc">Revisa preventivos, predictivos y autónomos agendados para tu área de trabajo.</p>
               <div class="solic-quadrant-footer">
                 <span class="solic-quadrant-cta">Ver Calendario ➔</span>
+                <span id="badge-solic-calendar-count" class="solic-quadrant-badge" style="background:#e0e7ff; color:#3730a3;">0 Programadas</span>
               </div>
             </div>
 
@@ -2130,6 +2280,23 @@
               </div>
             </div>
 
+          </div>
+
+          <!-- Sección de Mantenimientos Programados en el Home del Solicitante -->
+          <div style="margin-top: 24px; background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <span>📅 Próximas Intervenciones Programadas en tu Área</span>
+                  <span id="solic-home-cal-badge" class="badge" style="background:#0284c7; color:white; font-size:0.75rem; padding:3px 8px; border-radius:6px;">ÁREA: PF</span>
+                </h3>
+                <p style="margin: 4px 0 0; font-size: 0.82rem; color: #64748b;">Resumen rápido de las actividades de mantenimiento agendadas para tus equipos (Solo lectura).</p>
+              </div>
+              <button type="button" class="btn-nav btn-nav-secondary" onclick="switchSolicitantePanel('calendar')" style="font-size: 0.82rem; padding: 6px 12px;">Ver Calendario Completo ➔</button>
+            </div>
+            <div id="solic-home-upcoming-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+              <p style="color:#64748b; padding:12px 0;">Cargando próximas actividades de tu área...</p>
+            </div>
           </div>
         </div>
 
@@ -2187,6 +2354,9 @@
                 <select id="solic-req-machine" class="form-control" onchange="onSolicitanteMachineSelectChange(this.value)" required>
                   <option value="">Selecciona máquina...</option>
                 </select>
+                <div id="solic-machine-calendar-notice" style="display:none; margin-top:8px; padding:10px 14px; background:#eff6ff; border-left:4px solid #3b82f6; border-radius:6px; font-size:0.83rem; color:#1e40af;">
+                  <!-- Información de mantenimiento programado de la máquina -->
+                </div>
               </div>
 
               <!-- Campo Ubicación (Requerido solo cuando Máquina = NO_APLICA) -->
