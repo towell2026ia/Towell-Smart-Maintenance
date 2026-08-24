@@ -17,7 +17,9 @@ export interface RouteResult {
 
 // Fallback in-memory catalog mirroring cat_eventos_agente seed for resilience during unit tests/offline
 const STATIC_EVENT_CATALOG: Record<string, EventCatalogEntry> = {
-  'PREVENTIVO_GENERAR': { event_code: 'PREVENTIVO_GENERAR', nombre_evento: 'Generación de órdenes preventivas anuales', agent_id_destino: 'AG-002', es_conocido: true, datos_requeridos: ['maquina_id', 'anio', 'tipo_mantenimiento'] },
+  'PREVENTIVO_GENERAR': { event_code: 'PREVENTIVO_GENERAR', nombre_evento: 'Generación de órdenes preventivas anuales', agent_id_destino: 'AG-002', es_conocido: true, datos_requeridos: [] },
+  'PREVENTIVO_PRESUPUESTO_CONSULTAR': { event_code: 'PREVENTIVO_PRESUPUESTO_CONSULTAR', nombre_evento: 'Consulta canónica de presupuesto preventivo de refacciones', agent_id_destino: 'AG-007', es_conocido: true, datos_requeridos: [] },
+  'PREVENTIVE_BUDGET_REQUESTED': { event_code: 'PREVENTIVE_BUDGET_REQUESTED', nombre_evento: 'Consulta de pronóstico de presupuesto preventivo', agent_id_destino: 'AG-007', es_conocido: true, datos_requeridos: [] },
   'PREDICTIVO_GENERAR': { event_code: 'PREDICTIVO_GENERAR', nombre_evento: 'Generación de rutas predictivas', agent_id_destino: 'AG-003', es_conocido: true, datos_requeridos: ['maquina_id', 'mes'] },
   'AUTONOMO_GENERAR': { event_code: 'AUTONOMO_GENERAR', nombre_evento: 'Generación de checklists autónomos semanales', agent_id_destino: 'AG-004', es_conocido: true, datos_requeridos: ['maquina_id', 'semana'] },
   'EXCEL_BASE_CARGADA': { event_code: 'EXCEL_BASE_CARGADA', nombre_evento: 'Carga de datos crudos para auditoría', agent_id_destino: 'AG-005', es_conocido: true, datos_requeridos: ['file_path'] },

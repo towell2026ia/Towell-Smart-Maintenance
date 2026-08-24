@@ -81,7 +81,10 @@ export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineI
       }
 
       // Price lookup (§55-60 PRD: No LLM, no external lookup, missing price is NOT $0)
-      const lookupPrice = priceMap.get(partCode);
+      const directPrice = typeof part.reference_unit_price === 'number' && !isNaN(part.reference_unit_price) && part.reference_unit_price > 0
+        ? part.reference_unit_price
+        : undefined;
+      const lookupPrice = priceMap.get(partCode) !== undefined ? priceMap.get(partCode) : directPrice;
       let unitPrice: number | null = null;
       let priceStatus: PriceStatus = 'UNKNOWN_PRICE';
       let partCost: number | null = null;

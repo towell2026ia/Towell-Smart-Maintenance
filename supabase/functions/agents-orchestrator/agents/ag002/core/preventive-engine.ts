@@ -98,8 +98,8 @@ export class DeterministicPreventiveEngine {
     const dedupedEvents = deduplicateHistoricalEvents(rawEvents);
 
     // 2. Process each machine
-    for (const m of input.machines) {
-      const machineId = String(m.equipo_towell || '').trim().toUpperCase();
+    for (const m of input.machines || []) {
+      const machineId = String(m.maquina_id || m.equipo_towell || m.clave || m.id_maquina || '').trim().toUpperCase();
       if (!machineId) continue;
 
       const dept = normalizeDepartmentCode(m.departamento_codigo || m.area, machineId);
@@ -116,13 +116,14 @@ export class DeterministicPreventiveEngine {
       }
 
       // Criticality
-      const critItem = input.criticalities.find(c => String(c.maquina_id || '').trim().toUpperCase() === machineId);
+      const critList = input.criticalities || [];
+      const critItem = critList.find(c => String(c.maquina_id || '').trim().toUpperCase() === machineId);
       const critLevel = critItem?.nivel_criticidad || 'Media';
 
       // Historical Calculators
       const recurrence = calculateRecurrenceMetrics(machineId, dedupedEvents, generationDateStr);
-      const downtime = calculateDowntimeMetrics(machineId, input.bitacoras, input.work_orders);
-      const maintenanceHistory = calculateMaintenanceHistory(machineId, input.work_orders, generationDateStr);
+      const downtime = calculateDowntimeMetrics(machineId, input.bitacoras || [], input.work_orders || []);
+      const maintenanceHistory = calculateMaintenanceHistory(machineId, input.work_orders || [], generationDateStr);
 
       // Priority Engine
       const priorityComponents = calculatePreventivePriority(critLevel, recurrence, downtime, maintenanceHistory);
@@ -131,14 +132,17 @@ export class DeterministicPreventiveEngine {
       const yearGuard = evaluatePreventiveYearGuard(machineId, targetYear, input.existing_calendar_details || [], dept);
 
       // Service Resolver
-      const serviceRes = resolvePreventiveService(machineId, dept, input.services);
+      const availableServices = (input.services && input.services.length > 0) ? input.services : [
+        { codigo_servicio: 'SRV-PREV-01', nombre_servicio: 'Mantenimiento Preventivo General', departamento_aplicable: null, duracion_estimada_min: 180, activo: true, tipo_servicio: 'preventivo', frecuencia_meses: 12, partes_requeridas: [] }
+      ];
+      const serviceRes = resolvePreventiveService(machineId, dept, availableServices);
 
       // Parts Estimator (PRD-AG007-R1 Service-Part Authority)
       const partsEst = estimatePreventiveParts(
         machineId, 
         serviceRes.service?.codigo_servicio, 
-        input.parts, 
-        input.parts_by_machine,
+        input.parts || [], 
+        input.parts_by_machine || [],
         input.service_parts || []
       );
 
@@ -170,14 +174,36 @@ export class DeterministicPreventiveEngine {
       };
     }
 
-    // 3. Run Annual Scheduler
-    const profilesList = Object.values(machineProfiles);
-    const scheduledSlots = scheduleAnnualPreventiveCalendar(profilesList, targetYear, calendarReference);
+    // 3. Extract already completed and valid future scheduled machines for targetYear
+    const completedMachineIds = new Set<string>();
+    const validFutureMachineMap = new Map<string, { scheduled_date: string; iso_week: number; service_code?: string }>();
 
-    // 4. Run Budget Aggregator
+    for (const ot of input.work_orders || []) {
+      const d = normalizeDate(ot.fecha_inicio || ot.fecha_fin);
+      if (d && d.startsWith(String(targetYear)) && ot.maquina_id) {
+        const desc = (ot.tipo_orden || ot.descripcion || '').toUpperCase();
+        if (desc.includes('PREVENTIV') && ['COMPLETADA', 'CERRADA', 'VALIDADA', 'FINALIZADA'].includes((ot.estatus || '').toUpperCase())) {
+          completedMachineIds.add(ot.maquina_id);
+        }
+      }
+    }
+
+    // 4. Run Dynamic Annual Scheduler (PRD-AG002-R2.1.2)
+    const profilesList = Object.values(machineProfiles);
+    const scheduleRes = scheduleAnnualPreventiveCalendar(
+      profilesList,
+      targetYear,
+      generationDateStr,
+      completedMachineIds,
+      validFutureMachineMap,
+      calendarReference
+    );
+    const scheduledSlots = scheduleRes.slots;
+
+    // 5. Run Budget Aggregator
     const budgetSummary = aggregatePreventiveBudget(scheduledSlots);
 
-    // 5. Build and Validate Contract Payloads
+    // 6. Build and Validate Contract Payloads
     const contractPayloads: any[] = [];
     for (const slot of scheduledSlots) {
       const payload = buildPreventiveScheduleContract(slot);
@@ -196,7 +222,7 @@ export class DeterministicPreventiveEngine {
 
     return {
       engine_version: AG002_ENGINE_VERSION,
-      dataset_ref: 'AG002-DATA-MAP-001',
+      dataset_ref: 'AG002-DATA-MAP-002',
       target_year: targetYear,
       generation_date: generationDateStr,
       calendar_reference: calendarReference,
@@ -218,7 +244,11 @@ export class DeterministicPreventiveEngine {
       schedule_items: scheduledSlots,
       budget_summary: budgetSummary,
       machine_profiles: machineProfiles,
-      contract_payloads: contractPayloads
+      contract_payloads: contractPayloads,
+      reconciliation: scheduleRes.reconciliation,
+      distribution_evidence: scheduleRes.distribution_evidence,
+      capacity_report: scheduleRes.capacity_report,
+      planning_window: scheduleRes.planning_window
     };
   }
 }

@@ -141,6 +141,51 @@ export function estimatePreventiveParts(
         quantity_status: qtyStatus
       });
     }
+  } else {
+    // Branch 3: Asset BOM Matching from refacciones_por_maquina
+    const machineBOM = partsByMachine.filter(p => 
+      String(p.maquina_id || '').trim().toUpperCase() === m
+    );
+
+    for (const mp of machineBOM) {
+      const partCode = String(mp.codigo_articulo || (mp as any).cve_refaccion || '').trim();
+      if (!partCode) continue;
+
+      const catItem = partsCatalog.find(p => p.codigo_articulo === partCode || (p as any).cve_refaccion === partCode);
+      const nombre = mp.nombre_articulo || catItem?.nombre_articulo || partCode;
+
+      const qty = (typeof mp.cantidad === 'number' && mp.cantidad > 0) ? mp.cantidad : 1;
+      const qtyStatus: QuantityStatus = (typeof mp.cantidad === 'number' && mp.cantidad > 0) ? 'KNOWN_QUANTITY' : 'DERIVED_QUANTITY';
+
+      const unitCost = typeof mp.costo_unitario === 'number'
+        ? mp.costo_unitario
+        : (typeof catItem?.costo_unitario === 'number' ? catItem.costo_unitario : undefined);
+
+      let priceStatus: PriceStatus = 'UNKNOWN_PRICE';
+      if (typeof unitCost === 'number') {
+        if (unitCost > 0) {
+          priceStatus = 'KNOWN_PRICE';
+          totalKnown += (qty * unitCost);
+          knownCount++;
+        } else {
+          priceStatus = 'ZERO_PRICE';
+          knownCount++;
+        }
+      } else {
+        unknownCount++;
+      }
+
+      estimated.push({
+        cve_refaccion: partCode,
+        nombre,
+        cantidad: qty,
+        costo_unitario: unitCost,
+        unidad_medida: mp.unidad_medida || catItem?.unidad_medida || 'PZA',
+        quantity_source: 'ASSET_SERVICE_OVERRIDE',
+        price_status: priceStatus,
+        quantity_status: qtyStatus
+      });
+    }
   }
 
   let bStatus: BudgetStatus = 'COMPLETE';

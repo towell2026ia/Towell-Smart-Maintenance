@@ -10,6 +10,7 @@ import { validateEventPayload, validateAuthorityLevel, validateNanoOutput, CLOSE
 import { createApprovalRequest } from './approvals.ts';
 import { callOpenAIWithRetry, CAPATAZ_NANO_SYSTEM_PROMPT, CAPATAZ_NANO_JSON_SCHEMA } from '../providers/openai-adapter.ts';
 import { calculateCost, fetchModelRates, logExecutionRecord } from './cost-tracker.ts';
+import { executeAG002AnnualPreventive } from '../agents/ag002/ag002-executor.ts';
 import { executeAG005Audit } from '../agents/ag005/ag005-executor.ts';
 import { executeAG006FormBuilder } from '../agents/ag006/ag006-executor.ts';
 import { executeAG007PreventiveBudget } from '../agents/ag007/ag007-executor.ts';
@@ -445,8 +446,49 @@ export async function executeAgentFlow(
       });
     }
 
-    // If target is AG-007 (Presupuestos y Costos), execute specialist preventive budget engine
+    // If target is AG-002 (Preventivo Anual), execute dynamic annual scheduler and chain AG-007
+    let ag002Result = null;
     let ag007Result = null;
+    if (route.agent_id === 'AG-002') {
+      ag002Result = await executeAG002AnnualPreventive(supabase, cleanedPayload, corrId);
+      await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-002',
+        execution_type: 'AGENT_EXECUTION',
+        provider: 'none',
+        model: 'none',
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - new Date(startedAt).getTime(),
+        input_tokens: 0,
+        output_tokens: 0,
+        estimated_cost_usd: 0,
+        status: 'SUCCESS',
+        result: ag002Result
+      });
+
+      // AG-001 automatically chains AG-007 to recalculate canonical parts budget (PRD-AG002-R2.1.2)
+      if (ag002Result && ag002Result.schedule_items) {
+        const plannedItems = ag002Result.schedule_items.map((s: any) => ({
+          machine_id: s.machine_id,
+          scheduled_date: s.scheduled_date,
+          planned_parts: (s.planned_parts || []).map((p: any) => ({
+            part_code: p.cve_refaccion,
+            planned_quantity: p.cantidad,
+            reference_unit_price: p.costo_unitario
+          }))
+        }));
+
+        ag007Result = await executeAG007PreventiveBudget(supabase, {
+          reference_date: cleanedPayload.reference_date || ag002Result.generation_date,
+          preventive_schedule_items: plannedItems,
+          price_catalog: cleanedPayload.parts || [],
+          active_machines: cleanedPayload.machines || []
+        }, corrId);
+      }
+    }
+
+    // If target is AG-007 (Presupuestos y Costos), execute specialist preventive budget engine
     if (route.agent_id === 'AG-007') {
       ag007Result = await executeAG007PreventiveBudget(supabase, cleanedPayload, corrId);
       await logExecutionRecord(supabase, {
@@ -487,6 +529,7 @@ export async function executeAgentFlow(
       result: {
         target_agent: route.agent_id,
         sequence_executed: sequenceExecuted,
+        ag002_result: ag002Result,
         audit_result: ag005AuditResult,
         form_builder_result: ag006Result,
         ag007_result: ag007Result,

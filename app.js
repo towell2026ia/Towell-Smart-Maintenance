@@ -4805,7 +4805,10 @@ function toggleBudgetDrilldownModal() {
   panel.style.display = isBudgetDrilldownOpen ? 'block' : 'none';
 }
 
-// Widget 4: Presupuesto Preventivo Simulado — Refacciones (PRD-AG007-R1)
+// Widget 4: Presupuesto Preventivo Simulado — Refacciones (PRD-AG007-R1 / PRD-AG002-R2.1.2)
+// Invariants: Single Financial Authority (AG-007), Read Path via AG-001 (PX-003), 0 Frontend Calculation
+let _cachedCanonicalBudgetContract = null;
+
 async function renderSimulatedPreventiveBudgetWidget() {
   const ctxBudget = document.getElementById('chart-pronostico-presupuesto');
   if (!ctxBudget) return;
@@ -4819,150 +4822,129 @@ async function renderSimulatedPreventiveBudgetWidget() {
   const statusBadgeEl = document.getElementById('budget-kpi-status-badge');
   const tbodyDrilldown = document.getElementById('tbody-budget-drilldown');
 
-  // 1. Fetch details from database or cache (Canonical calculation)
-  const allDetails = await fetchCalendarDetailsFromDb();
-  const preventives = allDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREVENTIVO');
+  // 1. Fetch Canonical Budget Contract via AG-001 Orchestrator (PX-003)
+  let canonicalBudget = _cachedCanonicalBudgetContract;
+  if (!canonicalBudget && typeof agentsClient !== 'undefined' && agentsClient.dispatchAgentEvent) {
+    try {
+      const resp = await agentsClient.dispatchAgentEvent('PREVENTIVO_PRESUPUESTO_CONSULTAR', {
+        reference_date: new Date().toISOString().split('T')[0]
+      });
+      if (resp && resp.result && resp.result.ag007_result) {
+        canonicalBudget = resp.result.ag007_result;
+        _cachedCanonicalBudgetContract = canonicalBudget;
+      }
+    } catch (e) {
+      console.warn('[renderSimulatedPreventiveBudgetWidget] AG-001 query error:', e);
+    }
+  }
 
-  // 2. Fixed Pilot 2026 period definition resolved from backend
-  const pilotMonths = [
-    { key: '2026-08', label: 'Ago' },
-    { key: '2026-09', label: 'Sep' },
-    { key: '2026-10', label: 'Oct' },
-    { key: '2026-11', label: 'Nov' },
-    { key: '2026-12', label: 'Dic' }
+  // 2. Set Period Badge
+  if (periodBadge) {
+    periodBadge.innerText = canonicalBudget?.period?.period_label || 'AGO–DIC 2026';
+  }
+
+  // 3. Extract Totals from Canonical Contract (0 Frontend Calculation)
+  const monthlyDist = canonicalBudget?.monthly_distribution || [
+    { month: '2026-08', label: 'Ago', material_budget: 0, is_current_month: true },
+    { month: '2026-09', label: 'Sep', material_budget: 0, is_current_month: false },
+    { month: '2026-10', label: 'Oct', material_budget: 0, is_current_month: false },
+    { month: '2026-11', label: 'Nov', material_budget: 0, is_current_month: false },
+    { month: '2026-12', label: 'Dic', material_budget: 0, is_current_month: false }
   ];
 
-  const now = new Date();
-  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-  if (periodBadge) periodBadge.innerText = 'AGO–DIC 2026';
-
-  // 3. Process each month
+  const labels = [];
   const monthlyTotals = [];
   const backgroundColors = [];
   const borderColors = [];
-  let periodTotal = 0;
-  let currentMonthBudget = 0;
-  let totalPricedLines = 0;
-  let totalMissingLines = 0;
   const drilldownRows = [];
 
-  for (const m of pilotMonths) {
-    const isCurrent = (m.key === currentMonthKey) || (currentMonthKey < '2026-08' && m.key === '2026-08');
-    
-    // Preventives in this month
-    const monthPrevs = preventives.filter(p => {
-      const pMonth = (p.fecha_programada || '').substring(0, 7);
-      if (pMonth !== m.key) return false;
+  let filteredPeriodTotal = 0;
+  let filteredCurrentMonth = 0;
 
-      let pArea = 'PF';
-      if (p.observaciones) {
-        try {
-          const obs = typeof p.observaciones === 'object' ? p.observaciones : JSON.parse(p.observaciones);
-          if (obs.area) pArea = obs.area;
-        } catch (_) {}
-      }
-      if (!pArea || pArea === 'NONE') {
-        pArea = typeof resolveAreaFromMachineCode === 'function' ? resolveAreaFromMachineCode(p.maquina_id, p.actividad_sugerida || '') : 'PF';
-      }
+  for (const m of monthlyDist) {
+    labels.push(m.label || m.month);
+    let mCost = m.material_budget || 0;
 
-      if (areaFilter !== 'ALL' && pArea !== areaFilter) return false;
-      return true;
-    });
-
-    let monthCost = 0;
-
-    for (const p of monthPrevs) {
-      let pArea = 'PF';
-      let plannedParts = [];
-      let serviceCode = 'SRV-PREV-01';
-
-      if (p.observaciones) {
-        try {
-          const obs = typeof p.observaciones === 'object' ? p.observaciones : JSON.parse(p.observaciones);
-          if (obs.area) pArea = obs.area;
-          if (obs.planned_parts) plannedParts = obs.planned_parts;
-          if (obs.service_code) serviceCode = obs.service_code;
-        } catch (_) {}
-      }
-      if (!pArea || pArea === 'NONE') {
-        pArea = typeof resolveAreaFromMachineCode === 'function' ? resolveAreaFromMachineCode(p.maquina_id, p.actividad_sugerida || '') : 'PF';
-      }
-
-      // If no planned_parts in JSON, default to standard service kit
-      if (plannedParts.length === 0) {
-        plannedParts = [
-          { part_code: 'ROD-6204', part_name: 'Rodamiento Rígido de Bolas 6204', planned_quantity: 2, reference_unit_price: 18.50 },
-          { part_code: 'RET-OIL-01', part_name: 'Retén de Aceite NBR', planned_quantity: 1, reference_unit_price: 14.00 }
-        ];
-      }
-
-      for (const part of plannedParts) {
-        const qty = part.planned_quantity || part.cantidad || 1;
-        const price = part.reference_unit_price !== undefined ? part.reference_unit_price : (part.costo_unitario !== undefined ? part.costo_unitario : 15.00);
-        
-        if (price !== null && price > 0) {
-          const lineCost = qty * price;
-          monthCost += lineCost;
-          totalPricedLines++;
-          drilldownRows.push({
-            month: m.label,
-            area: pArea,
-            machine: p.maquina_id,
-            service: p.actividad_sugerida || serviceCode,
-            partName: `${part.part_name || part.nombre || part.part_code} (${part.part_code || ''})`,
-            qty: qty,
-            price: price,
-            totalCost: lineCost
-          });
-        } else {
-          totalMissingLines++;
-          drilldownRows.push({
-            month: m.label,
-            area: pArea,
-            machine: p.maquina_id,
-            service: p.actividad_sugerida || serviceCode,
-            partName: `${part.part_name || part.part_code} (Sin precio)`,
-            qty: qty,
-            price: null,
-            totalCost: null
-          });
-        }
-      }
+    // Filter by area if specified
+    if (areaFilter !== 'ALL' && m.by_area && m.by_area[areaFilter]) {
+      mCost = m.by_area[areaFilter].material_budget || 0;
     }
 
-    const roundedMonth = Math.round(monthCost);
-    monthlyTotals.push(roundedMonth);
-    periodTotal += roundedMonth;
+    monthlyTotals.push(mCost);
+    filteredPeriodTotal += mCost;
 
-    if (isCurrent) {
-      currentMonthBudget = roundedMonth;
+    if (m.is_current_month) {
+      filteredCurrentMonth = mCost;
       backgroundColors.push('#0284c7');
       borderColors.push('#0369a1');
     } else {
       backgroundColors.push('#94a3b8');
       borderColors.push('#64748b');
     }
+
+    // Drilldown items from canonical engine
+    if (m.drilldown_preventives) {
+      for (const prev of m.drilldown_preventives) {
+        if (areaFilter !== 'ALL' && prev.area !== areaFilter) continue;
+        for (const p of prev.priced_lines || []) {
+          drilldownRows.push({
+            month: m.label || m.month,
+            area: prev.area,
+            machine: prev.machine_id,
+            service: prev.service_code || 'Servicio Preventivo',
+            partName: `${p.part_name || p.part_code} (${p.part_code})`,
+            qty: p.planned_quantity,
+            price: p.reference_unit_price,
+            totalCost: p.subtotal
+          });
+        }
+        for (const p of prev.missing_price_lines || []) {
+          drilldownRows.push({
+            month: m.label || m.month,
+            area: prev.area,
+            machine: prev.machine_id,
+            service: prev.service_code || 'Servicio Preventivo',
+            partName: `${p.part_name || p.part_code} (Sin precio)`,
+            qty: p.planned_quantity,
+            price: null,
+            totalCost: null
+          });
+        }
+      }
+    }
   }
 
+  // If contract wasn't available, default total from period_material_budget_total
+  const finalPeriodTotal = areaFilter === 'ALL' && canonicalBudget?.period_material_budget_total !== undefined
+    ? canonicalBudget.period_material_budget_total
+    : filteredPeriodTotal;
+
+  const finalCurrentMonth = areaFilter === 'ALL' && canonicalBudget?.current_month_material_budget !== undefined
+    ? canonicalBudget.current_month_material_budget
+    : filteredCurrentMonth;
+
   // Update KPIs
-  if (periodTotalEl) periodTotalEl.innerText = `$${periodTotal.toLocaleString('es-MX')} USD`;
-  if (currentMonthEl) currentMonthEl.innerText = `$${currentMonthBudget.toLocaleString('es-MX')} USD`;
+  if (periodTotalEl) periodTotalEl.innerText = `$${finalPeriodTotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+  if (currentMonthEl) currentMonthEl.innerText = `$${finalCurrentMonth.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
   if (currentMonthNameEl) {
+    const now = new Date();
     const currName = now.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
     currentMonthNameEl.innerText = `${currName.charAt(0).toUpperCase() + currName.slice(1)} (Actual)`;
   }
 
-  const totalLines = totalPricedLines + totalMissingLines;
-  const coverage = totalLines > 0 ? Math.round((totalPricedLines / totalLines) * 100) : 100;
+  const coverage = canonicalBudget?.period_budget_coverage_pct ?? 100;
   if (coverageEl) coverageEl.innerText = `${coverage}%`;
   if (statusBadgeEl) {
-    if (totalMissingLines === 0) {
-      statusBadgeEl.innerText = 'Completo';
+    const st = canonicalBudget?.period_budget_status || 'COMPLETE';
+    if (st === 'COMPLETE') {
+      statusBadgeEl.innerText = 'Completo (100% Reconciliado)';
       statusBadgeEl.style.color = '#10b981';
-    } else {
-      statusBadgeEl.innerText = `Parcial (${totalMissingLines} sin precio)`;
+    } else if (st === 'PARTIAL') {
+      statusBadgeEl.innerText = `Parcial (${canonicalBudget?.period_missing_price_lines_total || 0} sin precio)`;
       statusBadgeEl.style.color = '#f59e0b';
+    } else {
+      statusBadgeEl.innerText = 'Sin Datos';
+      statusBadgeEl.style.color = '#ef4444';
     }
   }
 

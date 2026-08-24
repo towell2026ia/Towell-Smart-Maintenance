@@ -1,17 +1,13 @@
-// supabase/functions/agents-orchestrator/agents/ag002/rules/preventive-rules.config.ts
-// Versioned Configuration and Constants for AG-002 (§32, §62, §88, §89 PRD)
-// Universal Invariant: 1 Machine + 1 Year = Maximum 1 Preventive across ALL departments (PF, CF, TF, AF)
-
-export const AG002_ENGINE_VERSION = 'AG002-ENGINE-1.0';
+export const AG002_ENGINE_VERSION = 'AG002-ENGINE-2.0-R2';
 
 export const AG002_RULE_VERSIONS = {
-  dedupe: 'AG002-DEDUPE-RULES-001',
-  recurrence: 'AG002-RECURRENCE-RULES-001',
-  priority: 'AG002-PRIORITY-RULES-001',
-  capacity: 'AG002-CAPACITY-RULES-001',
-  scheduling: 'AG002-SCHEDULING-RULES-001',
-  parts: 'AG002-PARTS-RULES-001',
-  budget: 'AG002-BUDGET-RULES-001'
+  dedupe: 'AG002-DEDUPE-RULES-002',
+  recurrence: 'AG002-RECURRENCE-RULES-002',
+  priority: 'AG002-PRIORITY-RULES-002',
+  capacity: 'AG002-CAPACITY-RULES-002',
+  scheduling: 'AG002-SCHEDULING-RULES-002',
+  parts: 'AG002-PARTS-RULES-002',
+  budget: 'AG002-BUDGET-RULES-002'
 };
 
 export const PRIORITY_WEIGHTS = {
@@ -49,12 +45,18 @@ export const PRIORITY_BANDS = {
   NORMAL: 0
 };
 
+// Official Operational Calendar Configuration for AG-002 (PX-002 & EC-003)
+export const OPERATIONAL_CALENDAR_CONFIG = {
+  source: 'PLANT_MAINTENANCE_SCHEDULE_RULES',
+  operating_days: ['MON', 'TUE', 'WED', 'THU', 'FRI'] as const,
+  operating_day_indices: [1, 2, 3, 4, 5] as const // 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri
+};
+
+// Capacity Constraint Configuration (PX-005)
 export const CAPACITY_CONFIG = {
-  max_preventives_per_week: 4,
-  max_preventives_per_month: 16,
-  annual_work_weeks: 50,
-  start_week: 2,
-  end_week: 51
+  capacity_constraint_source: 'NONE' as const, // If no physical ceiling is configured in DB
+  max_preventives_per_day: null as number | null,
+  max_preventives_per_week: null as number | null
 };
 
 export const FREQUENCY_RULES = {
