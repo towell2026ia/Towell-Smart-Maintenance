@@ -105,6 +105,24 @@ CREATE TABLE IF NOT EXISTS public.cat_servicios_mantenimiento (
     observaciones VARCHAR(255)
 );
 
+-- Service to Planned Spare Parts Standard Catalog (PRD-AG007-R1 Service-Part Authority)
+CREATE TABLE IF NOT EXISTS public.cat_servicios_refacciones (
+    id_servicio_refaccion UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo_servicio VARCHAR(50) NOT NULL REFERENCES public.cat_servicios_mantenimiento(codigo_servicio) ON UPDATE CASCADE ON DELETE RESTRICT,
+    codigo_articulo VARCHAR(50) NOT NULL REFERENCES public.cat_refacciones(codigo_articulo) ON UPDATE CASCADE ON DELETE RESTRICT,
+    nombre_articulo VARCHAR(150),
+    cantidad_estandar NUMERIC(18,4) NOT NULL,
+    unidad_medida VARCHAR(30) DEFAULT 'PZA',
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_alta TIMESTAMP DEFAULT NOW(),
+    observaciones VARCHAR(255),
+    CONSTRAINT uq_servicio_refaccion UNIQUE (codigo_servicio, codigo_articulo)
+);
+
+CREATE INDEX IF NOT EXISTS idx_srv_ref_servicio ON public.cat_servicios_refacciones(codigo_servicio);
+CREATE INDEX IF NOT EXISTS idx_srv_ref_articulo ON public.cat_servicios_refacciones(codigo_articulo);
+ALTER TABLE public.cat_servicios_refacciones DISABLE ROW LEVEL SECURITY;
+
 
 -- ============================================================================
 -- 2. DEPENDENT CATALOGS
@@ -1736,6 +1754,32 @@ SELECT
     requiere_ot,
     id_orden_generada
 FROM public.calendario_mantenimiento_detalle;
+
+-- Official View for Preventive Material Budget Simulation (PRD-AG007-R1)
+CREATE OR REPLACE VIEW public.vw_presupuesto_preventivo_refacciones_mensual AS
+SELECT 
+    EXTRACT(YEAR FROM cmd.fecha_programada)::INT AS anio,
+    TO_CHAR(cmd.fecha_programada, 'YYYY-MM') AS anio_mes,
+    COALESCE(m.area, 'PF') AS area_codigo,
+    COUNT(DISTINCT cmd.id_detalle)::INT AS preventivos_programados,
+    COUNT(DISTINCT cmd.maquina_id)::INT AS activos_programados,
+    COALESCE(SUM((sr.cantidad_estandar * r.costo_unitario)), 0)::NUMERIC(18,2) AS presupuesto_refacciones_simulado,
+    COUNT(r.codigo_articulo)::INT AS total_lineas_refaccion,
+    COUNT(CASE WHEN r.costo_unitario > 0 THEN 1 END)::INT AS lineas_con_precio,
+    COUNT(CASE WHEN r.costo_unitario IS NULL OR r.costo_unitario = 0 THEN 1 END)::INT AS lineas_sin_precio,
+    CASE 
+        WHEN COUNT(r.codigo_articulo) > 0 
+        THEN ROUND((COUNT(CASE WHEN r.costo_unitario > 0 THEN 1 END)::NUMERIC / COUNT(r.codigo_articulo)::NUMERIC) * 100, 2)
+        ELSE 100.00
+    END AS cobertura_precios_pct,
+    'NOT_IN_SCOPE'::VARCHAR AS mano_obra_estatus
+FROM public.calendario_mantenimiento_detalle cmd
+JOIN public.cat_maquinas m ON m.equipo_towell = cmd.maquina_id
+LEFT JOIN public.planes_mantenimiento_preventivo pmp ON pmp.maquina_id = cmd.maquina_id AND pmp.activo = true
+LEFT JOIN public.cat_servicios_refacciones sr ON sr.codigo_servicio = pmp.codigo_servicio AND sr.activo = true
+LEFT JOIN public.cat_refacciones r ON r.codigo_articulo = sr.codigo_articulo
+WHERE cmd.tipo_mantenimiento = 'PREVENTIVO'
+GROUP BY EXTRACT(YEAR FROM cmd.fecha_programada), TO_CHAR(cmd.fecha_programada, 'YYYY-MM'), COALESCE(m.area, 'PF');
 
 -- ============================================================================
 -- 16. ROW LEVEL SECURITY (RLS Policies for Admins and Maintenance)

@@ -133,8 +133,14 @@ export class DeterministicPreventiveEngine {
       // Service Resolver
       const serviceRes = resolvePreventiveService(machineId, dept, input.services);
 
-      // Parts Estimator
-      const partsEst = estimatePreventiveParts(machineId, input.parts, input.parts_by_machine);
+      // Parts Estimator (PRD-AG007-R1 Service-Part Authority)
+      const partsEst = estimatePreventiveParts(
+        machineId, 
+        serviceRes.service?.codigo_servicio, 
+        input.parts, 
+        input.parts_by_machine,
+        input.service_parts || []
+      );
 
       if (yearGuard.can_schedule && serviceRes.service) {
         eligibleCount++;

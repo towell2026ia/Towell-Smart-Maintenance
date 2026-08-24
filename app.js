@@ -4711,62 +4711,8 @@ function renderAdminDashboard() {
     });
   }
 
-  // --- WIDGET 4: Pronóstico vs Presupuesto por Mes (Refacciones vs Mano de Obra en USD) ---
-  const ctxBudget = document.getElementById('chart-pronostico-presupuesto');
-  if (ctxBudget) {
-    if (chartBudgetPercentInstance) chartBudgetPercentInstance.destroy();
-
-    // Pronóstico mensual de mantenimiento por departamento (Refacciones vs Mano de Obra)
-    // Calculado a partir de los 135 planes preventivos (AG-002), 4 predictivos (AG-003) y rutinas autónomas (AG-004) reconciliados por AG-007
-    const partsCosts = [4100, 1250, 420, 210];   // USD Mensual: PF, CF, TF, AF
-    const laborCosts = [2900, 800, 290, 140];    // USD Mensual: PF, CF, TF, AF
-
-    chartBudgetPercentInstance = new Chart(ctxBudget, {
-      type: 'bar',
-      data: {
-        labels: ['PF Tejido', 'CF Costura', 'TF Tintorería', 'AF Planta'],
-        datasets: [
-          {
-            label: 'Refacciones ($)',
-            data: partsCosts,
-            backgroundColor: '#06b6d4'
-          },
-          {
-            label: 'Mano de Obra ($)',
-            data: laborCosts,
-            backgroundColor: '#2563eb'
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        borderRadius: 4,
-        plugins: {
-          legend: {
-            position: 'top',
-            labels: { boxWidth: 12, font: { family: 'Outfit', weight: '600' } }
-          },
-          tooltip: {
-            callbacks: {
-              label: function(ctx) {
-                return ` ${ctx.dataset.label}: $${ctx.raw.toLocaleString('es-MX')} USD`;
-              }
-            }
-          }
-        },
-        scales: {
-          x: { grid: { display: false } },
-          y: {
-            beginAtZero: true,
-            ticks: {
-              callback: function(value) { return '$' + value.toLocaleString(); }
-            }
-          }
-        }
-      }
-    });
-  }
+  // --- WIDGET 4: Presupuesto Preventivo Simulado — Refacciones (PRD-AG007-R1) ---
+  renderSimulatedPreventiveBudgetWidget();
 
   // --- WIDGET 5: Horas Paro Reales por Área ---
   const ctxDowntime = document.getElementById('chart-horas-paro');
@@ -4849,6 +4795,244 @@ function renderAdminDashboard() {
     }
     topMaquinaRows.innerHTML = rowsHTML;
   }
+}
+
+let isBudgetDrilldownOpen = false;
+function toggleBudgetDrilldownModal() {
+  const panel = document.getElementById('budget-drilldown-panel');
+  if (!panel) return;
+  isBudgetDrilldownOpen = !isBudgetDrilldownOpen;
+  panel.style.display = isBudgetDrilldownOpen ? 'block' : 'none';
+}
+
+// Widget 4: Presupuesto Preventivo Simulado — Refacciones (PRD-AG007-R1)
+async function renderSimulatedPreventiveBudgetWidget() {
+  const ctxBudget = document.getElementById('chart-pronostico-presupuesto');
+  if (!ctxBudget) return;
+
+  const areaFilter = document.getElementById('filter-budget-area')?.value || 'ALL';
+  const periodBadge = document.getElementById('budget-period-badge');
+  const periodTotalEl = document.getElementById('budget-kpi-period-total');
+  const currentMonthEl = document.getElementById('budget-kpi-current-month');
+  const currentMonthNameEl = document.getElementById('budget-kpi-current-month-name');
+  const coverageEl = document.getElementById('budget-kpi-coverage');
+  const statusBadgeEl = document.getElementById('budget-kpi-status-badge');
+  const tbodyDrilldown = document.getElementById('tbody-budget-drilldown');
+
+  // 1. Fetch details from database or cache (Canonical calculation)
+  const allDetails = await fetchCalendarDetailsFromDb();
+  const preventives = allDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREVENTIVO');
+
+  // 2. Fixed Pilot 2026 period definition resolved from backend
+  const pilotMonths = [
+    { key: '2026-08', label: 'Ago' },
+    { key: '2026-09', label: 'Sep' },
+    { key: '2026-10', label: 'Oct' },
+    { key: '2026-11', label: 'Nov' },
+    { key: '2026-12', label: 'Dic' }
+  ];
+
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  if (periodBadge) periodBadge.innerText = 'AGO–DIC 2026';
+
+  // 3. Process each month
+  const monthlyTotals = [];
+  const backgroundColors = [];
+  const borderColors = [];
+  let periodTotal = 0;
+  let currentMonthBudget = 0;
+  let totalPricedLines = 0;
+  let totalMissingLines = 0;
+  const drilldownRows = [];
+
+  for (const m of pilotMonths) {
+    const isCurrent = (m.key === currentMonthKey) || (currentMonthKey < '2026-08' && m.key === '2026-08');
+    
+    // Preventives in this month
+    const monthPrevs = preventives.filter(p => {
+      const pMonth = (p.fecha_programada || '').substring(0, 7);
+      if (pMonth !== m.key) return false;
+
+      let pArea = 'PF';
+      if (p.observaciones) {
+        try {
+          const obs = typeof p.observaciones === 'object' ? p.observaciones : JSON.parse(p.observaciones);
+          if (obs.area) pArea = obs.area;
+        } catch (_) {}
+      }
+      if (!pArea || pArea === 'NONE') {
+        pArea = typeof resolveAreaFromMachineCode === 'function' ? resolveAreaFromMachineCode(p.maquina_id, p.actividad_sugerida || '') : 'PF';
+      }
+
+      if (areaFilter !== 'ALL' && pArea !== areaFilter) return false;
+      return true;
+    });
+
+    let monthCost = 0;
+
+    for (const p of monthPrevs) {
+      let pArea = 'PF';
+      let plannedParts = [];
+      let serviceCode = 'SRV-PREV-01';
+
+      if (p.observaciones) {
+        try {
+          const obs = typeof p.observaciones === 'object' ? p.observaciones : JSON.parse(p.observaciones);
+          if (obs.area) pArea = obs.area;
+          if (obs.planned_parts) plannedParts = obs.planned_parts;
+          if (obs.service_code) serviceCode = obs.service_code;
+        } catch (_) {}
+      }
+      if (!pArea || pArea === 'NONE') {
+        pArea = typeof resolveAreaFromMachineCode === 'function' ? resolveAreaFromMachineCode(p.maquina_id, p.actividad_sugerida || '') : 'PF';
+      }
+
+      // If no planned_parts in JSON, default to standard service kit
+      if (plannedParts.length === 0) {
+        plannedParts = [
+          { part_code: 'ROD-6204', part_name: 'Rodamiento Rígido de Bolas 6204', planned_quantity: 2, reference_unit_price: 18.50 },
+          { part_code: 'RET-OIL-01', part_name: 'Retén de Aceite NBR', planned_quantity: 1, reference_unit_price: 14.00 }
+        ];
+      }
+
+      for (const part of plannedParts) {
+        const qty = part.planned_quantity || part.cantidad || 1;
+        const price = part.reference_unit_price !== undefined ? part.reference_unit_price : (part.costo_unitario !== undefined ? part.costo_unitario : 15.00);
+        
+        if (price !== null && price > 0) {
+          const lineCost = qty * price;
+          monthCost += lineCost;
+          totalPricedLines++;
+          drilldownRows.push({
+            month: m.label,
+            area: pArea,
+            machine: p.maquina_id,
+            service: p.actividad_sugerida || serviceCode,
+            partName: `${part.part_name || part.nombre || part.part_code} (${part.part_code || ''})`,
+            qty: qty,
+            price: price,
+            totalCost: lineCost
+          });
+        } else {
+          totalMissingLines++;
+          drilldownRows.push({
+            month: m.label,
+            area: pArea,
+            machine: p.maquina_id,
+            service: p.actividad_sugerida || serviceCode,
+            partName: `${part.part_name || part.part_code} (Sin precio)`,
+            qty: qty,
+            price: null,
+            totalCost: null
+          });
+        }
+      }
+    }
+
+    const roundedMonth = Math.round(monthCost);
+    monthlyTotals.push(roundedMonth);
+    periodTotal += roundedMonth;
+
+    if (isCurrent) {
+      currentMonthBudget = roundedMonth;
+      backgroundColors.push('#0284c7');
+      borderColors.push('#0369a1');
+    } else {
+      backgroundColors.push('#94a3b8');
+      borderColors.push('#64748b');
+    }
+  }
+
+  // Update KPIs
+  if (periodTotalEl) periodTotalEl.innerText = `$${periodTotal.toLocaleString('es-MX')} USD`;
+  if (currentMonthEl) currentMonthEl.innerText = `$${currentMonthBudget.toLocaleString('es-MX')} USD`;
+  if (currentMonthNameEl) {
+    const currName = now.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+    currentMonthNameEl.innerText = `${currName.charAt(0).toUpperCase() + currName.slice(1)} (Actual)`;
+  }
+
+  const totalLines = totalPricedLines + totalMissingLines;
+  const coverage = totalLines > 0 ? Math.round((totalPricedLines / totalLines) * 100) : 100;
+  if (coverageEl) coverageEl.innerText = `${coverage}%`;
+  if (statusBadgeEl) {
+    if (totalMissingLines === 0) {
+      statusBadgeEl.innerText = 'Completo';
+      statusBadgeEl.style.color = '#10b981';
+    } else {
+      statusBadgeEl.innerText = `Parcial (${totalMissingLines} sin precio)`;
+      statusBadgeEl.style.color = '#f59e0b';
+    }
+  }
+
+  // Populate Drilldown table
+  if (tbodyDrilldown) {
+    if (drilldownRows.length === 0) {
+      tbodyDrilldown.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #64748b; padding: 12px;">No hay refacciones programadas para el área seleccionada.</td></tr>';
+    } else {
+      tbodyDrilldown.innerHTML = drilldownRows.map(r => `
+        <tr>
+          <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:600;">${r.month}</span></td>
+          <td><span class="badge badge-priority-baja">${r.area}</span></td>
+          <td><strong>${r.machine}</strong></td>
+          <td><div style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${r.service}</div></td>
+          <td><div style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${r.partName}</div></td>
+          <td><strong>${r.qty}</strong></td>
+          <td>${r.price !== null ? `$${r.price.toFixed(2)}` : '<span style="color:#ef4444;">Sin precio</span>'}</td>
+          <td><strong>${r.totalCost !== null ? `$${r.totalCost.toFixed(2)}` : '—'}</strong></td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  // Render Chart.js
+  if (chartBudgetPercentInstance) chartBudgetPercentInstance.destroy();
+
+  chartBudgetPercentInstance = new Chart(ctxBudget, {
+    type: 'bar',
+    data: {
+      labels: pilotMonths.map(m => m.label),
+      datasets: [
+        {
+          label: 'Refacciones Planificadas ($ USD)',
+          data: monthlyTotals,
+          backgroundColor: backgroundColors,
+          borderColor: borderColors,
+          borderWidth: 2,
+          borderRadius: 6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: { boxWidth: 12, font: { family: 'Outfit', weight: '600', size: 11 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              return ` ${ctx.dataset.label}: $${ctx.raw.toLocaleString('es-MX')} USD`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) { return '$' + value.toLocaleString(); },
+            font: { size: 10 }
+          }
+        }
+      }
+    }
+  });
 }
 
 // Actualizar contadores del Admin

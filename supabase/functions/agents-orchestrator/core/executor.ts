@@ -12,6 +12,7 @@ import { callOpenAIWithRetry, CAPATAZ_NANO_SYSTEM_PROMPT, CAPATAZ_NANO_JSON_SCHE
 import { calculateCost, fetchModelRates, logExecutionRecord } from './cost-tracker.ts';
 import { executeAG005Audit } from '../agents/ag005/ag005-executor.ts';
 import { executeAG006FormBuilder } from '../agents/ag006/ag006-executor.ts';
+import { executeAG007PreventiveBudget } from '../agents/ag007/ag007-executor.ts';
 import { executeAG009 } from '../agents/ag009/ag009-executor.ts';
 import { executeAG010 } from '../agents/ag010/ag010-executor.ts';
 import { executeAG013 } from '../agents/ag013/ag013-executor.ts';
@@ -444,6 +445,27 @@ export async function executeAgentFlow(
       });
     }
 
+    // If target is AG-007 (Presupuestos y Costos), execute specialist preventive budget engine
+    let ag007Result = null;
+    if (route.agent_id === 'AG-007') {
+      ag007Result = await executeAG007PreventiveBudget(supabase, cleanedPayload, corrId);
+      await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-007',
+        execution_type: 'AGENT_EXECUTION',
+        provider: 'none',
+        model: 'none',
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - new Date(startedAt).getTime(),
+        input_tokens: 0,
+        output_tokens: 0,
+        estimated_cost_usd: 0,
+        status: 'SUCCESS',
+        result: ag007Result
+      });
+    }
+
     if (supabase && dbEventId) {
       await supabase
         .from('eventos_agente')
@@ -467,6 +489,7 @@ export async function executeAgentFlow(
         sequence_executed: sequenceExecuted,
         audit_result: ag005AuditResult,
         form_builder_result: ag006Result,
+        ag007_result: ag007Result,
         ag010_result: ag010Result,
         ag013_result: ag013Result
       }

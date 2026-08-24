@@ -101,6 +101,26 @@ export interface ServiceCatalogItem {
   departamento_aplicable?: DepartmentCode;
 }
 
+export interface ServicePartCatalogItem {
+  id_servicio_refaccion?: string;
+  codigo_servicio: string;
+  codigo_articulo: string;
+  nombre_articulo?: string;
+  cantidad_estandar: number;
+  unidad_medida?: string;
+  activo?: boolean;
+}
+
+export interface PlannedPartReference {
+  part_id?: string;
+  part_code: string;
+  part_name: string;
+  planned_quantity: number;
+  unit_of_measure?: string;
+  quantity_source: 'ASSET_SERVICE_OVERRIDE' | 'SERVICE_DEFAULT' | 'CATALOG_STANDARD' | 'MISSING_MAPPING';
+  quantity_status: QuantityStatus;
+}
+
 export interface PartReferenceItem {
   codigo_articulo: string;
   nombre_articulo?: string;
@@ -122,6 +142,7 @@ export interface HistoricalCollectorInput {
   work_orders: WorkOrderItem[];
   bitacoras: BitacoraItem[];
   services: ServiceCatalogItem[];
+  service_parts?: ServicePartCatalogItem[];
   parts: PartReferenceItem[];
   parts_by_machine: PartReferenceItem[];
   existing_calendar_details?: Array<{
