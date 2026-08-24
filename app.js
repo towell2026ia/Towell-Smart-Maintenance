@@ -840,8 +840,10 @@ async function syncDatabases() {
       const localMachines = dbMachines.map(m => {
         const localM = existingLocalMachines.find(lm => lm.id === m.equipo_towell);
         let area = m.departamento_codigo || m.area || null;
-        if (!area) {
-          area = m.equipo_towell.includes('COS') ? 'CF' : (m.equipo_towell.includes('TIN') || m.equipo_towell.includes('JET') ? 'TF' : 'PF');
+        if (!area || area === 'NONE') {
+          area = (typeof resolveAreaFromMachineCode === 'function')
+            ? resolveAreaFromMachineCode(m.equipo_towell, m.clave || '')
+            : 'PF';
         }
         const proceso = area === 'PF' ? 'Tejido' : (area === 'CF' ? 'Costura' : (area === 'TF' ? 'Tintoría' : 'Servicios Auxiliares'));
         return {
@@ -12823,6 +12825,35 @@ async function validateProposalPeriod() {
 }
 
 // 2. Ejecutar generación de propuestas (Preventiva Anual, Predictiva, Autónoma)
+// Resolución canónica de área a partir del código de máquina y clave de catálogo
+function resolveAreaFromMachineCode(code, clave) {
+  const c = (code || '').toUpperCase();
+  const k = (clave || '').toUpperCase();
+  // PF (Tejido/Urdido): telares, engomados, urdidos, jacquard, KM, revisadoras, polipastos, montacargas, rasuradoras, CRUD
+  if (c.endsWith('-TEJI') || c.endsWith('-TEJ') || c.endsWith('-URDI') || c.includes('-KM') ||
+      c.endsWith('-RASU') || c.endsWith('-CRUD') ||
+      k.includes('TELAR') || k.includes('URDID') || k.includes('ENGOMADO') || k.includes('JACQUARD') ||
+      k.includes('RASURADORA') || k.includes('REVISADOR') || k.includes('MONTACARGAS') ||
+      k.includes('POLIPASTO') || k.includes('OVER LOOK 36')) return 'PF';
+  // CF (Costura/Confección)
+  if (c.endsWith('-COST') || c.endsWith('-CORBAT') || c.includes('ELEV-COST') ||
+      k.includes('COSTURA') || k.includes('CONFECCION') || k.includes('TEXPA') ||
+      (k.includes('SELLADORA') && !c.includes('-PT')) ||
+      k.includes('SUBLIMADOR') || k.includes('PLANCHA') || k.includes('LONGITUDINAL') ||
+      k.includes('CORT VERT') || k.includes('COLLARETE') || k.includes('ENROLLADOR') ||
+      k.includes('CORTADORA') || k.includes('DETECTOR')) return 'CF';
+  // TF (Tintorería)
+  if (c.endsWith('-TINT') || c.endsWith('-SECA') ||
+      k.includes('CALDERA') || k.includes('SECADORA') || k.includes('OVER FLOW') || k.includes('FOULARD') ||
+      k.includes('PLANTA TRATADORA') || k.includes('CENTRO DE LAVADO') || k.includes('ABRIDORA') ||
+      k.includes('OVER LOOK 35') || k.includes('BOMBA DE AGUA DEL POZO') || k.includes('CLAYTON')) return 'TF';
+  // AF (Auxiliares)
+  if (c.endsWith('-PT') || (c.includes('COMP') && c.includes('HP')) || c.includes('BOMCIST') ||
+      k.includes('COMPRESOR') || k.includes('CISTERNA') || k.includes('SELLADORA PT')) return 'AF';
+  if (c.includes('-PT')) return 'AF';
+  return 'PF'; // Default PF
+}
+
 async function handleGenerateCalendarProposal(event) {
   event.preventDefault();
   const type = document.getElementById('proposal-type').value;
@@ -12935,7 +12966,7 @@ async function handleGenerateCalendarProposal(event) {
       for (const machine of activeMachines) {
         const machId = machine.equipo_towell || machine.clave || machine.id_maquina;
         const machName = machine.nombre || machine.nombre_maquina || machId;
-        const areaCode = (machine.area || machine.departamento_codigo || 'PF').toUpperCase().trim();
+        const areaCode = resolveAreaFromMachineCode(machId, machine.clave || machName);
         const mCost = partsCostByMachine[machId] || 0;
         const mCrit = (machine.criticidad || machine.prioridad_default || 'B').toUpperCase().trim();
 
@@ -13050,6 +13081,7 @@ async function handleGenerateCalendarProposal(event) {
     } else if (type === 'AUTONOMO') {
       // AUTÓNOMO SEMANAL (AG-004 / Balanceo Lun-Sáb por tendencias de fallas y recurrencias, 0 segundas)
       // Invariante: autonomous_uses_segundas = 0, balanceo semanal Lunes a Sábado, temperatura obligatoria en °C
+      // Prioridad: PF (Tejido) es siempre prioritario — el empuje de la planta es PF
       const targetWeek = week || 1;
       const startOfYear = new Date(year, 0, 1);
       const weekStartDate = new Date(startOfYear.setDate(startOfYear.getDate() + ((targetWeek - 1) * 7)));
@@ -13062,42 +13094,64 @@ async function handleGenerateCalendarProposal(event) {
         }
       });
 
-      // Ordenar máquinas por recurrencia/tendencia de falla
-      const rankedForAutonomous = [...activeMachines].sort((a, b) => {
-        const failsA = machineFailsCount[a.equipo_towell] || 0;
-        const failsB = machineFailsCount[b.equipo_towell] || 0;
-        return failsB - failsA;
+      // Days of the week: Mon to Sat (offsets 1-6 from week start)
+      const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      function getWeekDay(dayOffset) {
+        const d = new Date(weekStartDate);
+        d.setDate(weekStartDate.getDate() + dayOffset + 1);
+        return d.toISOString().split('T')[0];
+      }
+
+      // Group machines by area using canonical resolver
+      const areaGroups = { PF: [], CF: [], TF: [], AF: [] };
+      activeMachines.forEach(machine => {
+        const machId = machine.equipo_towell || machine.clave;
+        const area = resolveAreaFromMachineCode(machId, machine.clave || '');
+        if (!areaGroups[area]) areaGroups[area] = [];
+        areaGroups[area].push(machine);
       });
 
-      // Balancear en los 6 días laborables de la semana (Lunes=1 a Sábado=6)
-      rankedForAutonomous.forEach((machine, idx) => {
-        const dayOffset = (idx % 6);
-        const projDate = new Date(weekStartDate);
-        projDate.setDate(weekStartDate.getDate() + dayOffset + 1);
-        const dateStr = projDate.toISOString().split('T')[0];
+      // Sort within each group by failure recurrence (most failures first)
+      Object.values(areaGroups).forEach(group => {
+        group.sort((a, b) => {
+          const failsA = machineFailsCount[a.equipo_towell] || 0;
+          const failsB = machineFailsCount[b.equipo_towell] || 0;
+          return failsB - failsA;
+        });
+      });
 
-        const machId = machine.equipo_towell || machine.clave;
-        const areaCode = (machine.area || machine.departamento_codigo || 'PF').toUpperCase().trim();
-        const fails = machineFailsCount[machId] || 0;
-        const prio = fails >= 5 ? 'ALTA' : fails >= 2 ? 'MEDIA' : 'BAJA';
+      // Distribute each area group evenly across 6 days (Mon-Sat)
+      // PF goes first with ALTA priority, CF/TF with MEDIA, AF with BAJA
+      const areaPrioMap = { PF: 'ALTA', CF: 'MEDIA', TF: 'MEDIA', AF: 'BAJA' };
+      ['PF', 'CF', 'TF', 'AF'].forEach(area => {
+        const group = areaGroups[area] || [];
+        group.forEach((machine, idx) => {
+          const dayOffset = idx % 6;
+          const dateStr = getWeekDay(dayOffset);
+          const machId = machine.equipo_towell || machine.clave;
+          const fails = machineFailsCount[machId] || 0;
+          let prio = areaPrioMap[area];
+          if (fails >= 5) prio = 'ALTA';
 
-        detailsToInsert.push({
-          id_calendario: newCalId,
-          maquina_id: machId,
-          fecha_programada: dateStr,
-          tipo_mantenimiento: 'AUTONOMO',
-          prioridad: prio,
-          actividad_sugerida: `Rutina Autónoma Semanal: ${machId} (${areaCode}) - 5 Bloques (Vibración, Limpieza, Lubricación, Temp °C, Sensores)`,
-          responsable_sugerido: `Operador / Mantenimiento ${areaCode}`,
-          observaciones: JSON.stringify({
-            origen: 'AG-004_AUTONOMO_SEMANAL',
-            fuente_datos: 'tendencias_y_recurrencias_fallas',
-            segundas_usadas: 0,
-            fallas_recurrentes_detectadas: fails,
-            dia_semana_asignado: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayOffset],
-            temperatura_requerida_grados_c: true
-          }),
-          estatus_detalle: 'PROPUESTO'
+          detailsToInsert.push({
+            id_calendario: newCalId,
+            maquina_id: machId,
+            fecha_programada: dateStr,
+            tipo_mantenimiento: 'AUTONOMO',
+            prioridad: prio,
+            actividad_sugerida: `Rutina Autónoma Semanal: ${machId} (${area}) - 5 Bloques (Vibración, Limpieza, Lubricación, Temp °C, Sensores)`,
+            responsable_sugerido: `Operador de Planta (${area})`,
+            observaciones: JSON.stringify({
+              origen: 'AG-004_AUTONOMO_SEMANAL',
+              area: area,
+              fuente_datos: 'tendencias_y_recurrencias_fallas',
+              segundas_usadas: 0,
+              fallas_recurrentes_detectadas: fails,
+              dia_semana_asignado: dayNames[dayOffset],
+              temperatura_requerida_grados_c: true
+            }),
+            estatus_detalle: 'PROPUESTO'
+          });
         });
       });
     }
