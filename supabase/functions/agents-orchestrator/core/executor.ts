@@ -170,7 +170,7 @@ export async function executeAgentFlow(
   const cleanedPayload = valResult.cleanedPayload;
 
   // 5. Check Target Agent Status & Environment Permissions
-  let targetAgentState = 'EVALUATION';
+  let targetAgentState = 'READY';
   let targetAuthorityLevel = 1;
   let targetActive = route.activo;
 
