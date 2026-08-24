@@ -13524,14 +13524,25 @@ async function handleGenerateCalendarProposal(event) {
         });
       });
     } else if (type === 'AUTONOMO') {
-      // AUTÓNOMO SEMANAL (AG-004 / Balanceo Lun-Sáb por tendencias de fallas y recurrencias, 0 segundas)
-      // Invariante: autonomous_uses_segundas = 0, balanceo semanal Lunes a Sábado, temperatura obligatoria en °C
-      // Prioridad: PF (Tejido) es siempre prioritario — el empuje de la planta es PF
-      const targetWeek = week || 1;
-      const startOfYear = new Date(year, 0, 1);
-      const weekStartDate = new Date(startOfYear.setDate(startOfYear.getDate() + ((targetWeek - 1) * 7)));
+      // AUTÓNOMO SEMANAL (PRD-AG004-R1: AG-004 Vía Recurrencias y Tendencias, Max 15 Máquinas, Lunes a Viernes)
+      // Invariantes: 0 segundas, máximo 15 activos por semana, Lunes a Viernes (Sábado = 0, Domingo = 0), temp °C obligatoria
+      const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+      
+      // 1. Resolver semana operativa (Lunes a Viernes de la próxima semana o semana objetivo)
+      const now = new Date();
+      const currentDow = now.getUTCDay() === 0 ? 7 : now.getUTCDay();
+      const daysUntilNextMonday = 8 - currentDow;
+      const nextMonday = new Date(now);
+      nextMonday.setUTCDate(now.getUTCDate() + daysUntilNextMonday);
 
-      // Calcular score de recurrencia a partir de OTs históricas
+      const operatingDates = [];
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(nextMonday);
+        d.setUTCDate(nextMonday.getUTCDate() + i);
+        operatingDates.push(d.toISOString().split('T')[0]);
+      }
+
+      // 2. Evaluar historial de fallas y señales en máquinas activas
       const machineFailsCount = {};
       allOts.forEach(o => {
         if (o.maquina_id) {
@@ -13539,64 +13550,62 @@ async function handleGenerateCalendarProposal(event) {
         }
       });
 
-      // Days of the week: Mon to Sat (offsets 1-6 from week start)
-      const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-      function getWeekDay(dayOffset) {
-        const d = new Date(weekStartDate);
-        d.setDate(weekStartDate.getDate() + dayOffset + 1);
-        return d.toISOString().split('T')[0];
-      }
-
-      // Group machines by area using canonical resolver
-      const areaGroups = { PF: [], CF: [], TF: [], AF: [] };
-      activeMachines.forEach(machine => {
-        const machId = machine.equipo_towell || machine.clave;
-        const area = resolveAreaFromMachineCode(machId, machine.clave || '');
-        if (!areaGroups[area]) areaGroups[area] = [];
-        areaGroups[area].push(machine);
+      // Filtrar sólo activos con historial real de fallas
+      const eligibleCandidates = activeMachines.filter(m => {
+        const machId = m.equipo_towell || m.clave;
+        return (machineFailsCount[machId] || 0) > 0;
+      }).map(m => {
+        const machId = m.equipo_towell || m.clave;
+        const fails = machineFailsCount[machId] || 0;
+        const area = resolveAreaFromMachineCode(machId, m.clave || '');
+        const hasRecurrence = fails >= 2;
+        const hasTrend = fails >= 3;
+        const rankingScore = (hasRecurrence ? 50 : 0) + (hasTrend ? 30 : 0) + Math.min(fails * 5, 20);
+        return {
+          machine: m,
+          machId,
+          area,
+          fails,
+          hasRecurrence,
+          hasTrend,
+          rankingScore,
+          reason: hasRecurrence && hasTrend ? 'RECURRENCE_AND_TREND' : (hasRecurrence ? 'RECURRENCE' : 'TREND')
+        };
+      }).sort((a, b) => {
+        if (b.rankingScore !== a.rankingScore) return b.rankingScore - a.rankingScore;
+        if (b.fails !== a.fails) return b.fails - a.fails;
+        return a.machId.localeCompare(b.machId);
       });
 
-      // Sort within each group by failure recurrence (most failures first)
-      Object.values(areaGroups).forEach(group => {
-        group.sort((a, b) => {
-          const failsA = machineFailsCount[a.equipo_towell] || 0;
-          const failsB = machineFailsCount[b.equipo_towell] || 0;
-          return failsB - failsA;
-        });
-      });
+      // 3. Aplicar límite estricto de capacidad (Máximo 15 máquinas)
+      const selectedMachines = eligibleCandidates.slice(0, 15);
 
-      // Distribute each area group evenly across 6 days (Mon-Sat)
-      // PF goes first with ALTA priority, CF/TF with MEDIA, AF with BAJA
-      const areaPrioMap = { PF: 'ALTA', CF: 'MEDIA', TF: 'MEDIA', AF: 'BAJA' };
-      ['PF', 'CF', 'TF', 'AF'].forEach(area => {
-        const group = areaGroups[area] || [];
-        group.forEach((machine, idx) => {
-          const dayOffset = idx % 6;
-          const dateStr = getWeekDay(dayOffset);
-          const machId = machine.equipo_towell || machine.clave;
-          const fails = machineFailsCount[machId] || 0;
-          let prio = areaPrioMap[area];
-          if (fails >= 5) prio = 'ALTA';
+      selectedMachines.forEach((cand, idx) => {
+        const dayIdx = idx % 5;
+        const dateStr = operatingDates[dayIdx];
+        const assignedDay = dayNames[dayIdx];
+        const prio = cand.fails >= 5 ? 'ALTA' : (cand.area === 'PF' ? 'ALTA' : 'MEDIA');
 
-          detailsToInsert.push({
-            id_calendario: newCalId,
-            maquina_id: machId,
-            fecha_programada: dateStr,
-            tipo_mantenimiento: 'AUTONOMO',
-            prioridad: prio,
-            actividad_sugerida: `Rutina Autónoma Semanal: ${machId} (${area}) - 5 Bloques (Vibración, Limpieza, Lubricación, Temp °C, Sensores)`,
-            responsable_sugerido: `Operador de Planta (${area})`,
-            observaciones: JSON.stringify({
-              origen: 'AG-004_AUTONOMO_SEMANAL',
-              area: area,
-              fuente_datos: 'tendencias_y_recurrencias_fallas',
-              segundas_usadas: 0,
-              fallas_recurrentes_detectadas: fails,
-              dia_semana_asignado: dayNames[dayOffset],
-              temperatura_requerida_grados_c: true
-            }),
-            estatus_detalle: 'PROPUESTO'
-          });
+        detailsToInsert.push({
+          id_calendario: newCalId,
+          maquina_id: cand.machId,
+          fecha_programada: dateStr,
+          tipo_mantenimiento: 'AUTONOMO',
+          prioridad: prio,
+          actividad_sugerida: `Rutina Autónoma Semanal: ${cand.machId} (${cand.area}) - Checklist 5 Bloques (Temp °C)`,
+          responsable_sugerido: `Operador (${cand.area})`,
+          observaciones: JSON.stringify({
+            origen: 'AG-004_AUTONOMO_SEMANAL',
+            area: cand.area,
+            ranking_position: idx + 1,
+            eligibility_reason: cand.reason,
+            failure_history_count: cand.fails,
+            fuente_datos: 'historico_fallas_recurrencias_tendencias',
+            segundas_usadas: 0,
+            dia_semana_asignado: assignedDay,
+            temperatura_requerida_grados_c: true
+          }),
+          estatus_detalle: 'PROPUESTO'
         });
       });
     }
@@ -13609,13 +13618,103 @@ async function handleGenerateCalendarProposal(event) {
       if (dErr) throw dErr;
     }
 
-    showToast('✅ Propuesta de calendario generada exitosamente.');
+    // Disparar evento oficial correspondiente hacia AG-001 (Capataz)
+    const eventType = type === 'PREVENTIVO' ? 'PREVENTIVO_GENERAR' : (type === 'PREDICTIVO' ? 'PREDICTIVO_GENERAR' : 'AUTONOMO_GENERAR');
+    if (typeof dispatchAgentEvent === 'function') {
+      try {
+        await dispatchAgentEvent(eventType, {
+          origin: 'CALENDAR_PROPOSAL_MODAL',
+          payload: {
+            tipo: type,
+            anio: year,
+            mes: month,
+            semana: week,
+            total_propuestas_generadas: detailsToInsert.length
+          }
+        });
+      } catch (evtErr) {
+        console.warn('[handleGenerateCalendarProposal] Event dispatch warn:', evtErr);
+      }
+    }
+
+    showToast(`✅ AG-001: Propuesta de calendario (${type}) generada con ${detailsToInsert.length} actividades.`);
     switchCalendarViewMode('table');
+    if (type === 'PREVENTIVO') switchCalendarTab('preventivo');
+    else if (type === 'PREDICTIVO') switchCalendarTab('predictivo');
+    else if (type === 'AUTONOMO') switchCalendarTab('autonomo');
   } catch (err) {
     console.error('[GenerateProposal] Error:', err);
     showToast('❌ Error al generar la propuesta: ' + err.message, 'error');
   }
 }
+
+// ── DISPARADORES DIRECTOS DESDE BOTONES HACIA AG-001 (CAPATAZ) ────────────────
+async function triggerAgentPreventivo() {
+  showToast('⚡ AG-001 -> AG-002: Generando Preventivo Anual (100% flota)...');
+  if (typeof dispatchAgentEvent === 'function') {
+    await dispatchAgentEvent('PREVENTIVO_GENERAR', {
+      origin: 'QUICK_CALENDAR_BUTTON',
+      payload: { year: new Date().getFullYear() }
+    });
+  }
+  await switchCalendarTab('preventivo');
+}
+
+async function triggerAgentPredictivo() {
+  showToast('⚡ AG-001 -> AG-003: Evaluando Segundas por Rollo (Viernes certificados)...');
+  if (typeof dispatchAgentEvent === 'function') {
+    await dispatchAgentEvent('PREDICTIVO_GENERAR', {
+      origin: 'QUICK_CALENDAR_BUTTON',
+      payload: { year: new Date().getFullYear(), month: new Date().getMonth() }
+    });
+  }
+  await switchCalendarTab('predictivo');
+}
+
+async function triggerAgentAutonomo() {
+  showToast('⚡ AG-001 -> AG-004: Generando Plan Autónomo Semanal (Máx 15 activos Lun–Vie)...');
+  if (typeof dispatchAgentEvent === 'function') {
+    await dispatchAgentEvent('AUTONOMO_GENERAR', {
+      origin: 'QUICK_CALENDAR_BUTTON',
+      payload: { referenceDate: new Date().toISOString().split('T')[0] }
+    });
+  }
+  await switchCalendarTab('autonomo');
+}
+
+async function triggerAIRecommendationsDispatch() {
+  showToast('⚡ Solicitando recomendaciones analíticas a AG-001 (Capataz)...');
+  if (typeof dispatchAgentEvent === 'function') {
+    await dispatchAgentEvent('AI_RECOMMENDATIONS_REQUESTED', {
+      origin: 'AI_RECOMMENDATIONS_MODAL_REFRESH',
+      context: typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {}
+    });
+  }
+  renderAdminAIRecommendations();
+}
+
+async function triggerFailureAnalysisDispatch() {
+  showToast('⚡ Solicitando análisis de fallas a AG-001 (Capataz)...');
+  if (typeof dispatchAgentEvent === 'function') {
+    await dispatchAgentEvent('FAILURE_ANALYSIS_REQUESTED', {
+      origin: 'FAILURE_ANALYSIS_MODAL_REFRESH',
+      context: typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {}
+    });
+  }
+  renderAdminAnalysis();
+}
+
+async function triggerSystemAlertsDispatch() {
+  showToast('⚡ Sincronizando alertas del sistema con AG-001 (Capataz)...');
+  if (typeof dispatchAgentEvent === 'function') {
+    await dispatchAgentEvent('SYSTEM_ALERTS_REQUESTED', {
+      origin: 'SYSTEM_ALERTS_MODAL_REFRESH',
+      context: typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {}
+    });
+  }
+  renderAdminAlertas();
+}
+
 
 // 3. Controladores de Filtros Rápidos de Fecha para el Calendario
 function setCalendarQuickFilter(filterType) {

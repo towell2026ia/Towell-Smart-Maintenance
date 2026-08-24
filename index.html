@@ -1126,11 +1126,19 @@
 
             <!-- CONTAINER B: Calendar Proposals (Table View) -->
             <div id="calendar-view-table-mode" style="display: none; flex-direction: column; gap: 16px;">
-              <!-- Pestañas de la tabla -->
-              <div style="display: flex; border-bottom: 1px solid #cbd5e1; gap: 4px; padding-bottom: 1px;">
-                <button class="tab-btn active" id="tab-btn-preventivo-sub" onclick="switchCalendarTab('preventivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid var(--primary-color); background: none; font-weight: 600; cursor: pointer; color: var(--primary-color);">📆 Preventivo Anual</button>
-                <button class="tab-btn" id="tab-btn-predictivo-sub" onclick="switchCalendarTab('predictivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🔬 Predictivo Mensual</button>
-                <button class="tab-btn" id="tab-btn-autonomo-sub" onclick="switchCalendarTab('autonomo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🛠️ Plan Autónomo — Próxima Semana</button>
+              <!-- Pestañas de la tabla y Botones de Disparo AG-001 -->
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #cbd5e1; gap: 8px; padding-bottom: 4px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 4px;">
+                  <button class="tab-btn active" id="tab-btn-preventivo-sub" onclick="switchCalendarTab('preventivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid var(--primary-color); background: none; font-weight: 600; cursor: pointer; color: var(--primary-color);">📆 Preventivo Anual</button>
+                  <button class="tab-btn" id="tab-btn-predictivo-sub" onclick="switchCalendarTab('predictivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🔬 Predictivo Mensual</button>
+                  <button class="tab-btn" id="tab-btn-autonomo-sub" onclick="switchCalendarTab('autonomo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🛠️ Plan Autónomo — Próxima Semana</button>
+                </div>
+                <!-- Botones de Disparo de Agentes Vía AG-001 -->
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <button class="btn-table-action" onclick="triggerAgentPreventivo()" style="padding: 6px 12px; font-size: 0.8rem; background: #0284c7; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Dispara AG-002 vía AG-001">⚡ Generar AG-002</button>
+                  <button class="btn-table-action" onclick="triggerAgentPredictivo()" style="padding: 6px 12px; font-size: 0.8rem; background: #ea580c; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Dispara AG-003 vía AG-001">⚡ Generar AG-003</button>
+                  <button class="btn-table-action" onclick="triggerAgentAutonomo()" style="padding: 6px 12px; font-size: 0.8rem; background: #059669; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Dispara AG-004 vía AG-001">⚡ Generar AG-004</button>
+                </div>
               </div>
 
               <!-- Barra de Filtros de Fechas y Búsqueda -->
@@ -4280,9 +4288,12 @@
         <button class="btn-close-modal" onclick="closeModal('modal-admin-analysis-list')">×</button>
       </div>
       <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
           <p style="color:var(--text-muted);font-size:0.85rem;margin:0;">Detección de patrones de falla recurrente por máquina y tipo de falla.</p>
-          <button class="btn-nav btn-nav-primary" onclick="openAnalysisModal()">+ Nuevo Análisis</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-nav btn-nav-primary" onclick="triggerFailureAnalysisDispatch()" style="background: var(--primary-dark); display: flex; align-items: center; gap: 6px;">⚡ Diagnóstico AG-001</button>
+            <button class="btn-nav btn-nav-primary" onclick="openAnalysisModal()">+ Nuevo Análisis</button>
+          </div>
         </div>
         <div class="responsive-table-wrapper" style="overflow-x:auto;">
           <table class="custom-table">
@@ -4320,7 +4331,10 @@
         <button class="btn-close-modal" onclick="closeModal('modal-admin-ai-list')">×</button>
       </div>
       <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 20px;">
-        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Sugerencias inteligentes generadas por el motor IA de TSM-AI.</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+          <p style="color:var(--text-muted);font-size:0.85rem;margin:0;">Sugerencias inteligentes generadas por el motor IA de TSM-AI.</p>
+          <button class="btn-nav btn-nav-primary" onclick="triggerAIRecommendationsDispatch()" style="background: #8b5cf6; display: flex; align-items: center; gap: 6px;">⚡ Solicitar al Capataz (AG-001)</button>
+        </div>
         <div id="ai-recommendations-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
           <!-- Se carga dinámicamente -->
         </div>
@@ -4339,9 +4353,12 @@
         <button class="btn-close-modal" onclick="closeModal('modal-admin-alerts-list')">×</button>
       </div>
       <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
           <p style="color:var(--text-muted);font-size:0.85rem;margin:0;">Alertas generadas automáticamente por el motor de reglas y el análisis de fallas.</p>
-          <button class="btn-nav btn-nav-primary" onclick="renderAdminAlertas()">↻ Recargar</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-nav btn-nav-primary" onclick="triggerSystemAlertsDispatch()" style="background: #ef4444; display: flex; align-items: center; gap: 6px;">⚡ Sincronizar con AG-001</button>
+            <button class="btn-nav btn-nav-primary" onclick="renderAdminAlertas()">↻ Recargar</button>
+          </div>
         </div>
         <div class="responsive-table-wrapper" style="overflow-x:auto;">
           <table class="custom-table">
