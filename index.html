@@ -2280,37 +2280,125 @@
         </div>
 
         <!-- Panel 3: Calendario por Área (Vistas y Filtros Sin Prompts Internos IA) -->
+        <!-- Panel 3: Calendario por Área (Solo Lectura - Réplica de Calendarios Oficiales) -->
         <!-- ===== PANEL 3: Calendario ===== -->
         <div id="panel-solic-calendar" class="solic-panel-content" style="display: none;">
           <button class="solic-back-btn" onclick="switchSolicitantePanel('home')">← Regresar al Inicio</button>
-          <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+          
+          <!-- Encabezado del Calendario con Indicador de Área y Modo Solo Lectura -->
+          <div style="background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
             <div>
-              <h3 style="margin: 0; font-weight: 700;">📅 Calendario de Mantenimientos por Área</h3>
-              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;" id="solic-calendar-subtitle">Programación de actividades aprobadas para tu Área (Solo lectura).</p>
-            </div>
-            
-            <!-- Controles de Vista y Filtro -->
-            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-              <div style="display: flex; background: #e2e8f0; border-radius: 6px; padding: 2px;">
-                <button type="button" class="btn-nav btn-nav-secondary active" id="btn-solic-cal-view-month" onclick="switchSolicitanteCalendarView('month')">Mes</button>
-                <button type="button" class="btn-nav btn-nav-secondary" id="btn-solic-cal-view-week" onclick="switchSolicitanteCalendarView('week')">Semana</button>
-                <button type="button" class="btn-nav btn-nav-secondary" id="btn-solic-cal-view-day" onclick="switchSolicitanteCalendarView('day')">Día</button>
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap;">
+                <h3 style="margin: 0; font-weight: 700; font-size: 1.25rem;">📅 Calendario de Mantenimiento por Área</h3>
+                <span id="solic-calendar-area-badge" class="badge" style="background:#0284c7; color:white; font-weight:700; font-size:0.85rem; padding:4px 10px; border-radius:6px;">ÁREA: PF</span>
+                <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:600; font-size:0.78rem; padding:4px 8px; border-radius:6px;">🔒 Solo Lectura</span>
               </div>
-
-              <select id="filter-solic-cal-type" class="form-control" style="width: 150px; font-size: 0.85rem;" onchange="renderSolicitanteCalendar()">
-                <option value="ALL">TODOS</option>
-                <option value="MP">PREVENTIVO</option>
-                <option value="PRED">PREDICTIVO</option>
-                <option value="AUTONOMO">AUTÓNOMO</option>
-              </select>
-
-              <button class="btn-nav btn-nav-primary" onclick="renderSolicitanteCalendar()">↻ Recargar</button>
+              <p style="margin: 0; color: #64748b; font-size: 0.85rem;" id="solic-calendar-subtitle">Programación oficial de mantenimientos Preventivo, Predictivo y Autónomo para las máquinas de tu Área.</p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="btn-nav btn-nav-primary" onclick="renderSolicitanteCalendar()" style="display: flex; align-items: center; gap: 6px;">↻ Recargar Calendario</button>
             </div>
           </div>
 
+          <!-- Métricas Resumen del Área -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #0284c7;">
+              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🛠️ Preventivos Anuales</div>
+              <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="solic-cal-stat-prev">0</div>
+              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">1 intervención anual / máq</div>
+            </div>
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #7c3aed;">
+              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🔮 Predictivos Mensuales</div>
+              <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="solic-cal-stat-pred">0</div>
+              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Viernes certificados</div>
+            </div>
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #059669;">
+              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🤖 Autónomos Semanales</div>
+              <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="solic-cal-stat-auto">0</div>
+              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Balanceados Lun-Sáb</div>
+            </div>
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #f59e0b;">
+              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">📅 Total Programadas</div>
+              <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="solic-cal-stat-total">0</div>
+              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Actividades en tu área</div>
+            </div>
+          </div>
+
+          <!-- Barra de Filtros y Búsqueda -->
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Tipo de Mantenimiento:</label>
+              <select id="filter-solic-cal-type" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
+                <option value="ALL">TODOS (Todos los tipos)</option>
+                <option value="PREVENTIVO">🛠️ PREVENTIVO ANUAL</option>
+                <option value="PREDICTIVO">🔮 PREDICTIVO MENSUAL</option>
+                <option value="AUTONOMO">🤖 AUTÓNOMO SEMANAL</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Desde:</label>
+              <input type="date" id="solic-cal-filter-from" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
+            </div>
+
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Hasta:</label>
+              <input type="date" id="solic-cal-filter-to" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
+            </div>
+
+            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+              <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setSolicitanteCalendarQuickFilter('all')">Todo el Año</button>
+              <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setSolicitanteCalendarQuickFilter('month')">Este Mes</button>
+              <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setSolicitanteCalendarQuickFilter('next30')">Próx. 30 Días</button>
+              <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setSolicitanteCalendarQuickFilter('clear')">Limpiar</button>
+            </div>
+
+            <div style="flex: 1; min-width: 180px;">
+              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Buscar Máquina / Actividad:</label>
+              <input type="text" id="solic-cal-filter-search" class="form-control" placeholder="Ej. TEL201, Revisión, Vibración..." style="font-size: 0.85rem; height: 36px;" oninput="renderSolicitanteCalendar()">
+            </div>
+
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Orden:</label>
+              <select id="solic-cal-sort-order" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
+                <option value="ASC">Más cercano primero (ASC)</option>
+                <option value="DESC">Más lejano primero (DESC)</option>
+              </select>
+            </div>
+
+            <div style="display: flex; gap: 4px; align-items: center; margin-left: auto;">
+              <button type="button" id="btn-solic-mode-table" class="btn-nav btn-nav-secondary active" style="height: 36px;" onclick="switchSolicitanteCalendarMode('table')">📋 Tabla</button>
+              <button type="button" id="btn-solic-mode-cards" class="btn-nav btn-nav-secondary" style="height: 36px;" onclick="switchSolicitanteCalendarMode('cards')">🃏 Tarjetas</button>
+            </div>
+          </div>
+
+          <!-- Contenedor Principal de la Vista del Calendario -->
           <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #cbd5e1;">
-            <div id="solic-calendar-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
-              <!-- Tarjetas de eventos de calendario por área -->
+            <div id="solic-cal-counter" style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px; font-weight: 600;">Mostrando 0 actividades</div>
+            
+            <!-- Vista 1: Tabla Detallada -->
+            <div id="solic-cal-view-table" style="overflow-x: auto;">
+              <table class="custom-table" style="width: 100%;">
+                <thead>
+                  <tr>
+                    <th>Máquina / Equipo</th>
+                    <th>Tipo</th>
+                    <th>Actividad Programada</th>
+                    <th>Fecha Programada</th>
+                    <th>Prioridad</th>
+                    <th>Responsable Sugerido</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-solic-calendar">
+                  <tr><td colspan="7" style="text-align: center; padding: 30px; color: #64748b;">Cargando calendario de tu área...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Vista 2: Grid de Tarjetas -->
+            <div id="solic-cal-view-cards" style="display: none; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+              <!-- Tarjetas renderizadas dinámicamente -->
             </div>
           </div>
         </div>

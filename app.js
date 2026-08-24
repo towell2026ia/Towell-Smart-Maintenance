@@ -1988,7 +1988,12 @@ function getMachinesByArea(areaCode) {
   const cleanArea = String(areaCode).toUpperCase().trim();
   return machines.filter(m => {
     if (!m || m.activo === false) return false;
-    const mArea = String(m.area || m.departamento_codigo || m.departamento || '').toUpperCase().trim();
+    let mArea = String(m.area || m.departamento_codigo || m.departamento || '').toUpperCase().trim();
+    if (!mArea || mArea === 'NONE' || mArea === 'UNKNOWN') {
+      mArea = typeof resolveAreaFromMachineCode === 'function'
+        ? resolveAreaFromMachineCode(m.id || m.equipo_towell, m.clave || m.name || '')
+        : 'PF';
+    }
     return mArea === cleanArea || mArea.includes(cleanArea) || cleanArea.includes(mArea);
   });
 }
@@ -14133,7 +14138,55 @@ async function renderSolicitanteTracking() {
   }).join('');
 }
 
+let solicCalendarViewMode = 'table'; // 'table' | 'cards'
 let activeSolicitanteCalendarView = 'month';
+
+function switchSolicitanteCalendarMode(mode) {
+  solicCalendarViewMode = mode;
+  const btnTable = document.getElementById('btn-solic-mode-table');
+  const btnCards = document.getElementById('btn-solic-mode-cards');
+  const viewTable = document.getElementById('solic-cal-view-table');
+  const viewCards = document.getElementById('solic-cal-view-cards');
+  
+  if (btnTable) btnTable.classList.toggle('active', mode === 'table');
+  if (btnCards) btnCards.classList.toggle('active', mode === 'cards');
+  if (viewTable) viewTable.style.display = mode === 'table' ? 'block' : 'none';
+  if (viewCards) viewCards.style.display = mode === 'cards' ? 'grid' : 'none';
+}
+
+function setSolicitanteCalendarQuickFilter(filterType) {
+  const fromEl = document.getElementById('solic-cal-filter-from');
+  const toEl = document.getElementById('solic-cal-filter-to');
+  const searchEl = document.getElementById('solic-cal-filter-search');
+  const sortEl = document.getElementById('solic-cal-sort-order');
+  if (!fromEl || !toEl) return;
+
+  const now = new Date();
+  const year = now.getFullYear();
+
+  if (filterType === 'all') {
+    fromEl.value = `${year}-01-01`;
+    toEl.value = `${year}-12-31`;
+  } else if (filterType === 'month') {
+    const m = now.getMonth();
+    const firstDay = new Date(year, m, 1);
+    const lastDay = new Date(year, m + 1, 0);
+    fromEl.value = firstDay.toISOString().split('T')[0];
+    toEl.value = lastDay.toISOString().split('T')[0];
+  } else if (filterType === 'next30') {
+    const next30 = new Date();
+    next30.setDate(now.getDate() + 30);
+    fromEl.value = now.toISOString().split('T')[0];
+    toEl.value = next30.toISOString().split('T')[0];
+  } else if (filterType === 'clear') {
+    fromEl.value = '';
+    toEl.value = '';
+    if (searchEl) searchEl.value = '';
+    if (sortEl) sortEl.value = 'ASC';
+  }
+
+  renderSolicitanteCalendar();
+}
 
 function switchSolicitanteCalendarView(viewName) {
   activeSolicitanteCalendarView = viewName;
@@ -14148,79 +14201,214 @@ function switchSolicitanteCalendarView(viewName) {
 }
 
 async function renderSolicitanteCalendar() {
-  const container = document.getElementById('solic-calendar-container');
-  if (!container || !currentUser) return;
+  const tbody = document.getElementById('tbody-solic-calendar');
+  const cardsContainer = document.getElementById('solic-cal-view-cards');
+  const counterEl = document.getElementById('solic-cal-counter');
+  const areaBadgeEl = document.getElementById('solic-calendar-area-badge');
+  const subtitleEl = document.getElementById('solic-calendar-subtitle');
+  if (!tbody || !currentUser) return;
 
-  const userArea = (currentUser.area || 'CF').toUpperCase().trim();
-  const filterType = document.getElementById('filter-solic-cal-type')?.value || 'ALL';
+  const userArea = (currentUser.area || 'PF').toUpperCase().trim();
+  const areaNames = {
+    PF: 'PF — Tejido / Urdido (Planta Fabricación)',
+    CF: 'CF — Costura / Confección',
+    TF: 'TF — Tintorería / Acabados',
+    AF: 'AF — Servicios Auxiliares / PT'
+  };
 
-  container.innerHTML = '<p style="color:#64748b;">Cargando mantenimientos programados para tu Área (' + userArea + ')...</p>';
+  if (areaBadgeEl) areaBadgeEl.innerText = `ÁREA: ${userArea}`;
+  if (subtitleEl) subtitleEl.innerText = `Programación oficial de mantenimientos para el Área ${areaNames[userArea] || userArea} (Solo lectura).`;
 
-  const machines = getMachinesByArea(userArea);
-  let orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]').filter(o => String(o.area).toUpperCase().trim() === userArea);
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:25px; color:#64748b;">Cargando calendario oficial de tu área (' + userArea + ')...</td></tr>';
+  if (cardsContainer) cardsContainer.innerHTML = '<p style="color:#64748b; padding:20px;">Cargando actividades...</p>';
 
-  // PRD 10.3: Preventivos aprobados/programados/en ejecución/terminadas
-  let preventives = orders.filter(o => (o.type === 'MP' || o.tipo === 'MP') && ['APROBADA', 'PROGRAMADA', 'EN EJECUCIÓN', 'En proceso', 'Asignada', 'TERMINADA', 'Cerrada'].includes(o.status));
-  
-  // PRD 10.4: Predictivos aprobados (Limpiando prompts o tokens internos de IA)
-  let predictives = orders.filter(o => (o.type === 'PRED' || o.tipo === 'PRED') && ['APROBADA', 'PROGRAMADA', 'EN EJECUCIÓN', 'Cerrada'].includes(o.status));
+  try {
+    let allDetails = [];
 
-  // PRD 10.5: Autónomos derivados de Segundas por Rollo aprobadas
-  let autonomous = JSON.parse(localStorage.getItem('TSMAI_autonomous_calendar') || '[]').filter(a => String(a.area || userArea).toUpperCase().trim() === userArea);
+    // 1. Fetch live details from Supabase if connected
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient
+        .from('calendario_mantenimiento_detalle')
+        .select('*, calendarios_mantenimiento(anio, mes, semana, tipo_calendario)')
+        .order('fecha_programada', { ascending: true });
 
-  if (filterType === 'MP') {
-    predictives = []; autonomous = [];
-  } else if (filterType === 'PRED') {
-    preventives = []; autonomous = [];
-  } else if (filterType === 'AUTONOMO') {
-    preventives = []; predictives = [];
-  }
+      if (!error && data) {
+        allDetails = data;
+      }
+    }
 
-  let html = '';
-  if (preventives.length === 0 && predictives.length === 0 && autonomous.length === 0) {
-    container.innerHTML = '<p style="color:#64748b; padding:20px; text-align:center;">No hay actividades de mantenimiento programadas o aprobadas para el Área ' + userArea + ' en la vista seleccionada (' + activeSolicitanteCalendarView.toUpperCase() + ').</p>';
-    return;
-  }
+    // 2. Strict Filter by User Area using canonical area resolution
+    // Each machine in the calendar MUST resolve to userArea
+    const areaDetails = allDetails.filter(item => {
+      const machId = item.maquina_id || '';
+      let itemArea = null;
 
-  machines.forEach(m => {
-    const mId = m.id || m.clave;
-    const macPrev = preventives.filter(o => o.machine === mId);
-    const macPred = predictives.filter(o => o.machine === mId);
-    const macAuto = autonomous.filter(a => a.machine === mId || a.telar === mId);
+      // Check observaciones JSON
+      if (item.observaciones) {
+        try {
+          const obs = typeof item.observaciones === 'object' ? item.observaciones : JSON.parse(item.observaciones);
+          if (obs.area) itemArea = String(obs.area).toUpperCase().trim();
+        } catch (e) {}
+      }
 
-    const totalEvents = macPrev.length + macPred.length + macAuto.length;
-    if (totalEvents === 0) return;
+      // Canonical fallback
+      if (!itemArea || itemArea === 'NONE' || itemArea === 'UNKNOWN') {
+        itemArea = typeof resolveAreaFromMachineCode === 'function'
+          ? resolveAreaFromMachineCode(machId, item.actividad_sugerida || '')
+          : 'PF';
+      }
 
-    html += `<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:16px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <h4 style="margin:0; font-weight:700; color:#1e293b;">${mId} — ${m.name || m.nombre}</h4>
-        <span class="badge badge-priority-baja">${userArea}</span>
-      </div>
-      <p style="font-size:0.82rem; color:#64748b; margin:2px 0 10px;">Estatus Equipo: <strong>${m.status || 'Operativa'}</strong></p>
+      return itemArea === userArea;
+    });
+
+    // 3. Update Area KPI Stats
+    const prevCount = areaDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREVENTIVO').length;
+    const predCount = areaDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREDICTIVO').length;
+    const autoCount = areaDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'AUTONOMO').length;
+    const totalCount = areaDetails.length;
+
+    const statPrev = document.getElementById('solic-cal-stat-prev');
+    const statPred = document.getElementById('solic-cal-stat-pred');
+    const statAuto = document.getElementById('solic-cal-stat-auto');
+    const statTotal = document.getElementById('solic-cal-stat-total');
+
+    if (statPrev) statPrev.innerText = prevCount;
+    if (statPred) statPred.innerText = predCount;
+    if (statAuto) statAuto.innerText = autoCount;
+    if (statTotal) statTotal.innerText = totalCount;
+
+    // 4. Apply UI Filters (Type, Date Range, Search)
+    const filterType = document.getElementById('filter-solic-cal-type')?.value || 'ALL';
+    const fromDate = document.getElementById('solic-cal-filter-from')?.value || '';
+    const toDate = document.getElementById('solic-cal-filter-to')?.value || '';
+    const search = (document.getElementById('solic-cal-filter-search')?.value || '').toLowerCase().trim();
+    const sortOrder = document.getElementById('solic-cal-sort-order')?.value || 'ASC';
+
+    let filtered = areaDetails.filter(item => {
+      // Type filter
+      if (filterType !== 'ALL') {
+        const t = (item.tipo_mantenimiento || '').toUpperCase();
+        if (filterType === 'PREVENTIVO' && t !== 'PREVENTIVO' && filterType !== 'MP') return false;
+        if (filterType === 'PREDICTIVO' && t !== 'PREDICTIVO' && filterType !== 'PRED') return false;
+        if (filterType === 'AUTONOMO' && t !== 'AUTONOMO') return false;
+        if (filterType === 'MP' && t !== 'PREVENTIVO') return false;
+        if (filterType === 'PRED' && t !== 'PREDICTIVO') return false;
+      }
+
+      // Date range filter
+      const itemDate = (item.fecha_programada || '').split('T')[0];
+      if (fromDate && itemDate && itemDate < fromDate) return false;
+      if (toDate && itemDate && itemDate > toDate) return false;
+
+      // Text search
+      if (search) {
+        const text = `${item.maquina_id || ''} ${item.actividad_sugerida || ''} ${item.responsable_sugerido || ''} ${item.prioridad || ''}`.toLowerCase();
+        if (!text.includes(search)) return false;
+      }
+
+      return true;
+    });
+
+    // 5. Dynamic Sorting
+    filtered.sort((a, b) => {
+      const dateA = a.fecha_programada || '';
+      const dateB = b.fecha_programada || '';
+      return sortOrder === 'DESC' ? dateB.localeCompare(dateA) : dateA.localeCompare(dateB);
+    });
+
+    if (counterEl) {
+      counterEl.innerText = `Mostrando ${filtered.length} de ${totalCount} actividades programadas para el Área ${userArea}`;
+    }
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b;">No hay actividades de mantenimiento que coincidan con los filtros para tu Área (${userArea}).</td></tr>`;
+      if (cardsContainer) cardsContainer.innerHTML = `<p style="color:#64748b; text-align:center; padding:20px; grid-column:1/-1;">No hay actividades con los filtros seleccionados.</p>`;
+      return;
+    }
+
+    // Helper formatting
+    const typeBadge = (t) => {
+      const clean = (t || '').toUpperCase();
+      if (clean === 'PREVENTIVO' || clean === 'MP') return `<span class="badge" style="background:#0284c7; color:white; font-weight:700; font-size:0.75rem;">🛠️ PREVENTIVO</span>`;
+      if (clean === 'PREDICTIVO' || clean === 'PRED') return `<span class="badge" style="background:#7c3aed; color:white; font-weight:700; font-size:0.75rem;">🔮 PREDICTIVO</span>`;
+      if (clean === 'AUTONOMO') return `<span class="badge" style="background:#059669; color:white; font-weight:700; font-size:0.75rem;">🤖 AUTÓNOMO</span>`;
+      return `<span class="badge badge-priority-media">${clean}</span>`;
+    };
+
+    const prioBadge = (p) => {
+      const clean = (p || '').toUpperCase();
+      if (clean.includes('CRIT')) return `<span class="badge badge-priority-critica">${clean}</span>`;
+      if (clean.includes('ALT')) return `<span class="badge badge-priority-alta">${clean}</span>`;
+      if (clean.includes('MED')) return `<span class="badge badge-priority-media">${clean}</span>`;
+      return `<span class="badge badge-priority-baja">${clean || 'BAJA'}</span>`;
+    };
+
+    const statusBadge = (s) => {
+      const clean = (s || 'PROPUESTO').toUpperCase();
+      if (clean === 'APROBADO' || clean === 'APROBADA') return `<span class="badge" style="background:#10b981; color:white; font-weight:600;">Aprobado</span>`;
+      if (clean === 'PROGRAMADO' || clean === 'PROGRAMADA') return `<span class="badge" style="background:#3b82f6; color:white; font-weight:600;">Programado</span>`;
+      if (clean === 'EN EJECUCIÓN' || clean === 'EN PROCESO') return `<span class="badge" style="background:#f59e0b; color:white; font-weight:600;">En Proceso</span>`;
+      if (clean === 'TERMINADA' || clean === 'CERRADA') return `<span class="badge" style="background:#64748b; color:white; font-weight:600;">Cerrada</span>`;
+      return `<span class="badge" style="background:#e0e7ff; color:#3730a3; font-weight:600;">Propuesto</span>`;
+    };
+
+    // Render Table
+    tbody.innerHTML = filtered.map(item => {
+      const dateDisplay = typeof formatCalendarDate === 'function' ? formatCalendarDate(item.fecha_programada) : (item.fecha_programada || '').split('T')[0];
+      const machDisplay = `<strong style="color:#0f172a;">${item.maquina_id}</strong>`;
       
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        ${macPrev.map(p => `<div style="padding:8px 10px; background:white; border-left:4px solid #3b82f6; border-radius:6px; font-size:0.83rem;">
-          <div style="display:flex; justify-content:space-between;"><strong>🛠️ PREVENTIVO: ${p.id}</strong><span class="badge badge-priority-baja">${p.status}</span></div>
-          <div>${p.description || 'Mantenimiento Preventivo'}</div>
-          <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Fecha: ${fmtDate(p.date)} | Duración estimada: 2 hrs</div>
-        </div>`).join('')}
+      return `<tr>
+        <td>${machDisplay}</td>
+        <td>${typeBadge(item.tipo_mantenimiento)}</td>
+        <td><div style="font-weight:500; color:#334155; max-width:380px;">${item.actividad_sugerida || 'Mantenimiento General'}</div></td>
+        <td><div style="font-weight:600; color:#1e293b; white-space:nowrap;">📅 ${dateDisplay}</div></td>
+        <td>${prioBadge(item.prioridad)}</td>
+        <td><span style="font-size:0.85rem; color:#475569;">👤 ${item.responsable_sugerido || 'Operador / Técnico'}</span></td>
+        <td>${statusBadge(item.estatus_detalle)}</td>
+      </tr>`;
+    }).join('');
 
-        ${macPred.map(pr => `<div style="padding:8px 10px; background:white; border-left:4px solid #8b5cf6; border-radius:6px; font-size:0.83rem;">
-          <div style="display:flex; justify-content:space-between;"><strong>🔮 PREDICTIVO: ${pr.id}</strong><span class="badge badge-priority-alta">${pr.status}</span></div>
-          <div>Revisión predictiva de vibración y temperatura</div>
-          <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Fecha: ${fmtDate(pr.date)} | Prioridad: ${pr.urgency || 'Alta'}</div>
-        </div>`).join('')}
+    // Render Cards
+    if (cardsContainer) {
+      cardsContainer.innerHTML = filtered.map(item => {
+        const dateDisplay = typeof formatCalendarDate === 'function' ? formatCalendarDate(item.fecha_programada) : (item.fecha_programada || '').split('T')[0];
+        const t = (item.tipo_mantenimiento || '').toUpperCase();
+        const borderColor = (t === 'PREVENTIVO' || t === 'MP') ? '#0284c7' : (t === 'PREDICTIVO' || t === 'PRED') ? '#7c3aed' : '#059669';
 
-        ${macAuto.map(a => `<div style="padding:8px 10px; background:white; border-left:4px solid #10b981; border-radius:6px; font-size:0.83rem;">
-          <div style="display:flex; justify-content:space-between;"><strong>🤖 AUTÓNOMO: ${a.id || 'SEG-ROLLO'}</strong><span class="badge badge-priority-baja">${a.status || 'PROGRAMADO'}</span></div>
-          <div>Origen: Segundas por Rollo (Semana ${a.semana || '30'}) — ${a.actividad || 'Revisión de tensión y alimentación'}</div>
-          <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Fecha: ${fmtDate(a.fecha || new Date())}</div>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  });
+        return `<div style="background:#f8fafc; border:1px solid #cbd5e1; border-top:4px solid ${borderColor}; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; gap:10px;">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+              <div>
+                <h4 style="margin:0; font-weight:700; color:#0f172a; font-size:1.05rem;">${item.maquina_id}</h4>
+                <span style="font-size:0.75rem; color:#64748b;">Área: <strong>${userArea}</strong></span>
+              </div>
+              <div>${typeBadge(item.tipo_mantenimiento)}</div>
+            </div>
+            
+            <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:10px; font-size:0.83rem; color:#334155;">
+              ${item.actividad_sugerida || 'Mantenimiento Programado'}
+            </div>
+          </div>
 
-  container.innerHTML = html || '<p style="color:#64748b;">No hay actividades para las máquinas de tu área.</p>';
+          <div style="border-top:1px solid #e2e8f0; padding-top:10px; font-size:0.8rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+            <div>
+              <span style="color:#64748b;">Fecha:</span> <strong style="color:#1e293b;">📅 ${dateDisplay}</strong>
+            </div>
+            <div>${prioBadge(item.prioridad)}</div>
+          </div>
+
+          <div style="font-size:0.78rem; color:#64748b; display:flex; justify-content:space-between; align-items:center;">
+            <span>👤 ${item.responsable_sugerido || 'Operador'}</span>
+            <span>${statusBadge(item.estatus_detalle)}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+  } catch (err) {
+    console.error('[Solicitante Calendar] Error:', err);
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#ef4444;">❌ Error al cargar calendario: ${err.message}</td></tr>`;
+  }
 }
 
 let activeSolicitanteValTab = 'pending';
