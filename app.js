@@ -13666,7 +13666,8 @@ async function renderAdminCalendars() {
   }
 
   try {
-    // 1. Renders the head of the table
+    const dbType = (currentCalendarTab || 'preventivo').toUpperCase();
+
     // 1. Renders the head of the table
     if (dbType === 'AUTONOMO') {
       thead.innerHTML = `
@@ -13695,7 +13696,6 @@ async function renderAdminCalendars() {
     }
 
     // 2. Query details filter by current active tab
-    const dbType = currentCalendarTab.toUpperCase();
     const { data: rawDetails, error } = await supabaseClient
       .from('calendario_mantenimiento_detalle')
       .select('*, calendarios_mantenimiento(anio, mes, semana)')
