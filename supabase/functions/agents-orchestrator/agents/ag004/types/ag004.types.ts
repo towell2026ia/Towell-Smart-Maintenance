@@ -5,10 +5,22 @@ export type DepartmentCode = 'PF' | 'CF' | 'TF' | 'AF';
 
 export type EligibilityStatus = 
   | 'ELIGIBLE' 
+  | 'NO_FAILURE_HISTORY'
+  | 'NO_RECURRENCE_OR_TREND'
+  | 'WEEKLY_CAPACITY_LIMIT'
   | 'MACHINE_NOT_FOUND' 
   | 'MACHINE_INACTIVE' 
   | 'INVALID_DEPARTMENT' 
   | 'INVALID_MACHINE_RECORD';
+
+export type EligibilityReason = 
+  | 'RECURRENCE' 
+  | 'TREND' 
+  | 'RECURRENCE_AND_TREND' 
+  | 'NO_FAILURE_HISTORY' 
+  | 'NO_RECURRENCE_OR_TREND' 
+  | 'WEEKLY_CAPACITY_LIMIT' 
+  | 'INACTIVE';
 
 export type AutonomousBlock = 'Vibración' | 'Limpieza' | 'Lubricación' | 'Temperatura' | 'Cableado';
 
@@ -27,13 +39,38 @@ export interface MachineRecord {
   nivel_criticidad?: 'MUY_ALTA' | 'ALTA' | 'MEDIA' | 'BAJA';
 }
 
+export interface HistoricalFaultRecord {
+  id_falla?: string;
+  maquina_id: string;
+  descripcion_falla?: string;
+  falla?: string;
+  fecha_creada?: string;
+  fecha?: string;
+  origen?: string;
+  categoria_falla?: string;
+  es_recurrente?: boolean;
+}
+
+export interface TelegramEventRecord {
+  id?: number;
+  folio?: string;
+  maquina_id: string;
+  falla?: string;
+  descripcion?: string;
+  fecha: string;
+  hora?: string;
+  cve_atendio?: string;
+}
+
 export interface IsoWeekInfo {
   iso_year: number;
   iso_week: number;
   week_key: string; // 'YYYY-Www'
   start_date: string; // 'YYYY-MM-DD' (Monday)
-  end_date: string; // 'YYYY-MM-DD' (Saturday)
-  operating_days: string[]; // 6 days ['YYYY-MM-DD', ...]
+  end_date: string; // 'YYYY-MM-DD' (Friday for Mon-Fri operating week)
+  operating_days: string[]; // 5 days ['YYYY-MM-DD', ...] (Monday to Friday)
+  reference_date?: string;
+  total_operating_days: number;
 }
 
 export interface ExistingScheduleRecord {
@@ -54,11 +91,16 @@ export interface ScheduledAutonomousItem {
   iso_year: number;
   iso_week: number;
   week_key: string;
-  day_of_week: 'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO';
+  day_of_week: 'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES';
   status: 'SCHEDULED' | 'ALREADY_SCHEDULED' | 'ALREADY_COMPLETED';
   calendar_reference: string;
   survey_reference: string;
   criticality: 'MUY_ALTA' | 'ALTA' | 'MEDIA' | 'BAJA';
+  ranking_position?: number;
+  eligibility_reason?: EligibilityReason;
+  failure_history_count?: number;
+  has_recurrence?: boolean;
+  has_trend?: boolean;
 }
 
 export interface AutonomousScheduleContractPayload {

@@ -13667,17 +13667,32 @@ async function renderAdminCalendars() {
 
   try {
     // 1. Renders the head of the table
-    thead.innerHTML = `
-      <tr>
-        <th>Máquina</th>
-        <th>Tipo</th>
-        <th>Actividad sugerida</th>
-        <th>Fecha Programada</th>
-        <th>Asignado A</th>
-        <th>Estado</th>
-        <th>Acciones</th>
-      </tr>
-    `;
+    // 1. Renders the head of the table
+    if (dbType === 'AUTONOMO') {
+      thead.innerHTML = `
+        <tr>
+          <th>Máquina</th>
+          <th>Día Asignado (Lun–Vie)</th>
+          <th>Checklist / Levantamiento</th>
+          <th>Fecha Programada</th>
+          <th>Motivo / Señal</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      `;
+    } else {
+      thead.innerHTML = `
+        <tr>
+          <th>Máquina</th>
+          <th>Tipo</th>
+          <th>Actividad sugerida</th>
+          <th>Fecha Programada</th>
+          <th>Asignado A</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      `;
+    }
 
     // 2. Query details filter by current active tab
     const dbType = currentCalendarTab.toUpperCase();
@@ -13725,7 +13740,8 @@ async function renderAdminCalendars() {
     const summaryEl = document.getElementById('calendar-filter-summary');
     if (summaryEl) {
       const orderText = sortOrder === 'ASC' ? 'del más cercano al más lejano en tiempo ⏳' : 'del más lejano al más cercano en tiempo ⌛';
-      summaryEl.innerHTML = `<span>Mostrando <strong>${details.length}</strong> de <strong>${allItems.length}</strong> propuestas (${orderText})</span>
+      const typeLabel = dbType === 'AUTONOMO' ? ' (Máx 15 activos de Lunes a Viernes)' : '';
+      summaryEl.innerHTML = `<span>Mostrando <strong>${details.length}</strong> de <strong>${allItems.length}</strong> propuestas${typeLabel} (${orderText})</span>
       ${(fromDate || toDate || search) ? `<span style="color:#0284c7; font-weight:700;">Filtro: ${fromDate ? 'Desde ' + formatCalendarDate(fromDate) : ''} ${toDate ? 'Hasta ' + formatCalendarDate(toDate) : ''} ${search ? 'Texto: "' + search + '"' : ''}</span>` : ''}`;
     }
 
@@ -13762,17 +13778,40 @@ async function renderAdminCalendars() {
         `;
       }
 
-      html += `
-        <tr>
-          <td><a href="javascript:void(0)" onclick="openMachine360Report('${d.maquina_id}', '${d.id_orden_generada || ''}')" style="color:#0284c7; font-weight:700; text-decoration:underline;">${d.maquina_id}</a></td>
-          <td>${d.tipo_mantenimiento}</td>
-          <td>${d.actividad_sugerida}</td>
-          <td>${formatCalendarDate(d.fecha_programada)}</td>
-          <td>${d.responsable_sugerido || '—'}</td>
-          <td><span class="badge ${badgeClass}">${d.estatus_detalle}</span></td>
-          <td>${actions}</td>
-        </tr>
-      `;
+      if (dbType === 'AUTONOMO') {
+        let obs = {};
+        try {
+          obs = typeof d.observaciones === 'string' ? JSON.parse(d.observaciones) : (d.observaciones || {});
+        } catch (e) {
+          obs = {};
+        }
+        const dayAssigned = obs.dia_semana_asignado || 'Laborable';
+        const signalLabel = obs.motivo_elegibilidad || (obs.fallas_recurrentes_detectadas ? `Recurrencias: ${obs.fallas_recurrentes_detectadas}` : 'Histórico de fallas');
+
+        html += `
+          <tr>
+            <td><a href="javascript:void(0)" onclick="openMachine360Report('${d.maquina_id}', '${d.id_orden_generada || ''}')" style="color:#0284c7; font-weight:700; text-decoration:underline;">${d.maquina_id}</a></td>
+            <td><span class="badge" style="background:#0284c7; color:white; font-size:0.75rem;">📅 ${dayAssigned}</span></td>
+            <td>${d.actividad_sugerida || 'Levantamiento Autónomo'}</td>
+            <td>${formatCalendarDate(d.fecha_programada)}</td>
+            <td><span class="badge" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; font-size:0.75rem;">📈 ${signalLabel}</span></td>
+            <td><span class="badge ${badgeClass}">${d.estatus_detalle}</span></td>
+            <td>${actions}</td>
+          </tr>
+        `;
+      } else {
+        html += `
+          <tr>
+            <td><a href="javascript:void(0)" onclick="openMachine360Report('${d.maquina_id}', '${d.id_orden_generada || ''}')" style="color:#0284c7; font-weight:700; text-decoration:underline;">${d.maquina_id}</a></td>
+            <td>${d.tipo_mantenimiento}</td>
+            <td>${d.actividad_sugerida}</td>
+            <td>${formatCalendarDate(d.fecha_programada)}</td>
+            <td>${d.responsable_sugerido || '—'}</td>
+            <td><span class="badge ${badgeClass}">${d.estatus_detalle}</span></td>
+            <td>${actions}</td>
+          </tr>
+        `;
+      }
     });
 
     tbody.innerHTML = html;

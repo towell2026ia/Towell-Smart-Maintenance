@@ -1,7 +1,7 @@
 // supabase/functions/agents-orchestrator/agents/ag004/balancers/daily-load-balancer.ts
-// Daily Load Balancer for AG-004
+// Daily Load Balancer for AG-004 (PRD-AG004-R1 Mon-Fri Rule)
 
-import { DepartmentCode } from '../types/ag004.types.ts';
+import { DepartmentCode, EligibilityReason } from '../types/ag004.types.ts';
 import { calculateDailySlotDistribution } from '../rules/load-balancing.rules.ts';
 import { DAYS_IN_OPERATING_WEEK } from '../rules/week.rules.ts';
 
@@ -9,7 +9,12 @@ export interface BalancedMachineSlot {
   machineId: string;
   department: DepartmentCode;
   criticality: 'MUY_ALTA' | 'ALTA' | 'MEDIA' | 'BAJA';
-  dayIndex: number; // 0 = Lunes, ..., 5 = Sábado
+  dayIndex: number; // 0 = Lunes, 1 = Martes, 2 = Miércoles, 3 = Jueves, 4 = Viernes
+  rankingPosition?: number;
+  eligibilityReason?: EligibilityReason;
+  failureHistoryCount?: number;
+  hasRecurrence?: boolean;
+  hasTrend?: boolean;
 }
 
 export function balanceMachinesAcrossOperatingDays(
@@ -17,6 +22,11 @@ export function balanceMachinesAcrossOperatingDays(
     machineId: string;
     department: DepartmentCode;
     criticality: 'MUY_ALTA' | 'ALTA' | 'MEDIA' | 'BAJA';
+    rankingPosition?: number;
+    eligibilityReason?: EligibilityReason;
+    failureHistoryCount?: number;
+    hasRecurrence?: boolean;
+    hasTrend?: boolean;
   }[],
   daysCount: number = DAYS_IN_OPERATING_WEEK
 ): {
@@ -71,7 +81,12 @@ export function balanceMachinesAcrossOperatingDays(
       machineId: m.machineId,
       department: m.department,
       criticality: m.criticality,
-      dayIndex: currentDay
+      dayIndex: currentDay,
+      rankingPosition: m.rankingPosition,
+      eligibilityReason: m.eligibilityReason,
+      failureHistoryCount: m.failureHistoryCount,
+      hasRecurrence: m.hasRecurrence,
+      hasTrend: m.hasTrend
     });
 
     dayCurrentCounts[currentDay]++;

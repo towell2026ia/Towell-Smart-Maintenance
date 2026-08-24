@@ -1,44 +1,79 @@
 // supabase/functions/agents-orchestrator/agents/ag004/collectors/weekly-coverage-collector.ts
-// Weekly Coverage Collector for AG-004
+// Weekly Coverage & Signal Collector for AG-004 (PRD-AG004-R1)
 
-import { MachineRecord, ExistingScheduleRecord, DepartmentCode } from '../types/ag004.types.ts';
-import { evaluateMachineEligibility } from '../guards/autonomous-eligibility-guard.ts';
+import { 
+  MachineRecord, 
+  HistoricalFaultRecord, 
+  TelegramEventRecord, 
+  ExistingScheduleRecord, 
+  DepartmentCode,
+  EligibilityReason
+} from '../types/ag004.types.ts';
+import { evaluateAutonomousAssetEligibility } from '../guards/autonomous-eligibility-guard.ts';
 import { checkExistingAutonomousSchedule } from '../guards/duplicate-schedule-guard.ts';
-import { CRITICALITY_WEIGHTS } from '../rules/coverage.rules.ts';
+import { MAX_WEEKLY_AUTONOMOUS_CAPACITY } from '../rules/week.rules.ts';
+
+export interface EligibleCandidateItem {
+  machineId: string;
+  department: DepartmentCode;
+  criticality: 'MUY_ALTA' | 'ALTA' | 'MEDIA' | 'BAJA';
+  rankingScore: number;
+  rankingPosition?: number;
+  eligibilityReason: EligibilityReason;
+  failureHistoryCount: number;
+  hasRecurrence: boolean;
+  hasTrend: boolean;
+  isAlreadyCovered: boolean;
+  coverageStatus?: 'ALREADY_SCHEDULED' | 'ALREADY_COMPLETED';
+}
 
 export interface CoverageCollectionResult {
-  eligibleMachines: {
-    machineId: string;
-    department: DepartmentCode;
-    criticality: 'MUY_ALTA' | 'ALTA' | 'MEDIA' | 'BAJA';
-    isAlreadyCovered: boolean;
-    coverageStatus?: 'ALREADY_SCHEDULED' | 'ALREADY_COMPLETED';
-  }[];
-  machinesToSchedule: {
-    machineId: string;
-    department: DepartmentCode;
-    criticality: 'MUY_ALTA' | 'ALTA' | 'MEDIA' | 'BAJA';
-  }[];
+  eligibleMachines: EligibleCandidateItem[];
+  machinesToSchedule: EligibleCandidateItem[];
   alreadyCoveredCount: number;
   ineligibleCount: number;
   departmentCounts: Record<DepartmentCode, number>;
+  stats: {
+    scannedMachines: number;
+    assetsWithFailureHistory: number;
+    assetsWithRecurrence: number;
+    assetsWithTrend: number;
+    eligibleCount: number;
+    selectedCount: number;
+  };
 }
 
 export function collectWeeklyCoverage(
   machines: MachineRecord[],
   isoYear: number,
   isoWeek: number,
-  existingRecords: ExistingScheduleRecord[] = []
+  existingRecords: ExistingScheduleRecord[] = [],
+  faults: HistoricalFaultRecord[] = [],
+  telegramEvents: TelegramEventRecord[] = []
 ): CoverageCollectionResult {
-  const eligibleMachines: CoverageCollectionResult['eligibleMachines'] = [];
-  const machinesToSchedule: CoverageCollectionResult['machinesToSchedule'] = [];
+  const eligibleMachines: EligibleCandidateItem[] = [];
   let alreadyCoveredCount = 0;
   let ineligibleCount = 0;
   const deptCounts: Record<DepartmentCode, number> = { PF: 0, CF: 0, TF: 0, AF: 0 };
 
+  let assetsWithHistory = 0;
+  let assetsWithRecurrence = 0;
+  let assetsWithTrend = 0;
+
   for (const m of machines) {
-    const el = evaluateMachineEligibility(m);
-    if (!el.isEligible || !el.department) {
+    const el = evaluateAutonomousAssetEligibility(m, faults, telegramEvents);
+
+    if (el.failureHistoryCount > 0) {
+      assetsWithHistory++;
+    }
+    if (el.hasRecurrence) {
+      assetsWithRecurrence++;
+    }
+    if (el.hasTrend) {
+      assetsWithTrend++;
+    }
+
+    if (!el.isEligible || !el.department || !el.reason) {
       ineligibleCount++;
       continue;
     }
@@ -49,43 +84,61 @@ export function collectWeeklyCoverage(
     const cov = checkExistingAutonomousSchedule(el.machineId, isoYear, isoWeek, existingRecords);
     const crit = m.nivel_criticidad || 'MEDIA';
 
-    eligibleMachines.push({
+    const candItem: EligibleCandidateItem = {
       machineId: el.machineId,
       department: dept,
       criticality: crit,
+      rankingScore: el.rankingScore,
+      eligibilityReason: el.reason,
+      failureHistoryCount: el.failureHistoryCount,
+      hasRecurrence: el.hasRecurrence,
+      hasTrend: el.hasTrend,
       isAlreadyCovered: cov.isAlreadyCovered,
       coverageStatus: cov.status
-    });
+    };
+
+    eligibleMachines.push(candItem);
 
     if (cov.isAlreadyCovered) {
       alreadyCoveredCount++;
-    } else {
-      machinesToSchedule.push({
-        machineId: el.machineId,
-        department: dept,
-        criticality: crit
-      });
     }
   }
 
-  // Deterministic sorting: Department -> Criticality DESC -> machine_id ASC
-  machinesToSchedule.sort((a, b) => {
-    if (a.department !== b.department) {
-      return a.department.localeCompare(b.department);
+  // Filter not already covered
+  const uncoveredEligible = eligibleMachines.filter(e => !e.isAlreadyCovered);
+
+  // Deterministic sorting by rankingScore DESC -> failureHistoryCount DESC -> machineId ASC
+  uncoveredEligible.sort((a, b) => {
+    if (b.rankingScore !== a.rankingScore) {
+      return b.rankingScore - a.rankingScore;
     }
-    const weightA = CRITICALITY_WEIGHTS[a.criticality] || 2;
-    const weightB = CRITICALITY_WEIGHTS[b.criticality] || 2;
-    if (weightB !== weightA) {
-      return weightB - weightA;
+    if (b.failureHistoryCount !== a.failureHistoryCount) {
+      return b.failureHistoryCount - a.failureHistoryCount;
     }
     return a.machineId.localeCompare(b.machineId);
   });
+
+  // Assign ranking position
+  uncoveredEligible.forEach((item, index) => {
+    item.rankingPosition = index + 1;
+  });
+
+  // Capacity limit: Top 15 Max (PRD-AG004-R1 §17-20, §42)
+  const machinesToSchedule = uncoveredEligible.slice(0, MAX_WEEKLY_AUTONOMOUS_CAPACITY);
 
   return {
     eligibleMachines,
     machinesToSchedule,
     alreadyCoveredCount,
     ineligibleCount,
-    departmentCounts: deptCounts
+    departmentCounts: deptCounts,
+    stats: {
+      scannedMachines: machines.length,
+      assetsWithFailureHistory: assetsWithHistory,
+      assetsWithRecurrence: assetsWithRecurrence,
+      assetsWithTrend: assetsWithTrend,
+      eligibleCount: eligibleMachines.length,
+      selectedCount: machinesToSchedule.length
+    }
   };
 }

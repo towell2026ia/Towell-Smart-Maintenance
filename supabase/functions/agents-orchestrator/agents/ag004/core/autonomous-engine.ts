@@ -1,15 +1,17 @@
 // supabase/functions/agents-orchestrator/agents/ag004/core/autonomous-engine.ts
-// Master Deterministic Engine for AG-004 — Autónomo Semanal (v1.0 Frozen)
+// Master Deterministic Engine for AG-004 — Autónomo Semanal (PRD-AG004-R1)
 
 import {
   MachineRecord,
+  HistoricalFaultRecord,
+  TelegramEventRecord,
   ExistingScheduleRecord,
   ScheduledAutonomousItem,
   AutonomousScheduleContractPayload,
   EngineAuditRecord,
   DepartmentCode
 } from '../types/ag004.types.ts';
-import { resolveIsoWeekFromKey, resolveIsoWeekFromDate } from '../resolvers/iso-week-resolver.ts';
+import { resolveIsoWeekFromKey, resolveNextAutonomousWeek, resolveIsoWeekFromDate } from '../resolvers/iso-week-resolver.ts';
 import { collectWeeklyCoverage } from '../collectors/weekly-coverage-collector.ts';
 import { balanceMachinesAcrossOperatingDays } from '../balancers/daily-load-balancer.ts';
 import { scheduleAutonomousWeek } from '../schedulers/weekly-autonomous-scheduler.ts';
@@ -26,10 +28,14 @@ import { CHECKLIST_VALIDATION_RULES_VERSION } from '../rules/checklist-validatio
 import { FINDING_RULES_VERSION } from '../rules/finding.rules.ts';
 import { COMPLIANCE_RULES_VERSION } from '../rules/compliance.rules.ts';
 
+
 export interface AutonomousEngineInput {
   targetWeekKey?: string; // 'YYYY-Www'
+  referenceDate?: string | Date;
   targetDate?: string | Date;
   machines: MachineRecord[];
+  faults?: HistoricalFaultRecord[];
+  telegramEvents?: TelegramEventRecord[];
   existingSchedules?: ExistingScheduleRecord[];
   correlationId: string;
   eventId?: string;
@@ -40,32 +46,44 @@ export interface AutonomousEngineOutput {
   targetWeek: string;
   isoYear: number;
   isoWeek: number;
+  startDate: string;
+  endDate: string;
   scheduledItems: ScheduledAutonomousItem[];
   contracts: AutonomousScheduleContractPayload[];
   surveys: AutonomousSurveyContext[];
   audit: EngineAuditRecord;
+  stats: {
+    scannedMachines: number;
+    assetsWithFailureHistory: number;
+    assetsWithRecurrence: number;
+    assetsWithTrend: number;
+    eligibleCount: number;
+    selectedCount: number;
+  };
 }
 
 export class AutonomousEngine {
   public static runWeeklyGeneration(input: AutonomousEngineInput): AutonomousEngineOutput {
     const startTime = Date.now();
 
-    // 1. Resolve Target ISO Week
+    // 1. Resolve Target ISO Week (PRD-AG004-R1 §5-13: Next Future Week Mon-Fri)
     const weekInfo = input.targetWeekKey
       ? resolveIsoWeekFromKey(input.targetWeekKey)
-      : resolveIsoWeekFromDate(input.targetDate || new Date());
+      : resolveNextAutonomousWeek(input.referenceDate || input.targetDate || new Date());
 
-    // 2. Collect Weekly Coverage and Check Existing
+    // 2. Collect Weekly Coverage with Failure History Signals (PRD-AG004-R1 §21-38, §42)
     const coverageResult = collectWeeklyCoverage(
       input.machines,
       weekInfo.iso_year,
       weekInfo.iso_week,
-      input.existingSchedules || []
+      input.existingSchedules || [],
+      input.faults || [],
+      input.telegramEvents || []
     );
 
     const deptBreakdown: Record<DepartmentCode, number> = coverageResult.departmentCounts;
 
-    if (coverageResult.eligibleMachines.length === 0) {
+    if (coverageResult.machinesToSchedule.length === 0) {
       const audit: EngineAuditRecord = {
         event_id: input.eventId || `EVT-AUT-${Date.now()}`,
         correlation_id: input.correlationId,
@@ -74,8 +92,8 @@ export class AutonomousEngine {
         iso_year: weekInfo.iso_year,
         iso_week: weekInfo.iso_week,
         scanned_machines: input.machines.length,
-        eligible_count: 0,
-        already_scheduled_count: 0,
+        eligible_count: coverageResult.eligibleMachines.length,
+        already_scheduled_count: coverageResult.alreadyCoveredCount,
         already_completed_count: 0,
         new_schedules_count: 0,
         department_breakdown: deptBreakdown,
@@ -96,15 +114,18 @@ export class AutonomousEngine {
         targetWeek: weekInfo.week_key,
         isoYear: weekInfo.iso_year,
         isoWeek: weekInfo.iso_week,
+        startDate: weekInfo.start_date,
+        endDate: weekInfo.end_date,
         scheduledItems: [],
         contracts: [],
         surveys: [],
-        audit
+        audit,
+        stats: coverageResult.stats
       };
     }
 
-    // 3. Balance Machines Across Operating Days (Lunes a Sábado)
-    const balanced = balanceMachinesAcrossOperatingDays(coverageResult.machinesToSchedule);
+    // 3. Balance Machines Across Operating Days (Lunes a Viernes, Sábado = 0)
+    const balanced = balanceMachinesAcrossOperatingDays(coverageResult.machinesToSchedule, weekInfo.total_operating_days);
 
     // 4. Schedule Items
     const scheduledItems = scheduleAutonomousWeek(balanced.slots, weekInfo);
@@ -168,10 +189,14 @@ export class AutonomousEngine {
       targetWeek: weekInfo.week_key,
       isoYear: weekInfo.iso_year,
       isoWeek: weekInfo.iso_week,
+      startDate: weekInfo.start_date,
+      endDate: weekInfo.end_date,
       scheduledItems,
       contracts,
       surveys,
-      audit
+      audit,
+      stats: coverageResult.stats
     };
   }
 }
+
