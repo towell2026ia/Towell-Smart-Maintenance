@@ -39,20 +39,23 @@ export function estimatePreventiveParts(
   const m = String(machineId || '').trim().toUpperCase();
   const s = String(serviceCode || '').trim();
 
-  // 1. ASSET + SERVICE OVERRIDE: Check if machine has explicit parts mapping
-  const machineParts = partsByMachine.filter(p => String(p.maquina_id || '').trim().toUpperCase() === m);
+  // 1. ASSET + SERVICE OVERRIDE (C-003 §31-43): Explicit asset_id + service_code + part + quantity
+  const assetServiceOverrides = partsByMachine.filter(p => 
+    String(p.maquina_id || '').trim().toUpperCase() === m &&
+    (p as any).codigo_servicio && String((p as any).codigo_servicio).trim() === s
+  );
   
-  // 2. SERVICE DEFAULT: Check if service has standard parts catalog
-  const serviceParts = s ? servicePartsCatalog.filter(sp => sp.codigo_servicio === s && sp.activo !== false) : [];
+  // 2. SERVICE DEFAULT: Standard parts defined for this service
+  const serviceDefaults = s ? servicePartsCatalog.filter(sp => sp.codigo_servicio === s && sp.activo !== false) : [];
 
   const estimated: EstimatedPartItem[] = [];
   let totalKnown = 0;
   let unknownCount = 0;
   let knownCount = 0;
 
-  if (machineParts.length > 0) {
-    // Branch 1: Asset-specific part plan
-    for (const mp of machineParts) {
+  if (assetServiceOverrides.length > 0) {
+    // Branch 1: Valid Asset + Service Override
+    for (const mp of assetServiceOverrides) {
       const partCode = String(mp.codigo_articulo || '').trim();
       if (!partCode) continue;
 
@@ -95,9 +98,9 @@ export function estimatePreventiveParts(
         quantity_status: qtyStatus
       });
     }
-  } else if (serviceParts.length > 0) {
+  } else if (serviceDefaults.length > 0) {
     // Branch 2: Service standard part plan
-    for (const sp of serviceParts) {
+    for (const sp of serviceDefaults) {
       const partCode = String(sp.codigo_articulo || '').trim();
       if (!partCode) continue;
 
