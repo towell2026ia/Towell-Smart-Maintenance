@@ -65,12 +65,13 @@ export async function callOpenAIWithRetry(
   jsonSchema: Record<string, any> | null = null,
   maxRetries: number = 2
 ): Promise<AIResponse> {
+  const resolvedKey = apiKey || (typeof Deno !== 'undefined' ? Deno.env.get('OPENAI_API_KEY') : (typeof process !== 'undefined' ? process.env?.OPENAI_API_KEY : '')) || '';
   const url = 'https://api.openai.com/v1/chat/completions';
   const startTime = Date.now();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${apiKey}`
+    'Authorization': `Bearer ${resolvedKey}`
   };
 
   const body: Record<string, any> = {

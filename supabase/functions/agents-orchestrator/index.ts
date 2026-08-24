@@ -59,11 +59,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // Inicializar cliente Supabase del proyecto usando las variables de entorno inyectadas
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://xqfpsavkefhrxfbtqzec.supabase.co';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_KEY') || Deno.env.get('SUPABASE_ANON_KEY') || 'sb_publishable_6iHpR6R2yCdqy-YsvCWkSQ_YWg9my_i';
     
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Supabase environment variables (URL/ServiceRoleKey) missing in Edge Function.');
+    if (!supabaseUrl) {
+      throw new Error('Supabase environment variable SUPABASE_URL missing in Edge Function.');
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -82,13 +82,13 @@ Deno.serve(async (req: Request) => {
 
     // Obtener variables de configuración y secretos para los proveedores
     const secrets = {
-      OPENAI_API_KEY: Deno.env.get('OPENAI_API_KEY'),
-      MIMO_API_KEY: Deno.env.get('MIMO_API_KEY'),
-      MULTIAGENT_ENABLED: Deno.env.get('MULTIAGENT_ENABLED'),
-      LLM_CALLS_ENABLED: Deno.env.get('LLM_CALLS_ENABLED'),
-      AI_ROUTER_ENABLED: Deno.env.get('AI_ROUTER_ENABLED'),
-      OPENAI_ENABLED: Deno.env.get('OPENAI_ENABLED'),
-      MIMO_ENABLED: Deno.env.get('MIMO_ENABLED')
+      OPENAI_API_KEY: Deno.env.get('OPENAI_API_KEY') || '',
+      MIMO_API_KEY: Deno.env.get('MIMO_API_KEY') || '',
+      MULTIAGENT_ENABLED: Deno.env.get('MULTIAGENT_ENABLED') || 'true',
+      LLM_CALLS_ENABLED: Deno.env.get('LLM_CALLS_ENABLED') || 'true',
+      AI_ROUTER_ENABLED: Deno.env.get('AI_ROUTER_ENABLED') || 'true',
+      OPENAI_ENABLED: Deno.env.get('OPENAI_ENABLED') || 'true',
+      MIMO_ENABLED: Deno.env.get('MIMO_ENABLED') || 'true'
     };
 
     // 3. Dispatch Asíncrono (202 Accepted) si el cliente lo prefiere (Header 'Prefer: respond-async')

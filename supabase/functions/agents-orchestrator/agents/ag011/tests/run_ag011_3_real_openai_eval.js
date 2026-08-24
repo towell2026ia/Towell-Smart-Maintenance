@@ -9,8 +9,22 @@ const crypto = require('crypto');
 const { AG011SemanticLayer } = require('../core/ag011-semantic-layer.ts');
 
 function getEnvVar(key) {
-  if (typeof Deno !== 'undefined' && Deno.env) return Deno.env.get(key);
-  if (typeof process !== 'undefined' && process.env) return process.env[key];
+  if (typeof process !== 'undefined' && process.env && process.env[key]) return process.env[key];
+  if (typeof Deno !== 'undefined' && Deno.env && Deno.env.get(key)) return Deno.env.get(key);
+  try {
+    const candidatePaths = [
+      path.resolve(__dirname, '../../../../../../.env'),
+      path.resolve(process.cwd(), '.env'),
+      path.resolve(__dirname, '../../../../.env')
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        const content = fs.readFileSync(p, 'utf8');
+        const match = content.match(new RegExp(`^${key}=([^\\r\\n]+)`, 'm'));
+        if (match && match[1].trim()) return match[1].trim().replace(/^["']|["']$/g, '');
+      }
+    }
+  } catch (_) {}
   return undefined;
 }
 
@@ -59,7 +73,8 @@ async function runRealOpenAIEvaluation() {
         latencies.push(res.latency_ms);
       }
     } catch (err) {
-      if (err.message.includes('401') || err.message.includes('OPENAI_API_KEY')) {
+      console.log(`[Test Debug Case ${testCase.case_id}] Error:`, err.message);
+      if (err.message.includes('401') || err.message.includes('OPENAI_API_KEY') || err.message.includes('Incorrect API key')) {
         authFailedCalls++;
         realApiCalls++;
       } else {
