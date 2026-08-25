@@ -48,7 +48,7 @@ export async function executeAG007PreventiveBudget(
       // 1. Load scheduled items from calendar detail
       const { data: calDetails } = await supabase
         .from('calendario_mantenimiento_detalle')
-        .select('id_detalle, maquina_id, fecha_programada, tipo_mantenimiento, actividad_sugerida, observaciones, estatus_detalle, created_at')
+        .select('id_detalle, maquina_id, fecha_programada, tipo_mantenimiento, actividad_sugerida, observaciones, estatus_detalle, fecha_alta')
         .eq('tipo_mantenimiento', 'PREVENTIVO');
       
       const loadedSchedule: PreventiveScheduleItemInput[] = [];
@@ -86,7 +86,7 @@ export async function executeAG007PreventiveBudget(
             calendar_year: parseInt(String(d.fecha_programada).substring(0, 4), 10) || targetYear,
             planned_parts: parts,
             source_type: srcType,
-            created_at: d.created_at
+            created_at: d.fecha_alta
           });
         }
       }
