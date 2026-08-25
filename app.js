@@ -13219,6 +13219,24 @@ async function commitExcelUpload() {
     await renderExcelHistoryTable();
     await syncDatabases();
 
+    // PRD-AG003-R2 §7-8: Trigger AG-001 -> AG-003 automatically on successful Segundas upload + validation + persistence
+    if (templateType === 'segundas' && typeof dispatchAgentEvent === 'function') {
+      try {
+        await dispatchAgentEvent('EXCEL_SEGUNDAS_CARGADO', {
+          origin: 'EXCEL_INGESTION_SEGUNDAS',
+          payload: {
+            id_carga: idCarga,
+            upload_date: new Date().toISOString().split('T')[0],
+            registros_correctos: finalValidCount,
+            source_dataset: 'segundas_por_rollo'
+          }
+        });
+        showToast('⚡ AG-001 -> AG-003: Calendario predictivo semanal generado por carga de Segundas.');
+      } catch (agentErr) {
+        console.warn('[AG-001 Ingestion Event Error]:', agentErr);
+      }
+    }
+
   } catch (err) {
     console.error('Error committing excel upload:', err);
     showToast(`Error al transferir registros: ${err.message}`);
@@ -13953,11 +13971,11 @@ async function triggerAgentPreventivo() {
 }
 
 async function triggerAgentPredictivo() {
-  showToast('⚡ AG-001 -> AG-003: Evaluando Segundas por Rollo (Viernes certificados)...');
+  showToast('⚡ AG-001 -> AG-003: Evaluando Segundas por Rollo (Predictivo Semanal Mié–Mar)...');
   if (typeof dispatchAgentEvent === 'function') {
     await dispatchAgentEvent('PREDICTIVO_GENERAR', {
       origin: 'QUICK_CALENDAR_BUTTON',
-      payload: { year: new Date().getFullYear(), month: new Date().getMonth() }
+      payload: { upload_date: new Date().toISOString().split('T')[0] }
     });
   }
   await switchCalendarTab('predictivo');

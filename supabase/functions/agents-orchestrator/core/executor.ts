@@ -11,6 +11,7 @@ import { createApprovalRequest } from './approvals.ts';
 import { callOpenAIWithRetry, CAPATAZ_NANO_SYSTEM_PROMPT, CAPATAZ_NANO_JSON_SCHEMA } from '../providers/openai-adapter.ts';
 import { calculateCost, fetchModelRates, logExecutionRecord } from './cost-tracker.ts';
 import { executeAG002AnnualPreventive } from '../agents/ag002/ag002-executor.ts';
+import { executeAG003WeeklyPredictive } from '../agents/ag003/ag003-executor.ts';
 import { executeAG005Audit } from '../agents/ag005/ag005-executor.ts';
 import { executeAG006FormBuilder } from '../agents/ag006/ag006-executor.ts';
 import { executeAG007PreventiveBudget } from '../agents/ag007/ag007-executor.ts';
@@ -521,6 +522,27 @@ export async function executeAgentFlow(
       });
     }
 
+    // If target is AG-003 (Predictivo Semanal por Segundas), execute specialist predictive engine
+    let ag003Result = null;
+    if (route.agent_id === 'AG-003') {
+      ag003Result = await executeAG003WeeklyPredictive(supabase, cleanedPayload, corrId);
+      await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-003',
+        execution_type: 'AGENT_EXECUTION',
+        provider: 'none',
+        model: 'none',
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - new Date(startedAt).getTime(),
+        input_tokens: 0,
+        output_tokens: 0,
+        estimated_cost_usd: 0,
+        status: 'SUCCESS',
+        result: ag003Result
+      });
+    }
+
     if (supabase && dbEventId) {
       await supabase
         .from('eventos_agente')
@@ -543,6 +565,7 @@ export async function executeAgentFlow(
         target_agent: route.agent_id,
         sequence_executed: sequenceExecuted,
         ag002_result: ag002Result,
+        ag003_result: ag003Result,
         audit_result: ag005AuditResult,
         form_builder_result: ag006Result,
         ag007_result: ag007Result,

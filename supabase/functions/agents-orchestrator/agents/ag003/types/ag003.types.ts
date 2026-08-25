@@ -204,3 +204,78 @@ export interface PredictiveEngineOutput {
     status: 'SUCCESS' | 'NO_CANDIDATES' | 'CAPACITY_REACHED' | 'DISABLED';
   };
 }
+
+// ── PRD-AG003-R2 WEEKLY PREDICTIVE TYPES & CONTRACTS ─────────────────────────
+
+export interface WeeklyPredictiveCycle {
+  cycle_id: string;                 // e.g. 'PRED-CYCLE-2026-08-26'
+  source_ingestion_id?: string;
+  source_upload_date: string;       // YYYY-MM-DD (e.g. '2026-08-25')
+  cycle_start: string;              // Wednesday YYYY-MM-DD
+  cycle_end: string;                // Tuesday YYYY-MM-DD (cycle_start + 6d)
+  days_count: 7;
+  sunday_eligible: true;
+}
+
+export interface WeeklyPredictiveCandidate {
+  machine_id: string;
+  department: 'PF';
+  is_active: boolean;
+  total_segundas: number;
+  total_pzas: number;
+  segundas_percentage: number;
+  rank: number;
+  selection_status: 'SELECTED' | 'ELIGIBLE_NOT_SELECTED' | 'NOT_ELIGIBLE';
+}
+
+export interface WeeklyScheduledItem {
+  contract_id: 'PREDICTIVE-WEEKLY-SCHEDULE-002';
+  contract_version: '2.0';
+  cycle_id: string;
+  source_ingestion_id?: string;
+  source_upload_date: string;
+  cycle_start: string;
+  cycle_end: string;
+  asset_id: string;
+  machine_identifier: string;
+  department: 'PF';
+  rank: number;
+  segundas_percentage: number;
+  total_segundas: number;
+  total_pzas: number;
+  scheduled_date: string;          // YYYY-MM-DD
+  day_of_week_name: string;        // 'Miércoles', 'Viernes', 'Domingo', 'Martes', etc.
+  service_code: 'SRV-PRED-01';
+  activity_name: string;
+  form_family: 'LEVANTAMIENTO_PREDICTIVO';
+  required_blocks: PredictiveBlock[];
+  source_ingestion_reference: string;
+}
+
+export interface WeeklyPredictiveContract {
+  contract_id: 'PREDICTIVE-WEEKLY-SCHEDULE-002';
+  contract_version: '2.0';
+  event_id: string;
+  correlation_id: string;
+  cycle_id: string;
+  source_ingestion_id?: string;
+  source_upload_date: string;
+  cycle_start: string;
+  cycle_end: string;
+  selection_count: number;
+  eligible_candidate_count: number;
+  total_looms_scanned: number;
+  ranking_method: 'SEGUNDAS_PERCENTAGE_DESC_DETERMINISTIC';
+  unique_scheduled_dates_count: number;
+  same_day_collisions_count: 0;
+  scheduled_items: WeeklyScheduledItem[];
+  all_ranked_candidates: WeeklyPredictiveCandidate[];
+  audit_summary: {
+    duration_ms: number;
+    llm_ranking_used: false;
+    llm_scheduling_used: false;
+    deterministic_pass: boolean;
+    status: 'SUCCESS' | 'NO_CANDIDATES' | 'CAPACITY_REACHED' | 'INVALID_INGESTION';
+  };
+}
+

@@ -1132,7 +1132,7 @@
               <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #cbd5e1; gap: 8px; padding-bottom: 4px; flex-wrap: wrap;">
                 <div style="display: flex; gap: 4px;">
                   <button class="tab-btn active" id="tab-btn-preventivo-sub" onclick="switchCalendarTab('preventivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid var(--primary-color); background: none; font-weight: 600; cursor: pointer; color: var(--primary-color);">📆 Preventivo Anual</button>
-                  <button class="tab-btn" id="tab-btn-predictivo-sub" onclick="switchCalendarTab('predictivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🔬 Predictivo Mensual</button>
+                  <button class="tab-btn" id="tab-btn-predictivo-sub" onclick="switchCalendarTab('predictivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🔬 Predictivo Semanal</button>
                   <button class="tab-btn" id="tab-btn-autonomo-sub" onclick="switchCalendarTab('autonomo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🛠️ Plan Autónomo — Próxima Semana</button>
                 </div>
                 <!-- Botones de Disparo de Agentes Vía AG-001 -->
@@ -2113,9 +2113,9 @@
               <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">1 intervención anual / máq</div>
             </div>
             <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #7c3aed;">
-              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🔮 Predictivo Mensual</div>
+              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🔮 Predictivo Semanal</div>
               <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="tech-cal-stat-pred">4</div>
-              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Viernes certificados PF</div>
+              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Miércoles a Martes PF</div>
             </div>
             <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #059669;">
               <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🤖 Autónomo Semanal</div>
@@ -2147,7 +2147,7 @@
               <select id="filter-tech-cal-type" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderTechCalendar()">
                 <option value="ALL">TODOS (Todos los tipos)</option>
                 <option value="PREVENTIVO">🛠️ PREVENTIVO ANUAL</option>
-                <option value="PREDICTIVO">🔮 PREDICTIVO MENSUAL</option>
+                <option value="PREDICTIVO">🔮 PREDICTIVO SEMANAL</option>
                 <option value="AUTONOMO">🤖 AUTÓNOMO SEMANAL</option>
               </select>
             </div>
@@ -2581,7 +2581,7 @@
               <select id="filter-solic-cal-type" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
                 <option value="ALL">TODOS (Todos los tipos)</option>
                 <option value="PREVENTIVO">🛠️ PREVENTIVO ANUAL</option>
-                <option value="PREDICTIVO">🔮 PREDICTIVO MENSUAL</option>
+                <option value="PREDICTIVO">🔮 PREDICTIVO SEMANAL</option>
                 <option value="AUTONOMO">🤖 AUTÓNOMO SEMANAL</option>
               </select>
             </div>
@@ -4403,7 +4403,7 @@
             <select id="cal-prop-type" class="form-control" required>
               <option value="">Selecciona Tipo</option>
               <option value="PREVENTIVO_ANUAL">📆 Preventivo Anual</option>
-              <option value="PREDICTIVO_MENSUAL">🔬 Predictivo Mensual</option>
+              <option value="PREDICTIVO_SEMANAL">🔬 Predictivo Semanal</option>
               <option value="AUTONOMO_SEMANAL">🛠️ Autónomo Semanal</option>
             </select>
           </div>
@@ -4962,7 +4962,7 @@
             <label for="proposal-type" style="font-weight: 600; display: block; margin-bottom: 6px; color: #334155;">Tipo de Calendario</label>
             <select id="proposal-type" class="form-control" onchange="toggleProposalPeriodFields()" required style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size: 0.95rem;">
               <option value="PREVENTIVO">Preventivo Anual</option>
-              <option value="PREDICTIVO">Predictivo Mensual</option>
+              <option value="PREDICTIVO">Predictivo Semanal</option>
               <option value="AUTONOMO">Autónomo Semanal</option>
             </select>
           </div>
