@@ -36,12 +36,36 @@ export async function executeAG007PreventiveBudget(
     }
 
     if (priceCatalog.length === 0) {
-      const { data: partData } = await supabase
-        .from('cat_refacciones')
-        .select('codigo_articulo, nombre_articulo, costo_unitario, moneda');
-      if (partData) {
-        priceCatalog = partData;
+      let allParts: PartPriceCatalogItem[] = [];
+      let page = 0;
+      while (true) {
+        const { data: partData } = await supabase
+          .from('cat_refacciones')
+          .select('codigo_articulo, nombre_articulo, costo_unitario, moneda')
+          .range(page * 1000, (page + 1) * 1000 - 1);
+        if (!partData || partData.length === 0) break;
+        allParts.push(...partData);
+        page++;
       }
+
+      // Merge prices from refacciones_por_maquina
+      const { data: rpmData } = await supabase
+        .from('refacciones_por_maquina')
+        .select('codigo_articulo, nombre_articulo, precio_costo_unitario, maquina_id');
+      if (rpmData) {
+        for (const r of rpmData) {
+          if (r.precio_costo_unitario && parseFloat(r.precio_costo_unitario) > 0) {
+            allParts.push({
+              codigo_articulo: r.codigo_articulo,
+              nombre_articulo: r.nombre_articulo,
+              costo_unitario: parseFloat(r.precio_costo_unitario),
+              precio_costo_unitario: parseFloat(r.precio_costo_unitario)
+            });
+          }
+        }
+      }
+
+      priceCatalog = allParts;
     }
 
     if (scheduleItems.length === 0) {

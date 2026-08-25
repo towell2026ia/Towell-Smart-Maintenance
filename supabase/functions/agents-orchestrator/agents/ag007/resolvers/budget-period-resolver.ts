@@ -43,7 +43,7 @@ export function resolveCanonicalReferenceDate(referenceDateInput?: string | Date
   const testMode = (typeof Deno !== 'undefined' ? Deno.env.get('AGENT_TEST_MODE') : '') === 'true';
   const configuredTz = (typeof Deno !== 'undefined' ? Deno.env.get('PLANT_TIMEZONE') : '') || CANONICAL_PLANT_TIMEZONE;
 
-  const isTestAllowed = (env !== 'production') || testMode;
+  const isTestAllowed = env !== 'production';
 
   if (isTestAllowed && referenceDateInput) {
     let d: Date;
