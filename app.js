@@ -13938,27 +13938,31 @@ async function handleGenerateCalendarProposal(event) {
         machineIndex++;
       }
     } else if (type === 'PREDICTIVO') {
+      // PREDICTIVO SEMANAL (PRD-AG003-R2: AG-003 por Segundas de Calidad, Miércoles a Martes, Máx 4 Telares, 4 Fechas Únicas)
+      // Invariantes: Activos PF exclusivamente, % segundas = (def / pzas) * 100, Miércoles a Martes, Domingo elegible, 0 colisiones mismo día
       const pfMachines = activeMachines.filter(m => {
         const area = (m.area || m.departamento_codigo || '').toUpperCase().trim();
-        return area === 'PF' || area === 'TEJIDO' || (m.equipo_towell || '').includes('TEL');
+        const code = (m.equipo_towell || m.clave || '').toUpperCase().trim();
+        return (area === 'PF' || area === 'TEJIDO') && (code.includes('TEL') || code.includes('LOOM') || code.includes('JACQ') || code.includes('PICANOL') || code.includes('SMIT') || code.includes('DORNIER') || code.includes('ITEMA'));
       });
 
       const { data: segundasData } = await supabaseClient
         .from('segundas_por_rollo')
         .select('*')
         .order('fecha', { ascending: false })
-        .limit(200);
+        .limit(2500);
 
       const segundasRows = segundasData || [];
       const machineDefectTotals = {};
 
       segundasRows.forEach(s => {
-        const mId = s.maquina_id || s.equipo;
+        const mId = (s.maquina_id || s.equipo || '').toUpperCase().trim();
         if (mId) {
           if (!machineDefectTotals[mId]) {
-            machineDefectTotals[mId] = { total: 0, defects: [], lastDate: s.fecha };
+            machineDefectTotals[mId] = { totalDefects: 0, totalPzas: 0, defects: [] };
           }
-          machineDefectTotals[mId].total += parseFloat(s.cantidad_defecto || 1);
+          machineDefectTotals[mId].totalDefects += parseFloat(s.cantidad_defecto || 0);
+          machineDefectTotals[mId].totalPzas += parseFloat(s.pzas_rollo || 0);
           if (s.defecto && !machineDefectTotals[mId].defects.includes(s.defecto)) {
             machineDefectTotals[mId].defects.push(s.defecto);
           }
@@ -13966,48 +13970,68 @@ async function handleGenerateCalendarProposal(event) {
       });
 
       const rankedTelares = pfMachines.map(m => {
-        const mId = m.equipo_towell || m.clave;
-        const defectInfo = machineDefectTotals[mId] || { total: 0, defects: ['Vibración / Tensión'] };
+        const mId = (m.equipo_towell || m.clave || '').toUpperCase().trim();
+        const stats = machineDefectTotals[mId] || { totalDefects: 0, totalPzas: 0, defects: [] };
+        const pct = stats.totalPzas > 0 ? (stats.totalDefects / stats.totalPzas) * 100 : (stats.totalDefects > 0 ? 10.0 : 0.0);
         return {
           machine: m,
           maquina_id: mId,
-          totalSegundas: defectInfo.total,
-          defects: defectInfo.defects
+          percentage: pct,
+          totalDefects: stats.totalDefects,
+          totalPzas: stats.totalPzas,
+          defects: stats.defects
         };
-      }).sort((a, b) => b.totalSegundas - a.totalSegundas);
+      }).sort((a, b) => {
+        if (b.percentage !== a.percentage) return b.percentage - a.percentage;
+        if (b.totalDefects !== a.totalDefects) return b.totalDefects - a.totalDefects;
+        if (b.totalPzas !== a.totalPzas) return b.totalPzas - a.totalPzas;
+        return a.maquina_id.localeCompare(b.maquina_id);
+      });
 
-      const targetMonth = month !== null ? month : new Date().getMonth();
-      const fridays = [];
-      for (let day = 1; day <= 28; day++) {
-        const d = new Date(year, targetMonth, day);
-        if (d.getDay() === 5) {
-          fridays.push(d.toISOString().split('T')[0]);
-        }
-      }
+      // Resolver ciclo semanal Miércoles a Martes a partir de hoy o fecha base
+      const refDate = new Date();
+      const currentDow = refDate.getUTCDay(); // 0: Dom, 1: Lun, 2: Mar, 3: Mié, 4: Jue, 5: Vie, 6: Sáb
+      let daysUntilWednesday = 0;
+      if (currentDow === 2) daysUntilWednesday = 1; // Martes -> inicia mañana Miércoles
+      else if (currentDow === 3) daysUntilWednesday = 0; // Hoy es Miércoles -> inicia hoy
+      else daysUntilWednesday = (3 - currentDow + 7) % 7;
 
+      const cycleStart = new Date(refDate);
+      cycleStart.setUTCDate(refDate.getUTCDate() + daysUntilWednesday);
+
+      // Dispersión 4 fechas únicas: Miércoles (+0d), Viernes (+2d), Domingo (+4d), Martes (+6d)
+      const slotOffsets = [0, 2, 4, 6];
+      const slotDayNames = ['Miércoles', 'Viernes', 'Domingo', 'Martes'];
       const topCandidates = rankedTelares.slice(0, 4);
+
       topCandidates.forEach((cand, idx) => {
-        const fridayDate = fridays[idx] || `${year}-${String(targetMonth + 1).padStart(2, '0')}-${String(7 + idx * 7).padStart(2, '0')}`;
+        const slotDate = new Date(cycleStart);
+        slotDate.setUTCDate(cycleStart.getUTCDate() + (slotOffsets[idx] || (idx * 2)));
+        const dateStr = slotDate.toISOString().split('T')[0];
+        const dayName = slotDayNames[idx] || 'Día ' + (idx + 1);
         const prio = idx === 0 ? 'CRÍTICA' : idx === 1 ? 'ALTA' : 'MEDIA';
-        const defectSummary = cand.defects.slice(0, 2).join(', ') || 'Anomalía de calidad';
+        const defectSummary = cand.defects.slice(0, 2).join(', ') || 'Segundas por Rollo';
 
         detailsToInsert.push({
           id_calendario: newCalId,
           maquina_id: cand.maquina_id,
-          fecha_programada: fridayDate,
+          fecha_programada: dateStr,
           tipo_mantenimiento: 'PREDICTIVO',
           prioridad: prio,
-          actividad_sugerida: `Levantamiento Predictivo: Telar #${idx + 1} (${defectSummary})`,
-          responsable_sugerido: activeTechs.find(t => (t.especialidad || '').toLowerCase().includes('predictivo'))?.nombre_tecnico || activeTechs[idx % Math.max(1, activeTechs.length)]?.nombre_tecnico || 'Especialista Predictivo',
-          score_riesgo: Math.max(2.5, Math.min(9.5, 9.0 - (idx * 1.5))),
+          actividad_sugerida: `Mantenimiento Predictivo por Segundas de Calidad: ${cand.maquina_id} (PF)`,
+          responsable_sugerido: activeTechs.find(t => (t.especialidad || '').toLowerCase().includes('predictivo'))?.nombre_tecnico || activeTechs[idx % Math.max(1, activeTechs.length)]?.nombre_tecnico || 'Especialista Predictivo (PF)',
+          score_riesgo: cand.percentage,
           observaciones: JSON.stringify({
-            origen: 'AG-003_PREDICTIVO_SEGUNDAS',
+            origen: 'AG-003_PREDICTIVO_SEMANAL',
+            area: 'PF',
             fuente_datos: 'segundas_por_rollo',
-            total_segundas_acumuladas: cand.totalSegundas,
-            defectos_principales: cand.defects,
-            regla_viernes_certificado: true,
-            limite_mensual_max4: true,
-            ranking: idx + 1
+            dia_semana: dayName,
+            ranking_prioridad: idx + 1,
+            porcentaje_segundas: cand.percentage,
+            total_segundas: cand.totalDefects,
+            total_piezas: cand.totalPzas,
+            regla_dispersion_4_fechas: true,
+            domingo_elegible: true
           }),
           estatus_detalle: 'PROPUESTO'
         });
