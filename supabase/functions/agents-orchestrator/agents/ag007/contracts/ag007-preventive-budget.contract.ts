@@ -1,11 +1,12 @@
 // supabase/functions/agents-orchestrator/agents/ag007/contracts/ag007-preventive-budget.contract.ts
-// Official Contract for AG-007 Preventive Material Budget Engine (PRD-AG007-R1)
+// Official Contract for AG-007 Preventive Material Budget Engine (PRD-AG007-R1.3.4)
 
-import type { PreventiveBudgetPeriod } from '../resolvers/budget-period-resolver.ts';
+import type { PreventiveBudgetPeriod, BudgetScope } from '../resolvers/budget-period-resolver.ts';
 
 export type BudgetCoverageStatus = 'COMPLETE' | 'PARTIAL' | 'NO_DATA';
 export type PriceStatus = 'KNOWN_PRICE' | 'UNKNOWN_PRICE' | 'ZERO_PRICE';
 export type QuantityStatus = 'KNOWN_QUANTITY' | 'DERIVED_QUANTITY' | 'MISSING';
+export type PreventiveSourceType = 'COMPLETED_REAL' | 'VALID_SCHEDULED' | 'NEWLY_SCHEDULED';
 
 export interface PlannedPartReferenceInput {
   part_id?: string;
@@ -26,6 +27,9 @@ export interface PreventiveScheduleItemInput {
   service_name: string;
   calendar_year: number;
   planned_parts: PlannedPartReferenceInput[];
+  source_type?: PreventiveSourceType;
+  created_at?: string;
+  ot_reference?: string;
 }
 
 export interface PartPriceCatalogItem {
@@ -48,6 +52,8 @@ export interface ActiveMachineItem {
 
 export interface PreventiveBudgetEngineInput {
   reference_date?: string | Date;
+  budget_scope?: BudgetScope;
+  target_year?: number;
   active_machines: ActiveMachineItem[];
   preventive_schedule_items: PreventiveScheduleItemInput[];
   price_catalog: PartPriceCatalogItem[];
@@ -86,6 +92,7 @@ export interface PreventiveItemBudgetResult {
   coverage_pct: number;
   budget_status: BudgetCoverageStatus;
   labor_cost_status: 'NOT_IN_SCOPE';
+  source_type?: PreventiveSourceType;
 }
 
 export interface AreaBudgetSummary {
@@ -102,11 +109,16 @@ export interface AreaBudgetSummary {
 export interface MonthlyPreventiveBudgetResult {
   year: number;
   month: string; // YYYY-MM
-  month_label: string; // Ago, Sep, etc.
+  month_number: number; // 1-12 (PRD §23)
+  month_key: string; // YYYY-MM
+  month_label: string; // Ene, Feb, etc.
   is_current_month: boolean;
   preventive_count: number;
   asset_count: number;
   service_count: number;
+  fully_priced_preventives: number;
+  partial_preventives: number;
+  no_part_mapping_preventives: number;
   planned_part_lines_total: number;
   planned_part_quantity_total: number;
   material_budget: number;
@@ -126,10 +138,17 @@ export interface PreventiveBudgetEngineOutput {
   correlation_id: string;
   calculated_at: string;
   budget_type: 'PREVENTIVE_PARTS_FORECAST';
+  budget_scope: BudgetScope;
   period: PreventiveBudgetPeriod;
+  canonical_reference_date: string;
+  canonical_timezone: string;
   active_applicable_machine_count: number;
   preventives_in_period_count: number;
   period_material_budget_total: number;
+  annual_material_budget: number; // PRD-AG007-R1.3 §24-25, §46
+  annual_preventive_count: number;
+  annual_price_coverage_pct: number;
+  annual_budget_status: BudgetCoverageStatus;
   current_month_material_budget: number;
   period_priced_lines_total: number;
   period_missing_price_lines_total: number;
@@ -138,11 +157,18 @@ export interface PreventiveBudgetEngineOutput {
   period_budget_status: BudgetCoverageStatus;
   by_area_period: Record<string, AreaBudgetSummary>;
   monthly_distribution: MonthlyPreventiveBudgetResult[];
+  raw_annual_universe_count: number;
+  duplicates_detected: number;
+  duplicates_excluded: number;
+  duplicate_conflicts: number;
+  final_unique_annual_universe_count: number;
+  deduplication_order_dependency: 0;
   labor_cost_status: 'NOT_IN_SCOPE';
   traceability: {
-    source_agent: 'AG-002',
-    budget_agent: 'AG-007',
-    orchestrator_agent: 'AG-001',
+    source_agent: 'AG-002';
+    budget_agent: 'AG-007';
+    orchestrator_agent: 'AG-001';
     calendar_plan_reference: string;
   };
 }
+

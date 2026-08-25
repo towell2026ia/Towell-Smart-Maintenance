@@ -4822,12 +4822,13 @@ async function renderSimulatedPreventiveBudgetWidget() {
   const statusBadgeEl = document.getElementById('budget-kpi-status-badge');
   const tbodyDrilldown = document.getElementById('tbody-budget-drilldown');
 
-  // 1. Fetch Canonical Budget Contract via AG-001 Orchestrator (PX-003)
+  // 1. Fetch Canonical Annual Budget Contract via AG-001 Orchestrator (PX-003, AF-005)
   let canonicalBudget = _cachedCanonicalBudgetContract;
   if (!canonicalBudget && typeof agentsClient !== 'undefined' && agentsClient.dispatchAgentEvent) {
     try {
       const resp = await agentsClient.dispatchAgentEvent('PREVENTIVO_PRESUPUESTO_CONSULTAR', {
-        reference_date: new Date().toISOString().split('T')[0]
+        budget_scope: 'ANNUAL_MONTHLY',
+        target_year: new Date().getFullYear()
       });
       if (resp && resp.result && resp.result.ag007_result) {
         canonicalBudget = resp.result.ag007_result;
@@ -4838,19 +4839,33 @@ async function renderSimulatedPreventiveBudgetWidget() {
     }
   }
 
-  // 2. Set Period Badge
-  if (periodBadge) {
-    periodBadge.innerText = canonicalBudget?.period?.period_label || 'AGO–DIC 2026';
+  // Validate Annual Budget Scope (FC-003, AF-005)
+  if (canonicalBudget && canonicalBudget.budget_scope && canonicalBudget.budget_scope !== 'ANNUAL_MONTHLY') {
+    console.warn('[ANNUAL_BUDGET_SCOPE_MISMATCH] Expected ANNUAL_MONTHLY scope, received:', canonicalBudget.budget_scope);
   }
 
-  // 3. Extract Totals from Canonical Contract (0 Frontend Calculation)
-  const monthlyDist = canonicalBudget?.monthly_distribution || [
-    { month: '2026-08', label: 'Ago', material_budget: 0, is_current_month: true },
-    { month: '2026-09', label: 'Sep', material_budget: 0, is_current_month: false },
-    { month: '2026-10', label: 'Oct', material_budget: 0, is_current_month: false },
-    { month: '2026-11', label: 'Nov', material_budget: 0, is_current_month: false },
-    { month: '2026-12', label: 'Dic', material_budget: 0, is_current_month: false }
+  // 2. Set Period Badge (12 Months Annual)
+  if (periodBadge) {
+    periodBadge.innerText = canonicalBudget?.period?.period_label || 'ENE–DIC 2026';
+  }
+
+  // 3. Extract Totals from Canonical Contract (0 Frontend Calculation - FH-004)
+  const default12Months = [
+    { month: '2026-01', month_label: 'Ene', material_budget: 0, is_current_month: false },
+    { month: '2026-02', month_label: 'Feb', material_budget: 0, is_current_month: false },
+    { month: '2026-03', month_label: 'Mar', material_budget: 0, is_current_month: false },
+    { month: '2026-04', month_label: 'Abr', material_budget: 0, is_current_month: false },
+    { month: '2026-05', month_label: 'May', material_budget: 0, is_current_month: false },
+    { month: '2026-06', month_label: 'Jun', material_budget: 0, is_current_month: false },
+    { month: '2026-07', month_label: 'Jul', material_budget: 0, is_current_month: false },
+    { month: '2026-08', month_label: 'Ago', material_budget: 0, is_current_month: true },
+    { month: '2026-09', month_label: 'Sep', material_budget: 0, is_current_month: false },
+    { month: '2026-10', month_label: 'Oct', material_budget: 0, is_current_month: false },
+    { month: '2026-11', month_label: 'Nov', material_budget: 0, is_current_month: false },
+    { month: '2026-12', month_label: 'Dic', material_budget: 0, is_current_month: false }
   ];
+
+  const monthlyDist = canonicalBudget?.monthly_distribution || default12Months;
 
   const labels = [];
   const monthlyTotals = [];
@@ -4862,7 +4877,7 @@ async function renderSimulatedPreventiveBudgetWidget() {
   let filteredCurrentMonth = 0;
 
   for (const m of monthlyDist) {
-    labels.push(m.label || m.month);
+    labels.push(m.month_label || m.label || m.month);
     let mCost = m.material_budget || 0;
 
     // Filter by area if specified
@@ -4885,25 +4900,25 @@ async function renderSimulatedPreventiveBudgetWidget() {
     // Drilldown items from canonical engine
     if (m.drilldown_preventives) {
       for (const prev of m.drilldown_preventives) {
-        if (areaFilter !== 'ALL' && prev.area !== areaFilter) continue;
-        for (const p of prev.priced_lines || []) {
+        if (areaFilter !== 'ALL' && prev.area_code !== areaFilter && prev.area !== areaFilter) continue;
+        for (const p of prev.parts_lines || prev.priced_lines || []) {
           drilldownRows.push({
-            month: m.label || m.month,
-            area: prev.area,
-            machine: prev.machine_id,
-            service: prev.service_code || 'Servicio Preventivo',
+            month: m.month_label || m.label || m.month,
+            area: prev.area_code || prev.area,
+            machine: prev.asset_id || prev.machine_id,
+            service: prev.service_name || prev.service_code || 'Servicio Preventivo',
             partName: `${p.part_name || p.part_code} (${p.part_code})`,
             qty: p.planned_quantity,
             price: p.reference_unit_price,
-            totalCost: p.subtotal
+            totalCost: p.planned_part_cost || p.subtotal
           });
         }
         for (const p of prev.missing_price_lines || []) {
           drilldownRows.push({
-            month: m.label || m.month,
-            area: prev.area,
-            machine: prev.machine_id,
-            service: prev.service_code || 'Servicio Preventivo',
+            month: m.month_label || m.label || m.month,
+            area: prev.area_code || prev.area,
+            machine: prev.asset_id || prev.machine_id,
+            service: prev.service_name || prev.service_code || 'Servicio Preventivo',
             partName: `${p.part_name || p.part_code} (Sin precio)`,
             qty: p.planned_quantity,
             price: null,
@@ -4914,9 +4929,9 @@ async function renderSimulatedPreventiveBudgetWidget() {
     }
   }
 
-  // If contract wasn't available, default total from period_material_budget_total
-  const finalPeriodTotal = areaFilter === 'ALL' && canonicalBudget?.period_material_budget_total !== undefined
-    ? canonicalBudget.period_material_budget_total
+  // Consume canonical annual material budget (FC-003, FH-004)
+  const finalAnnualTotal = areaFilter === 'ALL' && (canonicalBudget?.annual_material_budget !== undefined || canonicalBudget?.period_material_budget_total !== undefined)
+    ? (canonicalBudget.annual_material_budget ?? canonicalBudget.period_material_budget_total)
     : filteredPeriodTotal;
 
   const finalCurrentMonth = areaFilter === 'ALL' && canonicalBudget?.current_month_material_budget !== undefined
@@ -4924,7 +4939,7 @@ async function renderSimulatedPreventiveBudgetWidget() {
     : filteredCurrentMonth;
 
   // Update KPIs
-  if (periodTotalEl) periodTotalEl.innerText = `$${finalPeriodTotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+  if (periodTotalEl) periodTotalEl.innerText = `$${finalAnnualTotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
   if (currentMonthEl) currentMonthEl.innerText = `$${finalCurrentMonth.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
   if (currentMonthNameEl) {
     const now = new Date();
@@ -4932,10 +4947,10 @@ async function renderSimulatedPreventiveBudgetWidget() {
     currentMonthNameEl.innerText = `${currName.charAt(0).toUpperCase() + currName.slice(1)} (Actual)`;
   }
 
-  const coverage = canonicalBudget?.period_budget_coverage_pct ?? 100;
+  const coverage = canonicalBudget?.annual_price_coverage_pct ?? canonicalBudget?.period_budget_coverage_pct ?? 100;
   if (coverageEl) coverageEl.innerText = `${coverage}%`;
   if (statusBadgeEl) {
-    const st = canonicalBudget?.period_budget_status || 'COMPLETE';
+    const st = canonicalBudget?.annual_budget_status ?? canonicalBudget?.period_budget_status ?? 'COMPLETE';
     if (st === 'COMPLETE') {
       statusBadgeEl.innerText = 'Completo (100% Reconciliado)';
       statusBadgeEl.style.color = '#10b981';

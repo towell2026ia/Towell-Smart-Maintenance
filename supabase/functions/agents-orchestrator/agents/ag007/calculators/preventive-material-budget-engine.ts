@@ -1,5 +1,5 @@
 // supabase/functions/agents-orchestrator/agents/ag007/calculators/preventive-material-budget-engine.ts
-// Master Canonical Preventive Material Budget Engine for AG-007 (PRD-AG007-R1)
+// Master Canonical Preventive Material Budget Engine for AG-007 (PRD-AG007-R1.3.4)
 // Single Calculation Authority: Deterministic mathematical calculation of planned spare parts.
 
 import { resolvePreventiveBudgetPeriod, type PreventiveBudgetPeriod } from '../resolvers/budget-period-resolver.ts';
@@ -12,28 +12,40 @@ import type {
   AreaBudgetSummary,
   BudgetCoverageStatus,
   PriceStatus,
-  QuantityStatus
+  QuantityStatus,
+  PreventiveScheduleItemInput,
+  PreventiveSourceType
 } from '../contracts/ag007-preventive-budget.contract.ts';
 
-export const AG007_BUDGET_ENGINE_VERSION = '1.0.0-PRD-AG007-R1';
+export const AG007_BUDGET_ENGINE_VERSION = '1.3.4-PRD-AG007-R1.3.4';
+
+const SOURCE_PRECEDENCE: Record<PreventiveSourceType, number> = {
+  COMPLETED_REAL: 1,
+  VALID_SCHEDULED: 2,
+  NEWLY_SCHEDULED: 3
+};
 
 /**
- * Calculates the canonical preventive parts budget deterministically.
+ * Calculates the canonical preventive parts budget deterministically (PRD-AG007-R1.3.4).
  * Rules:
- *  1. planned_part_cost = planned_quantity * reference_unit_price
- *  2. Missing price is NOT converted to $0; marked as UNKNOWN_PRICE and PARTIAL coverage.
+ *  1. planned_part_cost = planned_quantity * reference_unit_price (AC-002, FH-004)
+ *  2. Missing price is NOT converted to $0; marked as UNKNOWN_PRICE and PARTIAL coverage (AF-004).
  *  3. Missing quantity is NOT assumed as 1; marked as MISSING.
- *  4. Labor is explicitly NOT_IN_SCOPE (no $0).
- *  5. Dynamic asset count (active_applicable_machine_count) based on runtime input.
- *  6. Single calculation authority: SQL view and frontend consume this canonical calculation.
+ *  4. Read-only deterministic deduplication by asset_id + calendar_year (FH-002, AF-001, AC-001).
+ *  5. 12-Month distribution in ANNUAL_MONTHLY mode with annual_material_budget = SUM(12 months).
+ *  6. Single calculation authority: zero frontend arithmetic, zero SQL calculation.
  */
 export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineInput): PreventiveBudgetEngineOutput {
   const calculatedAt = new Date().toISOString();
   const corrId = input.correlation_id || `CORR-BUDGET-${Date.now()}`;
   const budgetRunId = input.budget_run_id || `RUN-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`.toUpperCase();
 
-  // 1. Resolve period with server-side authority
-  const period: PreventiveBudgetPeriod = resolvePreventiveBudgetPeriod(input.reference_date);
+  // 1. Resolve period with canonical server-side authority (FH-001, FH-005, FC-001)
+  const period: PreventiveBudgetPeriod = resolvePreventiveBudgetPeriod(
+    input.reference_date,
+    input.budget_scope,
+    input.target_year
+  );
 
   // 2. Dynamic active applicable machine count (Runtime source of truth, 0 hardcoded logic)
   const activeMachines = (input.active_machines || []).filter(m => m && m.activo !== false);
@@ -51,12 +63,57 @@ export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineI
     }
   }
 
-  // 4. Process each preventive schedule item and evaluate planned parts
+  // 4. Deterministic Read-Only Deduplication (FH-002, AF-001, AC-001)
+  // Precedence: COMPLETED_REAL (1) > VALID_SCHEDULED (2) > NEWLY_SCHEDULED (3)
+  // Tie-breaker: scheduled_date ASC, preventive_id ASC (Zero order dependency)
+  const rawItems = [...(input.preventive_schedule_items || [])];
+  const rawUniverseCount = rawItems.length;
+
+  const sortedCandidates = rawItems.sort((a, b) => {
+    const precA = SOURCE_PRECEDENCE[a.source_type || 'NEWLY_SCHEDULED'] || 3;
+    const precB = SOURCE_PRECEDENCE[b.source_type || 'NEWLY_SCHEDULED'] || 3;
+    if (precA !== precB) return precA - precB;
+    const dateComp = String(a.scheduled_date || '').localeCompare(String(b.scheduled_date || ''));
+    if (dateComp !== 0) return dateComp;
+    return String(a.preventive_id || '').localeCompare(String(b.preventive_id || ''));
+  });
+
+  const uniqueAssetYearMap = new Map<string, PreventiveScheduleItemInput>();
+  let duplicatesDetected = 0;
+  let duplicatesExcluded = 0;
+  let duplicateConflicts = 0;
+
+  for (const item of sortedCandidates) {
+    const assetId = String(item.asset_id || (item as any).machine_id || (item as any).id_maquina || '').toUpperCase().trim();
+    const key = `${assetId}_${item.calendar_year || period.year}`;
+    if (!uniqueAssetYearMap.has(key)) {
+      uniqueAssetYearMap.set(key, {
+        ...item,
+        asset_id: assetId
+      });
+    } else {
+      duplicatesDetected++;
+      duplicatesExcluded++;
+      const existing = uniqueAssetYearMap.get(key)!;
+      const existingSrc = existing.source_type || 'NEWLY_SCHEDULED';
+      const itemSrc = item.source_type || 'NEWLY_SCHEDULED';
+      if ((existingSrc === 'COMPLETED_REAL' && itemSrc !== 'COMPLETED_REAL') ||
+          (existingSrc === 'VALID_SCHEDULED' && itemSrc === 'VALID_SCHEDULED')) {
+        duplicateConflicts++;
+      }
+    }
+  }
+
+  const canonicalUniverse = Array.from(uniqueAssetYearMap.values());
+  const uniqueUniverseCount = canonicalUniverse.length;
+
+  // 5. Process each canonical preventive schedule item and evaluate planned parts
   const evaluatedPreventives: PreventiveItemBudgetResult[] = [];
 
-  for (const prev of input.preventive_schedule_items || []) {
+  for (const prev of canonicalUniverse) {
     const schedDate = String(prev.scheduled_date || '').substring(0, 10);
     const schedMonth = schedDate.substring(0, 7); // YYYY-MM
+    const assetId = String(prev.asset_id || (prev as any).machine_id || (prev as any).id_maquina || '').toUpperCase().trim();
 
     let prevBudget = 0;
     let pricedCount = 0;
@@ -81,8 +138,8 @@ export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineI
       }
 
       // Price lookup (§55-60 PRD: No LLM, no external lookup, missing price is NOT $0)
-      const directPrice = typeof part.reference_unit_price === 'number' && !isNaN(part.reference_unit_price) && part.reference_unit_price > 0
-        ? part.reference_unit_price
+      const directPrice = typeof (part as any).reference_unit_price === 'number' && !isNaN((part as any).reference_unit_price) && (part as any).reference_unit_price > 0
+        ? (part as any).reference_unit_price
         : undefined;
       const lookupPrice = priceMap.get(partCode) !== undefined ? priceMap.get(partCode) : directPrice;
       let unitPrice: number | null = null;
@@ -142,11 +199,12 @@ export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineI
       missing_quantity_lines_count: missingQtyCount,
       coverage_pct: coveragePct,
       budget_status: bStatus,
-      labor_cost_status: 'NOT_IN_SCOPE'
+      labor_cost_status: 'NOT_IN_SCOPE',
+      source_type: prev.source_type
     });
   }
 
-  // 5. Aggregate Monthly Distribution strictly within period.months
+  // 6. Aggregate Monthly Distribution strictly within period.months (FC-004, AF-005)
   const monthlyResults: MonthlyPreventiveBudgetResult[] = [];
   let periodMaterialBudgetTotal = 0;
   let periodPricedLines = 0;
@@ -164,7 +222,7 @@ export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineI
   for (let i = 0; i < period.months.length; i++) {
     const monthStr = period.months[i];
     const monthLabel = period.month_labels[i] || monthStr;
-    const isCurrent = monthStr === period.current_month;
+    const isCurrent = (monthStr === period.current_month) && (period.current_month_index === i);
 
     // Filter preventives falling in this month
     const monthPreventives = evaluatedPreventives.filter(p => p.scheduled_month === monthStr);
@@ -177,6 +235,9 @@ export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineI
     let monthMissingQty = 0;
     let monthPartLines = 0;
     let monthPartQty = 0;
+    let fullyPricedCount = 0;
+    let partialCount = 0;
+    let noMappingCount = 0;
 
     const areaMonthMap: Record<string, AreaBudgetSummary> = {
       PF: { area_code: 'PF', preventives_count: 0, assets_count: 0, material_budget: 0, priced_lines_count: 0, missing_price_lines_count: 0, coverage_pct: 100, status: 'COMPLETE' },
@@ -191,6 +252,14 @@ export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineI
       monthMissingPrice += prev.missing_price_lines_count;
       monthMissingQty += prev.missing_quantity_lines_count;
       monthPartLines += prev.parts_lines.length;
+
+      if (prev.parts_lines.length === 0) {
+        noMappingCount++;
+      } else if (prev.missing_price_lines_count === 0 && prev.priced_lines_count > 0) {
+        fullyPricedCount++;
+      } else {
+        partialCount++;
+      }
 
       for (const line of prev.parts_lines) {
         monthPartQty += line.planned_quantity;
@@ -222,18 +291,39 @@ export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineI
 
     const totalMonthLines = monthPriced + monthMissingPrice;
     const monthCoverage = totalMonthLines > 0 ? Math.round((monthPriced / totalMonthLines) * 10000) / 100 : 100;
-    const monthStatus: BudgetCoverageStatus = totalMonthLines === 0 ? 'NO_DATA' : (monthMissingPrice > 0 ? (monthPriced > 0 ? 'PARTIAL' : 'NO_DATA') : 'COMPLETE');
+    
+    // Status semantics (PRD §28, §55-60, AF-004):
+    // If preventive_count === 0 -> COMPLETE ($0 is valid)
+    // If preventive_count > 0 and no lines -> NO_DATA
+    // If priced > 0 and missing == 0 -> COMPLETE
+    // If missing > 0 and priced > 0 -> PARTIAL
+    // If priced == 0 and missing > 0 -> NO_DATA
+    let monthStatus: BudgetCoverageStatus = 'COMPLETE';
+    if (monthPreventives.length === 0) {
+      monthStatus = 'COMPLETE';
+    } else if (totalMonthLines === 0) {
+      monthStatus = 'NO_DATA';
+    } else if (monthMissingPrice > 0) {
+      monthStatus = monthPriced > 0 ? 'PARTIAL' : 'NO_DATA';
+    } else {
+      monthStatus = 'COMPLETE';
+    }
 
     const roundedMonthBudget = Math.round(monthBudget * 100) / 100;
 
     monthlyResults.push({
       year: parseInt(monthStr.substring(0, 4), 10),
       month: monthStr,
+      month_number: i + 1,
+      month_key: monthStr,
       month_label: monthLabel,
       is_current_month: isCurrent,
       preventive_count: monthPreventives.length,
       asset_count: uniqueAssets.size,
       service_count: uniqueServices.size,
+      fully_priced_preventives: fullyPricedCount,
+      partial_preventives: partialCount,
+      no_part_mapping_preventives: noMappingCount,
       planned_part_lines_total: monthPartLines,
       planned_part_quantity_total: monthPartQty,
       material_budget: roundedMonthBudget,
@@ -257,7 +347,7 @@ export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineI
     }
   }
 
-  // 6. Compute period area coverage
+  // 7. Compute period area coverage
   for (const a of Object.keys(periodAreaSummary)) {
     const tot = periodAreaSummary[a].priced_lines_count + periodAreaSummary[a].missing_price_lines_count;
     periodAreaSummary[a].coverage_pct = tot > 0 ? Math.round((periodAreaSummary[a].priced_lines_count / tot) * 10000) / 100 : 100;
@@ -267,7 +357,16 @@ export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineI
 
   const totalPeriodLines = periodPricedLines + periodMissingPrices;
   const periodCoverage = totalPeriodLines > 0 ? Math.round((periodPricedLines / totalPeriodLines) * 10000) / 100 : 100;
-  const periodStatus: BudgetCoverageStatus = totalPeriodLines === 0 ? 'NO_DATA' : (periodMissingPrices > 0 ? (periodPricedLines > 0 ? 'PARTIAL' : 'NO_DATA') : 'COMPLETE');
+  let periodStatus: BudgetCoverageStatus = 'COMPLETE';
+  if (totalPeriodLines === 0) {
+    periodStatus = evaluatedPreventives.length === 0 ? 'COMPLETE' : 'NO_DATA';
+  } else if (periodMissingPrices > 0) {
+    periodStatus = periodPricedLines > 0 ? 'PARTIAL' : 'NO_DATA';
+  } else {
+    periodStatus = 'COMPLETE';
+  }
+
+  const roundedAnnualBudget = Math.round(periodMaterialBudgetTotal * 100) / 100;
 
   return {
     engine_version: AG007_BUDGET_ENGINE_VERSION,
@@ -275,10 +374,17 @@ export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineI
     correlation_id: corrId,
     calculated_at: calculatedAt,
     budget_type: 'PREVENTIVE_PARTS_FORECAST',
+    budget_scope: period.budget_scope,
     period,
+    canonical_reference_date: period.canonical_reference_date,
+    canonical_timezone: period.canonical_timezone,
     active_applicable_machine_count: activeApplicableMachineCount,
     preventives_in_period_count: evaluatedPreventives.filter(p => period.months.includes(p.scheduled_month)).length,
-    period_material_budget_total: Math.round(periodMaterialBudgetTotal * 100) / 100,
+    period_material_budget_total: roundedAnnualBudget,
+    annual_material_budget: roundedAnnualBudget, // PRD-AG007-R1.3 §24-25, §46
+    annual_preventive_count: uniqueUniverseCount,
+    annual_price_coverage_pct: periodCoverage,
+    annual_budget_status: periodStatus,
     current_month_material_budget: currentMonthBudget,
     period_priced_lines_total: periodPricedLines,
     period_missing_price_lines_total: periodMissingPrices,
@@ -287,6 +393,12 @@ export function calculatePreventiveMaterialBudget(input: PreventiveBudgetEngineI
     period_budget_status: periodStatus,
     by_area_period: periodAreaSummary,
     monthly_distribution: monthlyResults,
+    raw_annual_universe_count: rawUniverseCount,
+    duplicates_detected: duplicatesDetected,
+    duplicates_excluded: duplicatesExcluded,
+    duplicate_conflicts: duplicateConflicts,
+    final_unique_annual_universe_count: uniqueUniverseCount,
+    deduplication_order_dependency: 0,
     labor_cost_status: 'NOT_IN_SCOPE',
     traceability: {
       source_agent: 'AG-002',

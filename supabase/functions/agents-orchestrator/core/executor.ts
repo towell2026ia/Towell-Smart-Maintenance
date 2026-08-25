@@ -467,20 +467,29 @@ export async function executeAgentFlow(
         result: ag002Result
       });
 
-      // AG-001 automatically chains AG-007 to recalculate canonical parts budget (PRD-AG002-R2.1.2)
+      // AG-001 automatically chains AG-007 to recalculate canonical parts budget (PRD-AG007-R1.3.4)
       if (ag002Result && ag002Result.schedule_items) {
         const plannedItems = ag002Result.schedule_items.map((s: any) => ({
-          machine_id: s.machine_id,
+          preventive_id: s.preventive_id || s.id_detalle,
+          asset_id: s.machine_id,
+          area_code: s.department || 'PF',
           scheduled_date: s.scheduled_date,
+          service_code: s.service_code || 'SRV-PREV-01',
+          service_name: s.service_name || 'Mantenimiento Preventivo Anual',
+          calendar_year: s.target_year || cleanedPayload.target_year || 2026,
+          source_type: 'NEWLY_SCHEDULED',
           planned_parts: (s.planned_parts || []).map((p: any) => ({
-            part_code: p.cve_refaccion,
-            planned_quantity: p.cantidad,
-            reference_unit_price: p.costo_unitario
+            part_code: p.cve_refaccion || p.codigo_articulo,
+            part_name: p.nombre || p.part_name,
+            planned_quantity: p.cantidad || p.planned_quantity || 1,
+            reference_unit_price: p.costo_unitario || p.reference_unit_price
           }))
         }));
 
         ag007Result = await executeAG007PreventiveBudget(supabase, {
           reference_date: cleanedPayload.reference_date || ag002Result.generation_date,
+          budget_scope: 'ANNUAL_MONTHLY',
+          target_year: ag002Result.planning_window?.target_year || cleanedPayload.target_year || 2026,
           preventive_schedule_items: plannedItems,
           price_catalog: cleanedPayload.parts || [],
           active_machines: cleanedPayload.machines || []
@@ -490,7 +499,11 @@ export async function executeAgentFlow(
 
     // If target is AG-007 (Presupuestos y Costos), execute specialist preventive budget engine
     if (route.agent_id === 'AG-007') {
-      ag007Result = await executeAG007PreventiveBudget(supabase, cleanedPayload, corrId);
+      ag007Result = await executeAG007PreventiveBudget(supabase, {
+        ...cleanedPayload,
+        budget_scope: cleanedPayload.budget_scope || 'CURRENT_PERIOD',
+        target_year: cleanedPayload.target_year
+      }, corrId);
       await logExecutionRecord(supabase, {
         correlation_id: corrId,
         agent_id: 'AG-007',

@@ -67,7 +67,7 @@ Deno.test('PX-003 & C-003: Chained AG-002 -> AG-001 -> AG-007 Pipeline & Canonic
   assert(ag007Res, 'AG-007 canonical budget result must be automatically computed');
   assertEquals(ag007Res.budget_type, 'PREVENTIVE_PARTS_FORECAST');
   assert(ag007Res.period_material_budget_total > 0, `Expected budget > 0, got ${ag007Res.period_material_budget_total}`);
-  assert(ag007Res.monthly_distribution.length === 5, 'Pilot period must contain 5 months (Ago-Dic)');
+  assertEquals(ag007Res.monthly_distribution.length, 12, 'Annual monthly distribution must contain 12 months (Ene-Dic)');
 });
 
 Deno.test('PX-004: Budget Reconciliation Semantics & Price Coverage Separation', async () => {
