@@ -514,42 +514,8 @@
 
           <!-- GRID DE LA PIZARRA DE MANTENIMIENTO -->
           <div class="whiteboard-dashboard-grid">
-            <!-- Widget 1: OT por cerrar (Barras Horizontales) -->
-            <div class="wb-card wb-ot-por-cerrar">
-              <div class="wb-card-title">
-                <span>OT por cerrar</span>
-                <span class="wb-card-subtitle">Retraso acumulado</span>
-              </div>
-              <div class="chart-container-wb">
-                <canvas id="chart-ot-por-cerrar"></canvas>
-              </div>
-            </div>
-
-            <!-- Widget 2: Alertas de Repetibilidad y Costes Elevados -->
-            <div class="wb-card wb-alertas">
-              <div class="wb-card-title">
-                <span>Alertas de Repetibilidad y Costes Elevados</span>
-                <span class="badge badge-priority-crítica">Ingeniería & Costos</span>
-              </div>
-              <div class="alert-list" id="wb-alert-list">
-                <!-- Generado en app.js -->
-              </div>
-            </div>
-
-            <!-- Widget 3: % Cumplimiento (Dona 90%) -->
-            <div class="wb-card wb-cumplimiento">
-              <div class="wb-card-title" style="width: 100%; text-align: left;">
-                <span>% Cumplimiento</span>
-              </div>
-              <div class="compliance-circle-container">
-                <canvas id="chart-compliance"></canvas>
-                <div class="compliance-circle-value" id="wb-compliance-value">90%</div>
-              </div>
-              <div class="wb-card-subtitle" style="margin-top: -10px;">Meta Mensual: 95%</div>
-            </div>
-
-            <!-- Widget 4: Presupuesto Preventivo Simulado — Refacciones (PRD-AG007-R1.3.4) -->
-            <div class="wb-card wb-pronostico-presupuesto" style="grid-column: span 2;">
+            <!-- Widget 1 (Prioridad 1): Presupuesto Preventivo Simulado — Refacciones (PRD-AG007) -->
+            <div class="wb-card wb-pronostico-presupuesto">
               <div class="wb-card-title" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
                 <div>
                   <span style="font-weight: 700; font-size: 1.1rem; color: #0f172a; display: flex; align-items: center; gap: 8px;">
@@ -557,7 +523,7 @@
                     <span class="badge" id="budget-period-badge" style="background:#0284c7; color:white; font-size:0.75rem; padding:3px 8px; border-radius:6px;">ENE–DIC 2026</span>
                   </span>
                   <div class="wb-card-subtitle" style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">
-                    Presupuesto anual distribuido por mes según los mantenimientos preventivos del año seleccionado.
+                    Presupuesto anual distribuido por mes según los mantenimientos preventivos reconciliados del año.
                   </div>
                 </div>
                 <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
@@ -573,31 +539,31 @@
               </div>
 
               <!-- Tarjetas de Métricas de Presupuesto -->
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 12px 0 10px;">
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; border-left: 3px solid #0284c7;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 12px 0 10px;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; border-left: 4px solid #0284c7;">
                   <div style="font-size: 0.72rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Presupuesto Anual</div>
-                  <div style="font-size: 1.15rem; font-weight: 700; color: #0f172a;" id="budget-kpi-period-total">$0 USD</div>
-                  <div style="font-size: 0.7rem; color: #94a3b8;" id="budget-kpi-period-label">12 Meses (Ene–Dic)</div>
+                  <div style="font-size: 1.3rem; font-weight: 800; color: #0f172a;" id="budget-kpi-period-total">$0 USD</div>
+                  <div style="font-size: 0.72rem; color: #94a3b8;" id="budget-kpi-period-label">12 Meses (Ene–Dic)</div>
                 </div>
-                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 8px 12px; border-left: 3px solid #3b82f6;">
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; border-left: 4px solid #3b82f6;">
                   <div style="font-size: 0.72rem; color: #1e40af; font-weight: 700; text-transform: uppercase;">Mes Actual</div>
-                  <div style="font-size: 1.15rem; font-weight: 800; color: #1e3a8a;" id="budget-kpi-current-month">$0 USD</div>
-                  <div style="font-size: 0.7rem; color: #3b82f6;" id="budget-kpi-current-month-name">Agosto 2026</div>
+                  <div style="font-size: 1.3rem; font-weight: 800; color: #1e3a8a;" id="budget-kpi-current-month">$0 USD</div>
+                  <div style="font-size: 0.72rem; color: #3b82f6;" id="budget-kpi-current-month-name">Agosto 2026</div>
                 </div>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; border-left: 3px solid #10b981;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; border-left: 4px solid #10b981;">
                   <div style="font-size: 0.72rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Cobertura Precios</div>
-                  <div style="font-size: 1.15rem; font-weight: 700; color: #065f46;" id="budget-kpi-coverage">100%</div>
-                  <div style="font-size: 0.7rem; color: #10b981;" id="budget-kpi-status-badge">Completo</div>
+                  <div style="font-size: 1.3rem; font-weight: 800; color: #065f46;" id="budget-kpi-coverage">100%</div>
+                  <div style="font-size: 0.72rem; color: #10b981;" id="budget-kpi-status-badge">Completo</div>
                 </div>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; border-left: 3px solid #6366f1;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; border-left: 4px solid #6366f1;">
                   <div style="font-size: 0.72rem; color: #4338ca; font-weight: 700; text-transform: uppercase;">Preventivos</div>
-                  <div style="font-size: 1.15rem; font-weight: 700; color: #3730a3;" id="budget-kpi-preventives-total">135 Reconciliados</div>
-                  <div style="font-size: 0.7rem; color: #6366f1;">100% Universo Anual</div>
+                  <div style="font-size: 1.3rem; font-weight: 800; color: #3730a3;" id="budget-kpi-preventives-total">135 Reconciliados</div>
+                  <div style="font-size: 0.72rem; color: #6366f1;">100% Universo Anual</div>
                 </div>
               </div>
 
               <!-- Gráfico Mensual -->
-              <div class="chart-container-wb" style="height: 180px; position: relative;">
+              <div class="chart-container-wb" style="height: 220px; position: relative;">
                 <canvas id="chart-pronostico-presupuesto"></canvas>
               </div>
 
@@ -607,7 +573,7 @@
                   <strong style="font-size: 0.85rem; color: #0f172a;">Detalle de Refacciones Previstas por Preventivo</strong>
                   <button type="button" class="btn-nav btn-nav-secondary" onclick="toggleBudgetDrilldownModal()" style="font-size: 0.72rem; padding: 2px 8px;">Cerrar ✕</button>
                 </div>
-                <div style="max-height: 220px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                <div style="max-height: 240px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
                   <table class="custom-table" style="width: 100%; font-size: 0.78rem;">
                     <thead>
                       <tr>
@@ -629,37 +595,73 @@
               </div>
             </div>
 
-            <!-- Widget 5: Horas Paro (Líneas TIN, TE, COS) -->
+            <!-- Widget 2 (Prioridad 2): Horas Paro (Downtime) por Área -->
             <div class="wb-card wb-horas-paro">
               <div class="wb-card-title">
-                <span>Horas Paro (Downtime)</span>
-                <span class="badge badge-priority-media" id="wb-total-downtime">Total: 198h</span>
+                <span>⏱️ Horas Paro (Downtime) por Área</span>
+                <span class="badge badge-priority-media" id="wb-total-downtime">Total: 0h</span>
               </div>
-              <div class="chart-container-wb chart-container-wb-large">
+              <div class="chart-container-wb chart-container-wb-large" style="height: 220px;">
                 <canvas id="chart-horas-paro"></canvas>
               </div>
             </div>
 
-            <!-- Widget 6: Top Máquina Falla/Costo (Tabla) -->
+            <!-- Widget 3 (Prioridad 3): Top Máquina Falla / Costo (Tabla) -->
             <div class="wb-card wb-top-maquina">
               <div class="wb-card-title">
-                <span>Top Máquina Falla / Costo</span>
+                <span>🔥 Top Máquina Falla / Costo</span>
                 <span class="wb-card-subtitle">Top 5 Críticos</span>
               </div>
-              <table class="mini-table">
-                <thead>
-                  <tr>
-                    <th>Área</th>
-                    <th>Máquina</th>
-                    <th>Costo</th>
-                    <th>Fallas</th>
-                    <th>Prioridad</th>
-                  </tr>
-                </thead>
-                <tbody id="wb-top-maquina-rows">
-                  <!-- Generado en app.js -->
-                </tbody>
-              </table>
+              <div style="overflow-x: auto;">
+                <table class="mini-table">
+                  <thead>
+                    <tr>
+                      <th>Área</th>
+                      <th>Máquina</th>
+                      <th>Costo Acum.</th>
+                      <th>Fallas</th>
+                      <th>Prioridad</th>
+                    </tr>
+                  </thead>
+                  <tbody id="wb-top-maquina-rows">
+                    <!-- Generado en app.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Widget 4: OT por cerrar (Barras Horizontales) -->
+            <div class="wb-card wb-ot-por-cerrar">
+              <div class="wb-card-title">
+                <span>📋 OT por cerrar</span>
+                <span class="wb-card-subtitle">Retraso acumulado</span>
+              </div>
+              <div class="chart-container-wb" style="height: 180px;">
+                <canvas id="chart-ot-por-cerrar"></canvas>
+              </div>
+            </div>
+
+            <!-- Widget 5: Alertas de Repetibilidad y Calidad Textil -->
+            <div class="wb-card wb-alertas">
+              <div class="wb-card-title">
+                <span>🚨 Alertas del Sistema & Calidad</span>
+                <span class="badge badge-priority-crítica">Inteligencia de Planta</span>
+              </div>
+              <div class="alert-list" id="wb-alert-list" style="max-height: 190px;">
+                <!-- Generado en app.js -->
+              </div>
+            </div>
+
+            <!-- Widget 6: % Cumplimiento (Dona) -->
+            <div class="wb-card wb-cumplimiento">
+              <div class="wb-card-title" style="width: 100%; text-align: left;">
+                <span>🎯 % Cumplimiento</span>
+              </div>
+              <div class="compliance-circle-container" style="width: 120px; height: 120px; margin: 6px auto;">
+                <canvas id="chart-compliance"></canvas>
+                <div class="compliance-circle-value" id="wb-compliance-value" style="font-size: 1.6rem;">90%</div>
+              </div>
+              <div class="wb-card-subtitle" style="margin-top: -4px;">Meta Mensual: 95%</div>
             </div>
           </div>
         </div>

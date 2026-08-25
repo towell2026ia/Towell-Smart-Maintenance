@@ -1397,31 +1397,31 @@ body {
   gap: 12px;
 }
 
-/* Grid sizes para los widgets de la pizarra */
-.wb-ot-por-cerrar {
+/* Grid sizes para los widgets de la pizarra (Prioridad: Presupuestos, Horas Paro, Top Máquinas) */
+.wb-pronostico-presupuesto {
+  grid-column: span 12;
+}
+
+.wb-horas-paro {
   grid-column: span 6;
 }
 
+.wb-top-maquina {
+  grid-column: span 6;
+}
+
+.wb-ot-por-cerrar {
+  grid-column: span 4;
+}
+
 .wb-alertas {
-  grid-column: span 3;
+  grid-column: span 5;
 }
 
 .wb-cumplimiento {
   grid-column: span 3;
   align-items: center;
   justify-content: center;
-}
-
-.wb-pronostico-presupuesto {
-  grid-column: span 5;
-}
-
-.wb-horas-paro {
-  grid-column: span 3;
-}
-
-.wb-top-maquina {
-  grid-column: span 4;
 }
 
 /* Estilos de contenido dentro de los widgets de la pizarra */

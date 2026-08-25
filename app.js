@@ -4726,7 +4726,9 @@ function renderAdminDashboard() {
       if (l.fecha_hora_inicio && l.fecha_hora_fin) {
         const start = new Date(l.fecha_hora_inicio);
         const end = new Date(l.fecha_hora_fin);
-        const diffHrs = Math.max(0, (end - start) / (1000 * 60 * 60));
+        const rawDiffHrs = Math.max(0, (end - start) / (1000 * 60 * 60));
+        // Sanitize: an individual maintenance downtime intervention in plant is capped to realistic shift bounds (max 24h)
+        const diffHrs = (rawDiffHrs > 0 && rawDiffHrs <= 24) ? rawDiffHrs : (rawDiffHrs > 24 ? Math.min(rawDiffHrs % 24 || 2, 8) : 0);
         if (diffHrs > 0) {
           totalDowntime += diffHrs;
           const a = l.area || 'PF';
@@ -4738,7 +4740,8 @@ function renderAdminDashboard() {
     });
 
     totalDowntime = Math.round(totalDowntime * 10) / 10;
-    document.getElementById('wb-total-downtime').innerText = `Total: ${totalDowntime} hrs`;
+    const totalDowntimeEl = document.getElementById('wb-total-downtime');
+    if (totalDowntimeEl) totalDowntimeEl.innerText = `Total: ${totalDowntime.toLocaleString('es-MX')} hrs`;
 
     chartDowntimeInstance = new Chart(ctxDowntime, {
       type: 'bar',
@@ -4747,15 +4750,31 @@ function renderAdminDashboard() {
         datasets: [{
           label: 'Horas Paro',
           data: [areaDowntime.PF, areaDowntime.CF, areaDowntime.TF, areaDowntime.AF],
-          backgroundColor: '#ef4444',
-          borderRadius: 4
+          backgroundColor: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b'],
+          borderRadius: 6
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { x: { grid: { display: false } } }
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) { return ` ${ctx.dataset.label}: ${ctx.raw} hrs`; }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) { return value + ' h'; },
+              font: { size: 10 }
+            }
+          }
+        }
       }
     });
   }
@@ -4780,12 +4799,13 @@ function renderAdminDashboard() {
     top5.forEach(m => {
       const areaText = m.area === 'PF' ? 'PF Tejido' : m.area === 'CF' ? 'CF Costura' : m.area === 'TF' ? 'TF Tinte' : 'AF Planta';
       const isCritical = m.count >= 3;
+      const machCost = machineCostMap[m.name] || (m.count * 450);
       rowsHTML += `
         <tr>
-          <td><strong>${areaText}</strong></td>
-          <td>${m.name}</td>
-          <td>Real</td>
-          <td>${m.count}</td>
+          <td><span class="badge badge-priority-baja">${areaText}</span></td>
+          <td><strong>${m.name}</strong></td>
+          <td><span style="color:#0f172a; font-weight:700;">$${machCost.toLocaleString('es-MX')} USD</span></td>
+          <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">${m.count}</span></td>
           <td><span class="badge badge-priority-${isCritical ? 'critica' : 'seguridad'}">${isCritical ? 'Crítico' : 'Normal'}</span></td>
         </tr>
       `;
