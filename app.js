@@ -1464,39 +1464,41 @@ async function syncDatabases() {
   
   try {
     // 1. Sync Machines
-  try {
-    const { data: dbMachines, error: mErr } = await supabaseClient.from('cat_maquinas').select('*');
-    if (!mErr && dbMachines && dbMachines.length > 0) {
-      const existingLocalMachines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
-      const localMachines = dbMachines.map(m => {
-        const localM = existingLocalMachines.find(lm => lm.id === m.equipo_towell);
-        let area = m.departamento_codigo || m.area || null;
-        if (!area || area === 'NONE') {
-          area = (typeof resolveAreaFromMachineCode === 'function')
-            ? resolveAreaFromMachineCode(m.equipo_towell, m.clave || '')
-            : 'PF';
-        }
-        const proceso = area === 'PF' ? 'Tejido' : (area === 'CF' ? 'Costura' : (area === 'TF' ? 'Tintoría' : 'Servicios Auxiliares'));
-        return {
-          id: m.equipo_towell,
-          name: localM ? localM.name : m.equipo_towell,
-          area: area,
-          clave: m.clave,
-          proceso: proceso,
-          tipo_equipo: 'Maquinaria',
-          status: 'Operativa',
-          activo: m.activo !== false,
-          failures: localM ? localM.failures : 0,
-          cost: localM ? localM.cost : 0,
-          mtbf: localM ? localM.mtbf : 120,
-          mttr: localM ? localM.mttr : 2.5
-        };
-      });
-      localStorage.setItem('TSMAI_machines', JSON.stringify(localMachines));
+    try {
+      const { data: dbMachines, error: mErr } = await supabaseClient.from('cat_maquinas').select('*');
+      if (!mErr && dbMachines && dbMachines.length > 0) {
+        const existingLocalMachines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
+        const localMachines = dbMachines.map(m => {
+          const localM = existingLocalMachines.find(lm => lm.id === m.equipo_towell);
+          let area = m.departamento_codigo || m.area || null;
+          if (!area || area === 'NONE' || area === 'UNKNOWN') {
+            area = (typeof resolveAreaFromMachineCode === 'function')
+              ? resolveAreaFromMachineCode(m.equipo_towell, m.clave || '')
+              : 'PF';
+          }
+          const proceso = area === 'PF' ? 'Tejido' : (area === 'CF' ? 'Costura' : (area === 'TF' ? 'Tintorería' : 'Servicios Auxiliares'));
+          const descName = m.clave || m.nombre_maquina || (localM ? localM.name : m.equipo_towell);
+          return {
+            id: m.equipo_towell,
+            equipo_towell: m.equipo_towell,
+            name: descName,
+            clave: m.clave || descName,
+            area: area,
+            proceso: proceso,
+            tipo_equipo: 'Maquinaria',
+            status: 'Operativa',
+            activo: m.activo !== false,
+            failures: localM ? localM.failures : 0,
+            cost: localM ? localM.cost : 0,
+            mtbf: localM ? localM.mtbf : 120,
+            mttr: localM ? localM.mttr : 2.5
+          };
+        });
+        localStorage.setItem('TSMAI_machines', JSON.stringify(localMachines));
+      }
+    } catch (errM) {
+      console.warn('[Sync] Non-blocking warning syncing cat_maquinas:', errM);
     }
-  } catch (errM) {
-    console.warn('[Sync] Non-blocking warning syncing cat_maquinas:', errM);
-  }
 
   // 2. Sync Technicians & Users
   try {
@@ -17323,11 +17325,20 @@ function populateSolicitantePreferredTechs() {
 function initSolicitanteNewForm() {
   if (!currentUser) return;
   populateSolicitantePreferredTechs();
-  onSolicitanteMachineFilterChange();
-  const userArea = (currentUser.area || currentUser.departamento || currentUser.department || 'AF').toUpperCase().trim();
+  
+  const userArea = (currentUser.area || currentUser.departamento || currentUser.department || 'CF').toUpperCase().trim();
   const userDept = currentUser.department || (userArea === 'PF' ? 'Producción / Tejido' : userArea === 'CF' ? 'Costura' : userArea === 'TF' ? 'Tintorería' : 'Servicios Auxiliares');
 
-  // 1. Cargar datos obtenidos automáticamente (Lectura únicamente)
+  // Preseleccionar el área del solicitante en el filtro si no se ha cambiado manualmente
+  const areaFilterEl = document.getElementById('solic-req-machine-area-filter');
+  if (areaFilterEl) {
+    areaFilterEl.value = ['PF', 'CF', 'TF', 'AF'].includes(userArea) ? userArea : 'ALL';
+  }
+
+  // Ejecutar el filtrado y renderizado dinámico de maquinaria
+  onSolicitanteMachineFilterChange();
+
+  // 1. Cargar datos del solicitante (Solo lectura)
   const appEl = document.getElementById('solic-auto-applicant');
   const areaEl = document.getElementById('solic-auto-area');
   const deptEl = document.getElementById('solic-auto-dept');
@@ -17343,21 +17354,6 @@ function initSolicitanteNewForm() {
   if (deptEl) deptEl.innerText = userDept;
   if (dateEl) dateEl.innerText = dateStr;
   if (timeEl) timeEl.innerText = timeStr;
-
-  // 2. Cargar máquinas filtradas por el área del perfil autenticado
-  const macSelect = document.getElementById('solic-req-machine');
-  const areaMachines = getMachinesByArea(userArea);
-
-  if (macSelect) {
-    let html = '<option value="">Selecciona máquina de tu área (' + userArea + ')...</option>';
-    html += '<option value="NO_APLICA">NO APLICA MÁQUINA (Infraestructura / Edificios / Servicios)</option>';
-    areaMachines.forEach(m => {
-      const id = m.id || m.clave;
-      const name = m.name || m.nombre || id;
-      html += `<option value="${id}">${id} - ${name}</option>`;
-    });
-    macSelect.innerHTML = html;
-  }
 
   // Ocultar campo ubicación y alerta de calendario inicialmente
   const locGroup = document.getElementById('solic-group-location');
