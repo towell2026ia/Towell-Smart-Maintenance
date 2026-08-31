@@ -745,31 +745,28 @@ function formatStatus(status) {
 }
 
 function getAreaCodeForOrder(item) {
-  if (!item) return 'AF';
+  if (!item) return 'CF';
 
-  const mac = String(item.machine || item.maquina_id || '').toUpperCase().trim();
-
-  // REGLA ABSOLUTA: Si no es una máquina real de planta registrada (ej. TOW-TEL205-TEJI), SERÁ SIEMPRE 'AF'
-  const isRealMachine = (
-    mac && 
-    mac !== 'NO APLICA MÁQUINA' && 
-    mac !== 'NO_APLICA' && 
-    mac !== 'NULL' && 
-    mac !== 'UNDEFINED' && 
-    !mac.startsWith('📍') &&
-    (mac.includes('TOW-') || mac.includes('MAQ-') || mac.includes('EQ-'))
-  );
-
-  if (!isRealMachine) {
-    return 'AF';
+  // 1. Respetar área explícita del item (PF, CF, TF, AF)
+  const explicitArea = String(item.area || item.departamento || item.department || item.departamento_codigo || '').toUpperCase().trim();
+  if (['PF', 'CF', 'TF', 'AF'].includes(explicitArea)) {
+    return explicitArea;
   }
 
-  // Si es una máquina real de planta, clasificar por el equipo:
-  if (mac.includes('TEJI') || mac.includes('URDI') || mac.includes('MACC') || mac.includes('ENG')) return 'PF';
-  if (mac.includes('CORT') || mac.includes('COS') || mac.includes('DOBL') || mac.includes('CONFE') || mac.includes('DETMET') || mac.includes('SUBL')) return 'CF';
-  if (mac.includes('TINT') || mac.includes('JET') || mac.includes('SECA') || mac.includes('OVER') || mac.includes('CAMP') || mac.includes('CALD') || mac.includes('ABRI') || mac.includes('RAMA') || mac.includes('BARC') || mac.includes('POZO') || mac.includes('AGUA')) return 'TF';
+  // 2. Mapeo de máquinas sintéticas DEMO
+  const mac = String(item.machine || item.maquina_id || item.equipo_towell || '').toUpperCase().trim();
+  if (mac === 'DEMO-MAQ-001' || mac === 'DEMO-MAQ-002' || mac === 'DEMO-MAQ-003') return 'PF';
+  if (mac === 'DEMO-MAQ-004') return 'TF';
+  if (mac === 'DEMO-MAQ-005') return 'CF';
+  if (mac === 'DEMO-MAQ-006') return 'AF';
 
-  return 'AF';
+  // 3. Mapeo de máquinas de planta real
+  if (mac.includes('TEJI') || mac.includes('URDI') || mac.includes('MACC') || mac.includes('ENG') || mac.includes('TELAR') || mac.includes('JACQ') || mac.includes('KM') || mac.includes('RASU')) return 'PF';
+  if (mac.includes('CORT') || mac.includes('COS') || mac.includes('DOBL') || mac.includes('CONFE') || mac.includes('DETMET') || mac.includes('SUBL') || mac.includes('TEXPA')) return 'CF';
+  if (mac.includes('TINT') || mac.includes('JET') || mac.includes('SECA') || mac.includes('OVER') || mac.includes('CAMP') || mac.includes('CALD') || mac.includes('ABRI') || mac.includes('RAMA') || mac.includes('BARC') || mac.includes('POZO') || mac.includes('AGUA') || mac.includes('CLAYTON')) return 'TF';
+  if (mac.includes('COMP') || mac.includes('CIST') || mac.includes('-PT') || mac.includes('PLANTA') || mac.includes('AUX')) return 'AF';
+
+  return 'CF';
 }
 
 function formatStandardFolio(item) {
@@ -1293,28 +1290,39 @@ async function dbGetParts() {
 async function dbInsertRequest(newRequest) {
   if (supabaseClient) {
     try {
-      // 1. Sanitizar maquina_id para evitar violación de Foreign Key con cat_maquinas
+      // 1. Sanitizar maquina_id para evitar error de FK con cat_maquinas
       let validMachineId = null;
       const machVal = String(newRequest.machine_id || newRequest.machine || '').trim();
       if (machVal && machVal !== 'NO_APLICA' && !machVal.includes('NO APLICA') && !machVal.startsWith('📍')) {
         validMachineId = machVal;
       }
 
-      // 2. Sanitizar cve_solicitante para evitar violación de Foreign Key con cat_empleados
+      // 2. Sanitizar cve_solicitante para evitar error de FK con cat_empleados
       let validCveSolicitante = null;
-      if (currentUser && currentUser.cve_empleado && !currentUser.cve_empleado.includes('-')) {
+      if (currentUser && currentUser.cve_empleado && !String(currentUser.cve_empleado).includes('-')) {
         validCveSolicitante = currentUser.cve_empleado;
       }
 
-      // 3. Normalizar departamento
+      // 3. Normalizar departamento canónico
       const rawArea = String(newRequest.area || (currentUser && currentUser.area) || 'CF').toUpperCase().trim();
       const validDepto = ['PF', 'CF', 'TF', 'AF'].includes(rawArea) ? rawArea : 'CF';
+
+      // 4. Metadatos de observaciones iniciales
+      const applicantName = newRequest.applicant || (currentUser && (currentUser.name || currentUser.nombre_completo || currentUser.email)) || 'Solicitante';
+      const manualName = newRequest.nombre_solicitante_reporta || null;
+      const prefTech = newRequest.requested_technician_id || null;
+      
+      let obsHeader = '';
+      if (manualName && manualName !== applicantName) obsHeader += `[REPORTO: ${manualName}] `;
+      if (prefTech) obsHeader += `[PREF_TECH: ${prefTech}] `;
+      const isStopped = newRequest.machineStopped === 'Sí' || newRequest.machineStopped === true;
+      const obsBody = isStopped ? 'Máquina detenida' : (newRequest.location ? `📍 ${newRequest.location}` : 'Operativa');
 
       const insertData = {
         folio: newRequest.id,
         orden_trabajo: newRequest.type || 'MC',
         origen: 'App',
-        estatus: getDBStatus(newRequest.status || 'Solicitud recibida'),
+        estatus: 'solicitud_recibida',
         fecha_inicio: newRequest.date ? newRequest.date.split('T')[0] : new Date().toISOString().split('T')[0],
         hora_inicio: newRequest.date && newRequest.date.includes('T') ? newRequest.date.split('T')[1].split('.')[0] : new Date().toTimeString().split(' ')[0],
         fecha_hora_inicio: newRequest.date || new Date().toISOString(),
@@ -1322,10 +1330,8 @@ async function dbInsertRequest(newRequest) {
         maquina_id: validMachineId,
         falla: newRequest.type || 'Correctivo',
         descripcion: newRequest.description,
-        observacion_inicial: newRequest.machineStopped === 'Sí' ? 'Máquina detenida' : (newRequest.location ? `📍 ${newRequest.location}` : 'Operativa'),
-        nombre_solicitante: newRequest.applicant || (currentUser && (currentUser.name || currentUser.nombre_completo || currentUser.email)) || 'Solicitante',
-        nombre_solicitante_reporta: newRequest.nombre_solicitante_reporta || newRequest.applicant || null,
-        requested_technician_id: newRequest.requested_technician_id || null,
+        observacion_inicial: (obsHeader + obsBody).slice(0, 250),
+        nombre_solicitante: applicantName,
         cve_solicitante: validCveSolicitante,
         turno_solicitante: String(newRequest.shift || '').includes('Mañana') ? 1 : String(newRequest.shift || '').includes('Tarde') ? 2 : 3,
         prioridad: newRequest.urgency || 'Media',
@@ -1339,7 +1345,6 @@ async function dbInsertRequest(newRequest) {
 
       if (error) {
         console.warn('[dbInsertRequest] Warn inserting into ordenes_trabajo, retrying with minimalist payload:', error.message);
-        // Retry fallback without non-essential FKs
         const fallbackData = {
           folio: newRequest.id,
           orden_trabajo: newRequest.type || 'MC',
@@ -1348,7 +1353,7 @@ async function dbInsertRequest(newRequest) {
           departamento: validDepto,
           falla: newRequest.type || 'Correctivo',
           descripcion: newRequest.description,
-          nombre_solicitante: insertData.nombre_solicitante,
+          nombre_solicitante: applicantName,
           prioridad: newRequest.urgency || 'Media',
           fecha_carga: new Date().toISOString()
         };
@@ -1357,7 +1362,7 @@ async function dbInsertRequest(newRequest) {
           .insert([fallbackData])
           .select();
         if (retryErr) {
-          console.error('[dbInsertRequest] Fatal error inserting order in Supabase:', retryErr);
+          console.error('[dbInsertRequest] Error on retry:', retryErr);
         } else if (retryData && retryData.length > 0) {
           newRequest.id = retryData[0].folio || newRequest.id;
         }
@@ -1371,22 +1376,18 @@ async function dbInsertRequest(newRequest) {
           .from('solicitudes_mantenimiento')
           .insert([{
             folio_solicitud: newRequest.id,
-            solicitante_nombre: insertData.nombre_solicitante,
+            solicitante_nombre: applicantName,
             solicitante_id: currentUser ? (currentUser.id || currentUser.uuid) : null,
             area: validDepto,
             maquina_id: validMachineId,
             descripcion_falla: newRequest.description,
             urgencia: newRequest.urgency || 'Media',
             tipo_servicio: newRequest.type || 'Correctivo',
-            maquina_detenida: newRequest.machineStopped === 'Sí',
+            maquina_detenida: isStopped,
             estatus: 'Solicitud recibida',
-            requested_technician_id: newRequest.requested_technician_id || null,
-            nombre_solicitante_reporta: newRequest.nombre_solicitante_reporta || null,
             fecha_registro: new Date().toISOString()
           }]);
-      } catch (eSol) {
-        // Non-blocking
-      }
+      } catch (eSol) {}
 
       // Guardar en localStorage para disponibilidad inmediata en UI
       const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
@@ -1398,7 +1399,7 @@ async function dbInsertRequest(newRequest) {
       }
       localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
       
-      // Notificar a componentes visuales
+      // Refresco inmediato de componentes visuales
       if (typeof updateRequestsBadge === 'function') updateRequestsBadge();
       if (typeof renderAdminRequestsTable === 'function') renderAdminRequestsTable();
       if (typeof renderSolicitanteTracking === 'function') renderSolicitanteTracking();
@@ -1585,10 +1586,17 @@ async function syncDatabases() {
 
   // 4. Sync Orders & Requests
   try {
-    const { data: dbOrders, error: oErr } = await supabaseClient.from('ordenes_trabajo').select('*');
+    const { data: dbOrders, error: oErr } = await supabaseClient
+      .from('ordenes_trabajo')
+      .select('*')
+      .order('fecha_carga', { ascending: false });
+
     let dbDirectRequests = [];
     try {
-      const { data: reqData } = await supabaseClient.from('solicitudes_mantenimiento').select('*');
+      const { data: reqData } = await supabaseClient
+        .from('solicitudes_mantenimiento')
+        .select('*')
+        .order('fecha_registro', { ascending: false });
       if (reqData) {
         dbDirectRequests = reqData.filter(r => {
           const ts = (r.tipo_servicio || '').toUpperCase();
@@ -1606,18 +1614,32 @@ async function syncDatabases() {
     if (!oErr && dbOrders && dbOrders.length > 0) {
       dbOrders.forEach(o => {
         const formattedStatus = formatStatus(o.estatus);
+        const itemArea = o.departamento || o.area || getAreaCodeForOrder(o);
+        
+        let reportaName = o.nombre_solicitante;
+        let prefTechId = null;
+        if (o.observacion_inicial) {
+          const repMatch = o.observacion_inicial.match(/\[REPORTO:\s*([^\]]+)\]/);
+          if (repMatch) reportaName = repMatch[1].trim();
+          const prefMatch = o.observacion_inicial.match(/\[PREF_TECH:\s*([^\]]+)\]/);
+          if (prefMatch) prefTechId = prefMatch[1].trim();
+        }
+
         const item = {
           id: o.folio,
           uuid: o.id_orden,
           reqId: o.folio,
           applicant: o.nombre_solicitante,
+          nombre_solicitante_reporta: reportaName,
+          requested_technician_id: prefTechId,
           applicant_id: o.cve_solicitante,
           shift: o.turno_solicitante === 1 ? 'Turno Mañana' : o.turno_solicitante === 2 ? 'Turno Tarde' : 'Turno Nocturno',
-          area: o.departamento,
-          machine: o.maquina_id,
+          area: itemArea,
+          department: itemArea,
+          machine: o.maquina_id || (o.observacion_inicial && o.observacion_inicial.includes('📍') ? o.observacion_inicial : 'NO APLICA MÁQUINA'),
           type: o.orden_trabajo || 'MC',
           description: o.descripcion,
-          machineStopped: o.observacion_inicial || 'No',
+          machineStopped: o.observacion_inicial && o.observacion_inicial.includes('detenida') ? 'Sí' : 'No',
           urgency: o.prioridad || 'Media',
           status: formattedStatus,
           assignedTech: o.cve_atendio,
@@ -1657,9 +1679,12 @@ async function syncDatabases() {
             uuid: r.id,
             reqId: stdFolio,
             applicant: r.solicitante_nombre,
+            nombre_solicitante_reporta: r.solicitante_nombre,
+            requested_technician_id: null,
             applicant_id: r.solicitante_id,
             shift: r.turno || 'Turno Mañana',
             area: r.area || 'CF',
+            department: r.area || 'CF',
             machine: r.maquina_id || 'NO APLICA MÁQUINA',
             type: r.tipo_servicio || 'Correctivo',
             description: r.descripcion_falla || 'Solicitud de servicio',
@@ -1674,6 +1699,15 @@ async function syncDatabases() {
         }
       }
     }
+
+    // Preservar solicitudes locales que no se hayan sincronizado aún
+    const currentLocal = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+    currentLocal.forEach(clr => {
+      if (clr && clr.id && !existingFolios.has(clr.id)) {
+        localRequests.unshift(clr);
+        existingFolios.add(clr.id);
+      }
+    });
 
     localStorage.setItem('TSMAI_requests', JSON.stringify(localRequests));
     localStorage.setItem('TSMAI_orders', JSON.stringify(localOrders));
