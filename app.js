@@ -636,6 +636,40 @@ let tempSelectedParts = [];
 // Arreglo temporal de subtareas por crear en el detalle de OT del técnico
 let tempSubtasksToCreate = [];
 
+// Helper universal de coincidencia para el portal del solicitante y supervisor
+function isRequesterUserMatch(item, user) {
+  if (!item || !user) return false;
+  
+  const userId = String(user.id || user.uuid || '').trim();
+  const userEmail = String(user.email || user.correo || '').toLowerCase().trim();
+  const userName = String(user.name || user.nombre_completo || '').toLowerCase().trim();
+  const userEmpCode = String(user.cve_empleado || '').toLowerCase().trim();
+  const userArea = String(user.area || user.departamento || '').toUpperCase().trim();
+
+  const itemAppId = String(item.applicant_id || item.solicitante_id || item.created_by || item.cve_solicitante || '').trim();
+  const itemAppEmail = String(item.applicant_email || item.email || '').toLowerCase().trim();
+  const itemAppName = String(item.applicant || item.solicitante_nombre || item.nombre_solicitante || '').toLowerCase().trim();
+  const itemReporta = String(item.nombre_solicitante_reporta || '').toLowerCase().trim();
+  const itemArea = String(item.area || item.departamento || '').toUpperCase().trim();
+
+  // 1. Coincidencia directa por ID de usuario (UUID)
+  if (userId && itemAppId && (itemAppId === userId || itemAppId.includes(userId))) return true;
+
+  // 2. Coincidencia por clave de nómina / empleado
+  if (userEmpCode && itemAppId && itemAppId.toLowerCase() === userEmpCode) return true;
+
+  // 3. Coincidencia por correo electrónico
+  if (userEmail && (itemAppEmail.includes(userEmail) || itemAppName.includes(userEmail) || userEmail.includes(itemAppEmail))) return true;
+
+  // 4. Coincidencia por nombre completo o nombre registrado en el reporte
+  if (userName && (itemAppName.includes(userName) || userName.includes(itemAppName) || itemReporta.includes(userName))) return true;
+
+  // 5. Coincidencia por Área de Planta (Supervisores y Solicitantes de Costura CF, Tejido PF, Tinte TF, Planta AF ven todo su departamento)
+  if (userArea && itemArea && ['PF', 'CF', 'TF', 'AF'].includes(userArea) && itemArea === userArea) return true;
+
+  return false;
+}
+
 // --- FORMATTING HELPERS FOR STATUS, AREA AND PRIORITY ---
 function getDBStatus(status) {
   if (!status) return 'solicitud_recibida';
@@ -1259,22 +1293,42 @@ async function dbGetParts() {
 async function dbInsertRequest(newRequest) {
   if (supabaseClient) {
     try {
+      // 1. Sanitizar maquina_id para evitar violación de Foreign Key con cat_maquinas
+      let validMachineId = null;
+      const machVal = String(newRequest.machine_id || newRequest.machine || '').trim();
+      if (machVal && machVal !== 'NO_APLICA' && !machVal.includes('NO APLICA') && !machVal.startsWith('📍')) {
+        validMachineId = machVal;
+      }
+
+      // 2. Sanitizar cve_solicitante para evitar violación de Foreign Key con cat_empleados
+      let validCveSolicitante = null;
+      if (currentUser && currentUser.cve_empleado && !currentUser.cve_empleado.includes('-')) {
+        validCveSolicitante = currentUser.cve_empleado;
+      }
+
+      // 3. Normalizar departamento
+      const rawArea = String(newRequest.area || (currentUser && currentUser.area) || 'CF').toUpperCase().trim();
+      const validDepto = ['PF', 'CF', 'TF', 'AF'].includes(rawArea) ? rawArea : 'CF';
+
       const insertData = {
         folio: newRequest.id,
-        orden_trabajo: newRequest.type,
+        orden_trabajo: newRequest.type || 'MC',
         origen: 'App',
-        estatus: getDBStatus(newRequest.status),
-        fecha_inicio: newRequest.date.split('T')[0],
-        hora_inicio: newRequest.date.split('T')[1].split('.')[0],
-        fecha_hora_inicio: newRequest.date,
-        departamento: newRequest.area,
-        maquina_id: newRequest.machine,
-        falla: newRequest.type,
+        estatus: getDBStatus(newRequest.status || 'Solicitud recibida'),
+        fecha_inicio: newRequest.date ? newRequest.date.split('T')[0] : new Date().toISOString().split('T')[0],
+        hora_inicio: newRequest.date && newRequest.date.includes('T') ? newRequest.date.split('T')[1].split('.')[0] : new Date().toTimeString().split(' ')[0],
+        fecha_hora_inicio: newRequest.date || new Date().toISOString(),
+        departamento: validDepto,
+        maquina_id: validMachineId,
+        falla: newRequest.type || 'Correctivo',
         descripcion: newRequest.description,
-        nombre_solicitante: newRequest.applicant,
-        cve_solicitante: newRequest.applicant_code || newRequest.applicant_id || null,
-        turno_solicitante: newRequest.shift.includes('Mañana') ? 1 : newRequest.shift.includes('Tarde') ? 2 : 3,
-        prioridad: newRequest.urgency,
+        observacion_inicial: newRequest.machineStopped === 'Sí' ? 'Máquina detenida' : (newRequest.location ? `📍 ${newRequest.location}` : 'Operativa'),
+        nombre_solicitante: newRequest.applicant || (currentUser && (currentUser.name || currentUser.nombre_completo || currentUser.email)) || 'Solicitante',
+        nombre_solicitante_reporta: newRequest.nombre_solicitante_reporta || newRequest.applicant || null,
+        requested_technician_id: newRequest.requested_technician_id || null,
+        cve_solicitante: validCveSolicitante,
+        turno_solicitante: String(newRequest.shift || '').includes('Mañana') ? 1 : String(newRequest.shift || '').includes('Tarde') ? 2 : 3,
+        prioridad: newRequest.urgency || 'Media',
         fecha_carga: new Date().toISOString()
       };
       
@@ -1282,33 +1336,88 @@ async function dbInsertRequest(newRequest) {
         .from('ordenes_trabajo')
         .insert([insertData])
         .select();
-      if (error) throw error;
-      
-      // Update the request with the official folio generated by the DB Trigger
-      if (data && data.length > 0) {
-        newRequest.id = data[0].folio;
+
+      if (error) {
+        console.warn('[dbInsertRequest] Warn inserting into ordenes_trabajo, retrying with minimalist payload:', error.message);
+        // Retry fallback without non-essential FKs
+        const fallbackData = {
+          folio: newRequest.id,
+          orden_trabajo: newRequest.type || 'MC',
+          origen: 'App',
+          estatus: 'solicitud_recibida',
+          departamento: validDepto,
+          falla: newRequest.type || 'Correctivo',
+          descripcion: newRequest.description,
+          nombre_solicitante: insertData.nombre_solicitante,
+          prioridad: newRequest.urgency || 'Media',
+          fecha_carga: new Date().toISOString()
+        };
+        const { data: retryData, error: retryErr } = await supabaseClient
+          .from('ordenes_trabajo')
+          .insert([fallbackData])
+          .select();
+        if (retryErr) {
+          console.error('[dbInsertRequest] Fatal error inserting order in Supabase:', retryErr);
+        } else if (retryData && retryData.length > 0) {
+          newRequest.id = retryData[0].folio || newRequest.id;
+        }
+      } else if (data && data.length > 0) {
+        newRequest.id = data[0].folio || newRequest.id;
       }
       
-      // Save locally to localStorage so it is immediately visible in the UI
+      // Guardar también en solicitudes_mantenimiento si la tabla está disponible
+      try {
+        await supabaseClient
+          .from('solicitudes_mantenimiento')
+          .insert([{
+            folio_solicitud: newRequest.id,
+            solicitante_nombre: insertData.nombre_solicitante,
+            solicitante_id: currentUser ? (currentUser.id || currentUser.uuid) : null,
+            area: validDepto,
+            maquina_id: validMachineId,
+            descripcion_falla: newRequest.description,
+            urgencia: newRequest.urgency || 'Media',
+            tipo_servicio: newRequest.type || 'Correctivo',
+            maquina_detenida: newRequest.machineStopped === 'Sí',
+            estatus: 'Solicitud recibida',
+            requested_technician_id: newRequest.requested_technician_id || null,
+            nombre_solicitante_reporta: newRequest.nombre_solicitante_reporta || null,
+            fecha_registro: new Date().toISOString()
+          }]);
+      } catch (eSol) {
+        // Non-blocking
+      }
+
+      // Guardar en localStorage para disponibilidad inmediata en UI
       const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
-      if (!requests.some(r => r.id === newRequest.id)) {
-        requests.push(newRequest);
-        localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
+      const existingIdx = requests.findIndex(r => r && r.id === newRequest.id);
+      if (existingIdx >= 0) {
+        requests[existingIdx] = newRequest;
+      } else {
+        requests.unshift(newRequest);
       }
+      localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
       
-      // Trigger background sync to keep database updated and refresh admin view
-      syncDatabases().then(() => {
-        refreshActiveViewSilently();
-        updateRequestsBadge();
-      }).catch(err => console.error('Error in background sync after request insert:', err));
+      // Notificar a componentes visuales
+      if (typeof updateRequestsBadge === 'function') updateRequestsBadge();
+      if (typeof renderAdminRequestsTable === 'function') renderAdminRequestsTable();
+      if (typeof renderSolicitanteTracking === 'function') renderSolicitanteTracking();
+      if (typeof renderSolicitanteProfileHeader === 'function') renderSolicitanteProfileHeader();
       
       return;
     } catch (err) {
       console.error('Error inserting request in Supabase:', err);
     }
   }
+
+  // Fallback LocalStorage
   const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
-  requests.push(newRequest);
+  const existingIdx = requests.findIndex(r => r && r.id === newRequest.id);
+  if (existingIdx >= 0) {
+    requests[existingIdx] = newRequest;
+  } else {
+    requests.unshift(newRequest);
+  }
   localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
 }
 
@@ -1318,20 +1427,16 @@ function auditAndCleanDatabaseStorage() {
   ];
   obsoleteKeys.forEach(k => localStorage.removeItem(k));
 
-  // Deduplicar solicitudes y órdenes por ID único y remover registros históricos de ayer hacia atrás
-  const todayIso = new Date().toISOString().split('T')[0];
+  // Deduplicar solicitudes y órdenes por ID único preservando histórico
   ['TSMAI_requests', 'TSMAI_orders'].forEach(key => {
     const data = JSON.parse(localStorage.getItem(key) || '[]');
     if (Array.isArray(data) && data.length > 0) {
       const unique = [];
       const seen = new Set();
       data.forEach(item => {
+        if (!item) return;
         const idVal = item.id || item.uuid || item.folio;
-        const itemDate = item.date || item.dueDate || item.fecha_hora_inicio;
-        const dateStr = itemDate ? String(itemDate).split('T')[0] : todayIso;
-        
-        // Mantener solo registros válidos creados hoy en adelante
-        if (idVal && !seen.has(idVal) && dateStr >= todayIso) {
+        if (idVal && !seen.has(idVal)) {
           seen.add(idVal);
           unique.push(item);
         }
@@ -7619,6 +7724,21 @@ async function convertToWorkOrder() {
   if (supabaseClient) {
     try {
       const parsedDueDate = new Date(dueDate);
+
+      let validMachineId = null;
+      const machVal = String(req.machine_id || req.machine || '').trim();
+      if (machVal && machVal !== 'NO_APLICA' && !machVal.includes('NO APLICA') && !machVal.startsWith('📍')) {
+        validMachineId = machVal;
+      }
+
+      let validCveSolicitante = null;
+      if (req.applicant_id && !String(req.applicant_id).includes('-')) {
+        validCveSolicitante = req.applicant_id;
+      }
+
+      const rawArea = String(req.area || 'CF').toUpperCase().trim();
+      const validDepto = ['PF', 'CF', 'TF', 'AF'].includes(rawArea) ? rawArea : 'CF';
+
       const payload = {
         folio: otId,
         orden_trabajo: type,
@@ -7626,12 +7746,14 @@ async function convertToWorkOrder() {
         estatus: getDBStatus('Asignada'),
         fecha_inicio: req.date ? req.date.split('T')[0] : new Date().toISOString().split('T')[0],
         fecha_hora_inicio: req.date || new Date().toISOString(),
-        departamento: req.area || 'CF',
-        maquina_id: req.machine || 'NO APLICA MÁQUINA',
+        departamento: validDepto,
+        maquina_id: validMachineId,
         falla: req.type || 'Correctivo',
         descripcion: req.description,
         nombre_solicitante: req.applicant,
-        cve_solicitante: req.applicant_id || null,
+        nombre_solicitante_reporta: req.nombre_solicitante_reporta || req.applicant || null,
+        requested_technician_id: req.requested_technician_id || null,
+        cve_solicitante: validCveSolicitante,
         cve_atendio: techCveForDB,  // cve_tecnico real — null si no tiene (evita error FK)
         nombre_atendio: techName,
         prioridad: priority,
@@ -17035,18 +17157,8 @@ function renderSolicitanteProfileHeader() {
     const currentUserEmail = String(currentUser.email || '').toLowerCase();
     const currentUserName = String(currentUser.name || currentUser.nombre_completo || '').toLowerCase();
 
-    const isMatch = (item) => {
-      const itemAppId = String(item.applicant_id || item.solicitante_id || item.created_by || '');
-      const itemAppEmail = String(item.applicant_email || item.email || item.applicant || '').toLowerCase();
-      const itemAppName = String(item.applicant || item.solicitante_nombre || '').toLowerCase();
-      return (
-        (currentUserId && itemAppId === currentUserId) ||
-        (currentUserEmail && itemAppEmail.includes(currentUserEmail)) ||
-        (currentUserName && itemAppName.includes(currentUserName))
-      );
-    };
+    const isMatch = (item) => isRequesterUserMatch(item, currentUser);
 
-    const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
     const userRequests = requests.filter(isMatch);
     const activeRequestsCount = userRequests.filter(r => r && r.status !== 'Atendida' && r.status !== 'Rechazada').length;
     const trackCountEl = document.getElementById('badge-solic-tracking-count');
@@ -17410,17 +17522,7 @@ async function renderSolicitanteTracking() {
   const currentUserEmail = String(currentUser.email || '').toLowerCase();
   const currentUserName = String(currentUser.name || currentUser.nombre_completo || '').toLowerCase();
 
-  const isUserMatch = (item) => {
-    const itemAppId = String(item.applicant_id || item.solicitante_id || '');
-    const itemAppEmail = String(item.applicant_email || item.email || item.applicant || '').toLowerCase();
-    const itemAppName = String(item.applicant || item.solicitante_nombre || '').toLowerCase();
-
-    return (
-      (currentUserId && itemAppId === currentUserId) ||
-      (currentUserEmail && itemAppEmail.includes(currentUserEmail)) ||
-      (currentUserName && itemAppName.includes(currentUserName))
-    );
-  };
+  const isUserMatch = (item) => isRequesterUserMatch(item, currentUser);
 
   let myReqs = localReqs.filter(isUserMatch);
   let myOrders = localOrders.filter(isUserMatch);
@@ -18179,17 +18281,7 @@ async function renderSolicitanteValidations() {
   const currentUserEmail = String(currentUser.email || '').toLowerCase();
   const currentUserName = String(currentUser.name || currentUser.nombre_completo || '').toLowerCase();
 
-  const isUserMatch = (item) => {
-    const itemAppId = String(item.applicant_id || item.solicitante_id || '');
-    const itemAppEmail = String(item.applicant_email || item.email || item.applicant || '').toLowerCase();
-    const itemAppName = String(item.applicant || item.solicitante_nombre || '').toLowerCase();
-
-    return (
-      (currentUserId && itemAppId === currentUserId) ||
-      (currentUserEmail && itemAppEmail.includes(currentUserEmail)) ||
-      (currentUserName && itemAppName.includes(currentUserName))
-    );
-  };
+  const isUserMatch = (item) => isRequesterUserMatch(item, currentUser);
 
   const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
 
