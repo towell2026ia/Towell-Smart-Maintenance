@@ -1,0 +1,28 @@
+{
+  "pilot_id": "PILOT-TSMAI-2026-01",
+  "incidents_summary": {
+    "blocker_count": 0,
+    "critical_count": 0,
+    "major_count": 0,
+    "minor_count": 1,
+    "cosmetic_count": 1,
+    "open_blockers": 0,
+    "open_criticals": 0
+  },
+  "resolved_incidents": [
+    {
+      "incident_id": "INC-2026-001",
+      "severity": "MINOR",
+      "description": "Ajuste de scroll táctil en tabla de órdenes en tablet de 10 pulgadas",
+      "status": "RESOLVED",
+      "fix": "Añadido overflow-x auto en contenedor responsive"
+    },
+    {
+      "incident_id": "INC-2026-002",
+      "severity": "COSMETIC",
+      "description": "Margen de espaciado en tarjeta de memoria técnica en modo oscuro",
+      "status": "RESOLVED",
+      "fix": "Ajustado padding a 16px en CSS"
+    }
+  ]
+}

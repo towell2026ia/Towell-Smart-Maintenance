@@ -1,0 +1,98 @@
+{
+  "profile": "FULL",
+  "snapshot_id": "SNAP-NUEVA-01",
+  "machine_id": "TOW-NUEVA-01",
+  "status": "CURRENT",
+  "freshness": "CURRENT",
+  "identity": {
+    "machine_id": "TOW-NUEVA-01",
+    "code": "NUEVA-01",
+    "name": "Máquina Nueva",
+    "area": "CORTE",
+    "status": "Operativa",
+    "criticality": "MEDIA"
+  },
+  "operational_state": {
+    "open_work_orders": 0,
+    "in_progress_orders": 0,
+    "last_intervention_at": null,
+    "current_maintenance_status": "OPERATIVA"
+  },
+  "facts": [],
+  "inferences": [
+    {
+      "inference_id": "INF-NODATA",
+      "statement": "Información histórica insuficiente para diagnósticos avanzados.",
+      "agent": "AG-001",
+      "confidence_level": "INSUFICIENTE",
+      "rule_id": "RULE-NO-DATA",
+      "evidence_refs": []
+    }
+  ],
+  "recommendations": [
+    {
+      "recommendation_id": "REC-STD",
+      "agent": "AG-002",
+      "priority": "BAJA",
+      "title": "Mantener plan de operación estándar",
+      "action_suggested": "Continuar con el programa preventivo estándar.",
+      "based_on": [
+        "INF-NODATA"
+      ],
+      "evidence_refs": []
+    }
+  ],
+  "calendar": {
+    "preventive": {
+      "status": "PROGRAMADO",
+      "date": "2026-12-01"
+    },
+    "predictive": {
+      "status": "NO_PROGRAMADO"
+    },
+    "autonomous": {
+      "status": "AL_DIA"
+    }
+  },
+  "technical_memory": {
+    "has_previous_solutions": false,
+    "solutions_count": 0,
+    "top_solution": null
+  },
+  "lifecycle": {
+    "strategy": "REPARAR",
+    "driver": "Activo nuevo"
+  },
+  "bad_actor": {
+    "is_bad_actor": false,
+    "pareto_rank": null,
+    "downtime_hours_contribution": 0
+  },
+  "provenance": {
+    "work_orders": {
+      "source": "ordenes_trabajo",
+      "record_count": 0,
+      "record_ids": []
+    },
+    "failures": {
+      "source": "fallas_por_maquina",
+      "record_count": 0,
+      "record_ids": []
+    },
+    "quality": {
+      "source": "segundas_por_rollo",
+      "record_count": 0,
+      "record_ids": []
+    },
+    "calendars": {
+      "source": "calendario_mantenimiento_detalle",
+      "record_count": 1,
+      "record_ids": []
+    },
+    "checklists": {
+      "source": "checklists_mantenimiento",
+      "record_count": 0,
+      "record_ids": []
+    }
+  }
+}

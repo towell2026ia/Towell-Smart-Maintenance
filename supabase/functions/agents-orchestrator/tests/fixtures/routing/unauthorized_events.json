@@ -1,0 +1,12 @@
+[
+  {
+    "test_id": "NEG-004",
+    "description": "Anon Key intentando ejecutar evento administrativo",
+    "event_code": "PREVENTIVO_GENERAR",
+    "payload": {
+      "anio": 2026
+    },
+    "role": "SOLICITANTE_PUBLICO",
+    "expected_status": "AUTHORITY_DENIED"
+  }
+]

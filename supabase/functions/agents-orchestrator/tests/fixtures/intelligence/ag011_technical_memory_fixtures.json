@@ -1,0 +1,31 @@
+{
+  "memory_store": [
+    {
+      "id": "MEM-001",
+      "asset_id": "TOW-TEL201-TEJI",
+      "problem_summary": "Vibración excesiva en árbol de levas",
+      "root_cause": "Holgura en rodamiento de soporte derecho",
+      "solution_applied": "Sustitución de rodamiento SKF 6208 y reapriete a 45 Nm",
+      "effectiveness_score": 95,
+      "date_resolved": "2026-05-10"
+    },
+    {
+      "id": "MEM-002",
+      "asset_id": "TOW-COS101-CONF",
+      "problem_summary": "Rotura de aguja en dobladillo",
+      "root_cause": "Aguja descalibrada respecto al looper",
+      "solution_applied": "Calibración con galga de 0.8mm",
+      "effectiveness_score": 90,
+      "date_resolved": "2026-06-12"
+    }
+  ],
+  "test_queries": [
+    {
+      "id": "QRY-001",
+      "asset_id": "TOW-TEL201-TEJI",
+      "problem_statement": "Vibración en árbol principal de telar",
+      "expected_match_id": "MEM-001",
+      "min_confidence": 80
+    }
+  ]
+}

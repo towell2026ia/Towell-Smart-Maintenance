@@ -1,0 +1,64 @@
+{
+  "test_cases": [
+    {
+      "id": "REC-001",
+      "description": "Máquina con 4 fallas en 20 días (Reincidencia Crítica)",
+      "maquina_id": "TOW-TEL201-TEJI",
+      "failures": [
+        {
+          "id": "F1",
+          "maquina_id": "TOW-TEL201-TEJI",
+          "fecha": "2026-08-01",
+          "descripcion": "Fuga de aceite en reductor",
+          "categoria_falla": "Mecánica"
+        },
+        {
+          "id": "F2",
+          "maquina_id": "TOW-TEL201-TEJI",
+          "fecha": "2026-08-07",
+          "descripcion": "Goteo persistente en reductor",
+          "categoria_falla": "Mecánica"
+        },
+        {
+          "id": "F3",
+          "maquina_id": "TOW-TEL201-TEJI",
+          "fecha": "2026-08-14",
+          "descripcion": "Sobrecalentamiento en reductor",
+          "categoria_falla": "Mecánica"
+        },
+        {
+          "id": "F4",
+          "maquina_id": "TOW-TEL201-TEJI",
+          "fecha": "2026-08-20",
+          "descripcion": "Fuga severa de lubricante",
+          "categoria_falla": "Mecánica"
+        }
+      ],
+      "expected": {
+        "is_recurrent": true,
+        "recurrence_count": 4,
+        "risk_level": "CRITICA",
+        "action_required": "TRIGGER_AG010_ROOT_CAUSE"
+      }
+    },
+    {
+      "id": "REC-002",
+      "description": "Máquina con 1 falla aislada en 60 días (Sin Reincidencia)",
+      "maquina_id": "TOW-TEL206-TEJI",
+      "failures": [
+        {
+          "id": "F5",
+          "maquina_id": "TOW-TEL206-TEJI",
+          "fecha": "2026-07-15",
+          "descripcion": "Fusible fundido",
+          "categoria_falla": "Eléctrica"
+        }
+      ],
+      "expected": {
+        "is_recurrent": false,
+        "recurrence_count": 1,
+        "risk_level": "BAJA"
+      }
+    }
+  ]
+}

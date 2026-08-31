@@ -1,0 +1,11 @@
+{
+  "total_agents": 16,
+  "healthy_count": 16,
+  "degraded_count": 0,
+  "error_count": 0,
+  "total_executions": 210,
+  "success_rate": 100,
+  "deterministic_count": 175,
+  "llm_count": 35,
+  "cost_usd": 0.0625
+}

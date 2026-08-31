@@ -1,0 +1,34 @@
+{
+  "pilot_id": "PILOT-TSMAI-2026-01",
+  "period_start": "2026-08-01T00:00:00Z",
+  "period_end": "2026-08-30T23:59:59Z",
+  "duration_weeks": 4,
+  "participating_units": {
+    "areas": [
+      "TEJIDO",
+      "CORTE",
+      "ACABADO",
+      "HILATURA"
+    ],
+    "active_machines_count": 17,
+    "sample_machines": [
+      "TOW-TEL201-TEJI",
+      "TOW-TEL202-TEJI",
+      "TOW-TEL203-TEJI",
+      "TOW-TEL204-TEJI",
+      "TOW-TEL205-TEJI"
+    ],
+    "active_technicians_count": 8,
+    "active_supervisors_count": 3,
+    "active_requesters_count": 12
+  },
+  "volume_metrics": {
+    "total_solicitudes": 64,
+    "total_ordenes_trabajo": 88,
+    "total_preventivos_programados": 17,
+    "total_predictivos_semanales": 16,
+    "total_autonomos_ejecutados": 48,
+    "total_checklists_completados": 152,
+    "total_context_snapshots_served": 420
+  }
+}

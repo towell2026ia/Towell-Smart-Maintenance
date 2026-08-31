@@ -1,0 +1,6 @@
+{
+  "agent_id": "AG-010",
+  "status": "DEGRADED",
+  "mode": "FAST_PATH",
+  "reason": "MiMo v2.5 provider unreachable; Fast-Path deterministic tree active"
+}

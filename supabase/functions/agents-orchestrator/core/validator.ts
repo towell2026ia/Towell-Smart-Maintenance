@@ -70,13 +70,26 @@ export async function validateUserAuthentication(
       const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || 'sb_publishable_6iHpR6R2yCdqy-YsvCWkSQ_YWg9my_i';
       const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
       
-      if (token === anonKey || (serviceKey && token === serviceKey) || token.startsWith('sb_publishable_') || token.length > 20) {
+      // Fail-Closed Security Policy: Separate Service Role from Anon Key explicitly
+      if (serviceKey && token === serviceKey) {
         return {
           isAuthenticated: true,
-          userEmail: 'operator@tsm-ai.com',
+          userEmail: 'system-service-role@tsm-ai.com',
           userRole: 'SUPER_ADMINISTRADOR',
           isAuthorized: true,
           error: null
+        };
+      }
+
+      if (token === anonKey) {
+        // Anon key is restricted to public non-administrative events
+        const isReserved = ADMIN_RESERVED_EVENTS.includes(cleanCode);
+        return {
+          isAuthenticated: true,
+          userEmail: 'anonymous-client@tsm-ai.com',
+          userRole: 'SOLICITANTE_PUBLICO',
+          isAuthorized: !isReserved,
+          error: isReserved ? `Acceso denegado: El evento '${cleanCode}' requiere privilegios administrativos (Fail-Closed).` : null
         };
       }
 

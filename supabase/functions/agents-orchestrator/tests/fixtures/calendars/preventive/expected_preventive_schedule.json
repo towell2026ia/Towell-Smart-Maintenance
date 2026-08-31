@@ -1,0 +1,6 @@
+{
+  "target_year": 2026,
+  "invariant_rule": "1 MP por máquina por año",
+  "expected_items_count_standard": 9,
+  "expected_items_count_existing": 7
+}

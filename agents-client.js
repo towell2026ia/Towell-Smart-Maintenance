@@ -70,10 +70,18 @@
     window._lastDispatchedEvent = { key: eventKey, time: now };
 
     const corrId = payload.correlation_id || `CORR-UI-${now}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    let innerPayload = payload.data || payload.payload;
+    if (!innerPayload || typeof innerPayload !== 'object') {
+      innerPayload = { ...payload };
+      delete innerPayload.origin;
+      delete innerPayload.context;
+      delete innerPayload.correlation_id;
+    }
+
     const requestBody = {
       event_type: cleanEventType,
       origin: payload.origin || 'TSM_APP_UI',
-      payload: payload.data || payload.payload || {},
+      payload: innerPayload || {},
       context: payload.context || getCurrentApplicationContext(),
       correlation_id: corrId
     };
@@ -95,7 +103,25 @@
       showToast(`📡 AG-001 Capataz: Procesando evento ${cleanEventType}...`);
     }
 
-    // 3. Envío al punto único de entrada: Edge Function 'agents-orchestrator' (§7, §8 PRD)
+    // 3. DEMO Environment Guard: No invocar Edge Function productiva en modo DEMO
+    if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO') {
+      console.log(`${DEBUG_PREFIX} [DEMO MOCK ENGINE] Evento ${cleanEventType} interceptado y ejecutado localmente en Sandbox Demo.`);
+      if (typeof showToast === 'function') {
+        showToast(`🧪 AG-001 (Sandbox Demo): ${cleanEventType} simulado con éxito.`);
+      }
+      return {
+        event_id: `EVT-DEMO-${now}`,
+        correlation_id: corrId,
+        status: 'COMPLETED',
+        execution_environment: 'DEMO',
+        tokens: 0,
+        cost_usd: 0,
+        result: { message: `Evento ${cleanEventType} procesado exitosamente en Sandbox Demo.`, is_demo: true },
+        message: `Evento ${cleanEventType} procesado en Sandbox Demo.`
+      };
+    }
+
+    // 4. Envío al punto único de entrada: Edge Function 'agents-orchestrator' (§7, §8 PRD)
     if (typeof supabaseClient !== 'undefined' && supabaseClient?.functions) {
       try {
         const { data, error } = await supabaseClient.functions.invoke('agents-orchestrator', {

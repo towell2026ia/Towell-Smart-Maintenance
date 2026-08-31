@@ -1,0 +1,27 @@
+{
+  "test_cases": [
+    {
+      "id": "RCA-001",
+      "asset_id": "TOW-TEL201-TEJI",
+      "problem_statement": "Paro constante por rotura de hilo de trama en Telar 201",
+      "m010_context": {
+        "symptom": "Rotura recurrente en ciclo de inserción de trama",
+        "component": "Pinza de inserción",
+        "urgency": "ALTA"
+      },
+      "expected_three_layers": {
+        "facts": [
+          "Rotura de hilo recurrente",
+          "Pinza de inserción con desgaste reportado"
+        ],
+        "inferences": [
+          "Desalineación de la guía de hilo o tensión excesiva en freno de bobina"
+        ],
+        "recommendations": [
+          "Inspección y ajuste micrométrico de la pinza",
+          "Revisión de tensión de bobina"
+        ]
+      }
+    }
+  ]
+}

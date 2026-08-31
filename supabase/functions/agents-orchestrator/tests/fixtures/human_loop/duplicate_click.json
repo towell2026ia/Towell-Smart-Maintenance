@@ -1,0 +1,8 @@
+{
+  "test_id": "HITL-016",
+  "proposal_id": "PROP-PREV-TEL201",
+  "action": "APPROVE",
+  "repeat_count": 2,
+  "expected_status": "APROBADO",
+  "expected_single_audit_record": true
+}

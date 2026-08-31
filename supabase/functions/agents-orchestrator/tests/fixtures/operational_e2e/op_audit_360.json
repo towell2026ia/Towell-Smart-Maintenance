@@ -1,0 +1,13 @@
+{
+  "test_run_id": "E2E10-20260830-005",
+  "ot_id": "OT-2026-00892",
+  "chain": {
+    "solicitud_id": "SOL-2026-00412",
+    "ot_folio": "OT-TEJI-00892",
+    "tecnico": "TEST_TECNICO",
+    "bitacora_id": "BIT-2026-00341",
+    "cierre_id": "CIE-2026-00120",
+    "context_snapshot_id": "SNAP-TEL204-POST",
+    "all_links_valid": true
+  }
+}

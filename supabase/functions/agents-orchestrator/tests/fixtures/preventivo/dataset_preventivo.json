@@ -1,0 +1,26 @@
+{
+  "target_year": 2027,
+  "machines": [
+    {
+      "equipo_towell": "TOW-TEL201-TEJI",
+      "clave": "TEL-201",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "criticidad": "Alta"
+    },
+    {
+      "equipo_towell": "TOW-CALD1-TINT",
+      "clave": "CALD-1",
+      "departamento_codigo": "TF",
+      "activo": true,
+      "criticidad": "Alta"
+    },
+    {
+      "equipo_towell": "TOW-COMP30HP-CRUD",
+      "clave": "COMP-30HP",
+      "departamento_codigo": "AF",
+      "activo": true,
+      "criticidad": "Media"
+    }
+  ]
+}

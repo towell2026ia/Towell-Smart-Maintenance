@@ -1,0 +1,50 @@
+{
+  "assets_fleet": [
+    {
+      "id": "TOW-TEL201-TEJI",
+      "nombre": "Telar 201",
+      "fallas_count": 24,
+      "downtime_hours": 86.5,
+      "cost_usd": 12500
+    },
+    {
+      "id": "TOW-TEL204-TEJI",
+      "nombre": "Telar 204",
+      "fallas_count": 19,
+      "downtime_hours": 64,
+      "cost_usd": 9200
+    },
+    {
+      "id": "TOW-TEL205-TEJI",
+      "nombre": "Telar 205",
+      "fallas_count": 14,
+      "downtime_hours": 42,
+      "cost_usd": 6100
+    },
+    {
+      "id": "TOW-TEL202-TEJI",
+      "nombre": "Telar 202",
+      "fallas_count": 6,
+      "downtime_hours": 15.5,
+      "cost_usd": 1800
+    },
+    {
+      "id": "TOW-TEL203-TEJI",
+      "nombre": "Telar 203",
+      "fallas_count": 3,
+      "downtime_hours": 8,
+      "cost_usd": 950
+    },
+    {
+      "id": "TOW-TEL206-TEJI",
+      "nombre": "Telar 206",
+      "fallas_count": 1,
+      "downtime_hours": 2,
+      "cost_usd": 250
+    }
+  ],
+  "expected_pareto_top_20": [
+    "TOW-TEL201-TEJI",
+    "TOW-TEL204-TEJI"
+  ]
+}

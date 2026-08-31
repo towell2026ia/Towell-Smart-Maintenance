@@ -1,0 +1,14 @@
+{
+  "proposal_id": "PROP-PRED-TEL204",
+  "machine_id": "TOW-TEL204-TEJI",
+  "maintenance_type": "PREDICTIVO",
+  "agent_id": "AG-003",
+  "status": "PROPUESTO",
+  "scheduled_date": "2026-09-03",
+  "reason": "Alta tasa de segundas (11.2%) en lote BATCH-0829",
+  "evidence_refs": [
+    "QUAL-TEL204-01"
+  ],
+  "created_at": "2026-08-30T08:00:00Z",
+  "created_by_agent": "AG-003"
+}

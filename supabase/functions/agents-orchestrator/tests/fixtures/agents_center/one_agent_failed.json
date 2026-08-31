@@ -1,0 +1,8 @@
+{
+  "total_agents": 16,
+  "healthy_count": 15,
+  "error_count": 1,
+  "failed_agent_id": "AG-010",
+  "error_code": "PROVIDER_TIMEOUT",
+  "severity": "ERROR"
+}

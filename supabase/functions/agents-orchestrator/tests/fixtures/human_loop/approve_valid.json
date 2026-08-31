@@ -1,0 +1,9 @@
+{
+  "test_id": "HITL-001",
+  "proposal_id": "PROP-PRED-TEL204",
+  "action": "APPROVE",
+  "user_id": "USR-ADMIN-01",
+  "user_role": "SUPER_ADMINISTRADOR",
+  "expected_status": "APROBADO",
+  "expected_human_override": false
+}

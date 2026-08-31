@@ -1,0 +1,41 @@
+{
+  "test_case_id": "CTX-CONTRA-001",
+  "machine_id": "TOW-TEL204-TEJI",
+  "machine_info": {
+    "clave": "TEL204",
+    "nombre": "Telar 204",
+    "area": "TEJIDO",
+    "departamento_codigo": "TEJI",
+    "activo": true,
+    "criticidad": "ALTA"
+  },
+  "work_orders": [
+    {
+      "id_orden": "OT-201",
+      "folio": "OT-2026-201",
+      "tipo_orden": "CORRECTIVO",
+      "estatus": "en_proceso",
+      "descripcion": "Vibración reportada por operador"
+    }
+  ],
+  "failures": [
+    {
+      "id_falla": "FAL-11",
+      "maquina_id": "TOW-TEL204-TEJI",
+      "categoria_falla": "Vibración",
+      "fecha_creada": "2026-08-25"
+    }
+  ],
+  "checklists": [
+    {
+      "id_checklist": "CHK-01",
+      "maquina_id": "TOW-TEL204-TEJI",
+      "estatus": "CONFORME",
+      "fecha": "2026-08-27"
+    }
+  ],
+  "expected": {
+    "preserves_both_facts": true,
+    "no_fact_suppression": true
+  }
+}

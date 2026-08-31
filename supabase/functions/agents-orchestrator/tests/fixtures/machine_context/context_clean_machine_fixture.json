@@ -1,0 +1,32 @@
+{
+  "test_case_id": "CTX-CLEAN-001",
+  "machine_id": "TOW-TEL206-TEJI",
+  "machine_info": {
+    "clave": "TEL206",
+    "nombre": "Telar 206",
+    "area": "TEJIDO",
+    "departamento_codigo": "TEJI",
+    "activo": true,
+    "criticidad": "MEDIA"
+  },
+  "work_orders": [],
+  "failures": [],
+  "quality": [],
+  "calendars": [
+    {
+      "id_detalle": "CAL-03",
+      "maquina_id": "TOW-TEL206-TEJI",
+      "tipo_mantenimiento": "PREVENTIVO",
+      "estatus_detalle": "PROGRAMADO",
+      "fecha_programada": "2026-12-01"
+    }
+  ],
+  "expected": {
+    "status": "CURRENT",
+    "open_orders_count": 0,
+    "recent_failures_count": 0,
+    "recurrence_detected": false,
+    "no_hallucinations": true,
+    "recommendation_agent": "AG-002"
+  }
+}

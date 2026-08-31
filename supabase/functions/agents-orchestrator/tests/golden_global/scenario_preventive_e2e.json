@@ -1,0 +1,35 @@
+{
+  "scenario": "E2E-GOLD-001",
+  "steps": [
+    {
+      "step": 1,
+      "action": "CATALOG_FETCH",
+      "result": "17_LOOMS"
+    },
+    {
+      "step": 2,
+      "action": "AG002_GENERATE",
+      "result": "17_PROPOSALS"
+    },
+    {
+      "step": 3,
+      "action": "AG007_BUDGET",
+      "result": "EXACT_SUBTOTALS"
+    },
+    {
+      "step": 4,
+      "action": "HITL_APPROVE",
+      "result": "APROBADO"
+    },
+    {
+      "step": 5,
+      "action": "AG009_1_DISPATCH",
+      "result": "OT_CREATED"
+    },
+    {
+      "step": 6,
+      "action": "CONTEXT_INVALIDATE",
+      "result": "SNAPSHOT_UPDATED"
+    }
+  ]
+}

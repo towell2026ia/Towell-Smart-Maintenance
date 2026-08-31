@@ -1,0 +1,8 @@
+{
+  "asset_id": "TOW-TEL201-TEJI",
+  "problem_statement": "Vibración continua y desgaste acelerado en biela principal",
+  "m010_context": {
+    "fault_category": "Mecánica",
+    "recurrence_count": 5
+  }
+}

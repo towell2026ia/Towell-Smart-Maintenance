@@ -1,0 +1,25 @@
+{
+  "test_run_id": "E2E10-20260830-002",
+  "correlation_id": "CORR-OP-PREV-01",
+  "generacion": {
+    "agent": "AG-002",
+    "fleet_count": 17,
+    "proposals_count": 17,
+    "rule": "1_MP_PER_YEAR"
+  },
+  "presupuesto": {
+    "agent": "AG-007",
+    "total_cost_usd": 12720,
+    "cost_status": "CALCULATED_EXACT"
+  },
+  "hitl_approval": {
+    "reviewed_by": "TEST_SUPER_ADMIN",
+    "action": "APPROVE",
+    "new_status": "APROBADO"
+  },
+  "dispatch": {
+    "agent": "AG-009.1",
+    "ot_type": "PREVENTIVA",
+    "checklist_attached": true
+  }
+}

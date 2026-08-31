@@ -1,0 +1,11 @@
+{
+  "test_id": "HITL-007",
+  "proposal_id": "PROP-PRED-TEL204",
+  "action": "REJECT",
+  "reason_code": "MANTENIMIENTO_YA_REALIZADO",
+  "reason_text": "Se atendió en turno nocturno por correctivo",
+  "user_id": "USR-ADMIN-01",
+  "user_role": "SUPER_ADMINISTRADOR",
+  "expected_status": "RECHAZADO",
+  "expected_human_override": true
+}

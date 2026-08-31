@@ -1,0 +1,29 @@
+{
+  "correlation_id": "CORR-GATE8-TEST-98372",
+  "nodes": [
+    {
+      "step": 1,
+      "agent": "AG-001",
+      "event": "EXCEL_SEGUNDAS_CARGADO",
+      "status": "SUCCESS"
+    },
+    {
+      "step": 2,
+      "agent": "AG-003",
+      "event": "PREDICTIVO_GENERAR",
+      "status": "SUCCESS"
+    },
+    {
+      "step": 3,
+      "agent": "HITL_GOVERNANCE",
+      "event": "CALENDAR_PROPOSAL_APPROVED",
+      "status": "SUCCESS"
+    },
+    {
+      "step": 4,
+      "agent": "CONTEXT_SERVICE",
+      "event": "MACHINE_CONTEXT_INVALIDATED",
+      "status": "SUCCESS"
+    }
+  ]
+}

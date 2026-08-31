@@ -1,0 +1,11 @@
+[
+  {
+    "test_id": "NEG-005",
+    "description": "Mismo evento y correlation_id enviado dos veces",
+    "event_code": "AUTONOMO_GENERAR",
+    "payload": {
+      "maquina_id": "ALL",
+      "semana": "SEM-36"
+    }
+  }
+]

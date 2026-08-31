@@ -4,12 +4,41 @@
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AgentExecution } from '../types/agents.types.ts';
 import { config } from './config.ts';
+import { canonicalizeJson, sha256Hex } from './approvals.ts';
 
 export interface RatesResult {
   price_input_usd: number;
   price_output_usd: number;
   price_cache_usd: number;
   pricing_version: string;
+}
+
+const REDACTED_KEYS = new Set([
+  'authorization', 'apikey', 'api_key', 'token', 'access_token',
+  'refresh_token', 'password', 'secret', 'service_role_key', 'cookie',
+  'supabase_service_role_key', 'openai_api_key', 'mimo_api_key'
+]);
+
+/**
+ * Recursively sanitizes payloads to ensure sensitive tokens/passwords never leak into telemetry logs (Gate 1 Invariant).
+ */
+export function sanitizeForAudit(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeForAudit(item));
+  }
+  const clean: Record<string, any> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (REDACTED_KEYS.has(key.toLowerCase().trim())) {
+      clean[key] = '[REDACTED]';
+    } else if (typeof val === 'object' && val !== null) {
+      clean[key] = sanitizeForAudit(val);
+    } else {
+      clean[key] = val;
+    }
+  }
+  return clean;
 }
 
 /**
@@ -81,6 +110,7 @@ export async function logExecutionRecord(
   execData: Partial<AgentExecution>
 ): Promise<string> {
   const executionId = execData.execution_id || `EXEC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const sanitizedResult = sanitizeForAudit(execData.result);
 
   const record: Record<string, any> = {
     execution_id: executionId,
@@ -107,7 +137,7 @@ export async function logExecutionRecord(
     confidence: execData.confidence ?? null,
     reason_code: execData.reason_code || null,
     target_agent: execData.target_agent || null,
-    result: execData.result || null,
+    result: sanitizedResult || null,
     error_message: execData.error_message || null,
     agent_version: execData.agent_version || config.VERSIONS.AGENT_VERSION,
     prompt_version: execData.prompt_version || config.VERSIONS.PROMPT_VERSION,

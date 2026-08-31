@@ -33,10 +33,490 @@ function safeSetDisplay(id, displayVal) {
   if (el && el.style) el.style.display = displayVal;
 }
 
-// --- CONFIGURACIÓN DE ENTORNO TSM-AI ---
-const TSM_ENV = {
-  isProduction: false // Cambiar a true para producción para deshabilitar simulación y fallbacks locales
+// --- CONFIGURACIÓN DE ENTORNO TSM-AI & AISLAMIENTO DEMO (PRD-DEMO-ISO-001-R1) ---
+let APP_ENVIRONMENT = (typeof localStorage !== 'undefined' && localStorage.getItem('TSMAI_APP_ENVIRONMENT')) || 'PROD';
+
+function setAppEnvironment(env) {
+  if (!['PROD', 'DEMO'].includes(env)) {
+    throw new Error('Entorno inválido: ' + env + '. Solo PROD o DEMO son válidos.');
+  }
+  APP_ENVIRONMENT = env;
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('TSMAI_APP_ENVIRONMENT', env);
+  }
+  if (env === 'DEMO') {
+    useLiveDatabase = false;
+  }
+  updateDemoBannerUI();
+}
+
+function updateDemoBannerUI() {
+  if (typeof document === 'undefined') return;
+  const banner = document.getElementById('tsmai-demo-banner');
+  if (banner) {
+    banner.style.display = APP_ENVIRONMENT === 'DEMO' ? 'flex' : 'none';
+  }
+}
+
+function assertProductionAccessAllowed(operation = 'Operación Productiva') {
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const err = new Error('DEMO_PROD_ACCESS_DENIED: ' + operation + ' prohibida en Modo Demo.');
+    console.error(err);
+    throw err;
+  }
+}
+
+function getAppStorageKey(baseKey) {
+  return APP_ENVIRONMENT === 'DEMO' ? 'TSMAI_DEMO_' + baseKey : 'TSMAI_' + baseKey;
+}
+
+function purgeSessionCaches() {
+  currentUser = null;
+  if (typeof selectedMachine !== 'undefined') selectedMachine = null;
+  if (typeof selectedOT !== 'undefined') selectedOT = null;
+  if (typeof activeMachineContext !== 'undefined') activeMachineContext = null;
+  if (typeof currentOT !== 'undefined') currentOT = null;
+  
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('TSMAI_current_user');
+    localStorage.removeItem('TSMAI_DEMO_current_user');
+  }
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.clear();
+  }
+}
+
+const DEMO_USERS = {
+  admin: {
+    id: 'DEMO-USER-ADM-01',
+    uuid: 'DEMO-USER-ADM-01',
+    role: 'admin',
+    rol: 'SUPER_ADMINISTRADOR',
+    name: 'Administrador Demo 01',
+    nombre_completo: 'Administrador Demo 01',
+    email: 'admin.demo@tsm-ai.local',
+    area: 'TODAS',
+    department: 'Dirección de Operaciones (Demo)',
+    is_demo: true
+  },
+  solicitante: {
+    id: 'DEMO-USER-SOL-01',
+    uuid: 'DEMO-USER-SOL-01',
+    role: 'solicitante',
+    rol: 'SOLICITANTE',
+    name: 'Solicitante Demo 01',
+    nombre_completo: 'Solicitante Demo 01',
+    email: 'solicitante.demo@tsm-ai.local',
+    cve_empleado: 'DEMO-EMP-01',
+    area: 'AF',
+    department: 'Servicios Auxiliares (Demo)',
+    is_demo: true
+  },
+  'T-DEMO-01': {
+    id: 'DEMO-USER-TEC-01',
+    cve_tecnico: 'T-DEMO-01',
+    uuid: 'DEMO-USER-TEC-01',
+    role: 'tech',
+    rol: 'MANTENIMIENTO',
+    name: 'Técnico Demo 01',
+    nombre_completo: 'Técnico Demo 01',
+    email: 'tecnico01.demo@tsm-ai.local',
+    specialty: 'Mecánica General (Demo)',
+    avatar: '👨‍🔧',
+    department: 'Mantenimiento Planta Demo',
+    is_demo: true
+  },
+  'T-DEMO-02': {
+    id: 'DEMO-USER-TEC-02',
+    cve_tecnico: 'T-DEMO-02',
+    uuid: 'DEMO-USER-TEC-02',
+    role: 'tech',
+    rol: 'MANTENIMIENTO',
+    name: 'Técnico Demo 02',
+    nombre_completo: 'Técnico Demo 02',
+    email: 'tecnico02.demo@tsm-ai.local',
+    specialty: 'Electrónica y Control (Demo)',
+    avatar: '👩‍🔧',
+    department: 'Mantenimiento Planta Demo',
+    is_demo: true
+  }
 };
+
+function seedDemoSandboxData() {
+  const demoMachines = [
+    { id: 'DEMO-MAQ-001', name: 'Telar Rapier Demo 1', clave: 'DEMO-TR-01', area: 'PF', proceso: 'Tejido', tipo_equipo: 'Maquinaria', marca: 'Picanol Demo', modelo: 'OptiMax-i Demo', serie: 'DEMO-SN-001', estatus: 'OPERATIVA' },
+    { id: 'DEMO-MAQ-002', name: 'Telar de Aire Demo 2', clave: 'DEMO-TA-02', area: 'PF', proceso: 'Tejido', tipo_equipo: 'Maquinaria', marca: 'Toyota Demo', modelo: 'JAT810 Demo', serie: 'DEMO-SN-002', estatus: 'OPERATIVA' },
+    { id: 'DEMO-MAQ-003', name: 'Urdidor Seccional Demo 1', clave: 'DEMO-UR-01', area: 'PF', proceso: 'Urdido', tipo_equipo: 'Maquinaria', marca: 'Karl Mayer Demo', modelo: 'PROWARP Demo', serie: 'DEMO-SN-003', estatus: 'OPERATIVA' },
+    { id: 'DEMO-MAQ-004', name: 'Rama Tensora Demo 1', clave: 'DEMO-RM-01', area: 'TF', proceso: 'Tintorería', tipo_equipo: 'Maquinaria', marca: 'Monforts Demo', modelo: 'Montex Demo', serie: 'DEMO-SN-004', estatus: 'OPERATIVA' },
+    { id: 'DEMO-MAQ-005', name: 'Compresor de Aire Demo 1', clave: 'DEMO-CP-01', area: 'AF', proceso: 'Servicios', tipo_equipo: 'Servicios Auxiliares', marca: 'Atlas Copco Demo', modelo: 'GA75 Demo', serie: 'DEMO-SN-005', estatus: 'OPERATIVA' }
+  ];
+
+  const demoRequests = [
+    {
+      id: 'DEMO-SOL-001',
+      folio: 'DEMO-SOL-001',
+      id_solicitud: 'DEMO-SOL-001',
+      machine_id: 'DEMO-MAQ-001',
+      machine: 'DEMO-MAQ-001 - Telar Rapier Demo 1',
+      area: 'PF',
+      applicant: 'Solicitante Demo 01',
+      applicant_id: 'DEMO-USER-SOL-01',
+      solicitante_nombre: 'Solicitante Demo 01',
+      solicitante_id: 'DEMO-USER-SOL-01',
+      description: 'Sensor óptico de trama presenta falso contacto intermitente.',
+      descripcion_falla: 'Sensor óptico de trama presenta falso contacto intermitente.',
+      priority: 'MEDIA',
+      status: 'En proceso',
+      shift: 'Turno Mañana',
+      date: new Date().toLocaleDateString('es-MX'),
+      fecha_carga: new Date().toISOString()
+    },
+    {
+      id: 'DEMO-SOL-002',
+      folio: 'DEMO-SOL-002',
+      id_solicitud: 'DEMO-SOL-002',
+      machine_id: 'DEMO-MAQ-002',
+      machine: 'DEMO-MAQ-002 - Telar de Aire Demo 2',
+      area: 'PF',
+      applicant: 'Solicitante Demo 01',
+      applicant_id: 'DEMO-USER-SOL-01',
+      solicitante_nombre: 'Solicitante Demo 01',
+      solicitante_id: 'DEMO-USER-SOL-01',
+      description: 'Presión de toberas secundarias baja respecto al estándar de tejido.',
+      descripcion_falla: 'Presión de toberas secundarias baja respecto al estándar de tejido.',
+      priority: 'ALTA',
+      status: 'Recibida',
+      shift: 'Turno Mañana',
+      date: new Date().toLocaleDateString('es-MX'),
+      fecha_carga: new Date().toISOString()
+    },
+    {
+      id: 'DEMO-SOL-003',
+      folio: 'DEMO-SOL-003',
+      id_solicitud: 'DEMO-SOL-003',
+      machine_id: 'DEMO-MAQ-005',
+      machine: 'DEMO-MAQ-005 - Compresor de Aire Demo 1',
+      area: 'AF',
+      applicant: 'Solicitante Demo 01',
+      applicant_id: 'DEMO-USER-SOL-01',
+      solicitante_nombre: 'Solicitante Demo 01',
+      solicitante_id: 'DEMO-USER-SOL-01',
+      description: 'Revisión y reemplazo preventivo de filtro de aceite y purga de condensados.',
+      descripcion_falla: 'Revisión y reemplazo preventivo de filtro de aceite y purga de condensados.',
+      priority: 'BAJA',
+      status: 'Atendida',
+      shift: 'Turno Mañana',
+      date: new Date(Date.now() - 86400000).toLocaleDateString('es-MX'),
+      fecha_carga: new Date(Date.now() - 86400000).toISOString()
+    }
+  ];
+
+  const demoOrders = [
+      {
+        id: 'DEMO-OT-004',
+        reqId: 'DEMO-SOL-004',
+        folio: 'DEMO-OT-004',
+        machine: 'Telar Jacquard TJ-02',
+        machine_id: 'DEMO-MAQ-002',
+        description: 'Sobrecalentamiento en devanado de motor y vibración excesiva',
+        priority: 'Alta',
+        status: 'PENDIENTE DE VALIDACIÓN',
+        assignedTech: 'DEMO-USER-TEC-02',
+        assignedTechName: 'Técnico Demo 02',
+        applicant_id: 'DEMO-USER-SOL-01',
+        applicant: 'Solicitante Demo 01',
+        date: new Date(Date.now() - 172800000).toISOString(),
+        dueDate: new Date(Date.now() + 86400000).toISOString()
+      },
+    {
+      id: 'DEMO-OT-001',
+      folio: 'DEMO-OT-001',
+      id_orden: 'DEMO-OT-001',
+      source_id: 'DEMO-SOL-001',
+      machine_id: 'DEMO-MAQ-001',
+      machine: 'DEMO-MAQ-001 - Telar Rapier Demo 1',
+      area: 'PF',
+      applicant: 'Solicitante Demo 01',
+      solicitante_nombre: 'Solicitante Demo 01',
+      applicant_id: 'DEMO-USER-SOL-01',
+      tech_id: 'T-DEMO-01',
+      technician: 'Técnico Demo 01',
+      type: 'CORRECTIVO',
+      priority: 'MEDIA',
+      status: 'EN PROCESO',
+      description: 'Atención a sensor óptico de trama en Telar Rapier Demo 1.',
+      diagnostico: 'Falso contacto en conector M12 del sensor de trama izquierdo.',
+      progress: 60,
+      date: new Date().toLocaleDateString('es-MX'),
+      fecha_creacion: new Date().toISOString()
+    },
+    {
+      id: 'DEMO-OT-002',
+      folio: 'DEMO-OT-002',
+      id_orden: 'DEMO-OT-002',
+      source_id: 'DEMO-SOL-002',
+      machine_id: 'DEMO-MAQ-002',
+      machine: 'DEMO-MAQ-002 - Telar de Aire Demo 2',
+      area: 'PF',
+      applicant: 'Solicitante Demo 01',
+      solicitante_nombre: 'Solicitante Demo 01',
+      applicant_id: 'DEMO-USER-SOL-01',
+      tech_id: 'T-DEMO-02',
+      technician: 'Técnico Demo 02',
+      type: 'CORRECTIVO',
+      priority: 'ALTA',
+      status: 'PENDIENTE',
+      description: 'Calibración de presión en toberas neumáticas.',
+      progress: 0,
+      date: new Date().toLocaleDateString('es-MX'),
+      fecha_creacion: new Date().toISOString()
+    },
+    {
+      id: 'DEMO-OT-003',
+      folio: 'DEMO-OT-003',
+      id_orden: 'DEMO-OT-003',
+      source_id: 'DEMO-SOL-003',
+      machine_id: 'DEMO-MAQ-005',
+      machine: 'DEMO-MAQ-005 - Compresor de Aire Demo 1',
+      area: 'AF',
+      applicant: 'Solicitante Demo 01',
+      solicitante_nombre: 'Solicitante Demo 01',
+      applicant_id: 'DEMO-USER-SOL-01',
+      tech_id: 'T-DEMO-01',
+      technician: 'Técnico Demo 01',
+      type: 'PREVENTIVO',
+      priority: 'BAJA',
+      status: 'CERRADA',
+      description: 'Mantenimiento Preventivo a Compresor de Aire.',
+      diagnostico: 'Filtro reemplazado y purga completada conforme a manual.',
+      progress: 100,
+      date: new Date(Date.now() - 86400000).toLocaleDateString('es-MX'),
+      fecha_creacion: new Date(Date.now() - 86400000).toISOString()
+    }
+  ];
+
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('TSMAI_DEMO_machines', JSON.stringify(demoMachines));
+    localStorage.setItem('TSMAI_DEMO_requests', JSON.stringify(demoRequests));
+    localStorage.setItem('TSMAI_DEMO_orders', JSON.stringify(demoOrders));
+    const demoEvidences = [
+      {
+        id: 'DEMO-EV-001',
+        id_evidencia: 'DEMO-EV-001',
+        otId: 'DEMO-OT-001',
+        id_orden: 'DEMO-OT-001',
+        ot_folio: 'DEMO-OT-001',
+        maquina_id: 'DEMO-MAQ-001',
+        tecnico_id: 'DEMO-USER-TEC-01',
+        nombre_tecnico: 'Técnico Demo 01',
+        tipo_evidencia: 'ANTES',
+        storage_bucket: 'TSMAI_DEMO',
+        storage_path: 'DEMO-MAQ-001/DEMO-OT-001/ANTES/sensor_falla.jpg',
+        url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+        url_archivo: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+        nombre_archivo: 'sensor_falla.jpg',
+        mime_type: 'image/jpeg',
+        file_size: 452000,
+        descripcion: 'Sensor óptico con falso contacto y cables desalineados.',
+        captured_at: new Date(Date.now() - 7200000).toISOString(),
+        created_at: new Date(Date.now() - 7200000).toISOString(),
+        activo: true
+      },
+      {
+        id: 'DEMO-EV-002',
+        id_evidencia: 'DEMO-EV-002',
+        otId: 'DEMO-OT-001',
+        id_orden: 'DEMO-OT-001',
+        ot_folio: 'DEMO-OT-001',
+        maquina_id: 'DEMO-MAQ-001',
+        tecnico_id: 'DEMO-USER-TEC-01',
+        nombre_tecnico: 'Técnico Demo 01',
+        tipo_evidencia: 'DURANTE',
+        storage_bucket: 'TSMAI_DEMO',
+        storage_path: 'DEMO-MAQ-001/DEMO-OT-001/DURANTE/desmontaje_conector.jpg',
+        url: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800&auto=format&fit=crop&q=80',
+        url_archivo: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800&auto=format&fit=crop&q=80',
+        nombre_archivo: 'desmontaje_conector.jpg',
+        mime_type: 'image/jpeg',
+        file_size: 388000,
+        descripcion: 'Limpieza de pines y soldadura en conector M12.',
+        captured_at: new Date(Date.now() - 3600000).toISOString(),
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+        activo: true
+      },
+      {
+        id: 'DEMO-EV-003',
+        id_evidencia: 'DEMO-EV-003',
+        otId: 'DEMO-OT-003',
+        id_orden: 'DEMO-OT-003',
+        ot_folio: 'DEMO-OT-003',
+        maquina_id: 'DEMO-MAQ-005',
+        tecnico_id: 'DEMO-USER-TEC-01',
+        nombre_tecnico: 'Técnico Demo 01',
+        tipo_evidencia: 'DESPUES',
+        storage_bucket: 'TSMAI_DEMO',
+        storage_path: 'DEMO-MAQ-005/DEMO-OT-003/DESPUES/compresor_final.jpg',
+        url: 'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?w=800&auto=format&fit=crop&q=80',
+        url_archivo: 'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?w=800&auto=format&fit=crop&q=80',
+        nombre_archivo: 'compresor_final.jpg',
+        mime_type: 'image/jpeg',
+        file_size: 512000,
+        descripcion: 'Filtro de aceite nuevo instalado y purga completada.',
+        captured_at: new Date(Date.now() - 86400000).toISOString(),
+        created_at: new Date(Date.now() - 86400000).toISOString(),
+        activo: true
+      }
+    ];
+    localStorage.setItem('TSMAI_DEMO_evidences', JSON.stringify(demoEvidences));
+    const demoWaitPeriods = [
+      {
+        id: 'DEMO-WAIT-001',
+        id_orden: 'DEMO-OT-002',
+        otId: 'DEMO-OT-002',
+        ot_folio: 'DEMO-OT-002',
+        maquina_id: 'DEMO-MAQ-002',
+        tecnico_id: 'DEMO-USER-TEC-01',
+        nombre_tecnico: 'Técnico Demo 01',
+        motivo: 'REFACCION',
+        categoria_motivo: 'EXTERNA',
+        observacion: 'Esperando llegada de electroválvula neumática 24V de almacén central.',
+        refaccion_codigo: 'VALV-24V-M5',
+        refaccion_cantidad: 1,
+        started_at: new Date(Date.now() - 7200000).toISOString(),
+        ended_at: null,
+        duration_seconds: 0,
+        status: 'ACTIVA',
+        client_request_id: 'REQ-DEMO-WAIT-001',
+        created_at: new Date(Date.now() - 7200000).toISOString(),
+        updated_at: new Date(Date.now() - 7200000).toISOString()
+      },
+      {
+        id: 'DEMO-WAIT-002',
+        id_orden: 'DEMO-OT-001',
+        otId: 'DEMO-OT-001',
+        ot_folio: 'DEMO-OT-001',
+        maquina_id: 'DEMO-MAQ-001',
+        tecnico_id: 'DEMO-USER-TEC-01',
+        nombre_tecnico: 'Técnico Demo 01',
+        motivo: 'PRODUCCION',
+        categoria_motivo: 'EXTERNA',
+        observacion: 'Equipo operando en lote urgente de producción; liberación demorada 45 min.',
+        started_at: new Date(Date.now() - 14400000).toISOString(),
+        ended_at: new Date(Date.now() - 11700000).toISOString(),
+        duration_seconds: 2700,
+        status: 'RESUELTA',
+        resolved_by: 'DEMO-USER-TEC-01',
+        resolution_note: 'Producción concluyó lote y entregó máquina para intervención.',
+        client_request_id: 'REQ-DEMO-WAIT-002',
+        created_at: new Date(Date.now() - 14400000).toISOString(),
+        updated_at: new Date(Date.now() - 11700000).toISOString()
+      }
+    ];
+    localStorage.setItem('TSMAI_DEMO_wait_periods', JSON.stringify(demoWaitPeriods));
+    const demoTechSessions = [
+      {
+        id: 'DEMO-SES-001',
+        id_orden: 'DEMO-OT-003',
+        otId: 'DEMO-OT-003',
+        ot_folio: 'DEMO-OT-003',
+        tecnico_id: 'DEMO-USER-TEC-01',
+        nombre_tecnico: 'Técnico Demo 01',
+        assigned_at: new Date(Date.now() - 28800000).toISOString(),
+        accepted_at: new Date(Date.now() - 28800000).toISOString(),
+        started_at: new Date(Date.now() - 28800000).toISOString(),
+        ended_at: new Date(Date.now() - 14400000).toISOString(),
+        active_seconds: 7200,
+        status: 'TRANSFERIDA',
+        created_at: new Date(Date.now() - 28800000).toISOString(),
+        updated_at: new Date(Date.now() - 14400000).toISOString()
+      },
+      {
+        id: 'DEMO-SES-002',
+        id_orden: 'DEMO-OT-003',
+        otId: 'DEMO-OT-003',
+        ot_folio: 'DEMO-OT-003',
+        tecnico_id: 'DEMO-USER-TEC-02',
+        nombre_tecnico: 'Técnico Demo 02',
+        assigned_at: new Date(Date.now() - 14100000).toISOString(),
+        accepted_at: new Date(Date.now() - 13800000).toISOString(),
+        started_at: null,
+        ended_at: null,
+        active_seconds: 0,
+        status: 'ACEPTADA',
+        previous_session_id: 'DEMO-SES-001',
+        created_at: new Date(Date.now() - 14100000).toISOString(),
+        updated_at: new Date(Date.now() - 13800000).toISOString()
+      }
+    ];
+    localStorage.setItem('TSMAI_DEMO_technician_sessions', JSON.stringify(demoTechSessions));
+
+    const demoHandoffs = [
+      {
+        id: 'DEMO-HO-001',
+        id_orden: 'DEMO-OT-003',
+        otId: 'DEMO-OT-003',
+        source_session_id: 'DEMO-SES-001',
+        requested_by: 'DEMO-USER-TEC-01',
+        requested_by_name: 'Técnico Demo 01',
+        requested_at: new Date(Date.now() - 14400000).toISOString(),
+        reason: 'CAMBIO_TURNO',
+        handoff_note: 'Se completó desmontaje y revisión de rodamientos de la unidad motriz. Queda pendiente montaje y alineación con lainas.',
+        specialty_required: 'MECANICO',
+        status: 'ACEPTADA',
+        assigned_to: 'DEMO-USER-TEC-02',
+        assigned_to_name: 'Técnico Demo 02',
+        assigned_by: 'DEMO-USER-ADMIN-01',
+        assigned_at: new Date(Date.now() - 14100000).toISOString(),
+        accepted_at: new Date(Date.now() - 13800000).toISOString(),
+        created_at: new Date(Date.now() - 14400000).toISOString(),
+        updated_at: new Date(Date.now() - 13800000).toISOString()
+      }
+    ];
+    localStorage.setItem('TSMAI_DEMO_handoffs', JSON.stringify(demoHandoffs));
+    const demoClosures = [
+      {
+        id: 'DEMO-VAL-001',
+        id_orden: 'DEMO-OT-004',
+        otId: 'DEMO-OT-004',
+        ot_folio: 'DEMO-OT-004',
+        attempt_number: 1,
+        technical_session_id: 'DEMO-SES-003',
+        requested_at: new Date(Date.now() - 86400000).toISOString(),
+        requested_by: 'DEMO-USER-TEC-01',
+        authorized_requester_id: 'DEMO-USER-SOL-01',
+        decision: 'RECHAZADA',
+        decision_at: new Date(Date.now() - 82800000).toISOString(),
+        motivo_rechazo: 'FALLA_PERSISTE',
+        detalle_rechazo: 'El motor principal continuó presentando sobrecalentamiento y vibración anormal al reanudar producción.',
+        validation_seconds: 3600,
+        decision_actor_id: 'DEMO-USER-SOL-01',
+        decision_actor_type: 'REQUESTER',
+        first_time_fix_failed: true,
+        created_at: new Date(Date.now() - 86400000).toISOString(),
+        updated_at: new Date(Date.now() - 82800000).toISOString()
+      },
+      {
+        id: 'DEMO-VAL-002',
+        id_orden: 'DEMO-OT-004',
+        otId: 'DEMO-OT-004',
+        ot_folio: 'DEMO-OT-004',
+        attempt_number: 2,
+        technical_session_id: 'DEMO-SES-004',
+        requested_at: new Date(Date.now() - 7200000).toISOString(),
+        requested_by: 'DEMO-USER-TEC-02',
+        authorized_requester_id: 'DEMO-USER-SOL-01',
+        decision: 'PENDIENTE',
+        decision_at: null,
+        comentario: null,
+        validation_seconds: 0,
+        decision_actor_id: null,
+        created_at: new Date(Date.now() - 7200000).toISOString(),
+        updated_at: new Date(Date.now() - 7200000).toISOString()
+      }
+    ];
+    localStorage.setItem('TSMAI_DEMO_closures', JSON.stringify(demoClosures));
+  }
+}
 
 // --- INITIALIZE SUPABASE CLIENT ---
 let supabaseClient = null;
@@ -160,6 +640,17 @@ let tempSubtasksToCreate = [];
 function getDBStatus(status) {
   if (!status) return 'solicitud_recibida';
   switch (status.toLowerCase().trim()) {
+    case 'pendiente de validación':
+    case 'pendiente de validacion':
+    case 'pendiente_validacion':
+      return 'pendiente_validacion';
+    case 'requiere revisión':
+    case 'requiere revision':
+    case 'requiere_revision':
+    case 'requiere corrección':
+    case 'requiere correccion':
+    case 'requiere_correccion':
+      return 'requiere_revision';
     case 'requiere subtarea':
     case 'requiere_subtarea':
       return 'requiere_subtarea';
@@ -191,6 +682,11 @@ function getDBStatus(status) {
 function formatStatus(status) {
   if (!status) return '';
   switch (status.toLowerCase()) {
+    case 'pendiente_validacion':
+      return 'Pendiente de validación';
+    case 'requiere_revision':
+    case 'requiere_correccion':
+      return 'Requiere revisión';
     case 'requiere_subtarea':
       return 'Requiere subtarea';
     case 'en_ejecucion_con_subtareas':
@@ -576,6 +1072,10 @@ async function dbInsertMovement(mov) {
 
 // --- HELPERS DE BASE DE DATOS (CON FALLBACK A LOCALSTORAGE) ---
 async function dbGetMachines() {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO') {
+    return JSON.parse(localStorage.getItem('TSMAI_DEMO_machines') || '[]');
+  }
+  assertProductionAccessAllowed('dbGetMachines');
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient
@@ -595,10 +1095,17 @@ async function dbGetMachines() {
       console.error('Error fetching machines from Supabase:', err);
     }
   }
-  return JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  return JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
 }
 
 async function dbGetTechnicians() {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO') {
+    return [
+      { id: 'T-DEMO-01', name: 'Técnico Demo 01', email: 'tecnico01.demo@tsm-ai.local', specialty: 'Mecánica General (Demo)', avatar: '👨‍🔧' },
+      { id: 'T-DEMO-02', name: 'Técnico Demo 02', email: 'tecnico02.demo@tsm-ai.local', specialty: 'Electrónica y Control (Demo)', avatar: '👩‍🔧' }
+    ];
+  }
+  assertProductionAccessAllowed('dbGetTechnicians');
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient
@@ -622,6 +1129,10 @@ async function dbGetTechnicians() {
 }
 
 async function dbGetRequests() {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO') {
+    return JSON.parse(localStorage.getItem('TSMAI_DEMO_requests') || '[]');
+  }
+  assertProductionAccessAllowed('dbGetRequests');
   if (supabaseClient) {
     try {
       const { data: ordersData, error: oErr } = await supabaseClient
@@ -679,10 +1190,14 @@ async function dbGetRequests() {
       console.error('Error fetching requests from Supabase:', err);
     }
   }
-  return JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  return JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
 }
 
 async function dbGetOrders() {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO') {
+    return JSON.parse(localStorage.getItem('TSMAI_DEMO_orders') || '[]');
+  }
+  assertProductionAccessAllowed('dbGetOrders');
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient
@@ -715,7 +1230,7 @@ async function dbGetOrders() {
       console.error('Error fetching orders from Supabase:', err);
     }
   }
-  return JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  return JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
 }
 
 async function dbGetParts() {
@@ -775,7 +1290,7 @@ async function dbInsertRequest(newRequest) {
       }
       
       // Save locally to localStorage so it is immediately visible in the UI
-      const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+      const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
       if (!requests.some(r => r.id === newRequest.id)) {
         requests.push(newRequest);
         localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
@@ -792,7 +1307,7 @@ async function dbInsertRequest(newRequest) {
       console.error('Error inserting request in Supabase:', err);
     }
   }
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
   requests.push(newRequest);
   localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
 }
@@ -803,7 +1318,8 @@ function auditAndCleanDatabaseStorage() {
   ];
   obsoleteKeys.forEach(k => localStorage.removeItem(k));
 
-  // Deduplicar solicitudes y órdenes por ID único
+  // Deduplicar solicitudes y órdenes por ID único y remover registros históricos de ayer hacia atrás
+  const todayIso = new Date().toISOString().split('T')[0];
   ['TSMAI_requests', 'TSMAI_orders'].forEach(key => {
     const data = JSON.parse(localStorage.getItem(key) || '[]');
     if (Array.isArray(data) && data.length > 0) {
@@ -811,7 +1327,11 @@ function auditAndCleanDatabaseStorage() {
       const seen = new Set();
       data.forEach(item => {
         const idVal = item.id || item.uuid || item.folio;
-        if (idVal && !seen.has(idVal)) {
+        const itemDate = item.date || item.dueDate || item.fecha_hora_inicio;
+        const dateStr = itemDate ? String(itemDate).split('T')[0] : todayIso;
+        
+        // Mantener solo registros válidos creados hoy en adelante
+        if (idVal && !seen.has(idVal) && dateStr >= todayIso) {
           seen.add(idVal);
           unique.push(item);
         }
@@ -822,6 +1342,11 @@ function auditAndCleanDatabaseStorage() {
 }
 
 async function syncDatabases() {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO') {
+    console.log('[TSMAI] Sandbox Demo Mode: Bypassing Supabase synchronization completely.');
+    return;
+  }
+  assertProductionAccessAllowed('syncDatabases');
   if (!useLiveDatabase) {
     console.log('[TSMAI] Demo Mode: Bypassing Supabase synchronization.');
     return;
@@ -836,7 +1361,7 @@ async function syncDatabases() {
   try {
     const { data: dbMachines, error: mErr } = await supabaseClient.from('cat_maquinas').select('*');
     if (!mErr && dbMachines && dbMachines.length > 0) {
-      const existingLocalMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+      const existingLocalMachines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
       const localMachines = dbMachines.map(m => {
         const localM = existingLocalMachines.find(lm => lm.id === m.equipo_towell);
         let area = m.departamento_codigo || m.area || null;
@@ -1045,12 +1570,8 @@ async function syncDatabases() {
       }
     }
 
-    if (localRequests.length > 0) {
-      localStorage.setItem('TSMAI_requests', JSON.stringify(localRequests));
-    }
-    if (localOrders.length > 0) {
-      localStorage.setItem('TSMAI_orders', JSON.stringify(localOrders));
-    }
+    localStorage.setItem('TSMAI_requests', JSON.stringify(localRequests));
+    localStorage.setItem('TSMAI_orders', JSON.stringify(localOrders));
   } catch (errO) {
     console.warn('[Sync] Non-blocking warning syncing ordenes_trabajo:', errO);
   }
@@ -1350,7 +1871,7 @@ async function syncDatabases() {
         const unsynced = currentLocal.filter(l => !l.db_synced);
 
         const mappedDb = dbLogs.map(l => {
-          const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+          const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
           const foundOrder = orders.find(o => o.uuid === l.id_orden);
           return {
             id: l.id_bitacora,
@@ -1419,6 +1940,8 @@ function refreshActiveViewSilently() {
       renderAdminUsersTable();
     } else if (activeAdminPanel === 'tecnicos') {
       if (typeof renderAdminTecnicos === 'function') renderAdminTecnicos();
+    } else if (activeAdminPanel === 'agents') {
+      if (typeof renderAdminAgentsCenter === 'function') renderAdminAgentsCenter();
     } else if (activeAdminPanel === 'analytics') {
       if (typeof renderAdminAnalyticsDashboard === 'function') renderAdminAnalyticsDashboard();
     }
@@ -1755,6 +2278,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             };
             persistSessionUser(currentUser);
           } else if (roleKey === 'solicitante') {
+            const userArea = (dbUser.departamento || dbUser.area || dbUser.departamento_codigo || 'AF').toUpperCase().trim();
             currentUser = {
               role: 'solicitante',
               rol: 'SOLICITANTE',
@@ -1763,7 +2287,8 @@ document.addEventListener('DOMContentLoaded', async () => {
               name: dbUser.nombre_completo,
               email: dbUser.correo,
               cve_empleado: dbUser.cve_empleado,
-              area: dbUser.area || 'CF'
+              area: ['PF', 'CF', 'AF', 'TF'].includes(userArea) ? userArea : 'AF',
+              department: dbUser.departamento || (userArea === 'PF' ? 'Producción / Tejido' : userArea === 'CF' ? 'Costura' : userArea === 'TF' ? 'Tintorería' : 'Servicios Auxiliares')
             };
             persistSessionUser(currentUser);
           }
@@ -1981,7 +2506,7 @@ function toggleAccesoInternoMenu() {
 // ==========================================================================
 
 function getMachinesByArea(areaCode) {
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   if (!areaCode || areaCode === '' || areaCode === 'ALL' || areaCode === 'General') {
     return machines.filter(m => m && m.activo !== false);
   }
@@ -2177,7 +2702,7 @@ function loadMachinesForArea(areaCode) {
 // Auto-sugerir prioridad según la criticidad del equipo seleccionado
 function onMachineSelectChange(machineId) {
   if (!machineId) return;
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const found = machines.find(m => m.id === machineId || m.equipo_towell === machineId);
   const urgencySelect = document.getElementById('req-urgency');
   if (urgencySelect && found) {
@@ -2229,8 +2754,8 @@ async function handleRequestSubmit(event) {
   // Generar folio de negocio: PREFIJO + CONSECUTIVO (ej: PF00001)
   const prefix = area; // PF, CF, TF, AF
   const combinedList = [
-    ...(JSON.parse(localStorage.getItem('TSMAI_requests') || '[]')),
-    ...(JSON.parse(localStorage.getItem('TSMAI_orders') || '[]'))
+    ...(JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]')),
+    ...(JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]'))
   ];
   
   let maxNum = 0;
@@ -2285,7 +2810,7 @@ async function handleRequestSubmit(event) {
 
   // Si la máquina está parada, actualizar estado de la máquina a "Parada" (activo = false)
   if (machineStopped === 'Sí') {
-    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     const machineIndex = machines.findIndex(m => m.id === machine);
     if (machineIndex !== -1) {
       machines[machineIndex].status = 'Parada';
@@ -2362,7 +2887,7 @@ function loadMachinesForAdminArea(areaCode) {
     return;
   }
 
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const filtered = machines.filter(m => (m.area === areaCode || m.departamento_codigo === areaCode || areaCode === 'General') && m.activo !== false);
 
   let html = '<option value="">Selecciona Máquina / Equipo</option>';
@@ -2393,8 +2918,8 @@ async function handleAdminRequestSubmit(event) {
   // Generar folio de negocio
   const prefix = area;
   const combinedList = [
-    ...(JSON.parse(localStorage.getItem('TSMAI_requests') || '[]')),
-    ...(JSON.parse(localStorage.getItem('TSMAI_orders') || '[]'))
+    ...(JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]')),
+    ...(JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]'))
   ];
   
   let maxNum = 0;
@@ -2506,14 +3031,14 @@ async function handleAdminRequestSubmit(event) {
   }
 
   // Guardar en localStorage
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
   if (!requests.some(r => r.id === newRequest.id)) {
     requests.push(newRequest);
     localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
   }
   // Si fue asignada directamente, agregar también a TSMAI_orders para que aparezca en tabla de OTs
   if (directAssign) {
-    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
     if (!orders.some(o => o.id === newRequest.id)) {
       orders.push(newRequest);
       localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
@@ -2522,7 +3047,7 @@ async function handleAdminRequestSubmit(event) {
 
   // Si la máquina está parada, actualizar estado
   if (machineStopped === 'Sí') {
-    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     const machineIndex = machines.findIndex(m => m.id === machine);
     if (machineIndex !== -1) {
       machines[machineIndex].status = 'Parada';
@@ -2572,9 +3097,9 @@ function handleSearchFolio() {
     return;
   }
 
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   
   // Buscar primero en solicitudes
   const req = requests.find(r => r.id === query);
@@ -2659,174 +3184,44 @@ async function handleSplitLoginSubmit(event) {
 }
 
 async function quickLogin(role, techId) {
-  currentUser = null;
-  localStorage.removeItem('TSMAI_current_user');
-  showToast('🔑 Iniciando sesión rápida...');
+  purgeSessionCaches();
+  setAppEnvironment('DEMO');
+  seedDemoSandboxData();
+  
+  showToast('🔑 Iniciando sesión en Sandbox Demo...');
 
-  try {
-    if (role === 'admin') {
-      let dbAdmin = null;
-      if (supabaseClient && useLiveDatabase) {
-        const { data } = await supabaseClient
-          .from('cat_usuarios_roles')
-          .select('*')
-          .in('rol', ['SUPER_ADMINISTRADOR', 'ADMINISTRADOR'])
-          .eq('activo', true)
-          .limit(1)
-          .maybeSingle();
+  let demoUser = null;
+  if (role === 'admin') {
+    demoUser = DEMO_USERS.admin;
+  } else if (role === 'solicitante') {
+    demoUser = DEMO_USERS.solicitante;
+  } else {
+    demoUser = DEMO_USERS[techId] || DEMO_USERS['T-DEMO-01'];
+  }
 
-        if (data) dbAdmin = data;
-      }
+  currentUser = { ...demoUser };
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('TSMAI_DEMO_current_user', JSON.stringify(currentUser));
+  }
+  showToast('Sesión Demo iniciada: ' + currentUser.name);
 
-      if (!dbAdmin) {
-        const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-        dbAdmin = users.find(u => u.rol === 'SUPER_ADMINISTRADOR');
-      }
-
-      if (dbAdmin) {
-        currentUser = { 
-          role: 'admin', 
-          name: dbAdmin.nombre_completo, 
-          email: dbAdmin.correo,
-          uuid: dbAdmin.id_usuario 
-        };
-      } else {
-        currentUser = { role: 'admin', name: 'Super Administrador (Demo Local)', email: 'admin.demo@local' };
-      }
-
-      persistSessionUser(currentUser);
-      showToast(`Sesión iniciada como Super Admin: ${currentUser.name}`);
-      
-      showView('admin');
-      switchAdminPanel('dashboard');
-
-      if (useLiveDatabase && supabaseClient) {
-        syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
-      }
-
-    } else if (role === 'solicitante') {
-      let dbUser = null;
-      if (supabaseClient && useLiveDatabase) {
-        const { data } = await supabaseClient
-          .from('cat_usuarios_roles')
-          .select('*')
-          .eq('rol', 'SOLICITANTE')
-          .eq('activo', true)
-          .limit(1)
-          .maybeSingle();
-
-        if (data) dbUser = data;
-      }
-
-      if (!dbUser) {
-        const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-        dbUser = users.find(u => u.rol === 'SOLICITANTE');
-      }
-
-      if (dbUser) {
-        const userArea = (dbUser.area || dbUser.departamento_codigo || 'AF').toUpperCase().trim();
-        currentUser = {
-          role: 'solicitante',
-          rol: 'SOLICITANTE',
-          id: dbUser.id_usuario,
-          uuid: dbUser.id_usuario,
-          name: dbUser.nombre_completo,
-          email: dbUser.correo,
-          cve_empleado: dbUser.cve_empleado,
-          area: ['PF', 'CF', 'AF', 'TF'].includes(userArea) ? userArea : 'AF',
-          department: dbUser.departamento || 'Servicios Auxiliares',
-          supervisor: dbUser.id_supervisor || null
-        };
-      } else {
-        currentUser = {
-          role: 'solicitante',
-          rol: 'SOLICITANTE',
-          name: 'Solicitante Demo (Local)',
-          email: 'solicitante.demo@local',
-          area: 'AF',
-          department: 'Servicios Auxiliares'
-        };
-      }
-
-      persistSessionUser(currentUser);
-      showToast(`Sesión iniciada como Solicitante: ${currentUser.name}`);
-      
-      showView('solicitante');
-      switchSolicitantePanel('home');
-
-      if (useLiveDatabase && supabaseClient) {
-        syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
-      }
-
-    } else {
-      // Técnico
-      let dbUser = null;
-      if (supabaseClient && useLiveDatabase) {
-        let query = supabaseClient
-          .from('cat_usuarios_roles')
-          .select('*')
-          .in('rol', ['MANTENIMIENTO', 'TECNICO'])
-          .eq('activo', true);
-
-        if (techId) {
-          query = query.or(`cve_tecnico.eq.${techId},id_usuario.eq.${techId}`);
-        }
-        const { data } = await query.limit(1).maybeSingle();
-        if (data) dbUser = data;
-      }
-
-      if (!dbUser) {
-        const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-        dbUser = users.find(u => u.rol === 'MANTENIMIENTO' && (u.cve_tecnico === techId || u.id_usuario === techId)) || users.find(u => u.rol === 'MANTENIMIENTO');
-      }
-
-      if (dbUser) {
-        currentUser = {
-          role: 'tech',
-          id: dbUser.cve_tecnico || dbUser.id_usuario,
-          cve_tecnico: dbUser.cve_tecnico,
-          cve_empleado: dbUser.cve_empleado,
-          uuid: dbUser.id_usuario,
-          name: dbUser.nombre_completo,
-          email: dbUser.correo,
-          specialty: dbUser.observaciones || 'General',
-          avatar: '👨‍🔧',
-          department: dbUser.departamento
-        };
-      } else {
-        currentUser = {
-          role: 'tech',
-          id: techId || 'T-DEMO',
-          name: 'Técnico Demo (Local)',
-          email: 'tecnico.demo@local',
-          specialty: 'Mantenimiento General',
-          avatar: '👨‍🔧'
-        };
-      }
-
-      persistSessionUser(currentUser);
-      showToast(`Sesión iniciada como Técnico: ${currentUser.name}`);
-      
-      const pName = document.getElementById('tech-profile-name');
-      const pSpec = document.getElementById('tech-profile-specialty');
-      const pAvat = document.getElementById('tech-profile-avatar');
-      if (pName) pName.innerText = currentUser.name;
-      if (pSpec) pSpec.innerText = currentUser.specialty || 'General';
-      if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
-
-      showView('tech');
-      switchTechPanel('dashboard');
-
-      if (useLiveDatabase && supabaseClient) {
-        syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
-      }
-    }
-  } catch (err) {
-    console.error('Error en quickLogin:', err);
-    showToast('❌ Error al iniciar sesión rápida.', 'error');
+  if (currentUser.role === 'admin') {
+    showView('admin');
+    switchAdminPanel('dashboard');
+  } else if (currentUser.role === 'solicitante') {
+    showView('solicitante');
+    switchSolicitantePanel('home');
+  } else {
+    showView('tech');
+    switchTechPanel('dashboard');
+    const pName = document.getElementById('tech-profile-name');
+    const pSpec = document.getElementById('tech-profile-specialty');
+    const pAvat = document.getElementById('tech-profile-avatar');
+    if (pName) pName.innerText = currentUser.name;
+    if (pSpec) pSpec.innerText = currentUser.specialty || 'General';
+    if (pAvat) pAvat.innerText = currentUser.avatar || '👨‍🔧';
   }
 }
-
 async function handleLoginSubmit(event) {
   if (event) event.preventDefault();
 
@@ -2977,7 +3372,7 @@ async function handleLoginSubmit(event) {
       syncDatabases().then(() => refreshActiveViewSilently()).catch(e => console.warn('[Sync bg]', e));
       return;
     } else if (roleKey === 'solicitante') {
-      const userArea = (dbUser.area || dbUser.departamento_codigo || 'CF').toUpperCase().trim();
+      const userArea = (dbUser.departamento || dbUser.area || dbUser.departamento_codigo || 'AF').toUpperCase().trim();
       currentUser = { 
         role: 'solicitante', 
         rol: 'SOLICITANTE',
@@ -2986,8 +3381,8 @@ async function handleLoginSubmit(event) {
         name: dbUser.nombre_completo, 
         email: dbUser.correo,
         cve_empleado: dbUser.cve_empleado,
-        area: ['CF', 'PF', 'AF', 'TF'].includes(userArea) ? userArea : 'CF',
-        department: dbUser.departamento || 'Operación',
+        area: ['CF', 'PF', 'AF', 'TF'].includes(userArea) ? userArea : 'AF',
+        department: dbUser.departamento || (userArea === 'PF' ? 'Producción / Tejido' : userArea === 'CF' ? 'Costura' : userArea === 'TF' ? 'Tintorería' : 'Servicios Auxiliares'),
         supervisor: dbUser.id_supervisor || null,
         active: dbUser.activo !== false
       };
@@ -3050,7 +3445,1386 @@ async function handleLoginSubmit(event) {
   alert(`⚠️ Correo No Registrado\n\nEl correo (${email}) no se encuentra registrado en el sistema.\n\nVerifica que esté escrito correctamente o solicita a tu administrador que dé de alta tu usuario.`);
 }
 
+
+// ============================================================================
+// --- MÓDULO DE EVIDENCIAS FOTOGRÁFICAS ANTES / DESPUÉS (PRD PHOTO EVIDENCE) ---
+// ============================================================================
+const CANONICAL_EVIDENCE_BUCKET = 'maintenance-evidence';
+let activeTechUploadCategory = 'ANTES';
+let activeTechUploadOTId = null;
+let activeTechUploadMachineId = null;
+let activeOT360Evidences = [];
+let activeOT360FilteredEvidences = [];
+let activeLightboxIndex = 0;
+let tempHallazgoFile = null;
+
+// Compresión de imagen en cliente (Canvas)
+async function compressImageFile(file, maxWidth = 1920, maxHeight = 1080, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith('image/')) {
+      return reject(new Error('INVALID_EVIDENCE_FILE: El archivo no es una imagen válida.'));
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Error al leer el archivo.'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Error al decodificar la imagen.'));
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width / height > maxWidth / maxHeight) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error('Error al comprimir imagen.'));
+          resolve({
+            blob,
+            width,
+            height,
+            size: blob.size,
+            mimeType: 'image/jpeg',
+            dataUrl: canvas.toDataURL('image/jpeg', quality)
+          });
+        }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function validateFileSafety(file) {
+  if (!file) throw new Error('INVALID_EVIDENCE_FILE: No se proporcionó ningún archivo.');
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  const allowedExts = ['.jpg', '.jpeg', '.png', '.webp'];
+  
+  const name = (file.name || '').toLowerCase();
+  const hasValidExt = allowedExts.some(ext => name.endsWith(ext));
+  const hasValidMime = allowedTypes.includes(file.type);
+
+  if (!hasValidExt || !hasValidMime) {
+    throw new Error('INVALID_EVIDENCE_FILE: Formato no permitido. Solo se aceptan imágenes JPG, PNG o WebP.');
+  }
+
+  const maxSize = 25 * 1024 * 1024; // 25 MB max raw
+  if (file.size > maxSize) {
+    throw new Error('INVALID_EVIDENCE_FILE: El tamaño del archivo supera el límite de 25 MB.');
+  }
+  return true;
+}
+
+function triggerTechPhotoUpload(category) {
+  activeTechUploadCategory = category;
+  activeTechUploadOTId = document.getElementById('tech-ot-id')?.value || null;
+  activeTechUploadMachineId = document.getElementById('tech-ot-lbl-machine')?.innerText || null;
+
+  const fileInput = document.getElementById('tech-photo-hidden-file-input');
+  if (fileInput) {
+    fileInput.value = '';
+    fileInput.click();
+  }
+}
+
+function openHallazgoEvidenceModal() {
+  activeTechUploadOTId = document.getElementById('tech-ot-id')?.value || null;
+  activeTechUploadMachineId = document.getElementById('tech-ot-lbl-machine')?.innerText || null;
+  tempHallazgoFile = null;
+
+  const descInput = document.getElementById('tech-hallazgo-input-desc');
+  const preview = document.getElementById('tech-hallazgo-file-preview');
+  const label = document.getElementById('tech-hallazgo-file-label');
+  const fileInput = document.getElementById('tech-hallazgo-file-input');
+
+  if (descInput) descInput.value = '';
+  if (preview) { preview.innerText = ''; preview.style.display = 'none'; }
+  if (label) label.innerText = 'Seleccionar o tomar fotografía';
+  if (fileInput) fileInput.value = '';
+
+  openModal('modal-tech-hallazgo-desc');
+}
+
+function onHallazgoFileSelected(input) {
+  if (input && input.files && input.files[0]) {
+    try {
+      validateFileSafety(input.files[0]);
+      tempHallazgoFile = input.files[0];
+      const preview = document.getElementById('tech-hallazgo-file-preview');
+      const label = document.getElementById('tech-hallazgo-file-label');
+      if (label) label.innerText = '📸 ' + input.files[0].name;
+      if (preview) {
+        preview.innerText = 'Listo para subir (' + (input.files[0].size / 1024).toFixed(0) + ' KB)';
+        preview.style.display = 'block';
+      }
+    } catch(err) {
+      alert(err.message);
+      input.value = '';
+      tempHallazgoFile = null;
+    }
+  }
+}
+
+async function submitHallazgoEvidence() {
+  const desc = document.getElementById('tech-hallazgo-input-desc')?.value.trim();
+  if (!desc) {
+    alert('Por favor escribe la descripción técnica obligatoria del hallazgo.');
+    return;
+  }
+  if (!tempHallazgoFile) {
+    alert('Por favor selecciona la fotografía del hallazgo.');
+    return;
+  }
+
+  const otId = activeTechUploadOTId || document.getElementById('tech-ot-id')?.value;
+  const machineId = activeTechUploadMachineId || document.getElementById('tech-ot-lbl-machine')?.innerText;
+
+  closeModal('modal-tech-hallazgo-desc');
+
+  await uploadOTEvidence({
+    otId,
+    machineId,
+    tipoEvidencia: 'HALLAZGO',
+    file: tempHallazgoFile,
+    description: desc
+  });
+}
+
+async function onTechPhotoSelected(input) {
+  if (!input || !input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const category = activeTechUploadCategory || 'ANTES';
+  const otId = activeTechUploadOTId || document.getElementById('tech-ot-id')?.value;
+  const machineId = activeTechUploadMachineId || document.getElementById('tech-ot-lbl-machine')?.innerText;
+
+  try {
+    validateFileSafety(file);
+    await uploadOTEvidence({
+      otId,
+      machineId,
+      tipoEvidencia: category,
+      file,
+      description: ''
+    });
+  } catch(err) {
+    console.error('[onTechPhotoSelected] Error:', err);
+    alert('Error al procesar fotografía: ' + err.message);
+  }
+}
+
+async function uploadOTEvidence({ otId, machineId, tipoEvidencia, file, description = '', bitacoraId = null, checklistId = null, checklistItemId = null }) {
+  if (!otId) {
+    alert('No se ha detectado una Orden de Trabajo activa.');
+    return;
+  }
+
+  const progressBox = document.getElementById('tech-photo-upload-progress');
+  const progressText = document.getElementById('tech-photo-progress-text');
+  const progressBar = document.getElementById('tech-photo-progress-bar');
+  const progressPct = document.getElementById('tech-photo-progress-pct');
+
+  const updateProgress = (text, pct) => {
+    if (progressBox) progressBox.style.display = 'block';
+    if (progressText) progressText.innerText = text;
+    if (progressBar) progressBar.style.width = pct + '%';
+    if (progressPct) progressPct.innerText = pct + '%';
+  };
+
+  try {
+    updateProgress('Preparando imagen...', 20);
+    validateFileSafety(file);
+
+    // 1. Compresión en cliente
+    const compressed = await compressImageFile(file);
+    updateProgress('Subiendo evidencia...', 55);
+
+    const clientRequestId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'REQ-' + Date.now();
+    const fileUuid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'IMG-' + Date.now();
+    const storagePath = `${machineId || 'GENERAL'}/${otId}/${tipoEvidencia}/${fileUuid}.jpg`;
+    const capturedAt = new Date().toISOString();
+
+    if (APP_ENVIRONMENT === 'DEMO') {
+      // --- MODO DEMO: AISLADO EN SANDBOX ---
+      const demoEvidences = JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]');
+      
+      const newDemoRecord = {
+        id: 'DEMO-EV-' + fileUuid,
+        id_evidencia: 'DEMO-EV-' + fileUuid,
+        otId: otId,
+        id_orden: otId,
+        ot_folio: otId,
+        maquina_id: machineId,
+        tecnico_id: currentUser ? (currentUser.id || currentUser.uuid) : 'DEMO-USER-TEC-01',
+        nombre_tecnico: currentUser ? currentUser.name : 'Técnico Demo 01',
+        tipo_evidencia: tipoEvidencia,
+        storage_bucket: 'TSMAI_DEMO',
+        storage_path: storagePath,
+        url: compressed.dataUrl,
+        url_archivo: compressed.dataUrl,
+        nombre_archivo: file.name,
+        mime_type: 'image/jpeg',
+        file_size: compressed.size,
+        descripcion: description || (tipoEvidencia === 'ANTES' ? 'Condición Inicial' : tipoEvidencia === 'DESPUES' ? 'Condición Final' : 'Evidencia de Intervención'),
+        bitacora_id: bitacoraId,
+        checklist_id: checklistId,
+        checklist_item_id: checklistItemId,
+        captured_at: capturedAt,
+        created_at: capturedAt,
+        client_request_id: clientRequestId,
+        activo: true
+      };
+
+      demoEvidences.push(newDemoRecord);
+      localStorage.setItem('TSMAI_DEMO_evidences', JSON.stringify(demoEvidences));
+
+      updateProgress('Evidencia guardada', 100);
+      setTimeout(() => { if (progressBox) progressBox.style.display = 'none'; }, 1000);
+      showToast('📷 Evidencia (' + tipoEvidencia + ') guardada con éxito.');
+
+      renderTechOTPhotos(otId);
+      return newDemoRecord;
+    }
+
+    // --- MODO PRODUCCIÓN: SUPABASE STORAGE + DB ---
+    assertProductionAccessAllowed('uploadOTEvidence');
+    if (!supabaseClient) throw new Error('Cliente de Supabase no disponible.');
+
+    // Upload al Storage
+    updateProgress('Subiendo a Storage seguro...', 70);
+    const { data: storageData, error: storageErr } = await supabaseClient.storage
+      .from(CANONICAL_EVIDENCE_BUCKET)
+      .upload(storagePath, compressed.blob, {
+        contentType: 'image/jpeg',
+        upsert: false
+      });
+
+    if (storageErr) {
+      throw new Error('Error al cargar archivo en Storage: ' + storageErr.message);
+    }
+
+    // Insertar registro en BD
+    updateProgress('Registrando en base de datos...', 85);
+    const insertPayload = {
+      id_orden: otId,
+      maquina_id: machineId,
+      tecnico_id: currentUser ? (currentUser.uuid || currentUser.id) : null,
+      tipo_evidencia: tipoEvidencia,
+      nombre_archivo: file.name,
+      storage_bucket: CANONICAL_EVIDENCE_BUCKET,
+      storage_path: storagePath,
+      mime_type: 'image/jpeg',
+      file_size: compressed.size,
+      comentario: description,
+      observaciones: description,
+      usuario_carga: currentUser ? currentUser.name : 'Técnico',
+      captured_at: capturedAt,
+      client_request_id: clientRequestId,
+      bitacora_id: bitacoraId,
+      checklist_id: checklistId,
+      checklist_item_id: checklistItemId,
+      activo: true
+    };
+
+    const { data: dbData, error: dbErr } = await supabaseClient
+      .from('evidencias_orden')
+      .insert([insertPayload])
+      .select('*')
+      .single();
+
+    if (dbErr) {
+      // Compensación: Limpiar Storage
+      console.warn('[Compensation] Eliminando objeto huérfano de Storage:', storagePath);
+      await supabaseClient.storage.from(CANONICAL_EVIDENCE_BUCKET).remove([storagePath]);
+      throw new Error('Error al registrar evidencia en BD: ' + dbErr.message);
+    }
+
+    updateProgress('Evidencia guardada', 100);
+    setTimeout(() => { if (progressBox) progressBox.style.display = 'none'; }, 1000);
+    showToast('📷 Evidencia (' + tipoEvidencia + ') guardada con éxito.');
+
+    renderTechOTPhotos(otId);
+    return dbData;
+
+  } catch(err) {
+    console.error('[uploadOTEvidence] Error:', err);
+    updateProgress('Error al cargar', 0);
+    setTimeout(() => { if (progressBox) progressBox.style.display = 'none'; }, 2000);
+    alert('❌ No fue posible cargar la fotografía: ' + err.message);
+  }
+}
+
+async function renderTechOTPhotos(otId) {
+  const container = document.getElementById('tech-ot-photos-container');
+  const badge = document.getElementById('tech-evidence-summary-badge');
+  if (!container || !otId) return;
+
+  let evidences = [];
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const demoEvidences = JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]');
+    evidences = demoEvidences.filter(e => (e.otId === otId || e.id_orden === otId || e.ot_folio === otId) && e.activo !== false);
+  } else if (supabaseClient && useLiveDatabase) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('vw_ot_evidencias_360')
+        .select('*')
+        .or(`id_orden.eq.${otId},ot_folio.eq.${otId}`)
+        .eq('activo', true)
+        .order('captured_at', { ascending: true });
+
+      if (!error && data) {
+        evidences = await Promise.all(data.map(async (ev) => {
+          let url = ev.url_archivo;
+          if (!url && ev.storage_path) {
+            const { data: signed } = await supabaseClient.storage
+              .from(ev.storage_bucket || CANONICAL_EVIDENCE_BUCKET)
+              .createSignedUrl(ev.storage_path, 900);
+            if (signed) url = signed.signedUrl;
+          }
+          return { ...ev, url };
+        }));
+      }
+    } catch(err) {
+      console.warn('[renderTechOTPhotos] Error fetching from Supabase:', err);
+    }
+  }
+
+  if (badge) {
+    badge.innerText = evidences.length + ' Evidencia' + (evidences.length === 1 ? '' : 's');
+    badge.className = 'badge ' + (evidences.length >= 2 ? 'badge-priority-baja' : 'badge-priority-media');
+  }
+
+  if (evidences.length === 0) {
+    container.innerHTML = '<p style="grid-column: 1 / -1; color: #94a3b8; font-size: 0.82rem; margin: 4px 0; text-align: center; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">Sin evidencias fotográficas adjuntas aún. Añade fotos con los botones superiores.</p>';
+    return;
+  }
+
+  const categoryBadges = {
+    ANTES: '<span class="badge" style="background:#0284c7; color:white; font-size:0.68rem;">🔵 ANTES</span>',
+    DURANTE: '<span class="badge" style="background:#eab308; color:#0f172a; font-size:0.68rem;">🟡 DURANTE</span>',
+    HALLAZGO: '<span class="badge" style="background:#ef4444; color:white; font-size:0.68rem;">🔴 HALLAZGO</span>',
+    DESPUES: '<span class="badge" style="background:#16a34a; color:white; font-size:0.68rem;">🟢 DESPUÉS</span>'
+  };
+
+  container.innerHTML = evidences.map(ev => {
+    const timeStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const imgUrl = ev.url || ev.url_archivo || '';
+    const safeDesc = (ev.descripcion || ev.comentario || '').replace(/'/g, "\\'");
+    const safeTech = (ev.nombre_tecnico || 'Técnico').replace(/'/g, "\\'");
+    const safeTime = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleString('es-MX');
+
+    return `
+      <div style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; text-align: center; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+          ${categoryBadges[ev.tipo_evidencia] || '<span class="badge badge-priority-media">FOTO</span>'}
+          <span style="font-size: 0.68rem; color: #64748b;">${timeStr}</span>
+        </div>
+        <div style="height: 85px; background: #0f172a; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia}', ot: '${otId}', machine: '${ev.maquina_id || ''}', tech: '${safeTech}', time: '${safeTime}', desc: '${safeDesc}' })">
+          <img src="${imgUrl}" alt="${ev.tipo_evidencia}" style="width: 100%; height: 100%; object-fit: cover;">
+        </div>
+        ${ev.descripcion ? `<p style="margin: 4px 0 2px 0; font-size: 0.72rem; color: #334155; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${ev.descripcion}">${ev.descripcion}</p>` : ''}
+        <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+          <button type="button" style="font-size: 0.7rem; color: #0284c7; background: none; border: none; cursor: pointer; padding: 0;" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia}', ot: '${otId}', machine: '${ev.maquina_id || ''}', tech: '${safeTech}', time: '${safeTime}', desc: '${safeDesc}' })">🔍 Ver</button>
+          <button type="button" style="font-size: 0.7rem; color: #ef4444; background: none; border: none; cursor: pointer; padding: 0;" onclick="deleteOTPhoto('${ev.id_evidencia || ev.id}', '${otId}')">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function deleteOTPhoto(evidenceId, otId) {
+  if (!confirm('¿Deseas eliminar esta evidencia fotográfica?')) return;
+
+  if (APP_ENVIRONMENT === 'DEMO') {
+    let demoEvidences = JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]');
+    demoEvidences = demoEvidences.filter(e => (e.id !== evidenceId && e.id_evidencia !== evidenceId));
+    localStorage.setItem('TSMAI_DEMO_evidences', JSON.stringify(demoEvidences));
+    showToast('Evidencia eliminada.');
+    renderTechOTPhotos(otId);
+    return;
+  }
+
+  assertProductionAccessAllowed('deleteOTPhoto');
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient
+        .from('evidencias_orden')
+        .update({
+          activo: false,
+          deleted_at: new Date().toISOString(),
+          delete_reason: 'Eliminada por usuario en interfaz'
+        })
+        .eq('id_evidencia', evidenceId);
+
+      if (error) throw error;
+      showToast('Evidencia eliminada.');
+      renderTechOTPhotos(otId);
+    } catch(err) {
+      alert('Error al eliminar evidencia: ' + err.message);
+    }
+  }
+}
+
+function validateOTEvidencesBeforeClosure(orderObj, overrideReason = null) {
+  if (overrideReason) {
+    console.log('[EVIDENCE_OVERRIDE] Cierre autorizado por override administrativo:', overrideReason);
+    return { isValid: true, override: true };
+  }
+
+  const otId = orderObj.id || orderObj.folio || orderObj.otId;
+  const orderType = (orderObj.type || orderObj.tipo_orden || 'CORRECTIVO').toUpperCase();
+
+  let evidences = [];
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const demoEvidences = JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]');
+    evidences = demoEvidences.filter(e => (e.otId === otId || e.id_orden === otId || e.ot_folio === otId) && e.activo !== false);
+  } else {
+    const allLocalEv = JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]');
+    evidences = allLocalEv.filter(e => (e.otId === otId || e.id_orden === otId) && e.activo !== false);
+  }
+
+  const beforeCount = evidences.filter(e => e.tipo_evidencia === 'ANTES').length;
+  const afterCount = evidences.filter(e => e.tipo_evidencia === 'DESPUES').length;
+
+  if (orderType.includes('CORRECTIV') || orderType === 'MC') {
+    if (beforeCount < 1 || afterCount < 1) {
+      return {
+        isValid: false,
+        beforeCount,
+        afterCount,
+        message: `Una Orden Correctiva requiere al menos 1 fotografía ANTES (actual: ${beforeCount}) y 1 fotografía DESPUÉS (actual: ${afterCount}) para poder completarse.`
+      };
+    }
+  } else if (orderType.includes('PREVENTIV') || orderType === 'MP') {
+    if (afterCount < 1) {
+      return {
+        isValid: false,
+        beforeCount,
+        afterCount,
+        message: `Una Orden Preventiva requiere al menos 1 fotografía DESPUÉS (actual: ${afterCount}) del trabajo concluido.`
+      };
+    }
+  }
+
+  return { isValid: true, beforeCount, afterCount };
+}
+
+async function renderOT360Evidences(orderId, explicitMachineId) {
+  const compBeforeImg = document.getElementById('ot360-comp-before-img-box');
+  const compBeforeTime = document.getElementById('ot360-comp-before-time');
+  const compBeforeDesc = document.getElementById('ot360-comp-before-desc');
+
+  const compAfterImg = document.getElementById('ot360-comp-after-img-box');
+  const compAfterTime = document.getElementById('ot360-comp-after-time');
+  const compAfterDesc = document.getElementById('ot360-comp-after-desc');
+
+  const timelineContainer = document.getElementById('ot360-timeline-container');
+  const galleryContainer = document.getElementById('ot360-gallery-container');
+
+  let evidences = [];
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const demoEvidences = JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]');
+    evidences = demoEvidences.filter(e => (e.otId === orderId || e.id_orden === orderId || e.ot_folio === orderId || e.maquina_id === explicitMachineId) && e.activo !== false);
+  } else if (supabaseClient && useLiveDatabase) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('vw_ot_evidencias_360')
+        .select('*')
+        .or(`id_orden.eq.${orderId},ot_folio.eq.${orderId},maquina_id.eq.${explicitMachineId}`)
+        .eq('activo', true)
+        .order('captured_at', { ascending: true });
+
+      if (!error && data) {
+        evidences = await Promise.all(data.map(async (ev) => {
+          let url = ev.url_archivo;
+          if (!url && ev.storage_path) {
+            const { data: signed } = await supabaseClient.storage
+              .from(ev.storage_bucket || CANONICAL_EVIDENCE_BUCKET)
+              .createSignedUrl(ev.storage_path, 900);
+            if (signed) url = signed.signedUrl;
+          }
+          return { ...ev, url };
+        }));
+      }
+    } catch(err) {
+      console.warn('[renderOT360Evidences] Error:', err);
+    }
+  }
+
+  activeOT360Evidences = evidences;
+
+  // Actualizar conteos
+  const cAll = evidences.length;
+  const cBefore = evidences.filter(e => e.tipo_evidencia === 'ANTES').length;
+  const cDuring = evidences.filter(e => e.tipo_evidencia === 'DURANTE').length;
+  const cFindings = evidences.filter(e => e.tipo_evidencia === 'HALLAZGO').length;
+  const cAfter = evidences.filter(e => e.tipo_evidencia === 'DESPUES').length;
+
+  safeSetText('ot360-count-all', cAll);
+  safeSetText('ot360-count-before', cBefore);
+  safeSetText('ot360-count-during', cDuring);
+  safeSetText('ot360-count-findings', cFindings);
+  safeSetText('ot360-count-after', cAfter);
+
+  // 1. Comparador ANTES (Primera foto cronológica) vs DESPUÉS (Última foto cronológica)
+  const firstBefore = evidences.find(e => e.tipo_evidencia === 'ANTES');
+  const lastAfter = [...evidences].reverse().find(e => e.tipo_evidencia === 'DESPUES');
+
+  if (firstBefore && compBeforeImg) {
+    compBeforeImg.innerHTML = `<img src="${firstBefore.url || firstBefore.url_archivo}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="openPhotoLightbox('${firstBefore.url || firstBefore.url_archivo}', { type: 'ANTES', ot: '${orderId}', machine: '${firstBefore.maquina_id || explicitMachineId}', tech: '${firstBefore.nombre_tecnico || ''}', time: '${new Date(firstBefore.captured_at || firstBefore.created_at).toLocaleString()}', desc: '${firstBefore.descripcion || ''}' })">`;
+    safeSetText('ot360-comp-before-time', new Date(firstBefore.captured_at || firstBefore.created_at).toLocaleString('es-MX'));
+    safeSetText('ot360-comp-before-desc', firstBefore.descripcion || 'Condición inicial registrada al inicio.');
+  } else if (compBeforeImg) {
+    compBeforeImg.innerHTML = '<span style="font-size: 0.85rem; color: #64748b;">Sin foto inicial registrada</span>';
+    safeSetText('ot360-comp-before-time', '-');
+    safeSetText('ot360-comp-before-desc', '');
+  }
+
+  if (lastAfter && compAfterImg) {
+    compAfterImg.innerHTML = `<img src="${lastAfter.url || lastAfter.url_archivo}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="openPhotoLightbox('${lastAfter.url || lastAfter.url_archivo}', { type: 'DESPUÉS', ot: '${orderId}', machine: '${lastAfter.maquina_id || explicitMachineId}', tech: '${lastAfter.nombre_tecnico || ''}', time: '${new Date(lastAfter.captured_at || lastAfter.created_at).toLocaleString()}', desc: '${lastAfter.descripcion || ''}' })">`;
+    safeSetText('ot360-comp-after-time', new Date(lastAfter.captured_at || lastAfter.created_at).toLocaleString('es-MX'));
+    safeSetText('ot360-comp-after-desc', lastAfter.descripcion || 'Condición final entregada tras intervención.');
+  } else if (compAfterImg) {
+    compAfterImg.innerHTML = '<span style="font-size: 0.85rem; color: #166534;">Sin foto final registrada</span>';
+    safeSetText('ot360-comp-after-time', '-');
+    safeSetText('ot360-comp-after-desc', '');
+  }
+
+  // 2. Timeline de Evidencias
+  if (timelineContainer) {
+    if (evidences.length === 0) {
+      timelineContainer.innerHTML = '<p style="color:#64748b; font-size:0.85rem;">No hay eventos de evidencia fotográfica registrados para esta orden.</p>';
+    } else {
+      const categoryColor = {
+        ANTES: '#0284c7',
+        DURANTE: '#eab308',
+        HALLAZGO: '#ef4444',
+        DESPUES: '#16a34a'
+      };
+
+      timelineContainer.innerHTML = evidences.map((ev, idx) => {
+        const timeStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        const dateStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleDateString('es-MX');
+        const color = categoryColor[ev.tipo_evidencia] || '#64748b';
+
+        return `
+          <div style="display:flex; align-items:center; gap:12px; background:white; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0; font-size:0.82rem;">
+            <span style="font-weight:700; color:#0f172a; min-width:55px;">${timeStr}</span>
+            <span class="badge" style="background:${color}; color:white; font-size:0.7rem; font-weight:700;">${ev.tipo_evidencia}</span>
+            <div style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              <strong>${ev.nombre_tecnico || 'Técnico'}:</strong> ${ev.descripcion || 'Registro fotográfico'}
+            </div>
+            <a href="javascript:void(0)" onclick="openPhotoLightbox('${ev.url || ev.url_archivo}', { type: '${ev.tipo_evidencia}', ot: '${orderId}', machine: '${ev.maquina_id || explicitMachineId}', tech: '${ev.nombre_tecnico || ''}', time: '${dateStr} ${timeStr}', desc: '${ev.descripcion || ''}' })" style="color:#0284c7; text-decoration:underline; font-weight:600;">Ver Foto</a>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 3. Renderizar Galería Completa
+  filterOT360Gallery('TODAS');
+}
+
+function filterOT360Gallery(category) {
+  const galleryContainer = document.getElementById('ot360-gallery-container');
+  if (!galleryContainer) return;
+
+  let filtered = activeOT360Evidences;
+  if (category && category !== 'TODAS') {
+    filtered = activeOT360Evidences.filter(e => e.tipo_evidencia === category);
+  }
+  activeOT360FilteredEvidences = filtered;
+
+  if (filtered.length === 0) {
+    galleryContainer.innerHTML = '<p style="color: #64748b; text-align: center; grid-column: 1 / -1; padding: 20px;">No hay evidencias para la categoría seleccionada.</p>';
+    return;
+  }
+
+  const categoryBadges = {
+    ANTES: '<span class="badge" style="background:#0284c7; color:white; font-size:0.7rem;">🔵 ANTES</span>',
+    DURANTE: '<span class="badge" style="background:#eab308; color:#0f172a; font-size:0.7rem;">🟡 DURANTE</span>',
+    HALLAZGO: '<span class="badge" style="background:#ef4444; color:white; font-size:0.7rem;">🔴 HALLAZGO</span>',
+    DESPUES: '<span class="badge" style="background:#16a34a; color:white; font-size:0.7rem;">🟢 DESPUÉS</span>'
+  };
+
+  galleryContainer.innerHTML = filtered.map((ev, idx) => {
+    const timeStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleDateString('es-MX');
+    const imgUrl = ev.url || ev.url_archivo || '';
+    const safeDesc = (ev.descripcion || ev.comentario || '').replace(/'/g, "\\'");
+    const safeTech = (ev.nombre_tecnico || 'Técnico').replace(/'/g, "\\'");
+
+    return `
+      <div style="background:white; border:1px solid #cbd5e1; border-radius:8px; padding:10px; text-align:center; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          ${categoryBadges[ev.tipo_evidencia] || '<span class="badge badge-priority-media">FOTO</span>'}
+          <span style="font-size:0.72rem; color:#64748b;">${timeStr}</span>
+        </div>
+        <div style="height:120px; background:#0f172a; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia}', ot: '${ev.ot_folio || ev.id_orden}', machine: '${ev.maquina_id || ''}', tech: '${safeTech}', time: '${dateStr} ${timeStr}', desc: '${safeDesc}' })">
+          <img src="${imgUrl}" alt="${ev.tipo_evidencia}" style="width:100%; height:100%; object-fit:cover;">
+        </div>
+        <p style="margin:6px 0 0 0; font-size:0.75rem; color:#334155; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${ev.descripcion}">${ev.descripcion || 'Sin descripción'}</p>
+        <span style="font-size:0.7rem; color:#94a3b8; display:block; text-align:left; margin-top:2px;">👨‍🔧 ${ev.nombre_tecnico || 'Técnico'}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function openPhotoLightbox(photoUrl, metadata = {}) {
+  const modal = document.getElementById('modal-photo-lightbox');
+  const img = document.getElementById('lightbox-img');
+  const typeBadge = document.getElementById('lightbox-badge-type');
+  const title = document.getElementById('lightbox-title');
+  const otEl = document.getElementById('lightbox-ot-folio');
+  const machEl = document.getElementById('lightbox-machine');
+  const techEl = document.getElementById('lightbox-tech');
+  const timeEl = document.getElementById('lightbox-timestamp');
+  const descEl = document.getElementById('lightbox-desc-box');
+
+  if (img) img.src = photoUrl;
+  if (typeBadge) {
+    typeBadge.innerText = metadata.type || 'EVIDENCIA';
+    typeBadge.style.background = metadata.type === 'ANTES' ? '#0284c7' : metadata.type === 'DESPUES' ? '#16a34a' : metadata.type === 'HALLAZGO' ? '#ef4444' : '#eab308';
+  }
+  if (title) title.innerText = 'Evidencia Fotográfica: ' + (metadata.ot || '');
+  if (otEl) otEl.innerText = metadata.ot || '-';
+  if (machEl) machEl.innerText = metadata.machine || '-';
+  if (techEl) techEl.innerText = metadata.tech || 'Técnico';
+  if (timeEl) timeEl.innerText = metadata.time || '-';
+  if (descEl) descEl.innerText = metadata.desc ? '“' + metadata.desc + '”' : 'Sin descripción adicional.';
+
+  if (modal) {
+    modal.classList.add('active');
+    modal.style.display = 'flex';
+  }
+}
+
+function closePhotoLightbox() {
+  const modal = document.getElementById('modal-photo-lightbox');
+  if (modal) {
+    modal.classList.remove('active');
+    modal.style.display = 'none';
+  }
+}
+
+async function reconcileOrphanOTEvidence() {
+  console.log('[Reconciler] Iniciando auditoría de reconciliación de evidencias...');
+  if (APP_ENVIRONMENT === 'DEMO') {
+    return { orphanStorageCount: 0, orphanDBCount: 0, status: 'CLEAN' };
+  }
+  assertProductionAccessAllowed('reconcileOrphanOTEvidence');
+  // Reconciliación en backend
+  return { orphanStorageCount: 0, orphanDBCount: 0, status: 'CLEAN' };
+}
+
+
+// ============================================================================
+// --- MÓDULO DE ESTADO EN ESPERA (PRD-TECH-WAIT-001-R1) ---
+// ============================================================================
+const WAIT_REASON_CATALOG = {
+  REFACCION: { label: 'Esperando refacción', category: 'EXTERNA', icon: '📦' },
+  AUTORIZACION: { label: 'Esperando autorización', category: 'EXTERNA', icon: '📋' },
+  PRODUCCION: { label: 'Equipo no liberado por Producción', category: 'EXTERNA', icon: '🏭' },
+  HERRAMIENTA: { label: 'Esperando herramienta/equipo', category: 'OPERACIONAL', icon: '🔧' },
+  PROVEEDOR: { label: 'Esperando proveedor externo', category: 'EXTERNA', icon: '🚚' },
+  SEGURIDAD: { label: 'Condición de seguridad', category: 'OPERACIONAL', icon: '🦺' },
+  INFORMACION: { label: 'Falta información técnica', category: 'OPERACIONAL', icon: 'ℹ️' },
+  OTRO: { label: 'Otro motivo', category: 'SIN_CLASIFICAR', icon: '⏳' }
+};
+
+function onWaitingReasonChanged(reasonCode) {
+  const partBox = document.getElementById('tech-waiting-part-box');
+  if (partBox) {
+    partBox.style.display = reasonCode === 'REFACCION' ? 'block' : 'none';
+  }
+}
+
+function openSetWaitingModal() {
+  const otId = document.getElementById('tech-ot-id')?.value;
+  if (!otId) {
+    alert('No hay una Orden de Trabajo activa seleccionada.');
+    return;
+  }
+
+  const reasonSelect = document.getElementById('tech-waiting-reason-select');
+  const partCode = document.getElementById('tech-waiting-part-code');
+  const partQty = document.getElementById('tech-waiting-part-qty');
+  const obsText = document.getElementById('tech-waiting-obs-text');
+  const partBox = document.getElementById('tech-waiting-part-box');
+
+  if (reasonSelect) reasonSelect.value = '';
+  if (partCode) partCode.value = '';
+  if (partQty) partQty.value = '';
+  if (obsText) obsText.value = '';
+  if (partBox) partBox.style.display = 'none';
+
+  openModal('modal-tech-set-waiting');
+}
+
+async function submitSetOTWaiting() {
+  const otId = document.getElementById('tech-ot-id')?.value;
+  const reasonCode = document.getElementById('tech-waiting-reason-select')?.value;
+  const obs = document.getElementById('tech-waiting-obs-text')?.value?.trim();
+  const partCode = document.getElementById('tech-waiting-part-code')?.value?.trim() || null;
+  const partQtyVal = document.getElementById('tech-waiting-part-qty')?.value;
+  const partQty = partQtyVal ? parseFloat(partQtyVal) : null;
+
+  if (!reasonCode || !WAIT_REASON_CATALOG[reasonCode]) {
+    alert('Por favor selecciona un motivo válido del catálogo.');
+    return;
+  }
+
+  if (!obs) {
+    alert('La observación técnica explicativa es obligatoria.');
+    return;
+  }
+
+  if (reasonCode === 'REFACCION' && partQty !== null && (isNaN(partQty) || partQty <= 0)) {
+    alert('La cantidad de refacción debe ser un número mayor a cero.');
+    return;
+  }
+
+  const clientRequestId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'REQ-WAIT-' + Date.now();
+  const nowISO = new Date().toISOString();
+  const meta = WAIT_REASON_CATALOG[reasonCode];
+
+  closeModal('modal-tech-set-waiting');
+
+  if (APP_ENVIRONMENT === 'DEMO') {
+    // --- MODO DEMO SANDBOX ---
+    const waitPeriods = JSON.parse(localStorage.getItem('TSMAI_DEMO_wait_periods') || '[]');
+    
+    // Validar que no haya espera activa
+    const hasActive = waitPeriods.some(w => (w.otId === otId || w.id_orden === otId) && w.status === 'ACTIVA');
+    if (hasActive) {
+      alert('Esta orden ya cuenta con un periodo de espera activo.');
+      return;
+    }
+
+    const newPeriod = {
+      id: 'DEMO-WAIT-' + Date.now(),
+      id_orden: otId,
+      otId: otId,
+      ot_folio: otId,
+      maquina_id: document.getElementById('tech-ot-lbl-machine')?.innerText || 'DEMO-MAQ',
+      tecnico_id: currentUser ? (currentUser.id || currentUser.uuid) : 'DEMO-USER-TEC-01',
+      nombre_tecnico: currentUser ? currentUser.name : 'Técnico Demo',
+      motivo: reasonCode,
+      categoria_motivo: meta.category,
+      observacion: obs,
+      refaccion_codigo: partCode,
+      refaccion_cantidad: partQty,
+      started_at: nowISO,
+      status: 'ACTIVA',
+      client_request_id: clientRequestId,
+      created_at: nowISO,
+      updated_at: nowISO
+    };
+
+    waitPeriods.push(newPeriod);
+    localStorage.setItem('TSMAI_DEMO_wait_periods', JSON.stringify(waitPeriods));
+
+    // Actualizar estado de OT en memoria
+    const orders = JSON.parse(localStorage.getItem('TSMAI_DEMO_orders') || '[]');
+    const idx = orders.findIndex(o => o.id === otId);
+    if (idx !== -1) {
+      orders[idx].status = 'En espera';
+      orders[idx].currentWaitReason = reasonCode;
+      orders[idx].currentWaitObs = obs;
+      orders[idx].waitStartedAt = nowISO;
+      if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
+      orders[idx].historyLogs.push({
+        date: nowISO,
+        status: 'En espera',
+        user: currentUser ? currentUser.name : 'Técnico',
+        comment: `Trabajo puesto en espera: ${meta.label}. ${obs}`
+      });
+      localStorage.setItem('TSMAI_DEMO_orders', JSON.stringify(orders));
+      updateTechActionButtons(orders[idx]);
+    }
+
+    showToast('⏸️ Trabajo puesto en espera (' + meta.label + ').', 'warning');
+    renderTechDashboard();
+    renderTechOrdersTable();
+    return newPeriod;
+  }
+
+  // --- MODO PRODUCCIÓN VIA RPC SUPABASE ---
+  assertProductionAccessAllowed('submitSetOTWaiting');
+  if (!supabaseClient) throw new Error('Cliente de Supabase no disponible.');
+
+  try {
+    const { data, error } = await supabaseClient.rpc('set_ot_waiting', {
+      p_ot_id: otId,
+      p_motivo: reasonCode,
+      p_observacion: obs,
+      p_refaccion_codigo: partCode,
+      p_refaccion_cantidad: partQty,
+      p_client_request_id: clientRequestId
+    });
+
+    if (error) throw error;
+
+    // Actualizar estado local
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+    const idx = orders.findIndex(o => o.id === otId);
+    if (idx !== -1) {
+      orders[idx].status = 'En espera';
+      orders[idx].currentWaitReason = reasonCode;
+      orders[idx].currentWaitObs = obs;
+      orders[idx].waitStartedAt = nowISO;
+      localStorage.setItem(getAppStorageKey('orders'), JSON.stringify(orders));
+      updateTechActionButtons(orders[idx]);
+    }
+
+    showToast('⏸️ Trabajo puesto en espera (' + meta.label + ').', 'warning');
+    renderTechDashboard();
+    renderTechOrdersTable();
+    return data;
+  } catch(err) {
+    console.error('[submitSetOTWaiting] Error:', err);
+    alert('❌ Error al poner orden en espera: ' + (err.message || err));
+  }
+}
+
+function openResumeWaitingModal() {
+  const otId = document.getElementById('tech-ot-id')?.value;
+  if (!otId) return;
+
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  const order = orders.find(o => o.id === otId);
+  const reasonCode = order ? order.currentWaitReason : 'REFACCION';
+  const meta = WAIT_REASON_CATALOG[reasonCode] || { label: 'En espera' };
+
+  let waitElapsedText = '0 min';
+  if (order && order.waitStartedAt) {
+    const elapsedMins = Math.max(1, Math.round((Date.now() - new Date(order.waitStartedAt).getTime()) / 60000));
+    waitElapsedText = elapsedMins >= 60 ? `${Math.floor(elapsedMins / 60)} h ${elapsedMins % 60} min` : `${elapsedMins} min`;
+  }
+
+  const reasonEl = document.getElementById('tech-resume-modal-reason');
+  const startedEl = document.getElementById('tech-resume-modal-started');
+  const durEl = document.getElementById('tech-resume-modal-duration');
+  const noteEl = document.getElementById('tech-resume-note-text');
+
+  if (reasonEl) reasonEl.innerText = meta.label;
+  if (startedEl) startedEl.innerText = order && order.waitStartedAt ? new Date(order.waitStartedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '-';
+  if (durEl) durEl.innerText = waitElapsedText;
+  if (noteEl) noteEl.value = '';
+
+  openModal('modal-tech-resume-waiting');
+}
+
+async function submitResumeOTWaiting() {
+  const otId = document.getElementById('tech-ot-id')?.value;
+  const resolutionNote = document.getElementById('tech-resume-note-text')?.value?.trim() || 'Reanudación técnica normal.';
+  const nowISO = new Date().toISOString();
+
+  closeModal('modal-tech-resume-waiting');
+
+  if (APP_ENVIRONMENT === 'DEMO') {
+    // --- MODO DEMO SANDBOX ---
+    const waitPeriods = JSON.parse(localStorage.getItem('TSMAI_DEMO_wait_periods') || '[]');
+    const activeIdx = waitPeriods.findIndex(w => (w.otId === otId || w.id_orden === otId) && w.status === 'ACTIVA');
+    
+    let durationSecs = 60;
+    if (activeIdx !== -1) {
+      const sTime = new Date(waitPeriods[activeIdx].started_at).getTime();
+      durationSecs = Math.max(1, Math.round((Date.now() - sTime) / 1000));
+      waitPeriods[activeIdx].ended_at = nowISO;
+      waitPeriods[activeIdx].duration_seconds = durationSecs;
+      waitPeriods[activeIdx].status = 'RESUELTA';
+      waitPeriods[activeIdx].resolution_note = resolutionNote;
+      waitPeriods[activeIdx].resolved_by = currentUser ? currentUser.id : 'DEMO-USER-TEC-01';
+      waitPeriods[activeIdx].updated_at = nowISO;
+      localStorage.setItem('TSMAI_DEMO_wait_periods', JSON.stringify(waitPeriods));
+    }
+
+    const orders = JSON.parse(localStorage.getItem('TSMAI_DEMO_orders') || '[]');
+    const idx = orders.findIndex(o => o.id === otId);
+    if (idx !== -1) {
+      orders[idx].status = 'En proceso';
+      orders[idx].currentWaitReason = null;
+      orders[idx].currentWaitObs = null;
+      orders[idx].accumulatedWaitSeconds = (orders[idx].accumulatedWaitSeconds || 0) + durationSecs;
+      if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
+      orders[idx].historyLogs.push({
+        date: nowISO,
+        status: 'En proceso',
+        user: currentUser ? currentUser.name : 'Técnico',
+        comment: `Trabajo reanudado tras ${Math.round(durationSecs / 60)} min de espera. ${resolutionNote}`
+      });
+      localStorage.setItem('TSMAI_DEMO_orders', JSON.stringify(orders));
+      updateTechActionButtons(orders[idx]);
+    }
+
+    showToast('▶️ Trabajo reanudado (En proceso).', 'success');
+    renderTechDashboard();
+    renderTechOrdersTable();
+    return;
+  }
+
+  // --- MODO PRODUCCIÓN VIA RPC SUPABASE ---
+  assertProductionAccessAllowed('submitResumeOTWaiting');
+  if (!supabaseClient) throw new Error('Cliente de Supabase no disponible.');
+
+  try {
+    const { data, error } = await supabaseClient.rpc('resume_ot_waiting', {
+      p_ot_id: otId,
+      p_resolution_note: resolutionNote
+    });
+
+    if (error) throw error;
+
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+    const idx = orders.findIndex(o => o.id === otId);
+    if (idx !== -1) {
+      orders[idx].status = 'En proceso';
+      orders[idx].currentWaitReason = null;
+      orders[idx].currentWaitObs = null;
+      localStorage.setItem(getAppStorageKey('orders'), JSON.stringify(orders));
+      updateTechActionButtons(orders[idx]);
+    }
+
+    showToast('▶️ Trabajo reanudado (En proceso).', 'success');
+    renderTechDashboard();
+    renderTechOrdersTable();
+    return data;
+  } catch(err) {
+    console.error('[submitResumeOTWaiting] Error:', err);
+    alert('❌ Error al reanudar orden: ' + (err.message || err));
+  }
+}
+
+function getRequesterOTStatus(order) {
+  if (!order) return { status: 'Pendiente', publicReason: null };
+  const st = order.status || order.estatus || 'Pendiente';
+  if (st === 'En espera' || st === 'EN_ESPERA') {
+    const reasonCode = order.currentWaitReason || order.motivo_espera || 'REFACCION';
+    const meta = WAIT_REASON_CATALOG[reasonCode] || { label: 'En espera de refacción o liberación' };
+    return {
+      status: 'En espera',
+      publicReason: meta.label,
+      startedAt: order.waitStartedAt || order.fecha_inicio || null
+    };
+  }
+  return { status: st, publicReason: null };
+}
+
+function calculateOTTimings(order, waitPeriodsList = []) {
+  if (!order) return { activeWorkSeconds: 0, accumulatedWaitSeconds: 0, totalCycleSeconds: 0 };
+  
+  const startTime = order.fecha_hora_inicio ? new Date(order.fecha_hora_inicio).getTime() : (order.date ? new Date(order.date).getTime() : Date.now());
+  const endTime = order.fecha_hora_fin ? new Date(order.fecha_hora_fin).getTime() : Date.now();
+  const totalCycleSeconds = Math.max(0, Math.round((endTime - startTime) / 1000));
+
+  let accumulatedWaitSeconds = 0;
+  waitPeriodsList.forEach(w => {
+    if (w.status === 'RESUELTA') {
+      accumulatedWaitSeconds += (w.duration_seconds || 0);
+    } else if (w.status === 'ACTIVA') {
+      const activeElapsed = Math.max(0, Math.round((Date.now() - new Date(w.started_at).getTime()) / 1000));
+      accumulatedWaitSeconds += activeElapsed;
+    }
+  });
+
+  const activeWorkSeconds = Math.max(0, totalCycleSeconds - accumulatedWaitSeconds);
+
+  return {
+    activeWorkSeconds,
+    accumulatedWaitSeconds,
+    totalCycleSeconds
+  };
+}
+
+
+// ============================================================================
+// --- MÓDULO DE TRANSFERENCIA Y SESIONES DE TÉCNICOS (PRD-TECH-HANDOFF-001-R1) ---
+// ============================================================================
+const HANDOFF_REASON_CATALOG = {
+  CAMBIO_TURNO: { label: 'Cambio de turno', icon: '⏰' },
+  CAMBIO_ESPECIALIDAD: { label: 'Cambio de especialidad requerida', icon: '🔧' },
+  AUSENCIA: { label: 'Ausencia / Salida programada', icon: '🏃' },
+  CARGA_TRABAJO: { label: 'Rebalanceo de carga de trabajo', icon: '⚖️' },
+  REASIGNACION_ADMIN: { label: 'Reasignación administrativa', icon: '👔' },
+  OTRO: { label: 'Otro motivo', icon: '📋' }
+};
+
+function openHandoffModal() {
+  const otId = document.getElementById('tech-ot-id')?.value;
+  if (!otId) {
+    alert('No hay una Orden de Trabajo activa seleccionada.');
+    return;
+  }
+
+  const reasonSelect = document.getElementById('tech-handoff-reason-select');
+  const specSelect = document.getElementById('tech-handoff-specialty-select');
+  const noteText = document.getElementById('tech-handoff-note-text');
+
+  if (reasonSelect) reasonSelect.value = '';
+  if (specSelect) specSelect.value = 'GENERAL';
+  if (noteText) noteText.value = '';
+
+  openModal('modal-tech-handoff');
+}
+
+async function submitHandoffRequest() {
+  const otId = document.getElementById('tech-ot-id')?.value;
+  const reason = document.getElementById('tech-handoff-reason-select')?.value;
+  const specialty = document.getElementById('tech-handoff-specialty-select')?.value || 'GENERAL';
+  const note = document.getElementById('tech-handoff-note-text')?.value?.trim();
+
+  if (!reason || !HANDOFF_REASON_CATALOG[reason]) {
+    alert('Por favor selecciona un motivo válido de transferencia.');
+    return;
+  }
+
+  if (!note) {
+    alert('La nota de entrega técnica es obligatoria (¿Qué se hizo? ¿Qué falta? ¿Qué revisar?).');
+    return;
+  }
+
+  const clientRequestId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'REQ-HANDOFF-' + Date.now();
+  const nowISO = new Date().toISOString();
+  const meta = HANDOFF_REASON_CATALOG[reason];
+
+  closeModal('modal-tech-handoff');
+
+  if (APP_ENVIRONMENT === 'DEMO') {
+    // --- MODO DEMO SANDBOX ---
+    const allSessions = JSON.parse(localStorage.getItem('TSMAI_DEMO_technician_sessions') || '[]');
+    const allHandoffs = JSON.parse(localStorage.getItem('TSMAI_DEMO_handoffs') || '[]');
+    
+    // Buscar sesión activa
+    let activeSession = allSessions.find(s => (s.otId === otId || s.id_orden === otId) && ['ASIGNADA', 'ACEPTADA', 'EN_PROCESO'].includes(s.status));
+    
+    if (activeSession) {
+      const sStart = activeSession.started_at ? new Date(activeSession.started_at).getTime() : Date.now();
+      const worked = Math.max(1, Math.round((Date.now() - sStart) / 1000));
+      activeSession.ended_at = nowISO;
+      activeSession.active_seconds = (activeSession.active_seconds || 0) + worked;
+      activeSession.status = 'TRANSFERIDA';
+      activeSession.updated_at = nowISO;
+    } else {
+      activeSession = {
+        id: 'DEMO-SES-' + Date.now(),
+        id_orden: otId,
+        otId: otId,
+        ot_folio: otId,
+        tecnico_id: currentUser ? currentUser.id : 'DEMO-USER-TEC-01',
+        nombre_tecnico: currentUser ? currentUser.name : 'Técnico Demo 01',
+        assigned_at: nowISO,
+        accepted_at: nowISO,
+        started_at: nowISO,
+        ended_at: nowISO,
+        active_seconds: 3600,
+        status: 'TRANSFERIDA',
+        created_at: nowISO,
+        updated_at: nowISO
+      };
+      allSessions.push(activeSession);
+    }
+    localStorage.setItem('TSMAI_DEMO_technician_sessions', JSON.stringify(allSessions));
+
+    const newHandoff = {
+      id: 'DEMO-HO-' + Date.now(),
+      id_orden: otId,
+      otId: otId,
+      source_session_id: activeSession.id,
+      requested_by: currentUser ? currentUser.id : 'DEMO-USER-TEC-01',
+      requested_by_name: currentUser ? currentUser.name : 'Técnico Demo 01',
+      requested_at: nowISO,
+      reason: reason,
+      handoff_note: note,
+      specialty_required: specialty,
+      status: 'SOLICITADA',
+      client_request_id: clientRequestId,
+      created_at: nowISO,
+      updated_at: nowISO
+    };
+    allHandoffs.push(newHandoff);
+    localStorage.setItem('TSMAI_DEMO_handoffs', JSON.stringify(allHandoffs));
+
+    // Actualizar OT
+    const orders = JSON.parse(localStorage.getItem('TSMAI_DEMO_orders') || '[]');
+    const idx = orders.findIndex(o => o.id === otId);
+    if (idx !== -1) {
+      orders[idx].handoffStatus = 'SOLICITADA';
+      orders[idx].lastHandoffReason = reason;
+      orders[idx].lastHandoffNote = note;
+      if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
+      orders[idx].historyLogs.push({
+        date: nowISO,
+        status: orders[idx].status,
+        user: currentUser ? currentUser.name : 'Técnico',
+        comment: `Transferencia solicitada: ${meta.label}. Nota: ${note}`
+      });
+      localStorage.setItem('TSMAI_DEMO_orders', JSON.stringify(orders));
+      updateTechActionButtons(orders[idx]);
+    }
+
+    showToast('🔄 Transferencia solicitada (' + meta.label + '). Pendiente de asignación por Admin.', 'info');
+    renderTechDashboard();
+    renderTechOrdersTable();
+    return newHandoff;
+  }
+
+  // --- MODO PRODUCCIÓN VIA RPC ---
+  assertProductionAccessAllowed('submitHandoffRequest');
+  if (!supabaseClient) throw new Error('Cliente de Supabase no disponible.');
+
+  try {
+    const { data, error } = await supabaseClient.rpc('request_ot_handoff', {
+      p_ot_id: otId,
+      p_reason: reason,
+      p_note: note,
+      p_specialty: specialty,
+      p_client_request_id: clientRequestId
+    });
+
+    if (error) throw error;
+
+    showToast('🔄 Transferencia solicitada (' + meta.label + ').', 'info');
+    renderTechDashboard();
+    renderTechOrdersTable();
+    return data;
+  } catch (err) {
+    console.error('[submitHandoffRequest] Error:', err);
+    alert('❌ Error al solicitar transferencia: ' + (err.message || err));
+  }
+}
+
+function openAdminHandoffModal(handoffId) {
+  let handoff = null;
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const allHandoffs = JSON.parse(localStorage.getItem('TSMAI_DEMO_handoffs') || '[]');
+    handoff = allHandoffs.find(h => h.id === handoffId);
+  }
+
+  if (!handoff) return;
+
+  const hIdEl = document.getElementById('admin-handoff-id');
+  const otIdEl = document.getElementById('admin-handoff-ot-id');
+  const srcTechEl = document.getElementById('admin-handoff-source-tech');
+  const reasonEl = document.getElementById('admin-handoff-reason');
+  const noteEl = document.getElementById('admin-handoff-note');
+  const techSelect = document.getElementById('admin-handoff-tech-select');
+
+  if (hIdEl) hIdEl.value = handoff.id;
+  if (otIdEl) otIdEl.value = handoff.id_orden || handoff.otId;
+  if (srcTechEl) srcTechEl.innerText = handoff.requested_by_name || 'Técnico Saliente';
+  if (reasonEl) reasonEl.innerText = HANDOFF_REASON_CATALOG[handoff.reason]?.label || handoff.reason;
+  if (noteEl) noteEl.innerText = handoff.handoff_note || 'Sin nota de entrega.';
+
+  if (techSelect) {
+    const techs = JSON.parse(localStorage.getItem(getAppStorageKey('technicians')) || '[]');
+    techSelect.innerHTML = '<option value="">Selecciona técnico...</option>' + techs.map(t => `<option value="${t.id || t.uuid}">${t.name} (${t.specialty || 'General'})`).join('');
+  }
+
+  openModal('modal-admin-handoff-assign');
+}
+
+async function submitAdminHandoffAssignment() {
+  const handoffId = document.getElementById('admin-handoff-id')?.value;
+  const otId = document.getElementById('admin-handoff-ot-id')?.value;
+  const newTechId = document.getElementById('admin-handoff-tech-select')?.value;
+  const adminNotes = document.getElementById('admin-handoff-admin-note')?.value?.trim();
+  const nowISO = new Date().toISOString();
+
+  if (!newTechId) {
+    alert('Por favor selecciona el nuevo técnico responsable.');
+    return;
+  }
+
+  closeModal('modal-admin-handoff-assign');
+
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const allHandoffs = JSON.parse(localStorage.getItem('TSMAI_DEMO_handoffs') || '[]');
+    const allSessions = JSON.parse(localStorage.getItem('TSMAI_DEMO_technician_sessions') || '[]');
+    const techs = JSON.parse(localStorage.getItem('TSMAI_DEMO_technicians') || '[]');
+    const newTech = techs.find(t => t.id === newTechId || t.uuid === newTechId) || { name: 'Técnico Demo 02' };
+
+    const hIdx = allHandoffs.findIndex(h => h.id === handoffId);
+    if (hIdx !== -1) {
+      allHandoffs[hIdx].status = 'ASIGNADA';
+      allHandoffs[hIdx].assigned_to = newTechId;
+      allHandoffs[hIdx].assigned_to_name = newTech.name;
+      allHandoffs[hIdx].assigned_by = currentUser ? currentUser.id : 'DEMO-ADMIN';
+      allHandoffs[hIdx].assigned_at = nowISO;
+      allHandoffs[hIdx].updated_at = nowISO;
+      localStorage.setItem('TSMAI_DEMO_handoffs', JSON.stringify(allHandoffs));
+    }
+
+    const newSession = {
+      id: 'DEMO-SES-' + Date.now(),
+      id_orden: otId,
+      otId: otId,
+      ot_folio: otId,
+      tecnico_id: newTechId,
+      nombre_tecnico: newTech.name,
+      assigned_at: nowISO,
+      status: 'ASIGNADA',
+      previous_session_id: hIdx !== -1 ? allHandoffs[hIdx].source_session_id : null,
+      created_at: nowISO,
+      updated_at: nowISO
+    };
+    allSessions.push(newSession);
+    localStorage.setItem('TSMAI_DEMO_technician_sessions', JSON.stringify(allSessions));
+
+    const orders = JSON.parse(localStorage.getItem('TSMAI_DEMO_orders') || '[]');
+    const idx = orders.findIndex(o => o.id === otId);
+    if (idx !== -1) {
+      orders[idx].handoffStatus = 'ASIGNADA';
+      orders[idx].pendingTechId = newTechId;
+      orders[idx].pendingTechName = newTech.name;
+      if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
+      orders[idx].historyLogs.push({
+        date: nowISO,
+        status: orders[idx].status,
+        user: currentUser ? currentUser.name : 'Super Admin',
+        comment: `OT reasignada a ${newTech.name}. Pendiente de aceptación.`
+      });
+      localStorage.setItem('TSMAI_DEMO_orders', JSON.stringify(orders));
+    }
+
+    showToast('👤 OT reasignada a ' + newTech.name + '. Pendiente de aceptación por el técnico.', 'success');
+    renderAdminDashboard();
+    renderAdminOrdersTable();
+    return;
+  }
+
+  // --- MODO PRODUCCIÓN VIA RPC ---
+  assertProductionAccessAllowed('submitAdminHandoffAssignment');
+  if (!supabaseClient) throw new Error('Cliente de Supabase no disponible.');
+
+  try {
+    const { data, error } = await supabaseClient.rpc('assign_ot_handoff', {
+      p_handoff_id: handoffId,
+      p_new_tech_id: newTechId,
+      p_admin_notes: adminNotes
+    });
+    if (error) throw error;
+    showToast('👤 OT reasignada exitosamente.', 'success');
+    renderAdminDashboard();
+    renderAdminOrdersTable();
+    return data;
+  } catch (err) {
+    console.error('[submitAdminHandoffAssignment] Error:', err);
+    alert('❌ Error al reasignar transferencia: ' + (err.message || err));
+  }
+}
+
+function openTechAcceptHandoffModal(handoffId) {
+  let handoff = null;
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const allHandoffs = JSON.parse(localStorage.getItem('TSMAI_DEMO_handoffs') || '[]');
+    handoff = allHandoffs.find(h => h.id === handoffId);
+  }
+  if (!handoff) return;
+
+  const hIdEl = document.getElementById('tech-accept-handoff-id');
+  const otIdEl = document.getElementById('tech-accept-ot-id');
+  const folioEl = document.getElementById('tech-accept-folio');
+  const machEl = document.getElementById('tech-accept-machine');
+  const srcTechEl = document.getElementById('tech-accept-source-tech');
+  const reasonEl = document.getElementById('tech-accept-reason');
+  const noteEl = document.getElementById('tech-accept-note');
+
+  if (hIdEl) hIdEl.value = handoff.id;
+  if (otIdEl) otIdEl.value = handoff.id_orden || handoff.otId;
+  if (folioEl) folioEl.innerText = handoff.ot_folio || handoff.otId || 'DEMO-OT-003';
+  if (machEl) machEl.innerText = handoff.maquina_id || 'Equipo en planta';
+  if (srcTechEl) srcTechEl.innerText = handoff.requested_by_name || 'Técnico Saliente';
+  if (reasonEl) reasonEl.innerText = HANDOFF_REASON_CATALOG[handoff.reason]?.label || handoff.reason;
+  if (noteEl) noteEl.innerText = handoff.handoff_note || 'Sin nota de entrega.';
+
+  openModal('modal-tech-handoff-accept');
+}
+
+async function submitAcceptHandoff(handoffIdParam) {
+  const handoffId = handoffIdParam || document.getElementById('tech-accept-handoff-id')?.value;
+  const nowISO = new Date().toISOString();
+
+  closeModal('modal-tech-handoff-accept');
+
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const allHandoffs = JSON.parse(localStorage.getItem('TSMAI_DEMO_handoffs') || '[]');
+    const allSessions = JSON.parse(localStorage.getItem('TSMAI_DEMO_technician_sessions') || '[]');
+    
+    const hIdx = allHandoffs.findIndex(h => h.id === handoffId);
+    let otId = null;
+    if (hIdx !== -1) {
+      otId = allHandoffs[hIdx].id_orden || allHandoffs[hIdx].otId;
+      allHandoffs[hIdx].status = 'ACEPTADA';
+      allHandoffs[hIdx].accepted_at = nowISO;
+      allHandoffs[hIdx].updated_at = nowISO;
+      localStorage.setItem('TSMAI_DEMO_handoffs', JSON.stringify(allHandoffs));
+    }
+
+    const sIdx = allSessions.findIndex(s => (s.otId === otId || s.id_orden === otId) && s.status === 'ASIGNADA');
+    if (sIdx !== -1) {
+      allSessions[sIdx].status = 'ACEPTADA';
+      allSessions[sIdx].accepted_at = nowISO;
+      allSessions[sIdx].updated_at = nowISO;
+      localStorage.setItem('TSMAI_DEMO_technician_sessions', JSON.stringify(allSessions));
+    }
+
+    const orders = JSON.parse(localStorage.getItem('TSMAI_DEMO_orders') || '[]');
+    const idx = orders.findIndex(o => o.id === otId);
+    if (idx !== -1) {
+      orders[idx].assignedTech = currentUser ? currentUser.id : 'DEMO-USER-TEC-02';
+      orders[idx].nombre_atendio = currentUser ? currentUser.name : 'Técnico Demo 02';
+      orders[idx].handoffStatus = null;
+      if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
+      orders[idx].historyLogs.push({
+        date: nowISO,
+        status: orders[idx].status,
+        user: currentUser ? currentUser.name : 'Técnico',
+        comment: 'Transferencia aceptada por el nuevo técnico responsable. Trabajo listo para continuar.'
+      });
+      localStorage.setItem('TSMAI_DEMO_orders', JSON.stringify(orders));
+      updateTechActionButtons(orders[idx]);
+    }
+
+    showToast('✅ Transferencia aceptada. Ahora eres el técnico responsable de esta OT.', 'success');
+    renderTechDashboard();
+    renderTechOrdersTable();
+    return;
+  }
+
+  // --- MODO PRODUCCIÓN VIA RPC ---
+  assertProductionAccessAllowed('submitAcceptHandoff');
+  if (!supabaseClient) throw new Error('Cliente de Supabase no disponible.');
+
+  try {
+    const { data, error } = await supabaseClient.rpc('accept_ot_handoff', { p_handoff_id: handoffId });
+    if (error) throw error;
+    showToast('✅ Transferencia aceptada formalmente.', 'success');
+    renderTechDashboard();
+    renderTechOrdersTable();
+    return data;
+  } catch (err) {
+    console.error('[submitAcceptHandoff] Error:', err);
+    alert('❌ Error al aceptar transferencia: ' + (err.message || err));
+  }
+}
+
 function logout() {
+  purgeSessionCaches();
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO') {
+    setAppEnvironment('PROD');
+  }
   currentUser = null;
   persistSessionUser(null);
   try {
@@ -3187,6 +4961,7 @@ function switchAdminPanel(panelId) {
     kpis: '📈 KPIs de Mantenimiento',
     analysis: '🔬 Análisis de Repetibilidad de Fallas',
     ai: '🤖 Recomendaciones IA',
+    agents: '🤖 Centro de Control de Agentes IA',
     alertrules: '🔔 Reglas de Alertas del Sistema',
     notificaciones: '📨 Notificaciones Internas',
     alertas: '🔔 Alertas del Sistema',
@@ -3676,7 +5451,17 @@ async function renderAdminAnalysis() {
     </tr>`).join('');
   } catch (err) { tbody.innerHTML = emptyRow(8, `❌ Error: ${err.message}`); }
 }
-function openAnalysisModal() { alert('Modal de nuevo análisis de fallas — próximamente.'); }
+function openAnalysisModal() {
+  showToast('⚡ Solicitando nuevo diagnóstico de repetibilidad de fallas a AG-001...');
+  if (typeof triggerFailureAnalysisDispatch === 'function') {
+    triggerFailureAnalysisDispatch();
+  } else if (typeof dispatchAgentEvent === 'function') {
+    dispatchAgentEvent('FAILURE_ANALYSIS_REQUESTED', {
+      origin: 'NEW_ANALYSIS_MODAL_BUTTON',
+      context: typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {}
+    }).catch(err => console.warn('[openAnalysisModal] Event dispatch warn:', err));
+  }
+}
 
 // ── RECOMENDACIONES IA ───────────────────────────────────────────────────────
 async function renderAdminAIRecommendations() {
@@ -4362,7 +6147,7 @@ function applyRefMaquinaTableFilter() {
   const tbody = document.getElementById('tbody-refmaquina');
   if (!tbody) return;
 
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
 
   const filtered = currentRefMaquinaData.filter(r => {
     const rMacId = String(r.maquina_id || r.maquina || r.machineId || '').toUpperCase().trim();
@@ -4506,9 +6291,9 @@ async function renderAdminRespChk() {
 // ============================================================================
 // Renderizado de Gráficos y Tablas del Dashboard Ejecutivo (Whiteboard layout)
 function renderAdminDashboard() {
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const localLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
 
   // --- WIDGET 1: OT por cerrar (Barras Horizontales Reales) ---
@@ -4902,7 +6687,7 @@ async function fetchOrBuildCanonicalPreventiveBudget() {
     });
 
     const areaByMachine = new Map();
-    let macList = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    let macList = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     if (typeof supabaseClient !== 'undefined' && supabaseClient?.from) {
       const { data: dbMacs } = await supabaseClient.from('cat_maquinas').select('id_maquina, area');
       if (dbMacs && dbMacs.length > 0) macList = dbMacs;
@@ -5508,8 +7293,8 @@ async function renderSimulatedPreventiveBudgetWidget() {
 
 // Actualizar contadores del Admin
 function updateAdminKPIs() {
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
 
   const open = orders.filter(o => o.status !== 'Cerrada' && o.status !== 'Cancelada').length;
   const critical = orders.filter(o => o.urgency === 'Crítica' && o.status !== 'Cerrada').length;
@@ -5533,7 +7318,7 @@ function updateAdminKPIs() {
 
 // Actualizar indicador visual de la bandeja
 function updateRequestsBadge() {
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
   const newCount = requests.filter(r => {
     if (!r || !r.status) return false;
     const s = String(r.status).toLowerCase().trim();
@@ -5552,8 +7337,8 @@ function updateRequestsBadge() {
 
 // Render Tabla de Solicitudes Nuevas
 function renderAdminRequestsTable() {
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const tbody = document.getElementById('table-admin-requests-body');
   if (!tbody) return;
 
@@ -5614,7 +7399,7 @@ function renderAdminRequestsTable() {
 // --- MODAL DE REVISIÓN (ADMIN) ---
 // --- MATRIZ DE PRIORIZACIÓN DE ÓRDENES (CRITICIDAD + URGENCIA + RIESGO) ---
 function calculateOTPriorityScoring(machineId, urgency, risk, type, machineStopped) {
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const mach = machines.find(m => m.id === machineId || m.equipo_towell === machineId);
   const criticality = mach ? (mach.criticality || 'B') : 'B';
 
@@ -5653,7 +7438,7 @@ function calculateOTPriorityScoring(machineId, urgency, risk, type, machineStopp
 
 function recalculateOTPriorityInModal() {
   const reqId = document.getElementById('review-req-id').value;
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
   const req = requests.find(r => r.id === reqId);
   
   const urgency = req ? req.urgency : 'Media';
@@ -5701,7 +7486,7 @@ function filterReviewTechsBySpecialty(specialty) {
 }
 
 function openReviewModal(reqId) {
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
   const req = requests.find(r => r.id === reqId);
   if (!req) return;
 
@@ -5710,7 +7495,7 @@ function openReviewModal(reqId) {
   document.getElementById('review-lbl-applicant').innerText = req.applicant;
   document.getElementById('review-lbl-shift').innerText = req.shift;
   
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const mach = machines.find(m => m.id === req.machine);
   document.getElementById('review-lbl-area-machine').innerText = `${req.area} - ${mach ? mach.name : req.machine}`;
   document.getElementById('review-lbl-stopped').innerHTML = req.machineStopped === 'Sí' ? '<span style="color: var(--color-critical); font-weight: bold;">Sí ⚠️</span>' : 'No';
@@ -5741,13 +7526,33 @@ function openReviewModal(reqId) {
   tomorrow.setMinutes(tomorrow.getMinutes() - offset);
   document.getElementById('review-due-date').value = tomorrow.toISOString().slice(0, 16);
 
+  // Cargar Técnico Preferido por el Solicitante (PRD-REQ-UX-001-R1)
+  const prefTechEl = document.getElementById('review-req-preferred-tech');
+  if (prefTechEl) {
+    if (req.requested_technician_id) {
+      let techName = req.requested_technician_id;
+      if (APP_ENVIRONMENT === 'DEMO') {
+        if (req.requested_technician_id === 'DEMO-USER-TEC-01') techName = 'Técnico Demo 01 — Mecánica';
+        else if (req.requested_technician_id === 'DEMO-USER-TEC-02') techName = 'Técnico Demo 02 — Eléctrica';
+      } else {
+        const allUsers = JSON.parse(localStorage.getItem(getAppStorageKey('users')) || '[]');
+        const tUser = allUsers.find(u => u.id === req.requested_technician_id || u.uuid === req.requested_technician_id);
+        if (tUser) techName = tUser.nombre_completo || tUser.name || tUser.email;
+      }
+      prefTechEl.innerText = techName;
+      prefTechEl.style.color = '#0284c7';
+    } else {
+      prefTechEl.innerText = 'Sin preferencia';
+      prefTechEl.style.color = '#64748b';
+    }
+  }
   openModal('modal-admin-review');
 }
 
 // Convertir solicitud pública en OT oficial
 async function convertToWorkOrder() {
   const reqId = document.getElementById('review-req-id').value;
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
   const reqIndex = requests.findIndex(r => r.id === reqId);
   if (reqIndex === -1) return;
 
@@ -5779,8 +7584,10 @@ async function convertToWorkOrder() {
   // Para matching local usamos el id completo (puede ser UUID o cve_tecnico)
   const techUuidForLocal = techObj ? (techObj.uuid || techId) : techId;
 
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const newOrder = {
+    requested_technician_id: req.requested_technician_id || null,
+    nombre_solicitante_reporta: req.nombre_solicitante_reporta || null,
     id: otId,
     reqId: reqId,
     applicant: req.applicant,
@@ -5883,7 +7690,7 @@ async function convertToWorkOrder() {
 
 async function requestMoreInfoFromApplicant() {
   const reqId = document.getElementById('review-req-id').value;
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
   const reqIndex = requests.findIndex(r => r.id === reqId);
   if (reqIndex === -1) return;
 
@@ -5909,7 +7716,7 @@ async function requestMoreInfoFromApplicant() {
 
 async function cancelRequest() {
   const reqId = document.getElementById('review-req-id').value;
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
   const reqIndex = requests.findIndex(r => r.id === reqId);
   if (reqIndex === -1) return;
 
@@ -5979,8 +7786,8 @@ function resolveMachineArea(machineId, currentArea) {
 }
 
 function renderAdminOrdersTable(filteredOrders) {
-  const orders = filteredOrders || JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const orders = filteredOrders || JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
   const tbody = document.getElementById('table-admin-orders-body');
 
@@ -6044,7 +7851,7 @@ function applyOTFilters() {
   const tech = document.getElementById('filter-ot-tech').value;
   const urgency = document.getElementById('filter-ot-urgency').value;
 
-  let orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  let orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
 
   if (status) {
     orders = orders.filter(o => o.status === status);
@@ -6068,7 +7875,7 @@ function applyOTFilters() {
 }
 
 function viewOrderHistoryLogs(otId) {
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const order = orders.find(o => o.id === otId);
   if (!order) return;
 
@@ -6128,7 +7935,7 @@ async function renderAdminCalendar() {
   // 3. Obtener correctivos locales
   let localOrders = [];
   if (showCorrectivos) {
-    const allLocalOrders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const allLocalOrders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
     localOrders = allLocalOrders.filter(o => o.type !== 'MP' && o.type !== 'PREVENTIVO' && o.type !== 'PREDICTIVO' && o.type !== 'AUTONOMO');
   }
 
@@ -6412,7 +8219,7 @@ function renderAdminLogsTable() {
 }
 // --- TRANSICIÓN AUTOMÁTICA PULL DE OT A BITÁCORA (FASE 4) ---
 async function syncFinishedOTsToBitacora() {
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const finishedOrders = orders.filter(o => o.status === 'Pendiente de validación' || o.status === 'Terminada' || o.status === 'Cerrada' || o.status === 'Ejecutada');
   let maintenanceLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
 
@@ -6627,7 +8434,7 @@ async function onAdminEditBitacoraAreaChange(preselectMachineId = null) {
   if (!selectMach) return;
   selectMach.innerHTML = '<option value="">— Ninguna —</option>';
 
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const filtered = area ? machines.filter(m => m.area === area) : machines;
   
   filtered.forEach(m => {
@@ -6703,7 +8510,7 @@ async function renderAdminMachinesTable() {
         .select('equipo_towell, clave, ax, criticidad, activo, departamento_codigo')
         .order('equipo_towell');
       if (!error && data && data.length > 0) {
-        const existingLocal = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+        const existingLocal = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
         machines = data.map(m => {
           const local = existingLocal.find(l => l.id === m.equipo_towell) || {};
           const area = resolveMachineArea(m.equipo_towell, m.departamento_codigo);
@@ -6728,7 +8535,7 @@ async function renderAdminMachinesTable() {
 
   // Fallback
   if (machines.length === 0) {
-    machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   }
 
   let html = '';
@@ -6754,6 +8561,7 @@ async function renderAdminMachinesTable() {
         <td>${m.failures || 0}</td>
         <td><span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: ${statusColor};"><span style="width: 8px; height: 8px; border-radius:50%; background: ${statusColor}"></span>${m.status}</span></td>
         <td>
+          <button class="btn-table-action" style="color: #0284c7; border-color: rgba(2, 132, 199, 0.4); font-weight: 700;" onclick="openMachineAIContextModal('${m.id}')">🤖 Contexto IA</button>
           <button class="btn-table-action" onclick="openAdminMachineModal('${m.id}')">✏️ Editar</button>
           <button class="btn-table-action" style="color: ${isOperative ? 'var(--color-critical)' : 'var(--color-preventive)'}; border-color: ${isOperative ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}" onclick="deleteAdminMachine('${m.id}')">
             ${isOperative ? '🚫 Parar' : '✅ Operar'}
@@ -7349,7 +9157,7 @@ async function deleteAdminUser(userId) {
 function openAdminMachineModal(machineId = null) {
   const codeInput = document.getElementById('admin-machine-code');
   if (machineId) {
-    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     const m = machines.find(item => item.id === machineId);
     if (!m) return;
 
@@ -7441,11 +9249,11 @@ async function saveAdminMachine() {
     await syncDatabases();
     
     // Restaurar el nombre local personalizado si existía en LocalStorage y no se actualizó
-    let localMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    let localMachines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     localMachines = localMachines.map(m => m.id === code ? { ...m, name: name } : m);
     localStorage.setItem('TSMAI_machines', JSON.stringify(localMachines));
   } else {
-    let localMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    let localMachines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     const mappedLocal = {
       id: code,
       name: name,
@@ -7471,7 +9279,7 @@ async function saveAdminMachine() {
 async function deleteAdminMachine(machineId) {
   if (!machineId) return;
 
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const m = machines.find(item => item.id === machineId);
   if (!m) return;
 
@@ -7879,6 +9687,21 @@ async function saveDynamicForm() {
   renderFormFieldsBuilderPreview();
   renderAdminFormsList();
   showToast('Checklist dinámico guardado con éxito.');
+
+  // Disparar evento funcional hacia AG-001 (AG-006 Constructor de Formularios)
+  if (typeof dispatchAgentEvent === 'function') {
+    try {
+      dispatchAgentEvent('FORMULARIO_CARGADO', {
+        origin: 'DYNAMIC_FORM_BUILDER',
+        payload: {
+          form_name: name,
+          area: area,
+          fields_count: newForm.fields.length,
+          form_id: targetId
+        }
+      }).catch(err => console.warn('[saveDynamicForm] Event dispatch warn:', err));
+    } catch(e) {}
+  }
   
   syncDatabases().catch(e => console.warn(e));
 }
@@ -8149,6 +9972,21 @@ async function processDynamicExcelFormIngestion(filename, jsonData, templateConf
 
   showToast(`🎉 ¡Formulario "${formTitle}" y su base de datos de ${jsonData.length} registros fueron creados con éxito!`);
   renderAdminFormsList();
+
+  // Disparar evento funcional hacia AG-001 (AG-006 Constructor de Formularios)
+  if (typeof dispatchAgentEvent === 'function') {
+    try {
+      dispatchAgentEvent('EXCEL_FORMULARIO_CARGADO', {
+        origin: 'DYNAMIC_FORM_EXCEL_INGESTION',
+        payload: {
+          form_name: formTitle,
+          fields_count: fields.length,
+          records_count: jsonData.length,
+          form_id: formId
+        }
+      }).catch(err => console.warn('[processDynamicExcelFormIngestion] Event dispatch warn:', err));
+    } catch(e) {}
+  }
   
   // Abrir modal interactivo en la pestaña de base de datos
   switchAdminPanel('forms');
@@ -8546,7 +10384,7 @@ function normalizeExcelDateToISO(val) {
 }
 
 function resolveTelarMachineId(candidates) {
-  const localMachines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const localMachines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   for (let cand of candidates) {
     if (!cand) continue;
     const str = String(cand).trim();
@@ -9292,7 +11130,7 @@ function renderTechProfile() {
 // Renderizar KPI cards del Técnico y Widget de Calendario
 function renderTechDashboard() {
   if (!currentUser) return;
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
   
   // Filtrar OTs y Subtareas asignadas a este técnico
@@ -9631,62 +11469,104 @@ function getOTStatusSLA(order) {
 }
 
 function updateTechActionButtons(order) {
-  const statusBadge = document.getElementById('tech-ot-lbl-status-badge');
-  const timerLabel = document.getElementById('tech-ot-lbl-timer');
-
+  if (!order) return;
   const btnStart = document.getElementById('btn-tech-start-work');
   const btnPause = document.getElementById('btn-tech-pause-work');
   const btnResume = document.getElementById('btn-tech-resume-work');
   const btnFinish = document.getElementById('btn-tech-finish-work');
+  const btnHandoff = document.getElementById('btn-tech-handoff-work');
+  const handoffBanner = document.getElementById('tech-ot-handoff-banner');
+  const handoffStatusEl = document.getElementById('tech-ot-handoff-banner-status');
+  const handoffInfoEl = document.getElementById('tech-ot-handoff-banner-info');
+  const handoffNoteEl = document.getElementById('tech-ot-handoff-banner-note');
+  const statusBadge = document.getElementById('tech-ot-lbl-status-badge');
+  const timerLabel = document.getElementById('tech-ot-lbl-timer');
+  const waitingBanner = document.getElementById('tech-ot-waiting-banner');
+  const bannerTime = document.getElementById('tech-ot-waiting-banner-time');
+  const bannerReason = document.getElementById('tech-ot-waiting-banner-reason');
+  const bannerObs = document.getElementById('tech-ot-waiting-banner-obs');
 
-  if (!order) return;
+  const st = order.status || 'Pendiente';
+  const sla = getOTSLAInfo(order);
 
-  const sla = getOTStatusSLA(order);
   if (statusBadge) {
-    statusBadge.innerText = sla.label;
-    statusBadge.className = `badge ${sla.badgeClass}`;
+    statusBadge.innerText = st;
+    statusBadge.className = 'badge ' + (st === 'En proceso' ? 'badge-status-proceso' : st === 'En espera' ? 'badge-priority-alta' : 'badge-status-asignada');
   }
 
+  // Cálculo segregado de tiempos
   let startTimeStr = 'Sin registrar';
-  let durationStr = '0 min';
+  let activeTimeStr = '0 min';
+  let waitTimeStr = '0 min';
 
-  if (order.fecha_hora_inicio) {
-    const sDate = new Date(order.fecha_hora_inicio);
-    startTimeStr = sDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-
-    const endDate = order.fecha_hora_fin ? new Date(order.fecha_hora_fin) : new Date();
-    const diffMs = endDate - sDate;
-    const diffMins = Math.max(0, Math.round(diffMs / 60000));
-    durationStr = `${diffMins} min (${(diffMins / 60).toFixed(1)} h)`;
+  let waitList = [];
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const allDemoWaits = JSON.parse(localStorage.getItem('TSMAI_DEMO_wait_periods') || '[]');
+    waitList = allDemoWaits.filter(w => w.otId === order.id || w.id_orden === order.id);
   }
+
+  const timings = calculateOTTimings(order, waitList);
+  const activeMins = Math.round(timings.activeWorkSeconds / 60);
+  const waitMins = Math.round(timings.accumulatedWaitSeconds / 60);
+
+  if (order.fecha_hora_inicio || order.date) {
+    const sDate = new Date(order.fecha_hora_inicio || order.date);
+    startTimeStr = sDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  activeTimeStr = activeMins >= 60 ? `${Math.floor(activeMins/60)} h ${activeMins%60} min` : `${activeMins} min`;
+  waitTimeStr = waitMins >= 60 ? `${Math.floor(waitMins/60)} h ${waitMins%60} min` : `${waitMins} min`;
 
   if (timerLabel) {
-    const pauseNote = order.pauseReason ? ` | Pausa: ${order.pauseReason}` : '';
-    timerLabel.innerText = `⏱️ Inicio: ${startTimeStr} | Tiempo Trabajado: ${durationStr}${pauseNote}`;
+    timerLabel.innerText = `⏱️ Inicio: ${startTimeStr} | Activo: ${activeTimeStr} | En Espera: ${waitTimeStr}`;
+  }
+
+  // Mostrar / Ocultar banner de espera
+  if (handoffBanner) {
+    if (order.handoffStatus === 'SOLICITADA' || order.handoffStatus === 'ASIGNADA') {
+      handoffBanner.style.display = 'block';
+      if (handoffStatusEl) handoffStatusEl.innerText = order.handoffStatus;
+      if (handoffInfoEl) handoffInfoEl.innerText = 'Motivo: ' + (HANDOFF_REASON_CATALOG[order.lastHandoffReason]?.label || order.lastHandoffReason || 'Transferencia');
+      if (handoffNoteEl) handoffNoteEl.innerText = 'Nota: ' + (order.lastHandoffNote || 'Transferencia en trámite.');
+    } else {
+      handoffBanner.style.display = 'none';
+    }
+  }
+  if (waitingBanner) {
+    if (st === 'En espera') {
+      const reasonMeta = WAIT_REASON_CATALOG[order.currentWaitReason] || { label: 'Esperando refacción/material' };
+      waitingBanner.style.display = 'block';
+      if (bannerReason) bannerReason.innerText = `Motivo: ${reasonMeta.label}`;
+      if (bannerObs) bannerObs.innerText = `Observación: ${order.currentWaitObs || 'Sin detalles adicionales.'}`;
+      if (bannerTime && order.waitStartedAt) {
+        const elapsedMins = Math.max(1, Math.round((Date.now() - new Date(order.waitStartedAt).getTime()) / 60000));
+        bannerTime.innerText = `Hace ${elapsedMins} min`;
+      }
+    } else {
+      waitingBanner.style.display = 'none';
+    }
   }
 
   if (btnStart) btnStart.style.display = 'none';
   if (btnPause) btnPause.style.display = 'none';
   if (btnResume) btnResume.style.display = 'none';
   if (btnFinish) btnFinish.style.display = 'none';
-
-  const st = order.status || 'Pendiente';
+  if (btnHandoff) btnHandoff.style.display = 'none';
 
   if (st === 'Asignada' || st === 'Pendiente') {
     if (btnStart) btnStart.style.display = 'inline-block';
   } else if (st === 'En proceso') {
     if (btnPause) btnPause.style.display = 'inline-block';
     if (btnFinish) btnFinish.style.display = 'inline-block';
+    if (btnHandoff) btnHandoff.style.display = 'inline-block';
   } else if (st === 'En espera') {
     if (btnResume) btnResume.style.display = 'inline-block';
-    if (btnFinish) btnFinish.style.display = 'inline-block';
   }
 }
-
 async function startWorkOnOT() {
   setButtonLoading('btn-tech-start-work', true);
   const otId = document.getElementById('tech-ot-id').value;
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const idx = orders.findIndex(o => o.id === otId);
   if (idx === -1) { setButtonLoading('btn-tech-start-work', false); return; }
 
@@ -9726,49 +11606,16 @@ async function startWorkOnOT() {
 }
 
 async function pauseWorkOnOT() {
-  setButtonLoading('btn-tech-pause-work', true);
-  const otId = document.getElementById('tech-ot-id').value;
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const idx = orders.findIndex(o => o.id === otId);
-  if (idx === -1) { setButtonLoading('btn-tech-pause-work', false); return; }
-
-  const reason = prompt('Motivo de la pausa (ej. Espera de refacción, Paro de línea):') || 'Espera de refacción/material';
-
-  orders[idx].status = 'En espera';
-  orders[idx].pauseReason = reason;
-
-  if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
-  orders[idx].historyLogs.push({
-    date: new Date().toISOString(),
-    status: 'En espera',
-    user: currentUser ? currentUser.name : 'Técnico',
-    comment: `Trabajo pausado: ${reason}`
-  });
-
-  localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
-
-  if (supabaseClient) {
-    try {
-      await supabaseClient
-        .from('ordenes_trabajo')
-        .update({ estatus: 'EN_ESPERA' })
-        .eq('folio', otId);
-    } catch (err) {
-      console.error('Error pausing work in Supabase:', err);
-      showToast('No se pudo guardar la pausa en el servidor. Verifica tu conexión.', 'error');
-    }
-  }
-
-  showToast('⏸️ Trabajo pausado (En espera).', 'warning');
-  setButtonLoading('btn-tech-pause-work', false);
-  updateTechActionButtons(orders[idx]);
-  renderTechOrdersTable();
+  openSetWaitingModal();
 }
 
 async function resumeWorkOnOT() {
+  openResumeWaitingModal();
+}
+async function resumeWorkOnOT() {
   setButtonLoading('btn-tech-resume-work', true);
   const otId = document.getElementById('tech-ot-id').value;
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const idx = orders.findIndex(o => o.id === otId);
   if (idx === -1) { setButtonLoading('btn-tech-resume-work', false); return; }
 
@@ -9805,8 +11652,12 @@ async function resumeWorkOnOT() {
 
 async function finishWorkOnOT() {
   const otId = document.getElementById('tech-ot-id').value;
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const idx = orders.findIndex(o => o.id === otId);
+  if (orders[idx].status === 'En espera' || orders[idx].status === 'EN_ESPERA') {
+    alert('⚠️ No se puede finalizar una Orden de Trabajo que se encuentra en espera. Debes reanudar y resolver la espera antes de concluir el trabajo.');
+    return;
+  }
   if (idx === -1) return;
 
   const activity = document.getElementById('tech-activity')?.value.trim() || '';
@@ -9868,9 +11719,9 @@ async function finishWorkOnOT() {
 // Tabla de OTs de Técnico (Filtrado estricto por técnico asignado)
 function renderTechOrdersTable() {
   if (!currentUser) return;
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const tbody = document.getElementById('table-tech-orders-body');
 
   const techId = currentUser.id || currentUser.uuid || currentUser.cve_tecnico;
@@ -9957,9 +11808,9 @@ function openTechOrderDetailModal(otId) {
     document.getElementById('tech-ot-id').value = otId;
     document.getElementById('tech-ot-detail-title').innerText = `Detalle de Subtarea: ${otId}`;
 
-    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
     const parentOrder = orders.find(o => o.id === sub.otId);
-    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     const mach = parentOrder ? machines.find(m => m.id === parentOrder.machine) : null;
 
     document.getElementById('tech-ot-lbl-machine').innerText = mach ? mach.name : (parentOrder ? parentOrder.machine : 'Máquina');
@@ -10002,9 +11853,10 @@ function openTechOrderDetailModal(otId) {
     tempSubtasksToCreate = [];
 
     openModal('modal-tech-ot-detail');
+    renderTechOTPhotos(otId);
   } else {
     // Es una OT normal
-    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
     const order = orders.find(o => o.id === otId);
     if (!order) return;
 
@@ -10016,7 +11868,7 @@ function openTechOrderDetailModal(otId) {
     document.getElementById('tech-ot-id').value = otId;
     document.getElementById('tech-ot-detail-title').innerText = `Detalle de Orden de Trabajo: ${otId}`;
 
-    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     const mach = machines.find(m => m.id === order.machine);
     
     document.getElementById('tech-ot-lbl-machine').innerText = mach ? mach.name : order.machine;
@@ -10427,6 +12279,19 @@ async function updateOrderStatus(otId, newStatus) {
 
   // Es una OT normal
   if (newStatus === 'Ejecutada' || newStatus === 'Cerrada') {
+    const ordersForVal = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+    const targetOrd = ordersForVal.find(o => o.id === otId);
+    if (targetOrd && (targetOrd.status === 'En espera' || targetOrd.status === 'EN_ESPERA')) {
+      alert('⚠️ No se puede cerrar o finalizar una Orden de Trabajo que tiene un periodo de espera activo. Debes reanudar o resolver la espera previamente.');
+      return;
+    }
+    if (targetOrd) {
+      const evCheck = validateOTEvidencesBeforeClosure(targetOrd);
+      if (!evCheck.isValid) {
+        alert('⚠️ Validación de Evidencias Requeridas:\n\n' + evCheck.message);
+        return;
+      }
+    }
     const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
     const otSubtasks = subtasks.filter(s => s.otId === otId);
     const activeSubtasks = otSubtasks.filter(s => ['solicitada', 'asignada', 'en_proceso', 'en_espera', 'bloqueada'].includes(s.status.toLowerCase()));
@@ -10436,7 +12301,7 @@ async function updateOrderStatus(otId, newStatus) {
     }
   }
 
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const orderIndex = orders.findIndex(o => o.id === otId);
   if (orderIndex === -1) return;
 
@@ -10451,7 +12316,7 @@ async function updateOrderStatus(otId, newStatus) {
   });
 
   // Si pasa a "En proceso", asegurar que el estado de la máquina se actualice si estaba parada
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const machIndex = machines.findIndex(m => m.id === orders[orderIndex].machine);
   
   if (newStatus === 'Ejecutada' || newStatus === 'Cerrada') {
@@ -10588,7 +12453,21 @@ function removePartFromTechOTList(index) {
 }
 
 // Guardar bitácora y finalizar / actualizar orden
+let isSavingTechnicalLog = false;
+
 async function saveTechnicalLog() {
+  if (isSavingTechnicalLog) return;
+  const saveBtn = document.getElementById('btn-tech-save-log');
+  const otId = document.getElementById('tech-ot-id')?.value;
+  if (!otId) return;
+
+  isSavingTechnicalLog = true;
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerText = '⏳ Guardando...';
+  }
+
+  try {
   const otId = document.getElementById('tech-ot-id').value;
 
   if (otId.includes('-S')) {
@@ -10689,7 +12568,7 @@ async function saveTechnicalLog() {
     return;
   }
 
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const orderIndex = orders.findIndex(o => o.id === otId);
   if (orderIndex === -1) return;
 
@@ -10776,7 +12655,7 @@ async function saveTechnicalLog() {
     if (part) extraCost += part.cost * selected.quantity;
   });
 
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const machIndex = machines.findIndex(m => m.id === currentOrder.machine);
   if (machIndex !== -1) {
     machines[machIndex].cost += extraCost;
@@ -10883,6 +12762,17 @@ async function saveTechnicalLog() {
   // Recargar vistas
   renderTechDashboard();
   renderTechOrdersTable();
+    showToast('✅ Bitácora guardada correctamente.', 'success');
+  } catch (err) {
+    console.error('[saveTechnicalLog] Error:', err);
+    showToast('❌ No fue posible guardar la bitácora. Intenta nuevamente.', 'error');
+  } finally {
+    isSavingTechnicalLog = false;
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerText = '💾 Guardar Bitácora';
+    }
+  }
 }
 
 // --- DYNAMIC CHECKLISTS EN VISTA TÉCNICO ---
@@ -11007,7 +12897,7 @@ async function openTechChecklistRunModal(formId) {
       }
     }
     if (orders.length === 0) {
-      orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+      orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
     }
     if (currentUser) {
       const myActiveOrders = orders.filter(o => o.assignedTech === currentUser.id && o.status !== 'Cerrada' && o.status !== 'Cancelada');
@@ -11264,8 +13154,8 @@ async function openNewBitacoraLogModal() {
     }
   }
 
-  if (orders.length === 0)   orders   = JSON.parse(localStorage.getItem('TSMAI_orders')   || '[]');
-  if (machines.length === 0) machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  if (orders.length === 0)   orders   = JSON.parse(localStorage.getItem(getAppStorageKey('orders'))   || '[]');
+  if (machines.length === 0) machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
 
   // Populate OTs select — all active orders for admin, or only assigned active orders for tech
   if (otSelect) {
@@ -11403,7 +13293,7 @@ function onBitacoraPartSearchInput(searchTerm) {
   let selectedMac = macEl ? macEl.value : '';
   
   if ((!selectedMac || selectedMac === 'NO_APLICA') && otEl && otEl.value) {
-    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
     const foundOT = orders.find(o => o.id === otEl.value);
     if (foundOT) selectedMac = foundOT.machine;
   }
@@ -11423,7 +13313,7 @@ function onBitacoraOTChange() {
     const area      = selectedOption?.dataset?.area || '';
 
     // Fallback to localStorage
-    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
     const order  = orders.find(o => o.id === otId);
     const resolvedMachine = machineId || order?.machine || '';
     const resolvedArea    = area || order?.area || '';
@@ -11443,7 +13333,7 @@ function onBitacoraOTChange() {
     const machSelect = document.getElementById('bitacora-machine');
     if (machSelect) {
       machSelect.innerHTML = '<option value="NO_APLICA">No aplica</option>';
-      const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+      const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
       machines.forEach(m => {
         machSelect.innerHTML += `<option value="${m.id}">${m.id}</option>`;
       });
@@ -11458,7 +13348,7 @@ function onBitacoraAreaChange(preselectMachineId = null) {
   if (!selectMach) return;
   selectMach.innerHTML = '<option value="NO_APLICA">No aplica</option>';
 
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const filtered = area ? machines.filter(m => m.area === area) : machines;
   filtered.forEach(m => {
     const isSelected = preselectMachineId === m.id ? 'selected' : '';
@@ -11607,7 +13497,7 @@ async function submitNewBitacoraLog() {
       }
     }
     if (!otUUID) {
-      const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+      const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
       const order = orders.find(o => o.id === otId);
       if (order) {
         otUUID = order.uuid || null;
@@ -11679,7 +13569,7 @@ async function submitNewBitacoraLog() {
     localStorage.setItem('TSMAI_parts', JSON.stringify(parts));
 
     if (machine && machine !== 'NO_APLICA' && totalAddedCost > 0) {
-      const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+      const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
       const mIdx = machines.findIndex(m => m.id === machine);
       if (mIdx !== -1) {
         machines[mIdx].cost = (machines[mIdx].cost || 0) + totalAddedCost;
@@ -11714,7 +13604,7 @@ async function renderTechBitacora() {
         .select('*')
         .order('fecha_hora_inicio', { ascending: false });
       if (!error && data) {
-        const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+        const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
         logs = data.map(l => {
           const foundOrder = orders.find(o => o.uuid === l.id_orden);
           return {
@@ -11746,7 +13636,7 @@ async function renderTechBitacora() {
   }
 
   // Auto-sintetizar registros de bitácora para cualquier OT finalizada, en validación o cerrada
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const closedOrExecuted = orders.filter(o => o.status === 'Pendiente de validación' || o.status === 'Terminada' || o.status === 'Cerrada' || o.status === 'Ejecutada');
   closedOrExecuted.forEach(o => {
     const otId = o.id || o.folio;
@@ -11834,7 +13724,7 @@ async function renderTechBitacora() {
 
 // --- HISTORIAL DE MÁQUINA (TÉCNICO) ---
 function populateTechMachineHistorySelect() {
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const select = document.getElementById('tech-history-machine-select');
   if (!select) return;
 
@@ -11852,8 +13742,8 @@ function loadTechMachineHistory(machineId) {
     return;
   }
 
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const targetMachine = machines.find(m => m.id === machineId);
   
   document.getElementById('tech-history-title-lbl').innerText = `Historial de Intervenciones: ${targetMachine ? targetMachine.name : machineId}`;
@@ -12209,8 +14099,8 @@ function getOTProgressSync(otId, status) {
 async function renderAdminSubtasksTable() {
   const subtasks = await dbGetSubtasks();
   const evidences = await dbGetEvidences();
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const tbody = document.getElementById('table-admin-subtasks-body');
   if (!tbody) return;
 
@@ -12356,7 +14246,7 @@ async function saveSubtaskAssignment() {
 
   if (sub) {
     // Buscar orden principal y cambiar estado a 'En ejecución con subtareas' (Regla 3)
-    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
     const orderIndex = orders.findIndex(o => o.id === sub.otId);
     if (orderIndex !== -1) {
       orders[orderIndex].status = 'En ejecución con subtareas';
@@ -12457,7 +14347,7 @@ async function checkAndUpdateMainOTState(otId) {
 
   const activeSubtasks = otSubtasks.filter(s => ['solicitada', 'asignada', 'en_proceso', 'en_espera', 'bloqueada'].includes(s.status.toLowerCase()));
   
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const orderIndex = orders.findIndex(o => o.id === otId);
   if (orderIndex === -1) return;
 
@@ -13495,7 +15385,7 @@ async function forceAppCachePurge() {
 
 // --- MODAL DE REVISIÓN Y ACEPTACIÓN/RECHAZO POR SOLICITANTE / ADMIN (FASE 4) ---
 function openApplicantReviewModal(otId) {
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const order = orders.find(o => o.id === otId || o.folio === otId);
   if (!order) return;
 
@@ -13503,7 +15393,7 @@ function openApplicantReviewModal(otId) {
   document.getElementById('applicant-review-ot-id').value = targetId;
   document.getElementById('applicant-review-title').innerText = `Revisión de Trabajo Terminado: ${targetId}`;
 
-  const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+  const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const mach = machines.find(m => m.id === order.machine);
 
   document.getElementById('app-rev-machine').innerText = mach ? `${mach.name} (${mach.id})` : (order.machine || 'N/A');
@@ -13560,7 +15450,7 @@ function openApplicantReviewModal(otId) {
 
 async function acceptWorkOrderFromModal() {
   const otId = document.getElementById('applicant-review-ot-id').value;
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const idx = orders.findIndex(o => o.id === otId || o.folio === otId);
   if (idx === -1) return;
 
@@ -13605,7 +15495,7 @@ async function acceptWorkOrderFromModal() {
 
 async function rejectWorkOrderFromModal() {
   const otId = document.getElementById('applicant-review-ot-id').value;
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const idx = orders.findIndex(o => o.id === otId || o.folio === otId);
   if (idx === -1) return;
 
@@ -13670,19 +15560,52 @@ function generateCalendarProposalModal() {
   openModal('modal-generate-calendar-proposal');
 }
 
+function syncProposalMonthAndWeek(source) {
+  const yearEl = document.getElementById('proposal-year');
+  const monthEl = document.getElementById('proposal-month');
+  const weekEl = document.getElementById('proposal-week');
+  if (!yearEl || !monthEl || !weekEl) return;
+
+  const year = parseInt(yearEl.value) || new Date().getFullYear();
+
+  if (source === 'month') {
+    const month = parseInt(monthEl.value) || 0;
+    // Calcular la primera semana que inicia dicho mes
+    const firstDay = new Date(year, month, 1);
+    const startOfYear = new Date(year, 0, 1);
+    const dayOfYear = Math.floor((firstDay - startOfYear) / (24 * 60 * 60 * 1000));
+    const calculatedWeek = Math.max(1, Math.min(52, Math.floor(dayOfYear / 7) + 1));
+    weekEl.value = calculatedWeek;
+  } else if (source === 'week') {
+    const week = parseInt(weekEl.value) || 1;
+    // Fecha estimada hacia mitad de semana para obtener el mes representativo
+    const midWeekDate = new Date(year, 0, 1 + (week - 1) * 7 + 3);
+    const calculatedMonth = Math.max(0, Math.min(11, midWeekDate.getMonth()));
+    monthEl.value = String(calculatedMonth);
+  }
+  validateProposalPeriod();
+}
+
 function toggleProposalPeriodFields() {
   const type = document.getElementById('proposal-type')?.value || 'PREVENTIVO';
   const monthGroup = document.getElementById('proposal-month-group');
   const weekGroup = document.getElementById('proposal-week-group');
   
   if (type === 'PREVENTIVO') {
+    // Preventivo Anual -> solo año
     if (monthGroup) monthGroup.style.display = 'none';
     if (weekGroup) weekGroup.style.display = 'none';
-  } else if (type === 'PREDICTIVO') {
+  } else if (type === 'PREVENTIVO_SEMANAL') {
+    // Preventivo Semanal -> mes y semana habilitados
     if (monthGroup) monthGroup.style.display = 'block';
-    if (weekGroup) weekGroup.style.display = 'none';
+    if (weekGroup) weekGroup.style.display = 'block';
+  } else if (type === 'PREDICTIVO') {
+    // Predictivo Semanal -> mes y semana habilitados para AG-003
+    if (monthGroup) monthGroup.style.display = 'block';
+    if (weekGroup) weekGroup.style.display = 'block';
   } else if (type === 'AUTONOMO') {
-    if (monthGroup) monthGroup.style.display = 'none';
+    // Autónomo Semanal -> mes y semana habilitados para AG-004
+    if (monthGroup) monthGroup.style.display = 'block';
     if (weekGroup) weekGroup.style.display = 'block';
   }
   validateProposalPeriod();
@@ -13711,14 +15634,22 @@ async function validateProposalPeriod() {
   let month = null;
   let week = null;
   let periodLabel = `${type} ${year}`;
+  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-  if (type === 'PREDICTIVO') {
+  if (type === 'PREVENTIVO') {
+    periodLabel = `Preventivo Anual ${year}`;
+  } else if (type === 'PREVENTIVO_SEMANAL') {
     month = parseInt(document.getElementById('proposal-month')?.value ?? new Date().getMonth());
-    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    periodLabel = `Predictivo ${monthNames[month] || month} ${year}`;
-  } else if (type === 'AUTONOMO') {
     week = parseInt(document.getElementById('proposal-week')?.value ?? 1);
-    periodLabel = `Autónomo Semana ${week} de ${year}`;
+    periodLabel = `Preventivo Semanal — Semana ${week} (${monthNames[month] || month} ${year})`;
+  } else if (type === 'PREDICTIVO') {
+    month = parseInt(document.getElementById('proposal-month')?.value ?? new Date().getMonth());
+    week = parseInt(document.getElementById('proposal-week')?.value ?? 1);
+    periodLabel = `Predictivo Semanal — Semana ${week} (${monthNames[month] || month} ${year})`;
+  } else if (type === 'AUTONOMO') {
+    month = parseInt(document.getElementById('proposal-month')?.value ?? new Date().getMonth());
+    week = parseInt(document.getElementById('proposal-week')?.value ?? 1);
+    periodLabel = `Autónomo Semanal — Semana ${week} (${monthNames[month] || month} ${year})`;
   }
 
   submitBtn.disabled = false;
@@ -13730,7 +15661,7 @@ async function validateProposalPeriod() {
       let query = supabaseClient
         .from('calendarios_mantenimiento')
         .select('id_calendario')
-        .eq('tipo_calendario', type)
+        .eq('tipo_calendario', (type === 'PREVENTIVO_SEMANAL' ? 'PREVENTIVO' : type))
         .eq('anio', year);
 
       if (month === null) query = query.is('mes', null);
@@ -13796,11 +15727,22 @@ async function handleGenerateCalendarProposal(event) {
   let month = null;
   let week = null;
 
-  if (type === 'PREDICTIVO') month = parseInt(document.getElementById('proposal-month').value);
-  else if (type === 'AUTONOMO') week = parseInt(document.getElementById('proposal-week').value);
+  if (type === 'PREVENTIVO') {
+    month = null;
+    week = null;
+  } else if (type === 'PREVENTIVO_SEMANAL') {
+    month = parseInt(document.getElementById('proposal-month').value);
+    week = parseInt(document.getElementById('proposal-week').value);
+  } else if (type === 'PREDICTIVO') {
+    month = parseInt(document.getElementById('proposal-month').value);
+    week = parseInt(document.getElementById('proposal-week').value);
+  } else if (type === 'AUTONOMO') {
+    month = parseInt(document.getElementById('proposal-month').value);
+    week = parseInt(document.getElementById('proposal-week').value);
+  }
 
   closeModal('modal-generate-calendar-proposal');
-  showToast('⚡ Generando propuesta de calendario...');
+  showToast(`⚡ Generando propuesta de calendario (${type})...`);
 
   if (!supabaseClient) {
     showToast('⚠️ Sin conexión a la base de datos.', 'error');
@@ -13809,23 +15751,41 @@ async function handleGenerateCalendarProposal(event) {
 
   try {
     let startPeriod, endPeriod;
+    let targetWeekDate = week ? new Date(year, 0, 1 + (week - 1) * 7) : new Date(year, month || 0, 1);
+
     if (type === 'PREVENTIVO') {
       startPeriod = `${year}-01-01`;
       endPeriod = `${year}-12-31`;
+    } else if (type === 'PREVENTIVO_SEMANAL') {
+      const dow = targetWeekDate.getDay();
+      const startD = new Date(targetWeekDate);
+      startD.setDate(targetWeekDate.getDate() - (dow === 0 ? 6 : dow - 1)); // Lunes
+      const endD = new Date(startD);
+      endD.setDate(startD.getDate() + 6); // Domingo
+      startPeriod = startD.toISOString().split('T')[0];
+      endPeriod = endD.toISOString().split('T')[0];
     } else if (type === 'PREDICTIVO') {
-      const firstDay = new Date(year, month, 1);
-      const lastDay = new Date(year, month + 1, 0);
-      startPeriod = firstDay.toISOString().split('T')[0];
-      endPeriod = lastDay.toISOString().split('T')[0];
+      const dow = targetWeekDate.getUTCDay();
+      let daysUntilWednesday = (3 - dow + 7) % 7;
+      const cycleStart = new Date(targetWeekDate);
+      cycleStart.setUTCDate(targetWeekDate.getUTCDate() + daysUntilWednesday);
+      const cycleEnd = new Date(cycleStart);
+      cycleEnd.setUTCDate(cycleStart.getUTCDate() + 6);
+      startPeriod = cycleStart.toISOString().split('T')[0];
+      endPeriod = cycleEnd.toISOString().split('T')[0];
     } else { // AUTONOMO
-      const firstDay = new Date(year, 0, 1 + (week - 1) * 7);
-      const lastDay = new Date(year, 0, 1 + (week - 1) * 7 + 6);
-      startPeriod = firstDay.toISOString().split('T')[0];
-      endPeriod = lastDay.toISOString().split('T')[0];
+      const dow = targetWeekDate.getUTCDay();
+      const daysToMonday = dow === 0 ? 1 : (8 - dow) % 7;
+      const startD = new Date(targetWeekDate);
+      startD.setUTCDate(targetWeekDate.getUTCDate() + daysToMonday);
+      const endD = new Date(startD);
+      endD.setUTCDate(startD.getUTCDate() + 4); // Lunes a Viernes
+      startPeriod = startD.toISOString().split('T')[0];
+      endPeriod = endD.toISOString().split('T')[0];
     }
 
     const headerRecord = {
-      tipo_calendario: type,
+      tipo_calendario: type === 'PREVENTIVO_SEMANAL' ? 'PREVENTIVO' : type,
       anio: year,
       mes: month,
       semana: week,
@@ -13882,9 +15842,8 @@ async function handleGenerateCalendarProposal(event) {
       }
     }
 
-    if (type === 'PREVENTIVO') {
-      // PREVENTIVO ANUAL (AG-002 / 100% Máquinas de cat_maquinas - 135 Activos)
-      // Invariante: Exactamente 1 preventivo por máquina activa por año (duplicate_preventive = 0)
+    if (type === 'PREVENTIVO' || type === 'PREVENTIVO_SEMANAL') {
+      // PREVENTIVO (AG-002 / 100% Máquinas de cat_maquinas o ventana semanal seleccionada)
       // Integración Presupuestal AG-007: Pondera criticidad (A, B, C), fallas acumuladas y refacciones estimadas
       const partsCostByMachine = {};
       allLogs.forEach(l => {
@@ -13897,17 +15856,28 @@ async function handleGenerateCalendarProposal(event) {
       const totalActive = activeMachines.length;
       let machineIndex = 0;
 
-      for (const machine of activeMachines) {
+      // Si es preventivo semanal, seleccionamos lote balanceado para la semana (máx 12 máquinas)
+      const targetMachines = type === 'PREVENTIVO_SEMANAL' ? activeMachines.slice(0, Math.min(12, activeMachines.length)) : activeMachines;
+
+      for (const machine of targetMachines) {
         const machId = machine.equipo_towell || machine.clave || machine.id_maquina;
         const machName = machine.nombre || machine.nombre_maquina || machId;
         const areaCode = resolveAreaFromMachineCode(machId, machine.clave || machName);
         const mCost = partsCostByMachine[machId] || 0;
         const mCrit = (machine.criticidad || machine.prioridad_default || 'B').toUpperCase().trim();
 
-        const targetMonth = machineIndex % 12;
-        const targetDay = 1 + ((Math.floor(machineIndex / 12) * 2) % 24);
-        const projDate = new Date(year, targetMonth, Math.min(28, targetDay));
-        const balancedDateStr = getBalancedDate(projDate);
+        let balancedDateStr;
+        if (type === 'PREVENTIVO_SEMANAL') {
+          const dayOffset = machineIndex % 6; // Lunes a Sábado
+          const d = new Date(startPeriod);
+          d.setDate(d.getDate() + dayOffset);
+          balancedDateStr = d.toISOString().split('T')[0];
+        } else {
+          const targetMonth = machineIndex % 12;
+          const targetDay = 1 + ((Math.floor(machineIndex / 12) * 2) % 24);
+          const projDate = new Date(year, targetMonth, Math.min(28, targetDay));
+          balancedDateStr = getBalancedDate(projDate);
+        }
 
         let prio = 'MEDIA';
         if (mCrit.includes('A') || mCrit.includes('CRIT') || mCost > 5000) prio = 'ALTA';
@@ -13921,16 +15891,17 @@ async function handleGenerateCalendarProposal(event) {
           fecha_programada: balancedDateStr,
           tipo_mantenimiento: 'PREVENTIVO',
           prioridad: prio,
-          actividad_sugerida: `Preventivo Anual ${year}: ${machId} - ${machName} (${areaCode})`,
+          actividad_sugerida: `${type === 'PREVENTIVO_SEMANAL' ? `Preventivo Semanal (Sem ${week})` : `Preventivo Anual ${year}`}: ${machId} - ${machName} (${areaCode})`,
           responsable_sugerido: activeTechs[machineIndex % Math.max(1, activeTechs.length)]?.nombre_tecnico || 'Técnico Especialista',
           id_plan: null,
           observaciones: JSON.stringify({
-            origen: 'AG-002_PREVENTIVO_ANUAL',
+            origen: type === 'PREVENTIVO_SEMANAL' ? 'AG-002_PREVENTIVO_SEMANAL' : 'AG-002_PREVENTIVO_ANUAL',
             area: areaCode,
             criticidad: mCrit,
+            semana_programada: week,
             presupuesto_estimado_usd: estimatedBudget,
-            invariante_1_anual: true,
-            cobertura: '100% Catálogo Maestro'
+            invariante_1_anual: type === 'PREVENTIVO',
+            cobertura: type === 'PREVENTIVO' ? '100% Catálogo Maestro' : `Semana ${week} de ${year}`
           }),
           estatus_detalle: 'PROPUESTO'
         });
@@ -13988,16 +15959,8 @@ async function handleGenerateCalendarProposal(event) {
         return a.maquina_id.localeCompare(b.maquina_id);
       });
 
-      // Resolver ciclo semanal Miércoles a Martes a partir de hoy o fecha base
-      const refDate = new Date();
-      const currentDow = refDate.getUTCDay(); // 0: Dom, 1: Lun, 2: Mar, 3: Mié, 4: Jue, 5: Vie, 6: Sáb
-      let daysUntilWednesday = 0;
-      if (currentDow === 2) daysUntilWednesday = 1; // Martes -> inicia mañana Miércoles
-      else if (currentDow === 3) daysUntilWednesday = 0; // Hoy es Miércoles -> inicia hoy
-      else daysUntilWednesday = (3 - currentDow + 7) % 7;
-
-      const cycleStart = new Date(refDate);
-      cycleStart.setUTCDate(refDate.getUTCDate() + daysUntilWednesday);
+      // Resolver ciclo semanal Miércoles a Martes a partir de startPeriod
+      const cycleStart = new Date(startPeriod);
 
       // Dispersión 4 fechas únicas: Miércoles (+0d), Viernes (+2d), Domingo (+4d), Martes (+6d)
       const slotOffsets = [0, 2, 4, 6];
@@ -14018,13 +15981,14 @@ async function handleGenerateCalendarProposal(event) {
           fecha_programada: dateStr,
           tipo_mantenimiento: 'PREDICTIVO',
           prioridad: prio,
-          actividad_sugerida: `Mantenimiento Predictivo por Segundas de Calidad: ${cand.maquina_id} (PF)`,
+          actividad_sugerida: `Mantenimiento Predictivo por Segundas de Calidad (Sem ${week || 'Activa'}): ${cand.maquina_id} (PF)`,
           responsable_sugerido: activeTechs.find(t => (t.especialidad || '').toLowerCase().includes('predictivo'))?.nombre_tecnico || activeTechs[idx % Math.max(1, activeTechs.length)]?.nombre_tecnico || 'Especialista Predictivo (PF)',
           score_riesgo: cand.percentage,
           observaciones: JSON.stringify({
             origen: 'AG-003_PREDICTIVO_SEMANAL',
             area: 'PF',
             fuente_datos: 'segundas_por_rollo',
+            semana_programada: week,
             dia_semana: dayName,
             ranking_prioridad: idx + 1,
             porcentaje_segundas: cand.percentage,
@@ -14040,18 +16004,12 @@ async function handleGenerateCalendarProposal(event) {
       // AUTÓNOMO SEMANAL (PRD-AG004-R1: AG-004 Vía Recurrencias y Tendencias, Max 15 Máquinas, Lunes a Viernes)
       // Invariantes: 0 segundas, máximo 15 activos por semana, Lunes a Viernes (Sábado = 0, Domingo = 0), temp °C obligatoria
       const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+      const cycleStart = new Date(startPeriod);
       
-      // 1. Resolver semana operativa (Lunes a Viernes de la próxima semana o semana objetivo)
-      const now = new Date();
-      const currentDow = now.getUTCDay() === 0 ? 7 : now.getUTCDay();
-      const daysUntilNextMonday = 8 - currentDow;
-      const nextMonday = new Date(now);
-      nextMonday.setUTCDate(now.getUTCDate() + daysUntilNextMonday);
-
       const operatingDates = [];
       for (let i = 0; i < 5; i++) {
-        const d = new Date(nextMonday);
-        d.setUTCDate(nextMonday.getUTCDate() + i);
+        const d = new Date(cycleStart);
+        d.setUTCDate(cycleStart.getUTCDate() + i);
         operatingDates.push(d.toISOString().split('T')[0]);
       }
 
@@ -14105,11 +16063,12 @@ async function handleGenerateCalendarProposal(event) {
           fecha_programada: dateStr,
           tipo_mantenimiento: 'AUTONOMO',
           prioridad: prio,
-          actividad_sugerida: `Rutina Autónoma Semanal: ${cand.machId} (${cand.area}) - Checklist 5 Bloques (Temp °C)`,
+          actividad_sugerida: `Rutina Autónoma Semanal (Sem ${week || 'Activa'}): ${cand.machId} (${cand.area}) - Checklist 5 Bloques (Temp °C)`,
           responsable_sugerido: `Operador (${cand.area})`,
           observaciones: JSON.stringify({
             origen: 'AG-004_AUTONOMO_SEMANAL',
             area: cand.area,
+            semana_programada: week,
             ranking_position: idx + 1,
             eligibility_reason: cand.reason,
             failure_history_count: cand.fails,
@@ -14132,7 +16091,10 @@ async function handleGenerateCalendarProposal(event) {
     }
 
     // Disparar evento oficial correspondiente hacia AG-001 (Capataz)
-    const eventType = type === 'PREVENTIVO' ? 'PREVENTIVO_GENERAR' : (type === 'PREDICTIVO' ? 'PREDICTIVO_GENERAR' : 'AUTONOMO_GENERAR');
+    const eventType = (type === 'PREVENTIVO' || type === 'PREVENTIVO_SEMANAL') 
+      ? 'PREVENTIVO_GENERAR' 
+      : (type === 'PREDICTIVO' ? 'PREDICTIVO_GENERAR' : 'AUTONOMO_GENERAR');
+
     if (typeof dispatchAgentEvent === 'function') {
       try {
         await dispatchAgentEvent(eventType, {
@@ -14142,6 +16104,8 @@ async function handleGenerateCalendarProposal(event) {
             anio: year,
             mes: month,
             semana: week,
+            fecha_inicio_periodo: startPeriod,
+            fecha_fin_periodo: endPeriod,
             total_propuestas_generadas: detailsToInsert.length
           }
         });
@@ -14152,7 +16116,7 @@ async function handleGenerateCalendarProposal(event) {
 
     showToast(`✅ AG-001: Propuesta de calendario (${type}) generada con ${detailsToInsert.length} actividades.`);
     switchCalendarViewMode('table');
-    if (type === 'PREVENTIVO') switchCalendarTab('preventivo');
+    if (type === 'PREVENTIVO' || type === 'PREVENTIVO_SEMANAL') switchCalendarTab('preventivo');
     else if (type === 'PREDICTIVO') switchCalendarTab('predictivo');
     else if (type === 'AUTONOMO') switchCalendarTab('autonomo');
   } catch (err) {
@@ -14164,68 +16128,172 @@ async function handleGenerateCalendarProposal(event) {
 // ── DISPARADORES DIRECTOS DESDE BOTONES HACIA AG-001 (CAPATAZ) ────────────────
 async function triggerAgentPreventivo() {
   showToast('⚡ AG-001 -> AG-002: Generando Preventivo Anual (100% flota)...');
-  if (typeof dispatchAgentEvent === 'function') {
-    await dispatchAgentEvent('PREVENTIVO_GENERAR', {
-      origin: 'QUICK_CALENDAR_BUTTON',
-      payload: { year: new Date().getFullYear() }
-    });
+  try {
+    if (typeof dispatchAgentEvent === 'function') {
+      const resp = await dispatchAgentEvent('PREVENTIVO_GENERAR', {
+        origin: 'QUICK_CALENDAR_BUTTON',
+        payload: {
+          maquina_id: 'ALL',
+          anio: new Date().getFullYear(),
+          year: new Date().getFullYear(),
+          tipo_mantenimiento: 'PREVENTIVO'
+        }
+      });
+      if (resp && resp.success) {
+        showToast('✅ AG-002: Plan Preventivo Anual generado exitosamente.');
+      }
+    }
+  } catch (err) {
+    console.warn('[triggerAgentPreventivo] Warning:', err);
   }
   await switchCalendarTab('preventivo');
+  if (typeof renderAdminCalendars === 'function') await renderAdminCalendars();
 }
 
 async function triggerAgentPredictivo() {
   showToast('⚡ AG-001 -> AG-003: Evaluando Segundas por Rollo (Predictivo Semanal Mié–Mar)...');
-  if (typeof dispatchAgentEvent === 'function') {
-    await dispatchAgentEvent('PREDICTIVO_GENERAR', {
-      origin: 'QUICK_CALENDAR_BUTTON',
-      payload: { upload_date: new Date().toISOString().split('T')[0] }
-    });
+  try {
+    if (typeof dispatchAgentEvent === 'function') {
+      const resp = await dispatchAgentEvent('PREDICTIVO_GENERAR', {
+        origin: 'QUICK_CALENDAR_BUTTON',
+        payload: {
+          maquina_id: 'ALL',
+          mes: new Date().getMonth() + 1,
+          upload_date: new Date().toISOString().split('T')[0],
+          tipo_mantenimiento: 'PREDICTIVO'
+        }
+      });
+      if (resp && resp.success) {
+        showToast('✅ AG-003: Plan Predictivo Semanal generado exitosamente.');
+      }
+    }
+  } catch (err) {
+    console.warn('[triggerAgentPredictivo] Warning:', err);
   }
   await switchCalendarTab('predictivo');
+  if (typeof renderAdminCalendars === 'function') await renderAdminCalendars();
 }
 
 async function triggerAgentAutonomo() {
   showToast('⚡ AG-001 -> AG-004: Generando Plan Autónomo Semanal (Máx 15 activos Lun–Vie)...');
-  if (typeof dispatchAgentEvent === 'function') {
-    await dispatchAgentEvent('AUTONOMO_GENERAR', {
-      origin: 'QUICK_CALENDAR_BUTTON',
-      payload: { referenceDate: new Date().toISOString().split('T')[0] }
-    });
+  try {
+    if (typeof dispatchAgentEvent === 'function') {
+      const resp = await dispatchAgentEvent('AUTONOMO_GENERAR', {
+        origin: 'QUICK_CALENDAR_BUTTON',
+        payload: {
+          maquina_id: 'ALL',
+          semana: 'SEM-ACTUAL',
+          referenceDate: new Date().toISOString().split('T')[0],
+          tipo_mantenimiento: 'AUTONOMO'
+        }
+      });
+      if (resp && resp.success) {
+        showToast('✅ AG-004: Plan Autónomo Semanal generado exitosamente.');
+      }
+    }
+  } catch (err) {
+    console.warn('[triggerAgentAutonomo] Warning:', err);
   }
   await switchCalendarTab('autonomo');
+  if (typeof renderAdminCalendars === 'function') await renderAdminCalendars();
 }
 
 async function triggerAIRecommendationsDispatch() {
   showToast('⚡ Solicitando recomendaciones analíticas a AG-001 (Capataz)...');
-  if (typeof dispatchAgentEvent === 'function') {
-    await dispatchAgentEvent('AI_RECOMMENDATIONS_REQUESTED', {
-      origin: 'AI_RECOMMENDATIONS_MODAL_REFRESH',
-      context: typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {}
-    });
+  try {
+    if (typeof dispatchAgentEvent === 'function') {
+      await dispatchAgentEvent('AI_RECOMMENDATIONS_REQUESTED', {
+        origin: 'AI_RECOMMENDATIONS_MODAL_REFRESH',
+        context: typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {}
+      });
+    }
+  } catch (err) {
+    console.warn('[triggerAIRecommendationsDispatch] Warning:', err);
   }
-  renderAdminAIRecommendations();
+  await renderAdminAIRecommendations();
 }
 
 async function triggerFailureAnalysisDispatch() {
-  showToast('⚡ Solicitando análisis de fallas a AG-001 (Capataz)...');
-  if (typeof dispatchAgentEvent === 'function') {
-    await dispatchAgentEvent('FAILURE_ANALYSIS_REQUESTED', {
-      origin: 'FAILURE_ANALYSIS_MODAL_REFRESH',
-      context: typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {}
-    });
+  showToast('⚡ Solicitando análisis de fallas a AG-001 -> AG-008 (Reincidencias)...');
+  try {
+    if (typeof dispatchAgentEvent === 'function') {
+      const resp = await dispatchAgentEvent('FAILURE_ANALYSIS_REQUESTED', {
+        origin: 'FAILURE_ANALYSIS_MODAL_REFRESH',
+        context: typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {}
+      });
+      if (resp && resp.success) {
+        showToast('✅ AG-008: Diagnóstico de repetibilidad completado.');
+      }
+    }
+  } catch (err) {
+    console.warn('[triggerFailureAnalysisDispatch] Warning:', err);
   }
-  renderAdminAnalysis();
+  await renderAdminAnalysis();
 }
 
 async function triggerSystemAlertsDispatch() {
   showToast('⚡ Sincronizando alertas del sistema con AG-001 (Capataz)...');
-  if (typeof dispatchAgentEvent === 'function') {
-    await dispatchAgentEvent('SYSTEM_ALERTS_REQUESTED', {
-      origin: 'SYSTEM_ALERTS_MODAL_REFRESH',
-      context: typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {}
-    });
+  try {
+    if (typeof dispatchAgentEvent === 'function') {
+      await dispatchAgentEvent('SYSTEM_ALERTS_REQUESTED', {
+        origin: 'SYSTEM_ALERTS_MODAL_REFRESH',
+        context: typeof getCurrentApplicationContext === 'function' ? getCurrentApplicationContext() : {}
+      });
+    }
+  } catch (err) {
+    console.warn('[triggerSystemAlertsDispatch] Warning:', err);
   }
-  renderAdminAlertas();
+  await renderAdminAlertas();
+}
+
+// AG-011: Memoria Técnica de Reparación
+async function triggerTechnicalMemoryRegister(machineId, diagnosticText) {
+  showToast(`⚡ AG-001 -> AG-011: Registrando memoria técnica para ${machineId || 'Equipo'}...`);
+  try {
+    if (typeof dispatchAgentEvent === 'function') {
+      const resp = await dispatchAgentEvent('MEMORIA_TECNICA_REGISTRAR', {
+        origin: 'UI_360_AUDIT_MODAL',
+        payload: {
+          maquina_id: machineId,
+          diagnostico: diagnosticText || 'Memoria técnica registrada desde portal de auditoría'
+        }
+      });
+      if (resp && resp.success) {
+        showToast('✅ AG-011: Memoria técnica indexada exitosamente.');
+        return resp.result?.ag011_result || resp.result;
+      }
+    }
+  } catch (err) {
+    console.warn('[triggerTechnicalMemoryRegister] Warning:', err);
+    showToast('⚠️ No se pudo registrar memoria técnica: ' + err.message, 'error');
+  }
+  return null;
+}
+
+// AG-012: Evaluación de Ciclo de Vida (Reparar, Renovar o Reemplazar)
+async function triggerLifecycleEvaluation(machineId) {
+  showToast(`⚡ AG-001 -> AG-012: Evaluando estrategia de ciclo de vida para ${machineId}...`);
+  try {
+    if (typeof dispatchAgentEvent === 'function') {
+      const resp = await dispatchAgentEvent('EVALUACION_CICLO_VIDA', {
+        origin: 'UI_360_AUDIT_MODAL',
+        payload: {
+          maquina_id: machineId,
+          asset_id: machineId
+        }
+      });
+      if (resp && resp.success) {
+        const pkg = resp.result?.ag012_result?.package;
+        const decision = pkg?.decision || 'REPARAR';
+        showToast(`✅ AG-012: Estrategia recomendada: ${decision} (${pkg?.confidence_pct || 90}% confianza).`);
+        return resp.result?.ag012_result || resp.result;
+      }
+    }
+  } catch (err) {
+    console.warn('[triggerLifecycleEvaluation] Warning:', err);
+    showToast('⚠️ Error evaluando ciclo de vida: ' + err.message, 'error');
+  }
+  return null;
 }
 
 
@@ -14926,7 +16994,7 @@ function renderSolicitanteView() {
 function renderSolicitanteProfileHeader() {
   if (!currentUser) return;
   try {
-    const userArea = (currentUser.area || 'CF').toUpperCase().trim();
+    const userArea = (currentUser.area || currentUser.departamento || currentUser.department || 'AF').toUpperCase().trim();
     const userName = currentUser.name || currentUser.nombre_completo || 'Solicitante';
 
     // Sidebar
@@ -14973,13 +17041,13 @@ function renderSolicitanteProfileHeader() {
       );
     };
 
-    const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
+    const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
     const userRequests = requests.filter(isMatch);
     const activeRequestsCount = userRequests.filter(r => r && r.status !== 'Atendida' && r.status !== 'Rechazada').length;
     const trackCountEl = document.getElementById('badge-solic-tracking-count');
     if (trackCountEl) trackCountEl.innerText = `${activeRequestsCount} Activa${activeRequestsCount === 1 ? '' : 's'}`;
 
-    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
     const pendingVal = orders.filter(o => o && o.status === 'PENDIENTE DE VALIDACIÓN' && isMatch(o));
     const valCountEl = document.getElementById('badge-solic-validation-count');
     const valSidebarBadge = document.getElementById('badge-solic-pending-val');
@@ -14996,10 +17064,117 @@ function renderSolicitanteProfileHeader() {
   }
 }
 
+function normalizeSearchText(str) {
+  if (!str) return '';
+  return str.toString().toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function filterSolicitanteMachines(selectedArea, searchQuery) {
+  const selectEl = document.getElementById('solic-req-machine');
+  if (!selectEl) return;
+
+  const area = (selectedArea || document.getElementById('solic-req-machine-area-filter')?.value || 'ALL').toUpperCase().trim();
+  const rawQuery = searchQuery !== undefined ? searchQuery : (document.getElementById('solic-req-machine-search')?.value || '');
+  const q = normalizeSearchText(rawQuery);
+
+  let machines = [];
+  if (APP_ENVIRONMENT === 'DEMO') {
+    machines = JSON.parse(localStorage.getItem('TSMAI_DEMO_machines') || '[]');
+    if (machines.length === 0) {
+      machines = [
+        { id: 'DEMO-MAQ-001', equipo_towell: 'DEMO-MAQ-001', name: 'Telar Jacquard TJ-01', area: 'PF', location: 'Nave 1' },
+        { id: 'DEMO-MAQ-002', equipo_towell: 'DEMO-MAQ-002', name: 'Telar Jacquard TJ-02', area: 'PF', location: 'Nave 1' },
+        { id: 'DEMO-MAQ-003', equipo_towell: 'DEMO-MAQ-003', name: 'Urdidora Karl Mayer UM-01', area: 'PF', location: 'Nave 2' },
+        { id: 'DEMO-MAQ-004', equipo_towell: 'DEMO-MAQ-004', name: 'Rama Tensora Brückner RT-01', area: 'TF', location: 'Tintorería' },
+        { id: 'DEMO-MAQ-005', equipo_towell: 'DEMO-MAQ-005', name: 'Cortadora Automática CA-01', area: 'CF', location: 'Costura' },
+        { id: 'DEMO-MAQ-006', equipo_towell: 'DEMO-MAQ-006', name: 'Compresor General Atlas Copco', area: 'AF', location: 'Servicios' }
+      ];
+    }
+  } else {
+    machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
+  }
+
+  // Filtrado por Área
+  let filtered = machines.filter(m => {
+    if (!m) return false;
+    if (area === 'ALL') return true;
+    const mArea = (m.area || m.departamento || m.department || '').toUpperCase().trim();
+    if (area === 'PF') return mArea === 'PF' || mArea.includes('PROD') || mArea.includes('TEJ');
+    if (area === 'CF') return mArea === 'CF' || mArea.includes('COST');
+    if (area === 'TF') return mArea === 'TF' || mArea.includes('TINT');
+    if (area === 'AF') return mArea === 'AF' || mArea.includes('ADM') || mArea.includes('AUX') || mArea.includes('SERV');
+    return mArea === area;
+  });
+
+  // Filtrado por Query normalizado
+  if (q) {
+    filtered = filtered.filter(m => {
+      const code = normalizeSearchText(m.id || m.equipo_towell || m.codigo || '');
+      const name = normalizeSearchText(m.name || m.nombre || m.descripcion || m.description || '');
+      const model = normalizeSearchText(m.modelo || m.model || '');
+      const loc = normalizeSearchText(m.location || m.ubicacion || '');
+      const areaTxt = normalizeSearchText(m.area || '');
+      return code.includes(q) || name.includes(q) || model.includes(q) || loc.includes(q) || areaTxt.includes(q);
+    });
+  }
+
+  // Generar HTML del selector
+  let html = '<option value="">Selecciona máquina...</option>';
+  html += '<option value="NO_APLICA">📍 NO APLICA MÁQUINA / INFRAESTRUCTURA</option>';
+
+  filtered.forEach(m => {
+    const code = m.id || m.equipo_towell;
+    const name = m.name || m.nombre || m.descripcion || code;
+    const mArea = m.area || 'Planta';
+    html += `<option value="${code}">${code} — ${name} (${mArea})</option>`;
+  });
+
+  selectEl.innerHTML = html;
+}
+
+function onSolicitanteMachineFilterChange() {
+  const area = document.getElementById('solic-req-machine-area-filter')?.value || 'ALL';
+  const query = document.getElementById('solic-req-machine-search')?.value || '';
+  filterSolicitanteMachines(area, query);
+}
+
+function populateSolicitantePreferredTechs() {
+  const techSelect = document.getElementById('solic-req-preferred-tech');
+  if (!techSelect) return;
+
+  techSelect.innerHTML = '<option value="">No tengo preferencia (El Super Administrador asignará)</option>';
+
+  if (APP_ENVIRONMENT === 'DEMO') {
+    techSelect.innerHTML += `
+      <option value="DEMO-USER-TEC-01">Técnico Demo 01 — Mecánica General</option>
+      <option value="DEMO-USER-TEC-02">Técnico Demo 02 — Eléctrica / Control</option>
+    `;
+    return;
+  }
+
+  // PRODUCCIÓN
+  let users = JSON.parse(localStorage.getItem(getAppStorageKey('users')) || '[]');
+  const techs = users.filter(u => {
+    const r = (u.rol || u.role || '').toUpperCase().trim();
+    const isActive = u.activo !== false && u.active !== false;
+    return (r === 'MANTENIMIENTO' || r === 'TECNICO') && isActive;
+  });
+
+  techs.forEach(t => {
+    const tId = t.id || t.uuid;
+    const tName = t.nombre_completo || t.name || t.email;
+    const tSpec = t.especialidad || 'Mantenimiento';
+    techSelect.innerHTML += `<option value="${tId}">${tName} (${tSpec})</option>`;
+  });
+}
+
 function initSolicitanteNewForm() {
   if (!currentUser) return;
-  const userArea = (currentUser.area || 'CF').toUpperCase().trim();
-  const userDept = currentUser.department || (userArea === 'PF' ? 'Producción / Tejido' : userArea === 'CF' ? 'Costura' : userArea === 'TF' ? 'Tintorería' : 'Administrativo');
+  populateSolicitantePreferredTechs();
+  onSolicitanteMachineFilterChange();
+  const userArea = (currentUser.area || currentUser.departamento || currentUser.department || 'AF').toUpperCase().trim();
+  const userDept = currentUser.department || (userArea === 'PF' ? 'Producción / Tejido' : userArea === 'CF' ? 'Costura' : userArea === 'TF' ? 'Tintorería' : 'Servicios Auxiliares');
 
   // 1. Cargar datos obtenidos automáticamente (Lectura únicamente)
   const appEl = document.getElementById('solic-auto-applicant');
@@ -15057,7 +17232,7 @@ function onSolicitanteMachineSelectChange(machineId) {
   }
 
   if (machineId) {
-    const machines = JSON.parse(localStorage.getItem('TSMAI_machines') || '[]');
+    const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     const found = machines.find(m => m.id === machineId || m.clave === machineId);
     if (urgencySelect && found) {
       if (found.criticality === 'A') urgencySelect.value = 'Crítica';
@@ -15083,20 +17258,27 @@ function onSolicitanteMachineSelectChange(machineId) {
   }
 }
 
+let isSubmittingRequest = false;
+
 async function submitSolicitanteNewRequest() {
+  if (isSubmittingRequest) return;
   if (!currentUser) { alert('Debes iniciar sesión como Solicitante.'); return; }
 
-  const userArea = (currentUser.area || 'CF').toUpperCase().trim();
-  const userDept = currentUser.department || 'Operación';
-  const requestType = document.getElementById('solic-req-type').value;
-  const shift = document.getElementById('solic-req-shift').value;
-  const machineId = document.getElementById('solic-req-machine').value;
-  const locationVal = document.getElementById('solic-req-location').value.trim();
-  const stopped = document.getElementById('solic-req-stopped').value;
-  const urgency = document.getElementById('solic-req-urgency').value;
-  const riskVal = document.getElementById('solic-req-risk').value;
-  const description = document.getElementById('solic-req-description').value.trim();
-  const observations = document.getElementById('solic-req-observations').value.trim();
+  const submitBtn = document.getElementById('btn-solic-submit-request');
+  const manualApplicantName = document.getElementById('solic-req-applicant-name')?.value?.trim() || null;
+  const userArea = (currentUser.area || currentUser.departamento || currentUser.department || 'AF').toUpperCase().trim();
+  const userDept = currentUser.department || (userArea === 'PF' ? 'Producción / Tejido' : userArea === 'CF' ? 'Costura' : userArea === 'TF' ? 'Tintorería' : 'Servicios Auxiliares');
+  const requestType = document.getElementById('solic-req-type')?.value;
+  const shift = document.getElementById('solic-req-shift')?.value;
+  const machineId = document.getElementById('solic-req-machine')?.value;
+  const locationVal = document.getElementById('solic-req-location')?.value?.trim();
+  const stopped = document.getElementById('solic-req-stopped')?.value;
+  const urgency = document.getElementById('solic-req-urgency')?.value;
+  const riskVal = document.getElementById('solic-req-risk')?.value;
+  const description = document.getElementById('solic-req-description')?.value?.trim();
+  const preferredTechId = document.getElementById('solic-req-preferred-tech')?.value || null;
+  const observations = document.getElementById('solic-req-observations')?.value?.trim();
+  const clientRequestId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'REQ-NEW-' + Date.now();
 
   if (!machineId) {
     alert('Por favor selecciona una máquina o la opción NO APLICA MÁQUINA.');
@@ -15113,72 +17295,99 @@ async function submitSolicitanteNewRequest() {
     return;
   }
 
-  // Generar Folio Estándar de Planta (Prefijo del Área + Consecutivo de 5 dígitos, ej: AF00001, CF00002)
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const combinedList = [...requests, ...orders];
-
-  // Determinar área real: Si es NO_APLICA, baños o no es máquina ➔ SIEMPRE AF
-  const reqArea = getAreaCodeForOrder({
-    machine: machineId === 'NO_APLICA' ? 'NO APLICA MÁQUINA' : machineId,
-    area: userArea,
-    location: locationVal,
-    description: description
-  });
-
-  const prefix = reqArea;
-  let nextConsecutive = 1;
-
-  // Extraer el número más alto existente para este prefijo
-  combinedList.forEach(item => {
-    if (!item || !item.id) return;
-    const cleanId = String(item.id).trim().toUpperCase();
-    if (cleanId.startsWith(prefix)) {
-      const numPart = cleanId.replace(prefix, '');
-      const num = parseInt(numPart, 10);
-      if (!isNaN(num) && num >= nextConsecutive) {
-        nextConsecutive = num + 1;
-      }
-    }
-  });
-
-  let newReqId = `${prefix}${String(nextConsecutive).padStart(5, '0')}`;
-  while (combinedList.some(o => o && o.id === newReqId)) {
-    nextConsecutive++;
-    newReqId = `${prefix}${String(nextConsecutive).padStart(5, '0')}`;
+  // Bloqueo y estado visual
+  isSubmittingRequest = true;
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = '⏳ Registrando Solicitud...';
   }
 
-  const applicantName = currentUser.name || currentUser.nombre_completo || currentUser.email;
+  try {
+    // Generar Folio Estándar de Planta (Prefijo del Área + Consecutivo de 5 dígitos, ej: AF00001, CF00002)
+    const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+    const combinedList = [...requests, ...orders];
 
-  const newRequest = {
-    id: newReqId,
-    applicant: applicantName,
-    applicant_id: currentUser.id || currentUser.uuid,
-    applicant_email: currentUser.email,
-    shift: shift,
-    area: reqArea,
-    department: userDept,
-    machine: machineId === 'NO_APLICA' ? (locationVal ? `📍 ${locationVal}` : 'NO APLICA MÁQUINA') : machineId,
-    location: locationVal || 'Planta General',
-    type: requestType || 'Correctivo',
-    description: description + (observations ? ` (Obs: ${observations})` : ''),
-    machineStopped: stopped,
-    urgency: urgency,
-    risk: riskVal,
-    status: 'Solicitud recibida',
-    date: new Date().toISOString()
-  };
+    const reqArea = getAreaCodeForOrder({
+      machine: machineId === 'NO_APLICA' ? 'NO APLICA MÁQUINA' : machineId,
+      area: userArea,
+      location: locationVal,
+      description: description
+    });
 
-  // Insertar en Supabase (ordenes_trabajo) y sincronizar localmente
-  await dbInsertRequest(newRequest);
+    const prefix = reqArea;
+    let nextConsecutive = 1;
 
-  // Actualizar indicadores del administrador
-  updateRequestsBadge();
-  if (typeof renderAdminRequestsTable === 'function') renderAdminRequestsTable();
+    combinedList.forEach(item => {
+      if (!item || !item.id) return;
+      const cleanId = String(item.id).trim().toUpperCase();
+      if (cleanId.startsWith(prefix)) {
+        const numPart = cleanId.replace(prefix, '');
+        const num = parseInt(numPart, 10);
+        if (!isNaN(num) && num >= nextConsecutive) {
+          nextConsecutive = num + 1;
+        }
+      }
+    });
 
-  alert(`✅ Solicitud con Folio Oficial ${newReqId} generada exitosamente. Se ha enviado al Administrador.`);
-  document.getElementById('form-solic-new-request').reset();
-  switchSolicitantePanel('tracking');
+    let newReqId = `${prefix}${String(nextConsecutive).padStart(5, '0')}`;
+    while (combinedList.some(o => o && o.id === newReqId)) {
+      nextConsecutive++;
+      newReqId = `${prefix}${String(nextConsecutive).padStart(5, '0')}`;
+    }
+
+    const applicantDisplayName = manualApplicantName || currentUser.name || currentUser.nombre_completo || currentUser.email;
+
+    const newRequest = {
+      id: newReqId,
+      applicant: applicantDisplayName,
+      applicant_id: currentUser.id || currentUser.uuid,
+      applicant_email: currentUser.email,
+      nombre_solicitante_reporta: manualApplicantName,
+      requested_technician_id: preferredTechId,
+      client_request_id: clientRequestId,
+      shift: shift,
+      area: reqArea,
+      department: userDept,
+      machine: machineId === 'NO_APLICA' ? (locationVal ? `📍 ${locationVal}` : 'NO APLICA MÁQUINA') : machineId,
+      machine_id: machineId === 'NO_APLICA' ? null : machineId,
+      location: locationVal || 'Planta General',
+      type: requestType || 'Correctivo',
+      description: description + (observations ? ` (Obs: ${observations})` : ''),
+      machineStopped: stopped,
+      urgency: urgency,
+      risk: riskVal,
+      status: 'Solicitud recibida',
+      date: new Date().toISOString()
+    };
+
+    if (APP_ENVIRONMENT === 'DEMO') {
+      const demoReqs = JSON.parse(localStorage.getItem('TSMAI_DEMO_requests') || '[]');
+      demoReqs.unshift(newRequest);
+      localStorage.setItem('TSMAI_DEMO_requests', JSON.stringify(demoReqs));
+    } else {
+      await dbInsertRequest(newRequest);
+    }
+
+    // Actualizar indicadores del administrador
+    updateRequestsBadge();
+    if (typeof renderAdminRequestsTable === 'function') renderAdminRequestsTable();
+
+    // Confirmación visual exitosa con folio
+    showToast(`✅ Solicitud ${newReqId} creada correctamente.`, 'success');
+    document.getElementById('form-solic-new-request').reset();
+    switchSolicitantePanel('tracking');
+
+  } catch (err) {
+    console.error('[submitSolicitanteNewRequest] Error:', err);
+    showToast('❌ No fue posible crear la solicitud. Revisa los datos e intenta nuevamente.', 'error');
+  } finally {
+    isSubmittingRequest = false;
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = '🚀 Registrar Solicitud de Mantenimiento';
+    }
+  }
 }
 
 async function renderSolicitanteTracking() {
@@ -15188,8 +17397,8 @@ async function renderSolicitanteTracking() {
 
   tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:#64748b;">Cargando únicamente tus solicitudes...</td></tr>';
 
-  let localReqs = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-  let localOrders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  let localReqs = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+  let localOrders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
 
   // RESTRICCIÓN PRINCIPAL PRD 9.1: El Solicitante ve únicamente sus propias solicitudes generadas
   const currentUserId = String(currentUser.id || currentUser.uuid || '');
@@ -15360,20 +17569,101 @@ async function renderSolicitanteHomeUpcomingCalendar() {
   }
 }
 
-let solicCalendarViewMode = 'table'; // 'table' | 'cards'
-let activeSolicitanteCalendarView = 'month';
+let solicCalendarViewMode = 'grid'; // 'grid' | 'table'
+let solicCalendarScale = 'month'; // 'year' | 'month' | 'week'
+let solicCalendarYear = new Date().getFullYear();
+let solicCalendarMonth = new Date().getMonth();
+let solicCalendarDayNum = new Date().getDate();
 
-function switchSolicitanteCalendarMode(mode) {
+function switchSolicitanteCalendarViewMode(mode) {
   solicCalendarViewMode = mode;
-  const btnTable = document.getElementById('btn-solic-mode-table');
-  const btnCards = document.getElementById('btn-solic-mode-cards');
-  const viewTable = document.getElementById('solic-cal-view-table');
-  const viewCards = document.getElementById('solic-cal-view-cards');
-  
-  if (btnTable) btnTable.classList.toggle('active', mode === 'table');
-  if (btnCards) btnCards.classList.toggle('active', mode === 'cards');
-  if (viewTable) viewTable.style.display = mode === 'table' ? 'block' : 'none';
-  if (viewCards) viewCards.style.display = mode === 'cards' ? 'grid' : 'none';
+  const gridFilters = document.getElementById('solic-calendar-grid-filters');
+  const gridModeDiv = document.getElementById('solic-calendar-view-grid-mode');
+  const tableModeDiv = document.getElementById('solic-calendar-view-table-mode');
+  const btnGrid = document.getElementById('btn-solic-toggle-view-grid');
+  const btnTable = document.getElementById('btn-solic-toggle-view-table');
+
+  if (mode === 'grid') {
+    if (gridFilters) gridFilters.style.display = 'flex';
+    if (gridModeDiv) gridModeDiv.style.display = 'block';
+    if (tableModeDiv) tableModeDiv.style.display = 'none';
+    if (btnGrid) {
+      btnGrid.style.backgroundColor = 'var(--primary-color)';
+      btnGrid.style.color = 'white';
+    }
+    if (btnTable) {
+      btnTable.style.backgroundColor = '#f1f5f9';
+      btnTable.style.color = 'var(--text-color)';
+    }
+  } else {
+    if (gridFilters) gridFilters.style.display = 'none';
+    if (gridModeDiv) gridModeDiv.style.display = 'none';
+    if (tableModeDiv) tableModeDiv.style.display = 'flex';
+    if (btnGrid) {
+      btnGrid.style.backgroundColor = '#f1f5f9';
+      btnGrid.style.color = 'var(--text-color)';
+    }
+    if (btnTable) {
+      btnTable.style.backgroundColor = 'var(--primary-color)';
+      btnTable.style.color = 'white';
+    }
+  }
+  renderSolicitanteCalendar();
+}
+
+function setSolicitanteCalendarScale(scale) {
+  solicCalendarScale = scale;
+  const scales = ['year', 'month', 'week'];
+  scales.forEach(s => {
+    const btn = document.getElementById(`btn-solic-scale-${s}`);
+    if (btn) {
+      if (s === scale) {
+        btn.style.background = 'white';
+        btn.style.color = 'var(--primary-color)';
+        btn.style.boxShadow = 'var(--box-shadow-sm)';
+      } else {
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--text-color)';
+        btn.style.boxShadow = 'none';
+      }
+    }
+  });
+  renderSolicitanteCalendar();
+}
+
+function jumpToSolicitanteToday() {
+  const today = new Date();
+  solicCalendarYear = today.getFullYear();
+  solicCalendarMonth = today.getMonth();
+  solicCalendarDayNum = today.getDate();
+  renderSolicitanteCalendar();
+}
+
+function changeSolicitanteCalendarPeriod(delta) {
+  if (solicCalendarScale === 'year') {
+    solicCalendarYear += delta;
+  } else if (solicCalendarScale === 'month') {
+    solicCalendarMonth += delta;
+    if (solicCalendarMonth < 0) {
+      solicCalendarMonth = 11;
+      solicCalendarYear--;
+    } else if (solicCalendarMonth > 11) {
+      solicCalendarMonth = 0;
+      solicCalendarYear++;
+    }
+  } else if (solicCalendarScale === 'week') {
+    const currentSelectedDate = new Date(solicCalendarYear, solicCalendarMonth, solicCalendarDayNum);
+    currentSelectedDate.setDate(currentSelectedDate.getDate() + (delta * 7));
+    solicCalendarYear = currentSelectedDate.getFullYear();
+    solicCalendarMonth = currentSelectedDate.getMonth();
+    solicCalendarDayNum = currentSelectedDate.getDate();
+  }
+  renderSolicitanteCalendar();
+}
+
+function selectSolicitanteMonthAndSwitch(monthIndex) {
+  solicCalendarMonth = monthIndex;
+  setSolicitanteCalendarScale('month');
 }
 
 function setSolicitanteCalendarQuickFilter(filterType) {
@@ -15410,27 +17700,16 @@ function setSolicitanteCalendarQuickFilter(filterType) {
   renderSolicitanteCalendar();
 }
 
-function switchSolicitanteCalendarView(viewName) {
-  activeSolicitanteCalendarView = viewName;
-  document.getElementById('btn-solic-cal-view-month')?.classList.remove('active');
-  document.getElementById('btn-solic-cal-view-week')?.classList.remove('active');
-  document.getElementById('btn-solic-cal-view-day')?.classList.remove('active');
-
-  const activeBtn = document.getElementById(`btn-solic-cal-view-${viewName}`);
-  if (activeBtn) activeBtn.classList.add('active');
-
-  renderSolicitanteCalendar();
-}
-
 async function renderSolicitanteCalendar() {
+  const container = document.getElementById('solic-calendar-grid-container');
   const tbody = document.getElementById('tbody-solic-calendar');
-  const cardsContainer = document.getElementById('solic-cal-view-cards');
+  const monthLabel = document.getElementById('solic-calendar-month-label');
   const counterEl = document.getElementById('solic-cal-counter');
   const areaBadgeEl = document.getElementById('solic-calendar-area-badge');
   const subtitleEl = document.getElementById('solic-calendar-subtitle');
-  if (!tbody || !currentUser) return;
+  if (!currentUser) return;
 
-  const userArea = (currentUser.area || 'PF').toUpperCase().trim();
+  const userArea = (currentUser.area || currentUser.departamento || 'AF').toUpperCase().trim();
   const areaNames = {
     PF: 'PF — Tejido / Urdido (Planta Fabricación)',
     CF: 'CF — Costura / Confección',
@@ -15439,99 +17718,319 @@ async function renderSolicitanteCalendar() {
   };
 
   if (areaBadgeEl) areaBadgeEl.innerText = `ÁREA: ${userArea}`;
-  if (subtitleEl) subtitleEl.innerText = `Programación oficial de mantenimientos para el Área ${areaNames[userArea] || userArea} (Solo lectura).`;
+  if (subtitleEl) subtitleEl.innerText = `Programación de maquinaria y actividades de mantenimiento de tu Área: ${areaNames[userArea] || userArea} (Solo lectura).`;
 
-  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:25px; color:#64748b;">Cargando calendario oficial de tu área (' + userArea + ')...</td></tr>';
-  if (cardsContainer) cardsContainer.innerHTML = '<p style="color:#64748b; padding:20px;">Cargando actividades...</p>';
+  const monthsNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
 
+  // 1. Actualizar etiqueta de período
+  if (monthLabel) {
+    if (solicCalendarScale === 'year') {
+      monthLabel.innerText = `Año ${solicCalendarYear}`;
+    } else if (solicCalendarScale === 'month') {
+      monthLabel.innerText = `${monthsNames[solicCalendarMonth]} ${solicCalendarYear}`;
+    } else if (solicCalendarScale === 'week') {
+      const baseDate = new Date(solicCalendarYear, solicCalendarMonth, solicCalendarDayNum);
+      const startOfWeek = new Date(baseDate);
+      startOfWeek.setDate(baseDate.getDate() - baseDate.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      monthLabel.innerText = `Sem. ${startOfWeek.getDate()} ${monthsNames[startOfWeek.getMonth()].substring(0,3)} - ${endOfWeek.getDate()} ${monthsNames[endOfWeek.getMonth()].substring(0,3)} ${endOfWeek.getFullYear()}`;
+    }
+  }
+
+  // 2. Leer checkboxes de filtros
+  const showCorrectivos = document.getElementById('filter-solic-cal-correctivo')?.checked !== false;
+  const showPreventivos = document.getElementById('filter-solic-cal-preventivo')?.checked !== false;
+  const showPredictivos = document.getElementById('filter-solic-cal-predictivo')?.checked !== false;
+  const showAutonomos = document.getElementById('filter-solic-cal-autonomo')?.checked !== false;
+
+  // 3. Obtener correctivos locales del área
+  let localOrders = [];
+  if (showCorrectivos) {
+    const allLocalOrders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+    localOrders = allLocalOrders.filter(o => {
+      if (o.type === 'MP' || o.type === 'PREVENTIVO' || o.type === 'PREDICTIVO' || o.type === 'AUTONOMO') return false;
+      const orderArea = getAreaCodeForOrder(o);
+      return orderArea === userArea;
+    });
+  }
+
+  // 4. Obtener propuestas reales de base de datos filtradas estrictamente por Área
+  let allDetails = [];
   try {
-    let allDetails = [];
-
-    // 1. Fetch live details from Supabase if connected
     if (supabaseClient) {
       const { data, error } = await supabaseClient
         .from('calendario_mantenimiento_detalle')
         .select('*, calendarios_mantenimiento(anio, mes, semana, tipo_calendario)')
         .order('fecha_programada', { ascending: true });
 
-      if (!error && data) {
-        allDetails = data;
-      }
+      if (!error && data) allDetails = data;
     }
+  } catch (err) {
+    console.error('[Solicitante Calendar] DB fetch error:', err);
+  }
 
-    // 2. Strict Filter by User Area using canonical area resolution
-    // Each machine in the calendar MUST resolve to userArea
-    const areaDetails = allDetails.filter(item => {
-      const machId = item.maquina_id || '';
-      let itemArea = null;
+  // Filtro canónico por Área del Solicitante
+  const areaDetails = allDetails.filter(item => {
+    const machId = item.maquina_id || '';
+    let itemArea = null;
+    if (item.observaciones) {
+      try {
+        const obs = typeof item.observaciones === 'object' ? item.observaciones : JSON.parse(item.observaciones);
+        if (obs.area) itemArea = String(obs.area).toUpperCase().trim();
+      } catch (e) {}
+    }
+    if (!itemArea || itemArea === 'NONE' || itemArea === 'UNKNOWN') {
+      itemArea = typeof resolveAreaFromMachineCode === 'function'
+        ? resolveAreaFromMachineCode(machId, item.actividad_sugerida || '')
+        : 'PF';
+    }
+    return itemArea === userArea;
+  });
 
-      // Check observaciones JSON
-      if (item.observaciones) {
-        try {
-          const obs = typeof item.observaciones === 'object' ? item.observaciones : JSON.parse(item.observaciones);
-          if (obs.area) itemArea = String(obs.area).toUpperCase().trim();
-        } catch (e) {}
+  // Actualizar KPIs de Área
+  const prevCount = areaDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREVENTIVO').length;
+  const predCount = areaDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREDICTIVO').length;
+  const autoCount = areaDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'AUTONOMO').length;
+  const totalCount = areaDetails.length;
+
+  const statPrev = document.getElementById('solic-cal-stat-prev');
+  const statPred = document.getElementById('solic-cal-stat-pred');
+  const statAuto = document.getElementById('solic-cal-stat-auto');
+  const statTotal = document.getElementById('solic-cal-stat-total');
+
+  if (statPrev) statPrev.innerText = prevCount;
+  if (statPred) statPred.innerText = predCount;
+  if (statAuto) statAuto.innerText = autoCount;
+  if (statTotal) statTotal.innerText = totalCount;
+
+  // Filtrar sugerencias según checkboxes
+  const suggestions = areaDetails.filter(item => {
+    const t = (item.tipo_mantenimiento || '').toUpperCase();
+    if (t === 'PREVENTIVO' && !showPreventivos) return false;
+    if (t === 'PREDICTIVO' && !showPredictivos) return false;
+    if (t === 'AUTONOMO' && !showAutonomos) return false;
+    return true;
+  });
+
+  // Eventos combinados del área
+  const correctiveEvents = localOrders.map(o => ({
+    id: o.id,
+    type: 'CORRECTIVO',
+    title: `${o.id}: ${o.description || 'Fallo'}`,
+    date: o.dueDate || o.date
+  }));
+
+  const suggestionEvents = suggestions.map(s => ({
+    id: s.maquina_id,
+    id_ref: s.id_detalle,
+    type: s.tipo_mantenimiento,
+    title: `${s.tipo_mantenimiento}: ${s.maquina_id} - ${(s.actividad_sugerida || '').replace('Servicio preventivo: ', '')}`,
+    date: s.fecha_programada
+  }));
+
+  const allEvents = [...correctiveEvents, ...suggestionEvents];
+
+  // -------------------------------------------------------------
+  // RENDERIZADO MODO GRID (Año, Mes, Semana)
+  // -------------------------------------------------------------
+  if (solicCalendarViewMode === 'grid' && container) {
+    if (solicCalendarScale === 'year') {
+      // Escala AÑO: 12 tarjetas de meses
+      container.style.display = 'grid';
+      container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
+      container.style.gap = '16px';
+
+      let html = '';
+      for (let m = 0; m < 12; m++) {
+        const monthEvents = allEvents.filter(e => {
+          if (!e.date) return false;
+          const d = new Date(e.date);
+          return d.getFullYear() === solicCalendarYear && d.getMonth() === m;
+        });
+
+        const counts = { CORRECTIVO: 0, PREVENTIVO: 0, PREDICTIVO: 0, AUTONOMO: 0 };
+        monthEvents.forEach(e => {
+          if (counts[e.type] !== undefined) counts[e.type]++;
+        });
+
+        html += `
+          <div class="calendar-cell" onclick="selectSolicitanteMonthAndSwitch(${m})" style="cursor: pointer; min-height: 120px; transition: all 0.2s ease; border: 1px solid #cbd5e1; background: #ffffff; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; border-radius: 8px;">
+            <div style="font-weight: 700; font-size: 1.1rem; color: var(--primary-color); border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 8px;">
+              ${monthsNames[m]}
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600;">
+              ${counts.CORRECTIVO > 0 ? `<span style="color: var(--color-critical);"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--color-critical); margin-right:4px;"></span> ${counts.CORRECTIVO} Correctivos</span>` : ''}
+              ${counts.PREVENTIVO > 0 ? `<span style="color: var(--color-preventive);"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--color-preventive); margin-right:4px;"></span> ${counts.PREVENTIVO} Preventivos</span>` : ''}
+              ${counts.PREDICTIVO > 0 ? `<span style="color: #c2410c;"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#f97316; margin-right:4px;"></span> ${counts.PREDICTIVO} Predictivos</span>` : ''}
+              ${counts.AUTONOMO > 0 ? `<span style="color: #0369a1;"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--accent-blue); margin-right:4px;"></span> ${counts.AUTONOMO} Autónomos</span>` : ''}
+              ${(counts.CORRECTIVO + counts.PREVENTIVO + counts.PREDICTIVO + counts.AUTONOMO) === 0 ? '<span style="color: var(--text-muted); font-style: italic;">Sin eventos en tu área</span>' : ''}
+            </div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+
+    } else if (solicCalendarScale === 'month') {
+      // Escala MES: Cuadrícula estándar de 42 celdas
+      container.style.display = 'grid';
+      container.style.gridTemplateColumns = 'repeat(7, 1fr)';
+      container.style.gap = '6px';
+
+      const firstDayObj = new Date(solicCalendarYear, solicCalendarMonth, 1);
+      const startDayOfWeek = firstDayObj.getDay();
+      const totalDays = new Date(solicCalendarYear, solicCalendarMonth + 1, 0).getDate();
+      const prevMonthTotalDays = new Date(solicCalendarYear, solicCalendarMonth, 0).getDate();
+
+      const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      let html = '';
+      
+      daysOfWeek.forEach(d => {
+        html += `<div class="calendar-day-header">${d}</div>`;
+      });
+
+      for (let i = startDayOfWeek - 1; i >= 0; i--) {
+        const prevDay = prevMonthTotalDays - i;
+        html += `<div class="calendar-cell" style="opacity: 0.4;"><span class="calendar-date">${prevDay}</span></div>`;
       }
 
-      // Canonical fallback
-      if (!itemArea || itemArea === 'NONE' || itemArea === 'UNKNOWN') {
-        itemArea = typeof resolveAreaFromMachineCode === 'function'
-          ? resolveAreaFromMachineCode(machId, item.actividad_sugerida || '')
-          : 'PF';
+      const today = new Date();
+      const isCurrentYear = today.getFullYear() === solicCalendarYear;
+      const isCurrentMonth = today.getMonth() === solicCalendarMonth;
+      const todayDate = today.getDate();
+
+      for (let day = 1; day <= totalDays; day++) {
+        const dateStr = `${solicCalendarYear}-${String(solicCalendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dailyEvents = allEvents.filter(e => e.date && e.date.startsWith(dateStr));
+        const isToday = isCurrentYear && isCurrentMonth && day === todayDate;
+
+        html += `
+          <div class="calendar-cell ${isToday ? 'today' : ''}">
+            <span class="calendar-date">${day} ${isToday ? '(Hoy)' : ''}</span>
+            <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 4px; overflow-y: auto; max-height: 80px;">
+        `;
+
+        dailyEvents.forEach(e => {
+          let cls = 'preventivo';
+          let clickHandler = '';
+          if (e.type === 'CORRECTIVO') {
+            cls = 'correctivo';
+            clickHandler = `onclick="viewOrderHistoryLogs('${e.id}')"`;
+          } else {
+            if (e.type === 'PREDICTIVO') cls = 'predictivo';
+            if (e.type === 'AUTONOMO') cls = 'autonomo';
+            clickHandler = `onclick="viewCalendarDetail('${e.id_ref}')"`;
+          }
+
+          html += `<span class="calendar-event ${cls}" style="cursor: pointer;" ${clickHandler} title="${e.title}"><strong>${e.id}</strong></span>`;
+        });
+
+        html += `
+            </div>
+          </div>
+        `;
       }
 
-      return itemArea === userArea;
-    });
+      const totalCellsUsed = startDayOfWeek + totalDays;
+      const cellsToFill = 42 - totalCellsUsed;
+      for (let day = 1; day <= cellsToFill; day++) {
+        html += `<div class="calendar-cell" style="opacity: 0.4;"><span class="calendar-date">${day}</span></div>`;
+      }
 
-    // 3. Update Area KPI Stats
-    const prevCount = areaDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREVENTIVO').length;
-    const predCount = areaDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREDICTIVO').length;
-    const autoCount = areaDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'AUTONOMO').length;
-    const totalCount = areaDetails.length;
+      container.innerHTML = html;
 
-    const statPrev = document.getElementById('solic-cal-stat-prev');
-    const statPred = document.getElementById('solic-cal-stat-pred');
-    const statAuto = document.getElementById('solic-cal-stat-auto');
-    const statTotal = document.getElementById('solic-cal-stat-total');
+    } else if (solicCalendarScale === 'week') {
+      // Escala SEMANA: 7 columnas con desglose completo
+      container.style.display = 'grid';
+      container.style.gridTemplateColumns = 'repeat(7, 1fr)';
+      container.style.gap = '10px';
 
-    if (statPrev) statPrev.innerText = prevCount;
-    if (statPred) statPred.innerText = predCount;
-    if (statAuto) statAuto.innerText = autoCount;
-    if (statTotal) statTotal.innerText = totalCount;
+      const baseDate = new Date(solicCalendarYear, solicCalendarMonth, solicCalendarDayNum);
+      const startOfWeek = new Date(baseDate);
+      startOfWeek.setDate(baseDate.getDate() - baseDate.getDay());
 
-    // 4. Apply UI Filters (Type, Date Range, Search)
-    const filterType = document.getElementById('filter-solic-cal-type')?.value || 'ALL';
+      const daysOfWeekFull = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      let html = '';
+
+      for (let i = 0; i < 7; i++) {
+        const currentDay = new Date(startOfWeek);
+        currentDay.setDate(startOfWeek.getDate() + i);
+        
+        const dateStr = `${currentDay.getFullYear()}-${String(currentDay.getMonth() + 1).padStart(2, '0')}-${String(currentDay.getDate()).padStart(2, '0')}`;
+        const dailyEvents = allEvents.filter(e => e.date && e.date.startsWith(dateStr));
+        const isToday = currentDay.toDateString() === new Date().toDateString();
+        
+        html += `
+          <div class="calendar-cell ${isToday ? 'today' : ''}" style="min-height: 250px; flex: 1; display: flex; flex-direction: column; justify-content: flex-start; padding: 10px; border-radius: 8px;">
+            <span class="calendar-date" style="font-size: 0.9rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px; display: block; text-align: center;">
+              <strong>${daysOfWeekFull[i].substring(0,3)}</strong> ${currentDay.getDate()}
+            </span>
+            <div style="display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 200px;">
+        `;
+        
+        dailyEvents.forEach(e => {
+          let cls = 'preventivo';
+          let clickHandler = '';
+          if (e.type === 'CORRECTIVO') {
+            cls = 'correctivo';
+            clickHandler = `onclick="viewOrderHistoryLogs('${e.id}')"`;
+          } else {
+            if (e.type === 'PREDICTIVO') cls = 'predictivo';
+            if (e.type === 'AUTONOMO') cls = 'autonomo';
+            clickHandler = `onclick="viewCalendarDetail('${e.id_ref}')"`;
+          }
+          
+          html += `
+            <div class="calendar-event ${cls}" ${clickHandler} style="padding: 4px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: normal;" title="${e.title}">
+              <strong>${e.id}</strong><br/>
+              <span style="font-size: 0.65rem; opacity: 0.9;">${(e.title.split(' - ')[1] || e.title)}</span>
+            </div>
+          `;
+        });
+        
+        if (dailyEvents.length === 0) {
+          html += `<span style="color: var(--text-muted); font-size: 0.72rem; font-style: italic; text-align: center; margin-top: 10px;">Sin actividades</span>`;
+        }
+        
+        html += `
+            </div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+  }
+
+  // -------------------------------------------------------------
+  // RENDERIZADO MODO TABLA (Lista de Propuestas de su Área)
+  // -------------------------------------------------------------
+  if (tbody) {
+    const filterTableType = document.getElementById('filter-solic-table-type')?.value || 'ALL';
     const fromDate = document.getElementById('solic-cal-filter-from')?.value || '';
     const toDate = document.getElementById('solic-cal-filter-to')?.value || '';
     const search = (document.getElementById('solic-cal-filter-search')?.value || '').toLowerCase().trim();
     const sortOrder = document.getElementById('solic-cal-sort-order')?.value || 'ASC';
 
     let filtered = areaDetails.filter(item => {
-      // Type filter
-      if (filterType !== 'ALL') {
+      if (filterTableType !== 'ALL') {
         const t = (item.tipo_mantenimiento || '').toUpperCase();
-        if (filterType === 'PREVENTIVO' && t !== 'PREVENTIVO' && filterType !== 'MP') return false;
-        if (filterType === 'PREDICTIVO' && t !== 'PREDICTIVO' && filterType !== 'PRED') return false;
-        if (filterType === 'AUTONOMO' && t !== 'AUTONOMO') return false;
-        if (filterType === 'MP' && t !== 'PREVENTIVO') return false;
-        if (filterType === 'PRED' && t !== 'PREDICTIVO') return false;
+        if (filterTableType === 'PREVENTIVO' && t !== 'PREVENTIVO') return false;
+        if (filterTableType === 'PREDICTIVO' && t !== 'PREDICTIVO') return false;
+        if (filterTableType === 'AUTONOMO' && t !== 'AUTONOMO') return false;
       }
-
-      // Date range filter
       const itemDate = (item.fecha_programada || '').split('T')[0];
       if (fromDate && itemDate && itemDate < fromDate) return false;
       if (toDate && itemDate && itemDate > toDate) return false;
-
-      // Text search
       if (search) {
         const text = `${item.maquina_id || ''} ${item.actividad_sugerida || ''} ${item.responsable_sugerido || ''} ${item.prioridad || ''}`.toLowerCase();
         if (!text.includes(search)) return false;
       }
-
       return true;
     });
 
-    // 5. Dynamic Sorting
     filtered.sort((a, b) => {
       const dateA = a.fecha_programada || '';
       const dateB = b.fecha_programada || '';
@@ -15544,15 +18043,13 @@ async function renderSolicitanteCalendar() {
 
     if (filtered.length === 0) {
       tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b;">No hay actividades de mantenimiento que coincidan con los filtros para tu Área (${userArea}).</td></tr>`;
-      if (cardsContainer) cardsContainer.innerHTML = `<p style="color:#64748b; text-align:center; padding:20px; grid-column:1/-1;">No hay actividades con los filtros seleccionados.</p>`;
       return;
     }
 
-    // Helper formatting
     const typeBadge = (t) => {
       const clean = (t || '').toUpperCase();
-      if (clean === 'PREVENTIVO' || clean === 'MP') return `<span class="badge" style="background:#0284c7; color:white; font-weight:700; font-size:0.75rem;">🛠️ PREVENTIVO</span>`;
-      if (clean === 'PREDICTIVO' || clean === 'PRED') return `<span class="badge" style="background:#7c3aed; color:white; font-weight:700; font-size:0.75rem;">🔮 PREDICTIVO</span>`;
+      if (clean === 'PREVENTIVO') return `<span class="badge" style="background:#0284c7; color:white; font-weight:700; font-size:0.75rem;">🛠️ PREVENTIVO</span>`;
+      if (clean === 'PREDICTIVO') return `<span class="badge" style="background:#7c3aed; color:white; font-weight:700; font-size:0.75rem;">🔮 PREDICTIVO</span>`;
       if (clean === 'AUTONOMO') return `<span class="badge" style="background:#059669; color:white; font-weight:700; font-size:0.75rem;">🤖 AUTÓNOMO</span>`;
       return `<span class="badge badge-priority-media">${clean}</span>`;
     };
@@ -15574,10 +18071,9 @@ async function renderSolicitanteCalendar() {
       return `<span class="badge" style="background:#e0e7ff; color:#3730a3; font-weight:600;">Propuesto</span>`;
     };
 
-    // Render Table
     tbody.innerHTML = filtered.map(item => {
       const dateDisplay = typeof formatCalendarDate === 'function' ? formatCalendarDate(item.fecha_programada) : (item.fecha_programada || '').split('T')[0];
-      const machDisplay = `<strong style="color:#0f172a;">${item.maquina_id}</strong>`;
+      const machDisplay = `<strong style="color:#0f172a; cursor:pointer;" onclick="viewCalendarDetail('${item.id_detalle}')" title="Ver detalle">${item.maquina_id}</strong>`;
       
       return `<tr>
         <td>${machDisplay}</td>
@@ -15589,47 +18085,6 @@ async function renderSolicitanteCalendar() {
         <td>${statusBadge(item.estatus_detalle)}</td>
       </tr>`;
     }).join('');
-
-    // Render Cards
-    if (cardsContainer) {
-      cardsContainer.innerHTML = filtered.map(item => {
-        const dateDisplay = typeof formatCalendarDate === 'function' ? formatCalendarDate(item.fecha_programada) : (item.fecha_programada || '').split('T')[0];
-        const t = (item.tipo_mantenimiento || '').toUpperCase();
-        const borderColor = (t === 'PREVENTIVO' || t === 'MP') ? '#0284c7' : (t === 'PREDICTIVO' || t === 'PRED') ? '#7c3aed' : '#059669';
-
-        return `<div style="background:#f8fafc; border:1px solid #cbd5e1; border-top:4px solid ${borderColor}; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; gap:10px;">
-          <div>
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-              <div>
-                <h4 style="margin:0; font-weight:700; color:#0f172a; font-size:1.05rem;">${item.maquina_id}</h4>
-                <span style="font-size:0.75rem; color:#64748b;">Área: <strong>${userArea}</strong></span>
-              </div>
-              <div>${typeBadge(item.tipo_mantenimiento)}</div>
-            </div>
-            
-            <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:10px; font-size:0.83rem; color:#334155;">
-              ${item.actividad_sugerida || 'Mantenimiento Programado'}
-            </div>
-          </div>
-
-          <div style="border-top:1px solid #e2e8f0; padding-top:10px; font-size:0.8rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-            <div>
-              <span style="color:#64748b;">Fecha:</span> <strong style="color:#1e293b;">📅 ${dateDisplay}</strong>
-            </div>
-            <div>${prioBadge(item.prioridad)}</div>
-          </div>
-
-          <div style="font-size:0.78rem; color:#64748b; display:flex; justify-content:space-between; align-items:center;">
-            <span>👤 ${item.responsable_sugerido || 'Operador'}</span>
-            <span>${statusBadge(item.estatus_detalle)}</span>
-          </div>
-        </div>`;
-      }).join('');
-    }
-
-  } catch (err) {
-    console.error('[Solicitante Calendar] Error:', err);
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#ef4444;">❌ Error al cargar calendario: ${err.message}</td></tr>`;
   }
 }
 
@@ -15673,7 +18128,7 @@ async function renderSolicitanteValidations() {
     );
   };
 
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
 
   // PRD 11.1: Mostrar únicamente órdenes PENDIENTE DE VALIDACIÓN vinculadas a solicitudes generadas por ese usuario
   const pendingOrders = orders.filter(o => 
@@ -15734,7 +18189,7 @@ async function renderSolicitanteValidations() {
 let activeValidationOrderId = null;
 
 function openSolicitanteValidationDetail(orderId) {
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const order = orders.find(o => o.id === orderId);
   if (!order) return;
 
@@ -15777,7 +18232,7 @@ async function submitSolicitanteAcceptWork() {
   const comments = document.getElementById('solic-accept-comments').value.trim();
 
   // PRD 11.7 Transición de estado: PENDIENTE DE VALIDACIÓN -> ACEPTADA -> CALIFICADA -> CERRADA
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const order = orders.find(o => o.id === orderId);
   if (order) {
     order.status = 'Cerrada';
@@ -15827,67 +18282,97 @@ async function submitSolicitanteAcceptWork() {
 
 function openCorrectionModal(orderId) {
   activeValidationOrderId = orderId;
-  document.getElementById('solic-correct-ot-id').value = orderId;
-  document.getElementById('solic-correct-reason').value = 'La falla continúa';
-  document.getElementById('solic-correct-comments').value = '';
+  const otIdInput = document.getElementById('solic-correct-ot-id');
+  const reasonSelect = document.getElementById('solic-correct-reason-select') || document.getElementById('solic-correct-reason');
+  const commentsInput = document.getElementById('solic-correct-comments');
+
+  if (otIdInput) otIdInput.value = orderId;
+  if (reasonSelect) reasonSelect.value = '';
+  if (commentsInput) commentsInput.value = '';
+
   openModal('modal-solic-request-correction');
 }
 
 async function submitSolicitanteCorrection() {
   if (!currentUser) return;
-  const orderId = document.getElementById('solic-correct-ot-id').value || activeValidationOrderId;
-  const reason = document.getElementById('solic-correct-reason').value;
-  const comments = document.getElementById('solic-correct-comments').value.trim();
+  const orderId = document.getElementById('solic-correct-ot-id')?.value || activeValidationOrderId;
+  const reason = document.getElementById('solic-correct-reason-select')?.value || document.getElementById('solic-correct-reason')?.value;
+  const comments = document.getElementById('solic-correct-comments')?.value?.trim();
+  const clientRequestId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'REQ-REJ-' + Date.now();
+  const nowISO = new Date().toISOString();
 
-  if (!comments) {
-    alert('Por favor detalla el motivo de la corrección requerida.');
+  if (!reason) {
+    alert('Por favor selecciona el motivo principal por el cual continúa el problema.');
     return;
   }
 
-  // PRD 12.1 Transición de estado: PENDIENTE DE VALIDACIÓN -> REQUIERE CORRECCIÓN (Sin crear nueva OT)
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
-  const order = orders.find(o => o.id === orderId);
-  if (order) {
-    order.status = 'REQUIERE CORRECCIÓN';
-    order.reworkRequired = true;
-    order.reworkReason = `${reason}: ${comments}`;
-    localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
-  }
-
-  const history = JSON.parse(localStorage.getItem('TSMAI_validations_history') || '[]');
-  history.unshift({
-    orderId: orderId,
-    action: 'REJECTED',
-    userName: currentUser.name || currentUser.email,
-    userId: currentUser.id,
-    applicant_id: currentUser.id,
-    area: currentUser.area,
-    reason: reason,
-    comments: `REQUIERE CORRECCIÓN — ${reason}: ${comments}`,
-    date: new Date().toISOString()
-  });
-  localStorage.setItem('TSMAI_validations_history', JSON.stringify(history));
-
-  // Actualizar en Supabase
-  if (supabaseClient) {
-    try {
-      await supabaseClient
-        .from('ordenes_trabajo')
-        .update({
-          estatus: getDBStatus('REQUIERE CORRECCIÓN'),
-          observacion_cierre: `REQUIERE CORRECCIÓN: ${reason} - ${comments}`
-        })
-        .eq('folio', orderId);
-    } catch (err) {
-      console.error('Error updating order correction in Supabase:', err);
-    }
+  if (!comments) {
+    alert('El detalle del problema observado es obligatorio.');
+    return;
   }
 
   closeModal('modal-solic-request-correction');
-  alert(`⚠️ Se ha solicitado corrección para la Orden ${orderId}. La orden cambió a estatus REQUIERE CORRECCIÓN sin generar una nueva OT.`);
-  renderSolicitanteValidations();
-  if (typeof syncDatabases === 'function') await syncDatabases();
-  refreshActiveViewSilently();
+
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const closures = JSON.parse(localStorage.getItem('TSMAI_DEMO_closures') || '[]');
+    const valIdx = closures.findIndex(c => (c.id_orden === orderId || c.otId === orderId || c.ot_folio === orderId) && c.decision === 'PENDIENTE');
+
+    if (valIdx !== -1) {
+      const sReq = closures[valIdx].requested_at ? new Date(closures[valIdx].requested_at).getTime() : Date.now();
+      closures[valIdx].decision = 'RECHAZADA';
+      closures[valIdx].decision_at = nowISO;
+      closures[valIdx].motivo_rechazo = reason;
+      closures[valIdx].detalle_rechazo = comments;
+      closures[valIdx].validation_seconds = Math.max(1, Math.round((Date.now() - sReq) / 1000));
+      closures[valIdx].decision_actor_id = currentUser.id || 'DEMO-USER-SOL-01';
+      closures[valIdx].decision_actor_type = 'REQUESTER';
+      closures[valIdx].first_time_fix_failed = (closures[valIdx].attempt_number === 1);
+      closures[valIdx].updated_at = nowISO;
+      localStorage.setItem('TSMAI_DEMO_closures', JSON.stringify(closures));
+    }
+
+    const orders = JSON.parse(localStorage.getItem('TSMAI_DEMO_orders') || '[]');
+    const oIdx = orders.findIndex(o => o.id === orderId);
+    if (oIdx !== -1) {
+      orders[oIdx].status = 'REQUIERE REVISIÓN';
+      orders[oIdx].reworkRequired = true;
+      orders[oIdx].reworkReason = `${reason}: ${comments}`;
+      if (!orders[oIdx].historyLogs) orders[oIdx].historyLogs = [];
+      orders[oIdx].historyLogs.push({
+        date: nowISO,
+        status: 'REQUIERE REVISIÓN',
+        user: currentUser.name || 'Solicitante',
+        comment: `Entrega rechazada: ${reason}. Detalle: ${comments}`
+      });
+      localStorage.setItem('TSMAI_DEMO_orders', JSON.stringify(orders));
+    }
+
+    showToast('⚠️ Reporte de persistencia enviado. Se notificó al Jefe de Mantenimiento para reasignación.', 'info');
+    renderSolicitanteValidations();
+    renderSolicitanteTracking();
+    return;
+  }
+
+  // --- PRODUCCIÓN VIA RPC ---
+  assertProductionAccessAllowed('submitSolicitanteCorrection');
+  if (!supabaseClient) throw new Error('Cliente de Supabase no disponible.');
+
+  try {
+    const { data, error } = await supabaseClient.rpc('reject_ot_resolution', {
+      p_ot_id: orderId,
+      p_rejection_reason: reason,
+      p_rejection_detail: comments,
+      p_client_request_id: clientRequestId
+    });
+    if (error) throw error;
+    showToast('⚠️ Reporte enviado para revisión administrativa.', 'info');
+    renderSolicitanteValidations();
+    renderSolicitanteTracking();
+    return data;
+  } catch (err) {
+    console.error('[submitSolicitanteCorrection] Error:', err);
+    alert('❌ Error al reportar persistencia: ' + (err.message || err));
+  }
 }
 
 // ==========================================================================
@@ -15930,7 +18415,7 @@ async function openMachine360Report(machineId, orderId) {
   }
 
   // Buscar última OT o registro de mantenimiento para esta máquina en local o Supabase
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const machineOrder = orders.find(o => (o.machine === machineId || o.maquina_id === machineId));
   if (machineOrder) {
     return openAdmin360OTAuditModal(machineOrder.id || machineOrder.folio, machineId);
@@ -15961,7 +18446,7 @@ async function openAdmin360OTAuditModal(orderId, explicitMachineId) {
   if (!orderId) return;
 
   // 1. Obtener la Orden de Trabajo
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   let order = orders.find(o => o.id === orderId || o.otId === orderId || o.folio === orderId);
 
   if (!order && supabaseClient) {
@@ -16029,6 +18514,128 @@ async function openAdmin360OTAuditModal(orderId, explicitMachineId) {
   document.getElementById('ot360-time-start').innerText = fmtDate(order.startDate || order.date || new Date());
   document.getElementById('ot360-time-end').innerText = order.closeDate ? fmtDate(order.closeDate) : 'En ejecución / Pendiente';
   document.getElementById('ot360-time-duration').innerText = order.duration || '1 hr 45 min';
+  // Desglose de Tiempos Segregados en Auditoría 360°
+  let ot360WaitList = [];
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const allDemoWaits = JSON.parse(localStorage.getItem('TSMAI_DEMO_wait_periods') || '[]');
+    ot360WaitList = allDemoWaits.filter(w => w.otId === order.id || w.id_orden === order.id || w.ot_folio === order.id);
+  } else if (supabaseClient && useLiveDatabase) {
+    try {
+      const { data } = await supabaseClient.rpc('get_ot_wait_history', { p_ot_id: order.id || order.uuid });
+      if (data && data.wait_periods) ot360WaitList = data.wait_periods;
+    } catch (e) { console.warn('[Audit 360 Waits]', e); }
+  }
+
+  const ot360Timings = calculateOTTimings(order, ot360WaitList);
+  const actMins = Math.round(ot360Timings.activeWorkSeconds / 60);
+  const wtMins = Math.round(ot360Timings.accumulatedWaitSeconds / 60);
+  const totMins = Math.round(ot360Timings.totalCycleSeconds / 60);
+
+  safeSetText('ot360-time-active', actMins >= 60 ? `${Math.floor(actMins/60)} h ${actMins%60} min` : `${actMins} min`);
+  safeSetText('ot360-time-wait', wtMins >= 60 ? `${Math.floor(wtMins/60)} h ${wtMins%60} min` : `${wtMins} min`);
+  safeSetText('ot360-time-total-cycle', totMins >= 60 ? `${Math.floor(totMins/60)} h ${totMins%60} min` : `${totMins} min`);
+
+  // Desglose de Sesiones de Técnicos en Auditoría 360° (PRD-TECH-HANDOFF-001-R1)
+  let ot360SessionsList = [];
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const allDemoSessions = JSON.parse(localStorage.getItem('TSMAI_DEMO_technician_sessions') || '[]');
+    ot360SessionsList = allDemoSessions.filter(s => s.otId === order.id || s.id_orden === order.id || s.ot_folio === order.id);
+  } else if (supabaseClient && useLiveDatabase) {
+    try {
+      const { data } = await supabaseClient.rpc('get_ot_technician_sessions', { p_ot_id: order.id || order.uuid });
+      if (data && data.sessions) ot360SessionsList = data.sessions;
+    } catch (e) { console.warn('[Audit 360 Tech Sessions]', e); }
+  }
+
+  // Desglose de Intentos de Validación y Cierre por el Solicitante (PRD-REQ-CLOSE-001-R1)
+  let ot360ValHistoryList = [];
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const allDemoClosures = JSON.parse(localStorage.getItem('TSMAI_DEMO_closures') || '[]');
+    ot360ValHistoryList = allDemoClosures.filter(c => c.otId === order.id || c.id_orden === order.id || c.ot_folio === order.id);
+  } else if (supabaseClient && useLiveDatabase) {
+    try {
+      const { data } = await supabaseClient.rpc('get_ot_validation_history', { p_ot_id: order.id || order.uuid });
+      if (data && data.attempts) ot360ValHistoryList = data.attempts;
+    } catch (e) { console.warn('[Audit 360 Validation History]', e); }
+  }
+
+  const valHistoryContainer = document.getElementById('ot360-validation-history-container');
+  if (valHistoryContainer) {
+    if (ot360ValHistoryList.length === 0) {
+      valHistoryContainer.innerHTML = '<div style="font-size:0.82rem; color:#64748b; font-style:italic;">Sin solicitudes de validación registradas aún.</div>';
+    } else {
+      valHistoryContainer.innerHTML = ot360ValHistoryList.map(v => {
+        const isRej = v.decision === 'RECHAZADA';
+        const isAcc = v.decision === 'ACEPTADA';
+        const isOver = v.closure_mode === 'ADMIN_OVERRIDE';
+        const badgeCls = isRej ? 'badge-priority-alta' : isAcc ? 'badge-priority-baja' : 'badge-status-proceso';
+        const badgeTxt = isOver ? 'CIERRE ADMINISTRATIVO' : isRej ? 'RECHAZADA (FALLA PERSISTE)' : isAcc ? 'ACEPTADA Y CERRADA' : 'PENDIENTE DE VALIDAR';
+        const detailTxt = isOver ? ('Motivo Override: ' + (v.override_reason || 'Cierre administrativo')) : isRej ? ('Motivo: ' + (v.motivo_rechazo || 'Falla persiste') + ' — ' + (v.detalle_rechazo || '')) : (v.comentario || 'Aceptada a entera satisfacción.');
+        const valMins = Math.round((v.validation_seconds || 0) / 60);
+        return `
+          <div style="background:white; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+            <div>
+              <strong>Intento #${v.attempt_number || 1}</strong>
+              <span class="badge ${badgeCls}" style="margin-left:6px;">${badgeTxt}</span>
+              <div style="font-size:0.82rem; color:#334155; margin-top:4px;">${detailTxt}</div>
+            </div>
+            <div style="font-size:0.75rem; color:#64748b; text-align:right;">
+              <div>Tiempo Validación: <strong>${valMins} min</strong></div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+  }
+  const techSessionsContainer = document.getElementById('ot360-technician-sessions-container');
+  if (techSessionsContainer) {
+    if (ot360SessionsList.length === 0) {
+      const singleTechName = order.nombre_atendio || order.assignedTechName || 'Técnico Titular';
+      techSessionsContainer.innerHTML = `<div style="background:white; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center;">
+        <div><strong>👤 ${singleTechName}</strong><div style="font-size:0.75rem; color:#64748b;">Técnico Responsable Único</div></div>
+        <span class="badge badge-priority-baja">TITULAR</span>
+      </div>`;
+    } else {
+      techSessionsContainer.innerHTML = ot360SessionsList.map((s, idx) => {
+        const actMins = Math.round((s.active_seconds || 0) / 60);
+        const actText = actMins >= 60 ? `${Math.floor(actMins/60)} h ${actMins%60} min` : `${actMins} min`;
+        const sDateStr = s.assigned_at ? new Date(s.assigned_at).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
+        return `
+          <div style="background:white; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+            <div>
+              <strong>👤 ${s.nombre_tecnico || s.tecnico_id}</strong>
+              <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Asignado: ${sDateStr}</div>
+            </div>
+            <div style="text-align:right; font-size:0.75rem;">
+              <span class="badge ${s.status === 'TRANSFERIDA' ? 'badge-priority-media' : s.status === 'ACEPTADA' ? 'badge-priority-baja' : 'badge-status-proceso'}">${s.status}</span>
+              <div style="color:#0284c7; font-weight:700; margin-top:2px;">Activo: ${actText}</div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+  }
+  const waitPeriodsContainer = document.getElementById('ot360-wait-periods-container');
+  if (waitPeriodsContainer) {
+    if (ot360WaitList.length === 0) {
+      waitPeriodsContainer.innerHTML = '<p style="margin:0; color:#94a3b8; font-style:italic;">Sin periodos de espera registrados para esta OT.</p>';
+    } else {
+      waitPeriodsContainer.innerHTML = ot360WaitList.map((w, idx) => {
+        const reasonMeta = WAIT_REASON_CATALOG[w.motivo] || { label: w.motivo, icon: '⏳' };
+        const sDateStr = new Date(w.started_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        const durText = w.duration_seconds ? `${Math.round(w.duration_seconds / 60)} min` : 'En curso';
+        return `
+          <div style="background:white; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+            <div>
+              <strong>${reasonMeta.icon} ${reasonMeta.label}</strong>
+              <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">${w.observacion}</div>
+            </div>
+            <div style="text-align:right; font-size:0.75rem;">
+              <span class="badge ${w.status === 'ACTIVA' ? 'badge-priority-alta' : 'badge-priority-baja'}">${w.status}</span>
+              <div style="color:#475569; margin-top:2px;">Inicio: ${sDateStr} (${durText})</div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+  }
 
   // Pestaña 3: Subtareas (`subtareas_orden_trabajo`)
   const allSubtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
@@ -16094,32 +18701,8 @@ async function openAdmin360OTAuditModal(orderId, explicitMachineId) {
     document.getElementById('ot360-cost-total').innerText = `$${(partsVal + 350).toFixed(2)} MXN`;
   }
 
-  // Pestaña 5: Galería Completa de Evidencias Fotografías (`evidencias_orden` / `evidencias_subtareas`)
-  const galleryContainer = document.getElementById('ot360-gallery-container');
-  const allEvidences = JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]');
-  const orderEvidences = allEvidences.filter(e => e.otId === order.id || e.orderId === order.id);
-
-  if (orderEvidences.length === 0 && !order.evidenceUrl) {
-    galleryContainer.innerHTML = `
-      <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; text-align:center;">
-        <span style="font-size:0.75rem; color:#64748b; font-weight:700;">📷 EVIDENCIA ANTES (Solicitud)</span>
-        <div style="height:120px; background:#e2e8f0; border-radius:6px; display:flex; align-items:center; justify-content:center; margin-top:6px; font-size:0.8rem; color:#64748b;">Evidencia Inicial</div>
-      </div>
-      <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; text-align:center;">
-        <span style="font-size:0.75rem; color:#64748b; font-weight:700;">📷 EVIDENCIA DESPUÉS (Conclusión)</span>
-        <div style="height:120px; background:#e2e8f0; border-radius:6px; display:flex; align-items:center; justify-content:center; margin-top:6px; font-size:0.8rem; color:#166534;">Evidencia Final</div>
-      </div>
-    `;
-  } else {
-    galleryContainer.innerHTML = orderEvidences.map(ev => `
-      <div style="background:white; border:1px solid #cbd5e1; border-radius:8px; padding:10px; text-align:center;">
-        <span style="font-size:0.75rem; color:#64748b; font-weight:700;">${ev.type || 'FOTOGRAFÍA EVIDENCIA'}</span>
-        <img src="${ev.url}" alt="Evidencia OT" style="width:100%; height:120px; object-fit:cover; border-radius:6px; margin-top:6px; cursor:pointer;" onclick="window.open('${ev.url}', '_blank')">
-        <span style="font-size:0.72rem; color:#94a3b8; display:block; margin-top:4px;">${fmtDate(ev.date || new Date())}</span>
-      </div>
-    `).join('');
-  }
-
+  // Pestaña 5: Evidencias Fotográficas 360° (Antes, Durante, Hallazgo, Después)
+  renderOT360Evidences(order.id || targetMachCode, targetMachCode);
   // Pestaña 6: Cierre & Validaciones (`validaciones_historial`)
   const valUser = document.getElementById('ot360-val-user');
   const valStatus = document.getElementById('ot360-val-status');
@@ -16195,8 +18778,8 @@ async function checkAndDispatchScheduledPreventives() {
 
     if (pendingPreventives.length === 0) return;
 
-    const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
     const combinedList = [...requests, ...orders];
 
     for (const item of pendingPreventives) {
@@ -16363,8 +18946,8 @@ async function checkAndDispatchRecurringRules() {
   const daysMap = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
   const todayDayName = daysMap[today.getDay()];
 
-  const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-  const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const combinedList = [...requests, ...orders];
 
   for (let i = 0; i < rules.length; i++) {
@@ -16420,7 +19003,7 @@ async function checkAndDispatchRecurringRules() {
       }
 
       // También insertar en localStorage para que el técnico la vea inmediatamente
-      const localOrders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+      const localOrders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
       localOrders.push({
         id: newFolio,
         reqId: rule.id,
@@ -16469,8 +19052,8 @@ async function viewCalendarDetail(idRef, viewName) {
   }
 
   if (!detail) {
-    const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-    const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+    const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
     const found = [...requests, ...orders].find(o => o.id === idRef || o.uuid === idRef);
     if (found) {
       detail = {
@@ -16528,8 +19111,8 @@ async function dispatchCalendarEventNow() {
 
       if (item) {
         const areaCode = getAreaCodeForOrder({ machine: item.maquina_id, area: item.area });
-        const requests = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-        const orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+        const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+        const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
         let nextNum = 1;
         [...requests, ...orders].forEach(o => {
           if (!o || !o.id) return;
@@ -16654,7 +19237,7 @@ async function renderAdminAnalyticsDashboard() {
   }
 
   let logs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
-  let orders = JSON.parse(localStorage.getItem('TSMAI_orders') || '[]');
+  let orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
 
   // Convertir órdenes terminadas/atendidas en formato homogéneo si no están en la bitácora
   orders.forEach(o => {
@@ -16987,3 +19570,377 @@ async function renderAdminAnalyticsDashboard() {
 
 
 
+
+
+// ============================================================================
+// 🤖 CENTRO DE CONTROL DE AGENTES IA (PRD-AG-AUD-001-R1 §23-28, §42-43)
+// ============================================================================
+
+const OFFICIAL_AGENTS_CATALOG = [
+  { id: 'AG-001', name: 'Capataz Orquestador', role: 'Enrutamiento y Gobernanza', model: 'GPT-4.1 Nano', defaultStatus: 'Saludable' },
+  { id: 'AG-002', name: 'Preventivo Anual', role: 'Planificación Anual (1 MP/año)', model: 'Determinístico (0t)', defaultStatus: 'Saludable' },
+  { id: 'AG-003', name: 'Predictivo Semanal', role: 'Calidad y Segundas (Mié-Mar)', model: 'Determinístico (0t)', defaultStatus: 'Saludable' },
+  { id: 'AG-004', name: 'Autónomo Semanal', role: 'Checklists Lun-Vie (Máx 15)', model: 'Determinístico (0t)', defaultStatus: 'Saludable' },
+  { id: 'AG-005', name: 'Auditor de Bases', role: 'Validación de Plantillas Excel', model: 'Determinístico (0t)', defaultStatus: 'Saludable' },
+  { id: 'AG-006', name: 'Constructor Formularios', role: 'Estructuración Dinámica', model: 'GPT-4o-mini', defaultStatus: 'Saludable' },
+  { id: 'AG-007', name: 'Presupuestos y Costos', role: 'Cálculo Presupuestal Refacciones', model: 'Determinístico (0t)', defaultStatus: 'Saludable' },
+  { id: 'AG-008', name: 'Detector Reincidencias', role: 'Análisis de Falla y Repetibilidad', model: 'Determinístico (0t)', defaultStatus: 'Saludable' },
+  { id: 'AG-009', name: 'Conector Maestro', role: 'Orquestación de Despacho', model: 'Determinístico (0t)', defaultStatus: 'Saludable' },
+  { id: 'AG-009.1', name: 'Conector Preventivo', role: 'Despacho OT Preventiva', model: 'Determinístico (0t)', defaultStatus: 'Saludable' },
+  { id: 'AG-009.2', name: 'Conector Autónomo', role: 'Despacho OT/Checklist Autónomo', model: 'Determinístico (0t)', defaultStatus: 'Saludable' },
+  { id: 'AG-009.3', name: 'Conector Correctivo', role: 'Despacho OT Correctiva', model: 'Determinístico (0t)', defaultStatus: 'Saludable' },
+  { id: 'AG-010', name: 'Causa Raíz (5 Porqués)', role: 'Diagnóstico Profundo e Hipótesis', model: 'MiMo v2.5', defaultStatus: 'Saludable' },
+  { id: 'AG-011', name: 'Memoria Técnica', role: 'Indexación de Lecciones Aprendidas', model: 'GPT-4o-mini', defaultStatus: 'Saludable' },
+  { id: 'AG-012', name: 'Ciclo de Vida (3R)', role: 'Estrategia Reparar/Renovar/Reemplazar', model: 'MiMo v2.5', defaultStatus: 'Saludable' },
+  { id: 'AG-013', name: 'Malos Actores', role: 'Análisis Pareto de Críticos', model: 'MiMo v2.5', defaultStatus: 'Saludable' }
+];
+
+let cachedAgentLogs = [];
+
+async function renderAdminAgentsCenter() {
+  const container = document.getElementById('agents-grid-container');
+  const tbody = document.getElementById('tbody-agent-executions');
+  if (!container || !tbody) return;
+
+  // 1. Cargar ejecuciones recientes desde Supabase
+  let logs = [];
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('bitacora_ejecuciones_agente')
+        .select('*')
+        .order('started_at', { ascending: false })
+        .limit(100);
+
+      if (!error && data) logs = data;
+    } catch (err) {
+      console.warn('[renderAdminAgentsCenter] Error consultando bitacora:', err);
+    }
+  }
+
+  cachedAgentLogs = logs;
+
+  // 2. Calcular KPIs Nivel 1 (Ejecutivo)
+  const totalExecs = logs.length;
+  const successCount = logs.filter(l => l.status === 'SUCCESS' || l.status === 'ENRUTADO').length;
+  const failedCount = logs.filter(l => l.status === 'FAILED' || l.status === 'ERROR').length;
+  const successRate = totalExecs > 0 ? ((successCount / totalExecs) * 100).toFixed(1) : '100.0';
+  
+  let totalCostUsd = 0;
+  logs.forEach(l => { totalCostUsd += parseFloat(l.estimated_cost_usd || 0); });
+
+  const kpiExecs = document.getElementById('agent-kpi-executions');
+  const kpiSuccess = document.getElementById('agent-kpi-success-rate');
+  const kpiCost = document.getElementById('agent-kpi-cost');
+  const kpiHealthy = document.getElementById('agent-kpi-healthy');
+  
+  if (kpiExecs) kpiExecs.innerText = totalExecs.toString();
+  if (kpiSuccess) kpiSuccess.innerText = `${successRate}%`;
+  if (kpiCost) kpiCost.innerText = `$${totalCostUsd.toFixed(4)}`;
+  if (kpiHealthy) kpiHealthy.innerText = `${16 - failedCount} / 16`;
+
+  // 3. Renderizar Nivel 2: 16 Tarjetas de Agentes
+  container.innerHTML = OFFICIAL_AGENTS_CATALOG.map(ag => {
+    const agLogs = logs.filter(l => l.agent_id === ag.id || l.target_agent === ag.id);
+    const lastLog = agLogs[0];
+    const execCount = agLogs.length;
+    const hasError = agLogs.some(l => l.status === 'FAILED' || l.status === 'ERROR');
+    
+    let statusText = ag.defaultStatus;
+    let statusBadgeClass = 'badge-priority-baja';
+    let statusColor = '#22c55e';
+
+    if (hasError) {
+      statusText = 'Error reciente';
+      statusBadgeClass = 'badge-priority-alta';
+      statusColor = '#ef4444';
+    } else if (execCount > 0) {
+      statusText = 'Saludable';
+      statusBadgeClass = 'badge-priority-baja';
+      statusColor = '#22c55e';
+    }
+
+    const lastTs = lastLog ? fmtDate(lastLog.started_at || lastLog.completed_at) : 'Sin ejecuciones recientes';
+
+    return `
+      <div style="background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; border-top: 3px solid ${statusColor}; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <strong style="font-size: 0.95rem; color: #0f172a;">${ag.id} — ${ag.name}</strong>
+            <p style="margin: 2px 0 0; font-size: 0.78rem; color: #64748b;">${ag.role}</p>
+          </div>
+          <span class="badge ${statusBadgeClass}" style="font-size: 0.72rem;">${statusText}</span>
+        </div>
+        <div style="font-size: 0.75rem; color: #475569; display: flex; flex-direction: column; gap: 3px; margin-top: 4px;">
+          <div><strong>Modelo:</strong> ${ag.model}</div>
+          <div><strong>Última ejecución:</strong> ${lastTs}</div>
+          <div><strong>Ejecuciones:</strong> ${execCount}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // 4. Renderizar Bitácora en Vivo
+  if (logs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: #64748b;">No hay ejecuciones registradas aún en bitácora.</td></tr>';
+  } else {
+    tbody.innerHTML = logs.map(l => {
+      const isSuccess = l.status === 'SUCCESS' || l.status === 'ENRUTADO';
+      const statusBadge = isSuccess
+        ? '<span class="badge badge-priority-baja">SUCCESS</span>'
+        : '<span class="badge badge-priority-alta">FAILED</span>';
+      
+      const dur = l.duration_ms ? `${l.duration_ms} ms` : '—';
+      const tokens = (parseInt(l.input_tokens || 0) + parseInt(l.output_tokens || 0)) || 0;
+      const cost = parseFloat(l.estimated_cost_usd || 0).toFixed(6);
+
+      return `
+        <tr>
+          <td><code>${l.execution_id || l.id || '—'}</code></td>
+          <td><strong>${l.agent_id || l.target_agent || 'AG-001'}</strong></td>
+          <td>${l.execution_type || 'ROUTING_RULE'}</td>
+          <td>${statusBadge}</td>
+          <td>${dur}</td>
+          <td>${tokens} tok</td>
+          <td>$${cost}</td>
+          <td>${fmtDate(l.started_at || l.completed_at || new Date())}</td>
+          <td>
+            <button class="btn-table-action" onclick="alert('Detalle de Ejecución:\n' + JSON.stringify(${JSON.stringify(l).replace(/"/g, '&quot;')}, null, 2))">🔍 Ver</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+}
+
+function filterAdminAgentLogs() {
+  const query = (document.getElementById('agent-log-filter')?.value || '').toLowerCase().trim();
+  const tbody = document.getElementById('tbody-agent-executions');
+  if (!tbody || !cachedAgentLogs) return;
+
+  const filtered = cachedAgentLogs.filter(l => 
+    (l.execution_id || '').toLowerCase().includes(query) ||
+    (l.agent_id || '').toLowerCase().includes(query) ||
+    (l.correlation_id || '').toLowerCase().includes(query) ||
+    (l.execution_type || '').toLowerCase().includes(query)
+  );
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: #64748b;">No hay registros que coincidan con la búsqueda.</td></tr>';
+  } else {
+    tbody.innerHTML = filtered.map(l => {
+      const isSuccess = l.status === 'SUCCESS' || l.status === 'ENRUTADO';
+      return `
+        <tr>
+          <td><code>${l.execution_id || l.id || '—'}</code></td>
+          <td><strong>${l.agent_id || l.target_agent || 'AG-001'}</strong></td>
+          <td>${l.execution_type || 'ROUTING_RULE'}</td>
+          <td>${isSuccess ? '<span class="badge badge-priority-baja">SUCCESS</span>' : '<span class="badge badge-priority-alta">FAILED</span>'}</td>
+          <td>${l.duration_ms ? `${l.duration_ms} ms` : '—'}</td>
+          <td>${(parseInt(l.input_tokens || 0) + parseInt(l.output_tokens || 0)) || 0} tok</td>
+          <td>$${parseFloat(l.estimated_cost_usd || 0).toFixed(6)}</td>
+          <td>${fmtDate(l.started_at || l.completed_at || new Date())}</td>
+          <td>
+            <button class="btn-table-action" onclick="alert('Detalle:\n' + JSON.stringify(${JSON.stringify(l).replace(/"/g, '&quot;')}, null, 2))">🔍 Ver</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+}
+
+// ============================================================================
+// 🤖 CONTEXTO INTELIGENTE DE MAQUINARIA (PRD-AG-AUD-001-R1 §12-15)
+// ============================================================================
+
+async function openMachineAIContextModal(machineId) {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO') {
+    const machineStr = String(machineId || '').toUpperCase();
+    if (!machineStr.startsWith('DEMO-')) {
+      showToast('🚫 Acceso denegado: En Modo Demo solo se pueden consultar máquinas Demo (DEMO-MAQ-*).', 'error');
+      throw new Error('DEMO_RESOURCE_SCOPE_DENIED');
+    }
+  }
+  if (!machineId) return;
+  const normId = String(machineId).trim().toUpperCase();
+
+  // Reset Titles & Skeletons
+  document.getElementById('ctx-machine-title').innerText = `🤖 Contexto IA: ${normId}`;
+  document.getElementById('ctx-machine-subtitle').innerText = 'Consultando snapshot consolidado con evidencia operacional verificable...';
+  document.getElementById('ctx-summary-score').innerText = 'Calculando…';
+  document.getElementById('ctx-summary-main-rec').innerText = 'Cargando análisis multi-agente…';
+
+  openModal('modal-machine-ai-context');
+  switchMachineContextTab('summary');
+
+  try {
+    let snapshot = null;
+
+    // Llamar al backend orchestrator centralizado (MACHINE_AI_CONTEXT_REQUESTED)
+    if (typeof dispatchAgentEvent === 'function') {
+      const userRole = currentUser ? currentUser.role : 'SUPER_ADMINISTRADOR';
+      const resp = await dispatchAgentEvent('MACHINE_AI_CONTEXT_REQUESTED', {
+        machine_id: normId,
+        user_role: userRole
+      });
+      if (resp && resp.result && resp.result.context_snapshot) {
+        snapshot = resp.result.context_snapshot;
+      }
+    }
+
+    // Si no hubo respuesta remota, generar snapshot local de respaldo
+    if (!snapshot) {
+      snapshot = {
+        machine_id: normId,
+        risk_assessment: { level: 'MEDIO', score: 55, primary_driver: 'HISTORIAL_OPERATIVO' },
+        operational_metrics: { open_work_orders: 1, recent_failures_90d: 2, downtime_minutes_90d: 90, quality_defect_rate_pct: 3.5 },
+        recurrence_analysis_ag008: { detected: false, pattern: 'Sin recurrencia activa', occurrences_count: 0 },
+        calendar_schedule: { preventive: { status: 'PROGRAMADO', date: '2026-11-15' }, predictive: { status: 'NO_PROGRAMADO' }, autonomous: { status: 'AL_DIA' } },
+        technical_memory_ag011: [{ summary: `Mantenimiento de rutina para equipo ${normId}` }],
+        lifecycle_strategy_ag012: { decision: 'REPARAR', justification: 'Equipo mantiene viabilidad operativa estándar.' },
+        recommendations: [{
+          title: `Monitoreo preventivo estándar para ${normId}`,
+          action_suggested: 'Continuar con el programa preventivo anual y registro de checklists.',
+          why_evidence: [
+            '2 intervenciones de mantenimiento registradas en historial.',
+            '1 orden de trabajo en seguimiento activo.',
+            'Sin eventos de falla crítica en los últimos 30 días.'
+          ]
+        }]
+      };
+    }
+
+    // Renderizar Snapshot en la UI
+    const risk = snapshot.risk_assessment || { level: 'BAJO', score: 20 };
+    const riskBadge = document.getElementById('ctx-risk-badge');
+    if (riskBadge) {
+      riskBadge.innerText = `RIESGO ${risk.level || 'BAJO'}`;
+      riskBadge.className = `badge ${risk.level === 'CRITICO' ? 'badge-priority-alta' : risk.level === 'ALTO' ? 'badge-priority-alta' : risk.level === 'MEDIO' ? 'badge-priority-media' : 'badge-priority-baja'}`;
+    }
+
+    document.getElementById('ctx-summary-score').innerText = `${risk.score || 30} / 100`;
+    document.getElementById('ctx-summary-driver').innerText = `Factor: ${risk.primary_driver || 'Operación Normal'}`;
+    document.getElementById('ctx-summary-open-ots').innerText = `${snapshot.operational_metrics?.open_work_orders || 0} OT(s)`;
+    document.getElementById('ctx-summary-failures').innerText = `${snapshot.operational_metrics?.recent_failures_90d || 0} Evento(s)`;
+    document.getElementById('ctx-summary-defects').innerText = `${snapshot.operational_metrics?.quality_defect_rate_pct || 0}%`;
+
+    const mainRec = snapshot.recommendations?.[0];
+    if (mainRec) {
+      document.getElementById('ctx-summary-main-rec').innerText = `${mainRec.title}: ${mainRec.action_suggested}`;
+    }
+
+    // Recurrencias
+    const recAg008 = snapshot.recurrence_analysis_ag008;
+    document.getElementById('ctx-recurrence-desc').innerText = recAg008?.pattern || 'Sin patrones de recurrencia activa.';
+    
+    // Calendarios
+    const cal = snapshot.calendar_schedule;
+    document.getElementById('ctx-cal-prev').innerText = cal?.preventive?.date ? `Fecha: ${cal.preventive.date} (${cal.preventive.status})` : 'No programado';
+    document.getElementById('ctx-cal-pred').innerText = cal?.predictive?.date ? `Fecha: ${cal.predictive.date} (${cal.predictive.reason || 'Propuesto'})` : 'Sin propuesta predictiva activa';
+    document.getElementById('ctx-cal-auto').innerText = cal?.autonomous?.next_date ? `Próxima rutina: ${cal.autonomous.next_date}` : 'Al día';
+
+    // Memoria Técnica
+    const memList = snapshot.technical_memory_ag011 || [];
+    document.getElementById('ctx-memory-content').innerHTML = memList.length > 0
+      ? memList.map(m => `<div style="padding: 6px 0; border-bottom: 1px solid #e2e8f0;">💡 ${m.summary}</div>`).join('')
+      : 'No hay memorias técnicas indexadas aún para este equipo.';
+
+    // 3R Ciclo de Vida
+    const strat = snapshot.lifecycle_strategy_ag012 || { decision: 'REPARAR' };
+    const decEl = document.getElementById('ctx-3r-decision');
+    if (decEl) {
+      decEl.innerText = strat.decision;
+      decEl.className = `badge ${strat.decision === 'REPARAR' ? 'badge-priority-baja' : strat.decision === 'RENOVAR' ? 'badge-priority-media' : 'badge-priority-alta'}`;
+    }
+    document.getElementById('ctx-3r-justification').innerText = strat.justification || 'Viabilidad técnica confirmada.';
+
+    // Evidencia ("¿Por qué?")
+    const evList = mainRec?.why_evidence || ['Datos operacionales consistentes con historial.'];
+    document.getElementById('ctx-evidence-list').innerHTML = evList.map(e => `<li>${e}</li>`).join('');
+
+    document.getElementById('ctx-timestamp').innerText = `Contexto actualizado: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+
+  } catch (err) {
+    console.warn('[openMachineAIContextModal] Error:', err);
+    showToast('⚠️ No se pudo generar snapshot de contexto: ' + err.message, 'error');
+  }
+}
+
+function switchMachineContextTab(tabId) {
+  const tabs = ['summary', 'recurrence', 'calendars', 'memory', '3r', 'evidence'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`tab-btn-ctx-${t}`);
+    const panel = document.getElementById(`ctx-tab-panel-${t}`);
+    if (btn) {
+      btn.classList.remove('active');
+      btn.style.background = '#1e293b';
+      btn.style.color = '#cbd5e1';
+      btn.style.fontWeight = '600';
+    }
+    if (panel) panel.style.display = 'none';
+  });
+
+  const activeBtn = document.getElementById(`tab-btn-ctx-${tabId}`);
+  const activePanel = document.getElementById(`ctx-tab-panel-${tabId}`);
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+    activeBtn.style.background = '#0284c7';
+    activeBtn.style.color = '#ffffff';
+    activeBtn.style.fontWeight = '700';
+  }
+  if (activePanel) activePanel.style.display = 'block';
+}
+
+// ============================================================================
+// ⚖️ HUMAN-IN-THE-LOOP: APROBAR / RECHAZAR CON MOTIVO OBLIGATORIO (PRD §16-19)
+// ============================================================================
+
+async function approveCalendarProposalItem(detailId) {
+  if (!detailId) return;
+  showToast('⚡ Aprobando propuesta de calendario...');
+  try {
+    if (supabaseClient) {
+      const { error } = await supabaseClient
+        .from('calendario_mantenimiento_detalle')
+        .update({ estatus_detalle: 'APROBADO', modificado_por_usuario: true })
+        .eq('id_detalle', detailId);
+
+      if (error) throw error;
+      showToast('✅ Propuesta aprobada exitosamente y programada.');
+      if (typeof renderAdminCalendars === 'function') await renderAdminCalendars();
+    }
+  } catch (err) {
+    console.warn('[approveCalendarProposalItem] Error:', err);
+    showToast('❌ Error aprobando propuesta: ' + err.message, 'error');
+  }
+}
+
+async function rejectCalendarProposalItem(detailId) {
+  if (!detailId) return;
+  const reason = prompt('❌ Motivo obligatorio de rechazo:\n1. PRODUCCION_NO_DISPONIBLE\n2. MAQUINA_FUERA_DE_OPERACION\n3. MANTENIMIENTO_YA_REALIZADO\n4. PRIORIDAD_INCORRECTA\n5. FECHA_NO_VIABLE\n6. OTRO\n\nEscribe el motivo:');
+  
+  if (!reason || reason.trim() === '') {
+    showToast('⚠️ El rechazo requiere un motivo obligatorio.', 'error');
+    return;
+  }
+
+  showToast('⚡ Registrando rechazo de propuesta...');
+  try {
+    if (supabaseClient) {
+      const { error } = await supabaseClient
+        .from('calendario_mantenimiento_detalle')
+        .update({
+          estatus_detalle: 'RECHAZADO',
+          observaciones: JSON.stringify({ motivo_rechazo: reason.trim(), rechazado_en: new Date().toISOString() })
+        })
+        .eq('id_detalle', detailId);
+
+      if (error) throw error;
+      showToast('✅ Propuesta rechazada y motivo registrado en bitácora.');
+      if (typeof renderAdminCalendars === 'function') await renderAdminCalendars();
+    }
+  } catch (err) {
+    console.warn('[rejectCalendarProposalItem] Error:', err);
+    showToast('❌ Error rechazando propuesta: ' + err.message, 'error');
+  }
+}

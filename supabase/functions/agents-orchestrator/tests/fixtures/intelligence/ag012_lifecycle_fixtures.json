@@ -1,0 +1,26 @@
+{
+  "test_cases": [
+    {
+      "id": "3R-001",
+      "asset_id": "TOW-TEL201-TEJI",
+      "machine_age_years": 14,
+      "total_repair_cost_ytd": 45000,
+      "replacement_value": 60000,
+      "mtbf_hours": 120,
+      "mttr_hours": 8,
+      "expected_recommendation": "REEMPLAZAR_O_RENOVAR",
+      "expected_strategy": "REPLACE"
+    },
+    {
+      "id": "3R-002",
+      "asset_id": "TOW-TEL206-TEJI",
+      "machine_age_years": 3,
+      "total_repair_cost_ytd": 2500,
+      "replacement_value": 70000,
+      "mtbf_hours": 850,
+      "mttr_hours": 1.5,
+      "expected_recommendation": "REPARAR_MANTENER",
+      "expected_strategy": "REPAIR"
+    }
+  ]
+}

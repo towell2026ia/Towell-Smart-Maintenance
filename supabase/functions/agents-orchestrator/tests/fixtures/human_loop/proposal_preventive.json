@@ -1,0 +1,14 @@
+{
+  "proposal_id": "PROP-PREV-TEL201",
+  "machine_id": "TOW-TEL201-TEJI",
+  "maintenance_type": "PREVENTIVO",
+  "agent_id": "AG-002",
+  "status": "PROPUESTO",
+  "scheduled_date": "2026-11-15",
+  "reason": "Mantenimiento preventivo anual según regla 1 MP/año",
+  "evidence_refs": [
+    "FLEET-TEL201"
+  ],
+  "created_at": "2026-08-30T08:00:00Z",
+  "created_by_agent": "AG-002"
+}

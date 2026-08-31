@@ -1,0 +1,40 @@
+{
+  "routing": {
+    "PREVENTIVO": "AG-009.1",
+    "AUTONOMO": "AG-009.2",
+    "CORRECTIVO": "AG-009.3"
+  },
+  "preventive_ot": {
+    "machine_id": "TOW-TEL201-TEJI",
+    "type": "PREVENTIVO",
+    "calendar_id": "CAL-PREV-01",
+    "status": "APROBADO",
+    "expected_ot_type": "PREVENTIVA",
+    "checklist_bound": true
+  },
+  "autonomous_ot": {
+    "machine_id": "TOW-TEL202-TEJI",
+    "type": "AUTONOMO",
+    "calendar_id": "CAL-AUTO-01",
+    "expected_ot_type": "AUTONOMA",
+    "five_blocks_verified": true
+  },
+  "corrective_ot": {
+    "machine_id": "TOW-TEL204-TEJI",
+    "type": "CORRECTIVO",
+    "solicitud_id": "SOL-CORR-01",
+    "expected_ot_type": "CORRECTIVA",
+    "priority": "ALTA"
+  },
+  "unapproved_calendar": {
+    "calendar_id": "CAL-UNAPPROVED-01",
+    "status": "PROPUESTO",
+    "can_create_ot": false,
+    "error_code": "CALENDAR_NOT_APPROVED"
+  },
+  "duplicate_prevention": {
+    "calendar_id": "CAL-PREV-01",
+    "ot_already_exists": true,
+    "second_ot_created": false
+  }
+}

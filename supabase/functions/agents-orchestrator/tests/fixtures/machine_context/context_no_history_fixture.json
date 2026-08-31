@@ -1,0 +1,22 @@
+{
+  "test_case_id": "CTX-NOHIST-001",
+  "machine_id": "TOW-NUEVA-01",
+  "machine_info": {
+    "clave": "NUEVA-01",
+    "nombre": "Máquina Recién Instalada",
+    "area": "CORTE",
+    "departamento_codigo": "CORT",
+    "activo": true,
+    "criticidad": "MEDIA"
+  },
+  "work_orders": [],
+  "failures": [],
+  "quality": [],
+  "calendars": [],
+  "expected": {
+    "status": "CURRENT",
+    "confidence_level": "INSUFICIENTE",
+    "inference_id": "INF-NODATA-TOW-NUEVA-01",
+    "no_false_critical_alert": true
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "test_id": "HITL-004",
+  "proposal_id": "PROP-PRED-TEL204",
+  "action": "REPROGRAM",
+  "new_date": "2026-09-05",
+  "reason_code": "PRODUCCION_NO_DISPONIBLE",
+  "reason_text": "Lote de exportación en producción continua",
+  "user_id": "USR-ADMIN-01",
+  "user_role": "SUPER_ADMINISTRADOR",
+  "expected_status": "APROBADO",
+  "expected_human_override": true,
+  "expected_date": "2026-09-05"
+}

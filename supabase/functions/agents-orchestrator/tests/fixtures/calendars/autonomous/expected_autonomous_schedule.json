@@ -1,0 +1,11 @@
+{
+  "max_weekly_capacity": 15,
+  "days_allowed": [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday"
+  ],
+  "weekends_allowed": false
+}

@@ -1,0 +1,24 @@
+{
+  "template_simple": {
+    "form_code": "CHK_TEJI_01",
+    "title": "Inspección Telar Semanal",
+    "fields_count": 8,
+    "required_fields": [
+      "presion_aire",
+      "nivel_aceite",
+      "temperatura_motor"
+    ],
+    "status": "VALID"
+  },
+  "fast_path_fallback": {
+    "llm_available": false,
+    "execution_mode": "FAST_PATH",
+    "schema_valid": true,
+    "structure_preserved": true
+  },
+  "invalid_llm_output": {
+    "raw_output": "Invalid non-json format",
+    "handled_by_schema": true,
+    "fallback_applied": true
+  }
+}

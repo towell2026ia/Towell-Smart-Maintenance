@@ -1,0 +1,22 @@
+{
+  "roles": [
+    {
+      "role": "TEST_SUPER_ADMIN",
+      "access_control_center": true,
+      "access_hitl": true,
+      "context_profile": "FULL"
+    },
+    {
+      "role": "TEST_TECNICO",
+      "access_control_center": false,
+      "access_hitl": false,
+      "context_profile": "OPERATIONAL"
+    },
+    {
+      "role": "TEST_SOLICITANTE",
+      "access_control_center": false,
+      "access_hitl": false,
+      "context_profile": "SIMPLIFIED"
+    }
+  ]
+}

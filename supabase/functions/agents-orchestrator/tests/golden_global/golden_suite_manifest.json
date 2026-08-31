@@ -1,0 +1,194 @@
+{
+  "manifest_version": "1.0.0",
+  "build_version": "TSM-AI-2026.08.30-RC1",
+  "git_commit": "HEAD",
+  "migration_version": "PRD-AG-AUD-001-R1",
+  "execution_date": "2026-08-31T00:18:45.952Z",
+  "total_scenarios": 20,
+  "scenarios": [
+    {
+      "id": "E2E-GOLD-001",
+      "name": "Preventivo Completo",
+      "agents": [
+        "AG-001",
+        "AG-002",
+        "AG-007",
+        "AG-009.1"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-002",
+      "name": "Predictivo Completo",
+      "agents": [
+        "AG-001",
+        "AG-003",
+        "HITL_GOVERNANCE",
+        "AG-009.1"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-003",
+      "name": "Autónomo Completo",
+      "agents": [
+        "AG-001",
+        "AG-004",
+        "HITL_GOVERNANCE",
+        "AG-009.2"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-004",
+      "name": "Correctivo Completo",
+      "agents": [
+        "AG-001",
+        "AG-009.3",
+        "CONTEXT_SERVICE"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-005",
+      "name": "Formulario / Checklist",
+      "agents": [
+        "AG-006"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-006",
+      "name": "Auditoría Excel Ingestión",
+      "agents": [
+        "AG-005"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-007",
+      "name": "Reincidencia Diagnóstico",
+      "agents": [
+        "AG-008",
+        "CONTEXT_SERVICE"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-008",
+      "name": "Causa Raíz 5 Porqués",
+      "agents": [
+        "AG-010",
+        "CONTEXT_SERVICE"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-009",
+      "name": "Memoria Técnica Reparación",
+      "agents": [
+        "AG-011",
+        "CONTEXT_SERVICE"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-010",
+      "name": "Ciclo de Vida 3R",
+      "agents": [
+        "AG-012",
+        "CONTEXT_SERVICE"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-011",
+      "name": "Malos Actores Pareto",
+      "agents": [
+        "AG-013",
+        "CONTEXT_SERVICE"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-012",
+      "name": "Machine Context Snapshot",
+      "agents": [
+        "AG-001",
+        "CONTEXT_SERVICE"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-013",
+      "name": "Human-in-the-Loop",
+      "agents": [
+        "HITL_GOVERNANCE",
+        "CONTEXT_SERVICE"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-014",
+      "name": "Centro de Control Agentes",
+      "agents": [
+        "CONTROL_CENTER_SERVICE"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-015",
+      "name": "Trazabilidad de Correlación E2E",
+      "agents": [
+        "ALL_AGENTS"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-016",
+      "name": "Idempotencia Global",
+      "agents": [
+        "AG-001",
+        "AG-002",
+        "AG-003",
+        "AG-004"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-017",
+      "name": "Autorización Global RBAC",
+      "agents": [
+        "AUTH_GUARD"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-018",
+      "name": "Resiliencia Proveedor Caído",
+      "agents": [
+        "AG-010",
+        "AG-011",
+        "AG-012",
+        "AG-013"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-019",
+      "name": "Resiliencia Fallo Supabase",
+      "agents": [
+        "FAIL_SAFE_HANDLER"
+      ],
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "E2E-GOLD-020",
+      "name": "Escaneo Global de Secretos",
+      "agents": [
+        "SECURITY_SCANNER"
+      ],
+      "expected_status": "SUCCESS"
+    }
+  ]
+}

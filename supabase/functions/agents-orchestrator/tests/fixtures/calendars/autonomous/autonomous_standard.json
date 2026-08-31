@@ -1,0 +1,308 @@
+{
+  "target_week_key": "2026-W36",
+  "reference_date": "2026-09-02",
+  "machines": [
+    {
+      "id_maquina": "TOW-AUT-001",
+      "equipo_towell": "TOW-AUT-001",
+      "nombre": "Máquina 1",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "nivel_criticidad": "ALTA"
+    },
+    {
+      "id_maquina": "TOW-AUT-002",
+      "equipo_towell": "TOW-AUT-002",
+      "nombre": "Máquina 2",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "nivel_criticidad": "ALTA"
+    },
+    {
+      "id_maquina": "TOW-AUT-003",
+      "equipo_towell": "TOW-AUT-003",
+      "nombre": "Máquina 3",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "nivel_criticidad": "ALTA"
+    },
+    {
+      "id_maquina": "TOW-AUT-004",
+      "equipo_towell": "TOW-AUT-004",
+      "nombre": "Máquina 4",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "nivel_criticidad": "ALTA"
+    },
+    {
+      "id_maquina": "TOW-AUT-005",
+      "equipo_towell": "TOW-AUT-005",
+      "nombre": "Máquina 5",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "nivel_criticidad": "ALTA"
+    },
+    {
+      "id_maquina": "TOW-AUT-006",
+      "equipo_towell": "TOW-AUT-006",
+      "nombre": "Máquina 6",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-007",
+      "equipo_towell": "TOW-AUT-007",
+      "nombre": "Máquina 7",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-008",
+      "equipo_towell": "TOW-AUT-008",
+      "nombre": "Máquina 8",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-009",
+      "equipo_towell": "TOW-AUT-009",
+      "nombre": "Máquina 9",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-010",
+      "equipo_towell": "TOW-AUT-010",
+      "nombre": "Máquina 10",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-011",
+      "equipo_towell": "TOW-AUT-011",
+      "nombre": "Máquina 11",
+      "departamento_codigo": "CF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-012",
+      "equipo_towell": "TOW-AUT-012",
+      "nombre": "Máquina 12",
+      "departamento_codigo": "CF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-013",
+      "equipo_towell": "TOW-AUT-013",
+      "nombre": "Máquina 13",
+      "departamento_codigo": "CF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-014",
+      "equipo_towell": "TOW-AUT-014",
+      "nombre": "Máquina 14",
+      "departamento_codigo": "CF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-015",
+      "equipo_towell": "TOW-AUT-015",
+      "nombre": "Máquina 15",
+      "departamento_codigo": "CF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-016",
+      "equipo_towell": "TOW-AUT-016",
+      "nombre": "Máquina 16",
+      "departamento_codigo": "TF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-017",
+      "equipo_towell": "TOW-AUT-017",
+      "nombre": "Máquina 17",
+      "departamento_codigo": "TF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-018",
+      "equipo_towell": "TOW-AUT-018",
+      "nombre": "Máquina 18",
+      "departamento_codigo": "TF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-019",
+      "equipo_towell": "TOW-AUT-019",
+      "nombre": "Máquina 19",
+      "departamento_codigo": "TF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "id_maquina": "TOW-AUT-020",
+      "equipo_towell": "TOW-AUT-020",
+      "nombre": "Máquina 20",
+      "departamento_codigo": "TF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    }
+  ],
+  "faults": [
+    {
+      "id_falla": "FAL-1",
+      "maquina_id": "TOW-AUT-001",
+      "descripcion_falla": "Paro frecuente 1",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": true
+    },
+    {
+      "id_falla": "FAL-2",
+      "maquina_id": "TOW-AUT-002",
+      "descripcion_falla": "Paro frecuente 2",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": true
+    },
+    {
+      "id_falla": "FAL-3",
+      "maquina_id": "TOW-AUT-003",
+      "descripcion_falla": "Paro frecuente 3",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": true
+    },
+    {
+      "id_falla": "FAL-4",
+      "maquina_id": "TOW-AUT-004",
+      "descripcion_falla": "Paro frecuente 4",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": true
+    },
+    {
+      "id_falla": "FAL-5",
+      "maquina_id": "TOW-AUT-005",
+      "descripcion_falla": "Paro frecuente 5",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": true
+    },
+    {
+      "id_falla": "FAL-6",
+      "maquina_id": "TOW-AUT-006",
+      "descripcion_falla": "Paro frecuente 6",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": true
+    },
+    {
+      "id_falla": "FAL-7",
+      "maquina_id": "TOW-AUT-007",
+      "descripcion_falla": "Paro frecuente 7",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": true
+    },
+    {
+      "id_falla": "FAL-8",
+      "maquina_id": "TOW-AUT-008",
+      "descripcion_falla": "Paro frecuente 8",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": true
+    },
+    {
+      "id_falla": "FAL-9",
+      "maquina_id": "TOW-AUT-009",
+      "descripcion_falla": "Paro frecuente 9",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": true
+    },
+    {
+      "id_falla": "FAL-10",
+      "maquina_id": "TOW-AUT-010",
+      "descripcion_falla": "Paro frecuente 10",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": true
+    },
+    {
+      "id_falla": "FAL-11",
+      "maquina_id": "TOW-AUT-011",
+      "descripcion_falla": "Paro frecuente 11",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": false
+    },
+    {
+      "id_falla": "FAL-12",
+      "maquina_id": "TOW-AUT-012",
+      "descripcion_falla": "Paro frecuente 12",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": false
+    },
+    {
+      "id_falla": "FAL-13",
+      "maquina_id": "TOW-AUT-013",
+      "descripcion_falla": "Paro frecuente 13",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": false
+    },
+    {
+      "id_falla": "FAL-14",
+      "maquina_id": "TOW-AUT-014",
+      "descripcion_falla": "Paro frecuente 14",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": false
+    },
+    {
+      "id_falla": "FAL-15",
+      "maquina_id": "TOW-AUT-015",
+      "descripcion_falla": "Paro frecuente 15",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": false
+    },
+    {
+      "id_falla": "FAL-16",
+      "maquina_id": "TOW-AUT-016",
+      "descripcion_falla": "Paro frecuente 16",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": false
+    },
+    {
+      "id_falla": "FAL-17",
+      "maquina_id": "TOW-AUT-017",
+      "descripcion_falla": "Paro frecuente 17",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": false
+    },
+    {
+      "id_falla": "FAL-18",
+      "maquina_id": "TOW-AUT-018",
+      "descripcion_falla": "Paro frecuente 18",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": false
+    },
+    {
+      "id_falla": "FAL-19",
+      "maquina_id": "TOW-AUT-019",
+      "descripcion_falla": "Paro frecuente 19",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": false
+    },
+    {
+      "id_falla": "FAL-20",
+      "maquina_id": "TOW-AUT-020",
+      "descripcion_falla": "Paro frecuente 20",
+      "fecha_creada": "2026-08-20",
+      "es_recurrente": false
+    }
+  ]
+}

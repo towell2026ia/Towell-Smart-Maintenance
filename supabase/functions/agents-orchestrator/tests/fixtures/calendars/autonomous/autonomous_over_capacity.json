@@ -1,0 +1,368 @@
+{
+  "target_week_key": "2026-W36",
+  "reference_date": "2026-09-02",
+  "machines": [
+    {
+      "id_maquina": "TOW-AUT-MAX-001",
+      "equipo_towell": "TOW-AUT-MAX-001",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-002",
+      "equipo_towell": "TOW-AUT-MAX-002",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-003",
+      "equipo_towell": "TOW-AUT-MAX-003",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-004",
+      "equipo_towell": "TOW-AUT-MAX-004",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-005",
+      "equipo_towell": "TOW-AUT-MAX-005",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-006",
+      "equipo_towell": "TOW-AUT-MAX-006",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-007",
+      "equipo_towell": "TOW-AUT-MAX-007",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-008",
+      "equipo_towell": "TOW-AUT-MAX-008",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-009",
+      "equipo_towell": "TOW-AUT-MAX-009",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-010",
+      "equipo_towell": "TOW-AUT-MAX-010",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-011",
+      "equipo_towell": "TOW-AUT-MAX-011",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-012",
+      "equipo_towell": "TOW-AUT-MAX-012",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-013",
+      "equipo_towell": "TOW-AUT-MAX-013",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-014",
+      "equipo_towell": "TOW-AUT-MAX-014",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-015",
+      "equipo_towell": "TOW-AUT-MAX-015",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-016",
+      "equipo_towell": "TOW-AUT-MAX-016",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-017",
+      "equipo_towell": "TOW-AUT-MAX-017",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-018",
+      "equipo_towell": "TOW-AUT-MAX-018",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-019",
+      "equipo_towell": "TOW-AUT-MAX-019",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-020",
+      "equipo_towell": "TOW-AUT-MAX-020",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-021",
+      "equipo_towell": "TOW-AUT-MAX-021",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-022",
+      "equipo_towell": "TOW-AUT-MAX-022",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-023",
+      "equipo_towell": "TOW-AUT-MAX-023",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-024",
+      "equipo_towell": "TOW-AUT-MAX-024",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-025",
+      "equipo_towell": "TOW-AUT-MAX-025",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-026",
+      "equipo_towell": "TOW-AUT-MAX-026",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-027",
+      "equipo_towell": "TOW-AUT-MAX-027",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-028",
+      "equipo_towell": "TOW-AUT-MAX-028",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-029",
+      "equipo_towell": "TOW-AUT-MAX-029",
+      "activo": true,
+      "departamento_codigo": "PF"
+    },
+    {
+      "id_maquina": "TOW-AUT-MAX-030",
+      "equipo_towell": "TOW-AUT-MAX-030",
+      "activo": true,
+      "departamento_codigo": "PF"
+    }
+  ],
+  "faults": [
+    {
+      "id_falla": "FAL-MAX-1",
+      "maquina_id": "TOW-AUT-MAX-001",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-2",
+      "maquina_id": "TOW-AUT-MAX-002",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-3",
+      "maquina_id": "TOW-AUT-MAX-003",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-4",
+      "maquina_id": "TOW-AUT-MAX-004",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-5",
+      "maquina_id": "TOW-AUT-MAX-005",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-6",
+      "maquina_id": "TOW-AUT-MAX-006",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-7",
+      "maquina_id": "TOW-AUT-MAX-007",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-8",
+      "maquina_id": "TOW-AUT-MAX-008",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-9",
+      "maquina_id": "TOW-AUT-MAX-009",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-10",
+      "maquina_id": "TOW-AUT-MAX-010",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-11",
+      "maquina_id": "TOW-AUT-MAX-011",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-12",
+      "maquina_id": "TOW-AUT-MAX-012",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-13",
+      "maquina_id": "TOW-AUT-MAX-013",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-14",
+      "maquina_id": "TOW-AUT-MAX-014",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-15",
+      "maquina_id": "TOW-AUT-MAX-015",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-16",
+      "maquina_id": "TOW-AUT-MAX-016",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-17",
+      "maquina_id": "TOW-AUT-MAX-017",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-18",
+      "maquina_id": "TOW-AUT-MAX-018",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-19",
+      "maquina_id": "TOW-AUT-MAX-019",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-20",
+      "maquina_id": "TOW-AUT-MAX-020",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-21",
+      "maquina_id": "TOW-AUT-MAX-021",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-22",
+      "maquina_id": "TOW-AUT-MAX-022",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-23",
+      "maquina_id": "TOW-AUT-MAX-023",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-24",
+      "maquina_id": "TOW-AUT-MAX-024",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-25",
+      "maquina_id": "TOW-AUT-MAX-025",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-26",
+      "maquina_id": "TOW-AUT-MAX-026",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-27",
+      "maquina_id": "TOW-AUT-MAX-027",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-28",
+      "maquina_id": "TOW-AUT-MAX-028",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-29",
+      "maquina_id": "TOW-AUT-MAX-029",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    },
+    {
+      "id_falla": "FAL-MAX-30",
+      "maquina_id": "TOW-AUT-MAX-030",
+      "descripcion_falla": "Falla",
+      "fecha_creada": "2026-08-20"
+    }
+  ]
+}

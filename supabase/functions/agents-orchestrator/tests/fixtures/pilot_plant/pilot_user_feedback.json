@@ -1,0 +1,40 @@
+{
+  "pilot_id": "PILOT-TSMAI-2026-01",
+  "sample_size": 23,
+  "evaluations": {
+    "contexto_ia_utilidad": {
+      "util": 91.3,
+      "parcialmente_util": 8.7,
+      "no_util": 0
+    },
+    "memoria_tecnica_relevancia": {
+      "util": 87,
+      "parcialmente_util": 13,
+      "no_util": 0
+    },
+    "calendarios_claridad": {
+      "util": 95.6,
+      "parcialmente_util": 4.4,
+      "no_util": 0
+    },
+    "auditoria_360_trazabilidad": {
+      "util": 100,
+      "parcialmente_util": 0,
+      "no_util": 0
+    },
+    "facilidad_uso_tecnico": {
+      "facil": 95.6,
+      "regular": 4.4,
+      "dificil": 0
+    }
+  },
+  "acceptance_metrics": {
+    "proposals_generated": 48,
+    "proposals_approved": 40,
+    "proposals_reprogrammed": 6,
+    "proposals_rejected": 2,
+    "acceptance_rate_pct": 83.33,
+    "reprogramming_rate_pct": 12.5,
+    "rejection_rate_pct": 4.17
+  }
+}

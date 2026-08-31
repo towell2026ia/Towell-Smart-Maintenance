@@ -12,12 +12,17 @@ import { callOpenAIWithRetry, CAPATAZ_NANO_SYSTEM_PROMPT, CAPATAZ_NANO_JSON_SCHE
 import { calculateCost, fetchModelRates, logExecutionRecord } from './cost-tracker.ts';
 import { executeAG002AnnualPreventive } from '../agents/ag002/ag002-executor.ts';
 import { executeAG003WeeklyPredictive } from '../agents/ag003/ag003-executor.ts';
+import { executeAG004WeeklyAutonomous } from '../agents/ag004/ag004-executor.ts';
 import { executeAG005Audit } from '../agents/ag005/ag005-executor.ts';
 import { executeAG006FormBuilder } from '../agents/ag006/ag006-executor.ts';
 import { executeAG007PreventiveBudget } from '../agents/ag007/ag007-executor.ts';
+import { executeAG008FailureAnalysis } from '../agents/ag008/ag008-executor.ts';
 import { executeAG009 } from '../agents/ag009/ag009-executor.ts';
 import { executeAG010 } from '../agents/ag010/ag010-executor.ts';
+import { executeAG011 } from '../agents/ag011/ag011-executor.ts';
+import { executeAG012 } from '../agents/ag012/ag012-executor.ts';
 import { executeAG013 } from '../agents/ag013/ag013-executor.ts';
+import { getMachineContextSnapshot } from './machine-context-service.ts';
 
 export interface SecretsConfig {
   OPENAI_API_KEY?: string;
@@ -115,6 +120,8 @@ export async function executeAgentFlow(
     return {
       success: true,
       status: 'DUPLICATE',
+      agent_id: route.target_agent,
+      routing_type: 'DETERMINISTIC',
       event_code: eventCode.toUpperCase(),
       correlation_id: corrId,
       result: idemCheck.result,
@@ -342,22 +349,22 @@ export async function executeAgentFlow(
     if (route.agent_id === 'AG-006') {
       ag006Result = await executeAG006FormBuilder(supabase, cleanedPayload, corrId, secrets.OPENAI_API_KEY);
       const isLlmUsed = secrets.OPENAI_API_KEY ? true : false;
-      const modelRates = await fetchModelRates(supabase);
-      const costCalc = calculateCost('openai', 'gpt-4.1-mini', 0, 0, 0, modelRates);
+      const modelRates = await fetchModelRates(supabase, 'openai', 'gpt-4o-mini');
+      const costCalc = calculateCost(modelRates, 0, 0, 0);
 
       await logExecutionRecord(supabase, {
         correlation_id: corrId,
         agent_id: 'AG-006',
         execution_type: 'AGENT_EXECUTION',
         provider: isLlmUsed ? 'openai' : 'none',
-        model: isLlmUsed ? 'gpt-4.1-mini' : 'none',
+        model: isLlmUsed ? 'gpt-4o-mini' : 'none',
         started_at: startedAt,
         completed_at: new Date().toISOString(),
         duration_ms: Date.now() - new Date(startedAt).getTime(),
         input_tokens: 0,
         output_tokens: 0,
-        estimated_cost_usd: costCalc.estimatedCostUsd,
-        pricing_version: costCalc.pricingVersion,
+        estimated_cost_usd: costCalc,
+        pricing_version: modelRates.pricing_version,
         status: 'SUCCESS',
         result: ag006Result
       });
@@ -543,6 +550,152 @@ export async function executeAgentFlow(
       });
     }
 
+    // If target is AG-004 (Autónomo Semanal), execute specialist autonomous engine
+    let ag004Result = null;
+    if (route.agent_id === 'AG-004') {
+      ag004Result = await executeAG004WeeklyAutonomous(supabase, cleanedPayload, corrId);
+      await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-004',
+        execution_type: 'AGENT_EXECUTION',
+        provider: 'none',
+        model: 'none',
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - new Date(startedAt).getTime(),
+        input_tokens: 0,
+        output_tokens: 0,
+        estimated_cost_usd: 0,
+        status: ag004Result.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED',
+        result: ag004Result
+      });
+    }
+
+    // If target is AG-008 (Detector de Reincidencias y Análisis de Fallas), execute specialist failure engine
+    let ag008Result = null;
+    if (route.agent_id === 'AG-008') {
+      ag008Result = await executeAG008FailureAnalysis(supabase, cleanedPayload, corrId);
+      await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-008',
+        execution_type: 'AGENT_EXECUTION',
+        provider: 'none',
+        model: 'none',
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - new Date(startedAt).getTime(),
+        input_tokens: 0,
+        output_tokens: 0,
+        estimated_cost_usd: 0,
+        status: 'SUCCESS',
+        result: ag008Result
+      });
+    }
+
+    // If target is AG-011 (Memoria Técnica de Reparación), execute technical memory engine
+    let ag011Result = null;
+    if (route.agent_id === 'AG-011') {
+      ag011Result = await executeAG011({
+        request_id: humanEventId,
+        event_id: humanEventId,
+        correlation_id: corrId,
+        operation: cleanedPayload.operation || 'QUERY_MEMORIES',
+        asset_id: cleanedPayload.asset_id || cleanedPayload.id_maquina || cleanedPayload.maquina_id || 'UNKNOWN_ASSET',
+        problem_statement: cleanedPayload.problem_statement || cleanedPayload.diagnostico || cleanedPayload.descripcion || 'Diagnóstico no especificado',
+        component: cleanedPayload.component || cleanedPayload.componente,
+        department: cleanedPayload.department || cleanedPayload.area || cleanedPayload.departamento,
+        evaluation_at: cleanedPayload.evaluation_at || new Date().toISOString(),
+        candidate_payload: cleanedPayload.candidate_payload || cleanedPayload,
+        approval_payload: cleanedPayload.approval_payload,
+        version_payload: cleanedPayload.version_payload,
+        api_key: secrets.OPENAI_API_KEY
+      });
+      await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-011',
+        execution_type: 'AGENT_EXECUTION',
+        provider: ag011Result.execution_mode === 'OPENAI_GPT41_MINI' ? 'openai' : 'none',
+        model: ag011Result.execution_mode === 'OPENAI_GPT41_MINI' ? 'gpt-4o-mini' : 'none',
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - new Date(startedAt).getTime(),
+        input_tokens: ag011Result.telemetry.tokens.input_tokens,
+        output_tokens: ag011Result.telemetry.tokens.output_tokens,
+        estimated_cost_usd: ag011Result.telemetry.cost_usd,
+        status: ag011Result.success ? 'SUCCESS' : 'FAILED',
+        result: ag011Result
+      });
+    }
+
+    // If target is AG-012 (Evaluación Ciclo de Vida: Reparar, Renovar o Reemplazar), execute lifecycle specialist
+    let ag012Result = null;
+    if (route.agent_id === 'AG-012') {
+      ag012Result = await executeAG012({
+        request_id: humanEventId,
+        event_id: humanEventId,
+        correlation_id: corrId,
+        asset_id: cleanedPayload.asset_id || cleanedPayload.id_maquina || cleanedPayload.maquina_id || 'UNKNOWN_ASSET',
+        evaluation_at: cleanedPayload.evaluation_at || new Date().toISOString(),
+        machine_record: cleanedPayload.machine_record || {
+          id_maquina: cleanedPayload.asset_id || cleanedPayload.maquina_id,
+          equipo_towell: cleanedPayload.asset_id || cleanedPayload.maquina_id,
+          departamento_codigo: cleanedPayload.department || 'PF',
+          area: cleanedPayload.department || 'PF',
+          activo: true
+        },
+        financial_profile: cleanedPayload.financial_profile || {
+          moneda: 'MXN',
+          replacement_cost_mxn: cleanedPayload.replacement_cost || 500000,
+          current_book_value_mxn: cleanedPayload.book_value || 100000,
+          depreciation_method: 'STRAIGHT_LINE'
+        },
+        failure_signals: cleanedPayload.failure_signals || [],
+        preventive_compliance: cleanedPayload.preventive_compliance || { compliance_rate_pct: 85 },
+        api_key: secrets.MIMO_API_KEY
+      });
+      await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-012',
+        execution_type: 'AGENT_EXECUTION',
+        provider: ag012Result.execution_mode === 'REAL_MIMO' ? 'mimo' : 'none',
+        model: ag012Result.execution_mode === 'REAL_MIMO' ? 'mimo-v2.5' : 'none',
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - new Date(startedAt).getTime(),
+        input_tokens: ag012Result.telemetry.tokens.input_tokens,
+        output_tokens: ag012Result.telemetry.tokens.output_tokens,
+        estimated_cost_usd: ag012Result.telemetry.cost_usd,
+        status: ag012Result.success ? 'SUCCESS' : 'FAILED',
+        result: ag012Result
+      });
+    }
+
+    // If event is MACHINE_AI_CONTEXT_REQUESTED, generate centralized Machine Context Snapshot
+    let contextSnapshotResult = null;
+    if (eventCode.toUpperCase() === 'MACHINE_AI_CONTEXT_REQUESTED') {
+      contextSnapshotResult = await getMachineContextSnapshot(
+        supabase,
+        cleanedPayload.machine_id || cleanedPayload.asset_id || 'UNKNOWN',
+        cleanedPayload.user_role || 'SUPER_ADMINISTRADOR',
+        corrId
+      );
+      await logExecutionRecord(supabase, {
+        correlation_id: corrId,
+        agent_id: 'AG-001',
+        execution_type: 'AGENT_EXECUTION',
+        provider: 'none',
+        model: 'none',
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - new Date(startedAt).getTime(),
+        input_tokens: 0,
+        output_tokens: 0,
+        estimated_cost_usd: 0,
+        status: 'SUCCESS',
+        result: contextSnapshotResult
+      });
+    }
+
     if (supabase && dbEventId) {
       await supabase
         .from('eventos_agente')
@@ -559,17 +712,22 @@ export async function executeAgentFlow(
       correlation_id: corrId,
       event_id: humanEventId,
       execution_id: execId,
-      llm_used: ag010Result?.execution_mode === 'MIMO_V2_5' || ag013Result?.execution_mode === 'REAL_MIMO',
+      llm_used: ag010Result?.execution_mode === 'MIMO_V2_5' || ag011Result?.execution_mode === 'OPENAI_GPT41_MINI' || ag012Result?.execution_mode === 'REAL_MIMO' || ag013Result?.execution_mode === 'REAL_MIMO',
       sequence_executed: sequenceExecuted,
       result: {
         target_agent: route.agent_id,
         sequence_executed: sequenceExecuted,
+        context_snapshot: contextSnapshotResult,
         ag002_result: ag002Result,
         ag003_result: ag003Result,
+        ag004_result: ag004Result,
         audit_result: ag005AuditResult,
         form_builder_result: ag006Result,
         ag007_result: ag007Result,
+        ag008_result: ag008Result,
         ag010_result: ag010Result,
+        ag011_result: ag011Result,
+        ag012_result: ag012Result,
         ag013_result: ag013Result
       }
     };
@@ -635,9 +793,9 @@ export async function executeAgentFlow(
         completed_at: new Date().toISOString(),
         duration_ms: Date.now() - nanoStartTime,
         input_tokens: nanoResp.inputTokens,
-        outputTokens: nanoResp.outputTokens,
-        cachedInputTokens: nanoResp.cachedInputTokens,
-        reasoningTokens: nanoResp.reasoningTokens,
+        output_tokens: nanoResp.outputTokens,
+        cached_input_tokens: nanoResp.cachedInputTokens,
+        reasoning_tokens: nanoResp.reasoningTokens,
         price_input_usd: rates.price_input_usd,
         price_output_usd: rates.price_output_usd,
         price_cache_usd: rates.price_cache_usd,
@@ -704,9 +862,9 @@ export async function executeAgentFlow(
         completed_at: new Date().toISOString(),
         duration_ms: Date.now() - miniStartTime,
         input_tokens: miniResp.inputTokens,
-        outputTokens: miniResp.outputTokens,
-        cachedInputTokens: miniResp.cachedInputTokens,
-        reasoningTokens: miniResp.reasoningTokens,
+        output_tokens: miniResp.outputTokens,
+        cached_input_tokens: miniResp.cachedInputTokens,
+        reasoning_tokens: miniResp.reasoningTokens,
         price_input_usd: rates.price_input_usd,
         price_output_usd: rates.price_output_usd,
         price_cache_usd: rates.price_cache_usd,

@@ -1,0 +1,154 @@
+[
+  {
+    "test_id": "ROUTE-001",
+    "event_code": "PREVENTIVO_GENERAR",
+    "payload": {
+      "anio": 2027,
+      "maquina_id": "TOW-TEL201-TEJI",
+      "tipo_mantenimiento": "PREVENTIVO"
+    },
+    "expected_agent": "AG-002",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-002",
+    "event_code": "EXCEL_SEGUNDAS_CARGADO",
+    "payload": {
+      "maquina_id": "TOW-TEL202-TEJI",
+      "mes": 10,
+      "anio": 2026
+    },
+    "expected_agent": "AG-003",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-003",
+    "event_code": "AUTONOMO_GENERAR",
+    "payload": {
+      "maquina_id": "TOW-TEL203-TEJI",
+      "semana": "SEM-37"
+    },
+    "expected_agent": "AG-004",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-004",
+    "event_code": "EXCEL_BASE_CARGADA",
+    "payload": {
+      "file_path": "catalogo_maquinas_2027_fresh.xlsx"
+    },
+    "expected_agent": "AG-005",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-005",
+    "event_code": "FORMULARIO_VALIDAR",
+    "payload": {
+      "form_code": "CHK-PICANOL-2027"
+    },
+    "expected_agent": "AG-006",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-006",
+    "event_code": "PREVENTIVO_PRESUPUESTO_CONSULTAR",
+    "payload": {
+      "anio": 2027
+    },
+    "expected_agent": "AG-007",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-007",
+    "event_code": "FAILURE_ANALYSIS_REQUESTED",
+    "payload": {
+      "maquina_id": "TOW-TEL204-TEJI"
+    },
+    "expected_agent": "AG-008",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-008",
+    "event_code": "LEVANTAMIENTO_AUTONOMO_NO_CONFORME",
+    "payload": {
+      "descripcion": "Fuga de aceite en reductor principal 2027"
+    },
+    "expected_agent": "AG-009.2",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-009",
+    "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+    "payload": {
+      "machine_id": "TOW-TEL201-TEJI",
+      "service_code": "MP-ANUAL",
+      "scheduled_date": "2026-12-15"
+    },
+    "expected_agent": "AG-009.1",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-010",
+    "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+    "payload": {
+      "machine_id": "TOW-TEL201-TEJI",
+      "week_reference": "SEM-37",
+      "scheduled_date": "2026-09-09"
+    },
+    "expected_agent": "AG-009.2",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-011",
+    "event_code": "LEVANTAMIENTO_PREDICTIVO_NO_CONFORME",
+    "payload": {
+      "descripcion": "Vibración crítica detectada en chumacera 2027"
+    },
+    "expected_agent": "AG-009.3",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-012",
+    "event_code": "ANALISIS_CAUSA_RAIZ_SOLICITADO",
+    "payload": {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "falla_id": "FAL-002"
+    },
+    "expected_agent": "AG-010",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-013",
+    "event_code": "MEMORIA_TECNICA_REGISTRAR",
+    "payload": {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "diagnostico": "Reemplazo de reten y ajuste de biela 2027"
+    },
+    "expected_agent": "AG-011",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-014",
+    "event_code": "EVALUACION_CICLO_VIDA",
+    "payload": {
+      "maquina_id": "TOW-TEL202-TEJI"
+    },
+    "expected_agent": "AG-012",
+    "expected_route": "DETERMINISTIC"
+  },
+  {
+    "test_id": "ROUTE-015",
+    "event_code": "BAD_ACTOR_ANALYSIS_REQUESTED",
+    "payload": {
+      "assets": [
+        {
+          "id": "TOW-TEL201-TEJI",
+          "nombre": "Telar 201",
+          "fallas_count": 5
+        }
+      ]
+    },
+    "expected_agent": "AG-013",
+    "expected_route": "DETERMINISTIC"
+  }
+]

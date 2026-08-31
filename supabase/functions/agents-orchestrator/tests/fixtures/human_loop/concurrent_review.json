@@ -1,0 +1,15 @@
+{
+  "test_id": "HITL-015",
+  "proposal_id": "PROP-AUTO-TEL202",
+  "user_a": {
+    "action": "APPROVE",
+    "user_role": "SUPER_ADMINISTRADOR"
+  },
+  "user_b": {
+    "action": "REJECT",
+    "reason_code": "DUPLICADO",
+    "user_role": "SUPER_ADMINISTRADOR"
+  },
+  "expected_winner": "APPROVE",
+  "expected_second_response": "INVALID_STATE_TRANSITION"
+}

@@ -1,0 +1,46 @@
+{
+  "valid_excel": {
+    "filename": "bitacora_agosto_valid.xlsx",
+    "rows_count": 50,
+    "valid_rows": 50,
+    "invalid_rows": 0,
+    "status": "VALID",
+    "can_promote": true
+  },
+  "missing_columns": {
+    "filename": "bitacora_missing_cols.xlsx",
+    "error_code": "SCHEMA_ERROR",
+    "missing_fields": [
+      "maquina_id",
+      "fecha_paro"
+    ],
+    "status": "REJECTED",
+    "can_promote": false
+  },
+  "invalid_types": {
+    "filename": "bitacora_invalid_types.xlsx",
+    "error_code": "DATA_TYPE_ERROR",
+    "row_errors": [
+      {
+        "row": 12,
+        "field": "duracion_minutos",
+        "value": "NO_NUMERIC"
+      }
+    ],
+    "status": "REJECTED",
+    "can_promote": false
+  },
+  "unknown_machine": {
+    "filename": "bitacora_unknown_machine.xlsx",
+    "error_code": "FOREIGN_KEY_VIOLATION",
+    "invalid_machine_id": "TOW-UNKNOWN-999",
+    "status": "REJECTED",
+    "can_promote": false
+  },
+  "duplicate_rows": {
+    "filename": "bitacora_duplicates.xlsx",
+    "duplicate_count": 5,
+    "dedup_status": "DEDUPLICATED",
+    "unique_rows": 45
+  }
+}

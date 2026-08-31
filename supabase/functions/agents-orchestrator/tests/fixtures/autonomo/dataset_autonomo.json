@@ -1,0 +1,47 @@
+{
+  "referenceDate": "2026-09-01",
+  "machines": [
+    {
+      "equipo_towell": "TOW-TEL201-TEJI",
+      "nombre": "Telar 201",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "nivel_criticidad": "ALTA"
+    },
+    {
+      "equipo_towell": "TOW-TEL202-TEJI",
+      "nombre": "Telar 202",
+      "departamento_codigo": "PF",
+      "activo": true,
+      "nivel_criticidad": "MEDIA"
+    },
+    {
+      "equipo_towell": "TOW-CALD1-TINT",
+      "nombre": "Caldera 1",
+      "departamento_codigo": "TF",
+      "activo": true,
+      "nivel_criticidad": "ALTA"
+    },
+    {
+      "equipo_towell": "TOW-SELL3-PT",
+      "nombre": "Selladora 3",
+      "departamento_codigo": "CF",
+      "activo": true,
+      "nivel_criticidad": "BAJA"
+    }
+  ],
+  "faults": [
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "categoria_falla": "Lubricación",
+      "descripcion_falla": "Nivel bajo en cárter",
+      "es_recurrente": true
+    },
+    {
+      "maquina_id": "TOW-CALD1-TINT",
+      "categoria_falla": "Vibración",
+      "descripcion_falla": "Vibración en bomba de alimentación",
+      "es_recurrente": true
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "total_cost_usd": 12.45,
+  "top_spending_agents": [
+    {
+      "agent_id": "AG-010",
+      "tokens": 142000,
+      "cost_usd": 5.4
+    },
+    {
+      "agent_id": "AG-011",
+      "tokens": 189000,
+      "cost_usd": 4.8
+    }
+  ]
+}

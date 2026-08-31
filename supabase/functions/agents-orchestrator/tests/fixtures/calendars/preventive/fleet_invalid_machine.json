@@ -1,0 +1,10 @@
+{
+  "target_year": 2026,
+  "machines": [
+    {
+      "maquina_id": "MAQUINA_INEXISTENTE_999",
+      "departamento_codigo": "PF",
+      "activo": true
+    }
+  ]
+}

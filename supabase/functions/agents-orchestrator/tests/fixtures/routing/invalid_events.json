@@ -1,0 +1,25 @@
+[
+  {
+    "test_id": "NEG-001",
+    "description": "Evento no catalogado",
+    "event_code": "EVENTO_FANTASMA_INEXISTENTE_XYZ",
+    "payload": {
+      "data": 123
+    },
+    "expected_status": "INVALID_EVENT"
+  },
+  {
+    "test_id": "NEG-002",
+    "description": "Payload con campo obligatorio faltante",
+    "event_code": "EXCEL_BASE_CARGADA",
+    "payload": {},
+    "expected_status": "REJECTED_VALIDATOR"
+  },
+  {
+    "test_id": "NEG-003",
+    "description": "Payload nulo o malformado",
+    "event_code": "PREVENTIVO_GENERAR",
+    "payload": null,
+    "expected_status": "REJECTED_VALIDATOR"
+  }
+]

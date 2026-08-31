@@ -1,0 +1,57 @@
+{
+  "budget_dataset": {
+    "machines": [
+      {
+        "machine_id": "TEL201",
+        "parts": [
+          {
+            "part_id": "ROD-6205",
+            "qty": 2,
+            "unit_cost": 45
+          },
+          {
+            "part_id": "RET-45X65",
+            "qty": 1,
+            "unit_cost": 25
+          }
+        ],
+        "subtotal": 115
+      },
+      {
+        "machine_id": "TEL202",
+        "parts": [
+          {
+            "part_id": "CORR-SPB",
+            "qty": 3,
+            "unit_cost": 30
+          }
+        ],
+        "subtotal": 90
+      },
+      {
+        "machine_id": "TEL203",
+        "parts": [
+          {
+            "part_id": "ACEITE-ISO68",
+            "qty": 5,
+            "unit_cost": 12
+          }
+        ],
+        "subtotal": 60
+      }
+    ],
+    "total_weekly": 265,
+    "total_monthly": 1060,
+    "total_annual": 12720
+  },
+  "missing_cost_part": {
+    "part_id": "SPECIAL-VALVE-01",
+    "unit_cost": null,
+    "status": "COST_UNAVAILABLE"
+  },
+  "zero_quantity": {
+    "part_id": "ROD-6205",
+    "qty": 0,
+    "subtotal": 0
+  }
+}

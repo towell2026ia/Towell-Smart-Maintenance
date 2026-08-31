@@ -1,0 +1,20 @@
+{
+  "expected_top_4": [
+    "TOW-TEL204-TEJI",
+    "TOW-TEL205-TEJI",
+    "TOW-TEL202-TEJI",
+    "TOW-TEL203-TEJI"
+  ],
+  "expected_percentages": [
+    11.2,
+    9.3,
+    8.7,
+    3.1
+  ],
+  "expected_days": [
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Monday"
+  ]
+}

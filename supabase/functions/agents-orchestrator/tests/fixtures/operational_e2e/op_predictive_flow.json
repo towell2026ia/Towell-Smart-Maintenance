@@ -1,0 +1,30 @@
+{
+  "test_run_id": "E2E10-20260830-003",
+  "correlation_id": "CORR-OP-PRED-01",
+  "ingest": {
+    "agent": "AG-001",
+    "source": "EXCEL_SEGUNDAS_CARGADO",
+    "records_count": 45
+  },
+  "ranking": {
+    "agent": "AG-003",
+    "top_looms": [
+      "TEL204",
+      "TEL205",
+      "TEL202",
+      "TEL203"
+    ],
+    "slots_assigned": [
+      "2026-09-02",
+      "2026-09-03",
+      "2026-09-04",
+      "2026-09-07"
+    ]
+  },
+  "hitl": {
+    "reviewed_by": "TEST_SUPER_ADMIN",
+    "action": "REPROGRAM",
+    "new_date": "2026-09-05",
+    "reason_code": "PRODUCCION_NO_DISPONIBLE"
+  }
+}

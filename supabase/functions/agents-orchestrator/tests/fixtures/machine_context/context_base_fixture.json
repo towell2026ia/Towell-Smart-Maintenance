@@ -1,0 +1,117 @@
+{
+  "test_case_id": "CTX-BASE-001",
+  "machine_id": "TOW-TEL201-TEJI",
+  "machine_info": {
+    "clave": "TEL201",
+    "nombre": "Telar 201",
+    "area": "TEJIDO",
+    "departamento_codigo": "TEJI",
+    "activo": true,
+    "criticidad": "ALTA"
+  },
+  "work_orders": [
+    {
+      "id_orden": "OT-101",
+      "folio": "OT-2026-101",
+      "tipo_orden": "CORRECTIVO",
+      "estatus": "en_proceso",
+      "descripcion": "Fuga en reductor",
+      "fecha_carga": "2026-08-28"
+    },
+    {
+      "id_orden": "OT-102",
+      "folio": "OT-2026-102",
+      "tipo_orden": "PREVENTIVO",
+      "estatus": "cerrada",
+      "descripcion": "Preventivo anual",
+      "fecha_carga": "2026-05-10",
+      "fecha_fin": "2026-05-10"
+    },
+    {
+      "id_orden": "OT-103",
+      "folio": "OT-2026-103",
+      "tipo_orden": "CORRECTIVO",
+      "estatus": "cerrada",
+      "descripcion": "Ajuste de embrague",
+      "fecha_carga": "2026-06-15",
+      "fecha_fin": "2026-06-15"
+    },
+    {
+      "id_orden": "OT-104",
+      "folio": "OT-2026-104",
+      "tipo_orden": "CORRECTIVO",
+      "estatus": "cerrada",
+      "descripcion": "Reemplazo de banda",
+      "fecha_carga": "2026-07-20",
+      "fecha_fin": "2026-07-20"
+    }
+  ],
+  "failures": [
+    {
+      "id_falla": "FAL-01",
+      "maquina_id": "TOW-TEL201-TEJI",
+      "categoria_falla": "Mecánica",
+      "fecha_creada": "2026-08-01"
+    },
+    {
+      "id_falla": "FAL-02",
+      "maquina_id": "TOW-TEL201-TEJI",
+      "categoria_falla": "Mecánica",
+      "fecha_creada": "2026-08-07"
+    },
+    {
+      "id_falla": "FAL-03",
+      "maquina_id": "TOW-TEL201-TEJI",
+      "categoria_falla": "Mecánica",
+      "fecha_creada": "2026-08-14"
+    },
+    {
+      "id_falla": "FAL-04",
+      "maquina_id": "TOW-TEL201-TEJI",
+      "categoria_falla": "Mecánica",
+      "fecha_creada": "2026-08-20"
+    }
+  ],
+  "quality": [
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "cantidad_defecto": 12,
+      "pzas_rollo": 100
+    },
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "cantidad_defecto": 15,
+      "pzas_rollo": 120
+    }
+  ],
+  "calendars": [
+    {
+      "id_detalle": "CAL-01",
+      "maquina_id": "TOW-TEL201-TEJI",
+      "tipo_mantenimiento": "PREVENTIVO",
+      "estatus_detalle": "PROGRAMADO",
+      "fecha_programada": "2026-11-15"
+    },
+    {
+      "id_detalle": "CAL-02",
+      "maquina_id": "TOW-TEL201-TEJI",
+      "tipo_mantenimiento": "PREDICTIVO",
+      "estatus_detalle": "PROPUESTO",
+      "fecha_programada": "2026-09-03"
+    }
+  ],
+  "expected": {
+    "status": "CURRENT",
+    "open_orders_count": 1,
+    "recent_failures_count": 4,
+    "recurrence_detected": true,
+    "defect_rate_pct": 12.27,
+    "visibility_profile": "FULL",
+    "provenance_sources": [
+      "ordenes_trabajo",
+      "fallas_por_maquina",
+      "segundas_por_rollo",
+      "calendario_mantenimiento_detalle"
+    ]
+  }
+}

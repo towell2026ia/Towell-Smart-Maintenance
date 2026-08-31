@@ -43,6 +43,8 @@ const STATIC_EVENT_CATALOG: Record<string, EventCatalogEntry> = {
   'FAILURE_ANALYSIS_REQUESTED': { event_code: 'FAILURE_ANALYSIS_REQUESTED', nombre_evento: 'Solicitud de análisis de fallas desde UI', agent_id_destino: 'AG-008', es_conocido: true, datos_requeridos: [] },
   'AI_RECOMMENDATIONS_REQUESTED': { event_code: 'AI_RECOMMENDATIONS_REQUESTED', nombre_evento: 'Solicitud de recomendaciones contextuales IA desde UI', agent_id_destino: 'AG-001', es_conocido: true, datos_requeridos: [] },
   'SYSTEM_ALERTS_REQUESTED': { event_code: 'SYSTEM_ALERTS_REQUESTED', nombre_evento: 'Consulta de alertas activas del sistema desde UI', agent_id_destino: 'AG-007', es_conocido: true, datos_requeridos: [] },
+  'MACHINE_AI_CONTEXT_REQUESTED': { event_code: 'MACHINE_AI_CONTEXT_REQUESTED', nombre_evento: 'Consulta consolidada de snapshot de contexto IA por maquinaria', agent_id_destino: 'AG-001', es_conocido: true, datos_requeridos: ['machine_id'] },
+  'AGENTS_METRICS_REQUESTED': { event_code: 'AGENTS_METRICS_REQUESTED', nombre_evento: 'Consulta de métricas y telemetría de agentes para Centro de Control', agent_id_destino: 'AG-001', es_conocido: true, datos_requeridos: [] },
   'TEXTO_AMBIGUO': { event_code: 'TEXTO_AMBIGUO', nombre_evento: 'Texto libre que requiere interpretación del Capataz (IA)', agent_id_destino: 'AG-001', es_conocido: false, datos_requeridos: ['texto'] }
 };
 

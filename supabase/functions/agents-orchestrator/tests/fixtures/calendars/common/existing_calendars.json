@@ -1,0 +1,9 @@
+[
+  {
+    "id_detalle": "DET-001",
+    "maquina_id": "TOW-TEL202-TEJI",
+    "tipo_mantenimiento": "PREVENTIVO",
+    "anio": 2026,
+    "fecha_programada": "2026-03-10"
+  }
+]

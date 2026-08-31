@@ -1,0 +1,114 @@
+{
+  "upload_date": "2026-09-02",
+  "machines": [
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "clave": "TEL-201",
+      "departamento_codigo": "PF",
+      "area": "PF",
+      "activo": true,
+      "criticidad": "Alta"
+    },
+    {
+      "maquina_id": "TOW-TEL202-TEJI",
+      "clave": "TEL-202",
+      "departamento_codigo": "PF",
+      "area": "PF",
+      "activo": true,
+      "criticidad": "Alta"
+    },
+    {
+      "maquina_id": "TOW-TEL203-TEJI",
+      "clave": "TEL-203",
+      "departamento_codigo": "PF",
+      "area": "PF",
+      "activo": true,
+      "criticidad": "Alta"
+    },
+    {
+      "maquina_id": "TOW-TEL204-TEJI",
+      "clave": "TEL-204",
+      "departamento_codigo": "PF",
+      "area": "PF",
+      "activo": true,
+      "criticidad": "Alta"
+    },
+    {
+      "maquina_id": "TOW-TEL205-TEJI",
+      "clave": "TEL-205",
+      "departamento_codigo": "PF",
+      "area": "PF",
+      "activo": true,
+      "criticidad": "Alta"
+    },
+    {
+      "maquina_id": "TOW-TEL206-TEJI",
+      "clave": "TEL-206",
+      "departamento_codigo": "PF",
+      "area": "PF",
+      "activo": true,
+      "criticidad": "Alta"
+    },
+    {
+      "maquina_id": "TOW-COS101-CONF",
+      "clave": "COS-101",
+      "departamento_codigo": "CF",
+      "area": "CF",
+      "activo": true,
+      "criticidad": "Media"
+    },
+    {
+      "maquina_id": "TOW-TIN301-TINT",
+      "clave": "TIN-301",
+      "departamento_codigo": "TF",
+      "area": "TF",
+      "activo": true,
+      "criticidad": "Alta"
+    },
+    {
+      "maquina_id": "TOW-SER401-SERV",
+      "clave": "SER-401",
+      "departamento_codigo": "AF",
+      "area": "AF",
+      "activo": true,
+      "criticidad": "Baja"
+    }
+  ],
+  "quality_rows": [
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "cantidad_defecto": 12,
+      "pzas_rollo": 1000
+    },
+    {
+      "maquina_id": "TOW-TEL202-TEJI",
+      "cantidad_defecto": 87,
+      "pzas_rollo": 1000
+    },
+    {
+      "maquina_id": "TOW-TEL203-TEJI",
+      "cantidad_defecto": 31,
+      "pzas_rollo": 1000
+    },
+    {
+      "maquina_id": "TOW-TEL204-TEJI",
+      "cantidad_defecto": 112,
+      "pzas_rollo": 1000
+    },
+    {
+      "maquina_id": "TOW-TEL205-TEJI",
+      "cantidad_defecto": 93,
+      "pzas_rollo": 1000
+    },
+    {
+      "maquina_id": "TOW-TEL206-TEJI",
+      "cantidad_defecto": 25,
+      "pzas_rollo": 1000
+    },
+    {
+      "maquina_id": "TOW-COS101-CONF",
+      "cantidad_defecto": 200,
+      "pzas_rollo": 1000
+    }
+  ]
+}

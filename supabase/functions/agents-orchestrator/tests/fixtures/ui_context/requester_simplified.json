@@ -1,0 +1,101 @@
+{
+  "profile": "SIMPLIFIED",
+  "user_role": "SOLICITANTE_PUBLICO",
+  "snapshot_id": "SNAP-TEL201-REQ",
+  "machine_id": "TOW-TEL201-TEJI",
+  "status": "CURRENT",
+  "freshness": "CURRENT",
+  "cache_status": "CACHE_HIT",
+  "visibility_profile": "SIMPLIFIED",
+  "identity": {
+    "machine_id": "TOW-TEL201-TEJI",
+    "code": "TEL201",
+    "name": "Telar 201",
+    "area": "TEJIDO",
+    "department_code": "TEJI",
+    "status": "Operativa",
+    "criticality": "ALTA"
+  },
+  "operational_state": {
+    "open_work_orders": 1,
+    "in_progress_orders": 1,
+    "last_intervention_at": "2026-08-28T10:00:00Z",
+    "current_maintenance_status": "EN_MANTENIMIENTO"
+  },
+  "facts": [
+    {
+      "fact_id": "FACT-OT-01",
+      "category": "ORDEN_TRABAJO",
+      "description": "4 órdenes de trabajo en 90 días",
+      "source_table": "ordenes_trabajo",
+      "record_ids": [
+        "OT-101",
+        "OT-102"
+      ]
+    }
+  ],
+  "inferences": [],
+  "recommendations": [
+    {
+      "recommendation_id": "REC-01",
+      "title": "Atención técnica en curso",
+      "action_suggested": "El equipo de mantenimiento continúa con la intervención.",
+      "based_on": [],
+      "evidence_refs": []
+    }
+  ],
+  "calendar": {
+    "preventive": {
+      "status": "PROGRAMADO",
+      "date": "2026-11-15"
+    },
+    "predictive": {
+      "status": "PROPUESTO",
+      "date": "2026-09-03"
+    },
+    "autonomous": {
+      "status": "AL_DIA"
+    }
+  },
+  "technical_memory": {
+    "has_previous_solutions": false,
+    "solutions_count": 0,
+    "top_solution": null
+  },
+  "lifecycle": {
+    "strategy": "INFORMACION_INSUFICIENTE",
+    "driver": "Privado"
+  },
+  "bad_actor": {
+    "is_bad_actor": false,
+    "pareto_rank": null,
+    "downtime_hours_contribution": 0
+  },
+  "provenance": {
+    "work_orders": {
+      "source": "ordenes_trabajo",
+      "record_count": 4,
+      "record_ids": []
+    },
+    "failures": {
+      "source": "fallas_por_maquina",
+      "record_count": 4,
+      "record_ids": []
+    },
+    "quality": {
+      "source": "segundas_por_rollo",
+      "record_count": 0,
+      "record_ids": []
+    },
+    "calendars": {
+      "source": "calendario_mantenimiento_detalle",
+      "record_count": 2,
+      "record_ids": []
+    },
+    "checklists": {
+      "source": "checklists_mantenimiento",
+      "record_count": 0,
+      "record_ids": []
+    }
+  }
+}

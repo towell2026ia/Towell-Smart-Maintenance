@@ -1,0 +1,7 @@
+{
+  "test_id": "HITL-017",
+  "proposal_id": "PROP-PRED-TEL204",
+  "action": "APPROVE",
+  "new_date": "2026-09-10_CONFLICT_DATE",
+  "expected_error": "CONFLICT_DETECTED"
+}

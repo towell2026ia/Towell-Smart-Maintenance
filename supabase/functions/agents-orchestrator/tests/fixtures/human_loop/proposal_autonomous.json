@@ -1,0 +1,14 @@
+{
+  "proposal_id": "PROP-AUTO-TEL202",
+  "machine_id": "TOW-TEL202-TEJI",
+  "maintenance_type": "AUTONOMO",
+  "agent_id": "AG-004",
+  "status": "PROPUESTO",
+  "scheduled_date": "2026-09-04",
+  "reason": "Rutina semanal de mantenimiento autónomo",
+  "evidence_refs": [
+    "MA-ROUTINE-W36"
+  ],
+  "created_at": "2026-08-30T08:00:00Z",
+  "created_by_agent": "AG-004"
+}

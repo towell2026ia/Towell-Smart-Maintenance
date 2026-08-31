@@ -1,0 +1,33 @@
+{
+  "test_run_id": "E2E10-20260830-001",
+  "correlation_id": "CORR-OP-CORR-01",
+  "solicitud": {
+    "id_solicitud": "SOL-2026-00412",
+    "maquina_id": "TOW-TEL204-TEJI",
+    "solicitante_id": "TEST_SOLICITANTE",
+    "descripcion_falla": "Fuga persistente en manguera de lubricación del telar",
+    "tipo": "CORRECTIVO",
+    "estado": "RECIBIDA"
+  },
+  "orden_trabajo": {
+    "id_orden": "OT-2026-00892",
+    "folio": "OT-TEJI-00892",
+    "tipo_mantenimiento": "CORRECTIVO",
+    "maquina_id": "TOW-TEL204-TEJI",
+    "tecnico_asignado": "TEST_TECNICO",
+    "estado": "EN_PROCESO"
+  },
+  "bitacora": {
+    "id_bitacora": "BIT-2026-00341",
+    "id_orden": "OT-2026-00892",
+    "tiempo_paro_minutos": 45,
+    "descripcion_trabajo": "Reemplazo de manguera neumática y purga de circuito"
+  },
+  "cierre": {
+    "id_cierre": "CIE-2026-00120",
+    "id_orden": "OT-2026-00892",
+    "estado_final": "FINALIZADA",
+    "calidad_validada": true,
+    "snapshot_invalidated": true
+  }
+}

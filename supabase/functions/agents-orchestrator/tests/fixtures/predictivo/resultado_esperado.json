@@ -1,0 +1,10 @@
+{
+  "cycle_start_day_of_week": "Wednesday",
+  "max_selected_telares": 4,
+  "rank_1_machine": "TOW-TEL204-TEJI",
+  "rank_1_defect_pct": 11.2,
+  "rank_2_machine": "TOW-TEL205-TEJI",
+  "rank_2_defect_pct": 9.3,
+  "rank_3_machine": "TOW-TEL202-TEJI",
+  "rank_3_defect_pct": 8.7
+}

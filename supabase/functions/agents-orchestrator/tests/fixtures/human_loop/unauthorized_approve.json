@@ -1,0 +1,8 @@
+{
+  "test_id": "HITL-010",
+  "proposal_id": "PROP-PRED-TEL204",
+  "action": "APPROVE",
+  "user_id": "USR-SOLICITANTE-01",
+  "user_role": "SOLICITANTE_PUBLICO",
+  "expected_error": "AUTHORITY_DENIED"
+}

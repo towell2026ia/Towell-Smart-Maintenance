@@ -1,0 +1,23 @@
+{
+  "pilot_id": "PILOT-TSMAI-2026-01",
+  "ecosystem_agents_count": 16,
+  "total_agent_executions": 1248,
+  "deterministic_executions": 1040,
+  "llm_executions": 208,
+  "global_success_rate_pct": 100,
+  "global_failure_rate_pct": 0,
+  "total_cost_usd": 0.384,
+  "average_latency_ms": {
+    "ag001_routing": 14,
+    "ag002_preventive": 32,
+    "ag003_predictive": 412,
+    "ag004_autonomous": 28,
+    "context_snapshot_cache": 3,
+    "context_snapshot_rebuild": 38,
+    "hitl_decision": 42
+  },
+  "secret_leakage_events": 0,
+  "unauthorized_access_events": 0,
+  "cross_machine_contamination_events": 0,
+  "duplicate_orders_generated": 0
+}

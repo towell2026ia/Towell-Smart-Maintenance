@@ -1,0 +1,14 @@
+[
+  {
+    "test_id": "AMB-001",
+    "description": "Texto libre ambiguo para clasificador semántico",
+    "event_code": "TEXTO_AMBIGUO",
+    "payload": {
+      "texto": "Necesito analizar por qué este telar está fallando repetidamente en el turno 2"
+    },
+    "expected_agent_candidates": [
+      "AG-008",
+      "AG-010"
+    ]
+  }
+]

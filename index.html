@@ -115,10 +115,10 @@
             <div id="split-demo-box" style="display: block !important; margin-top: 20px; border-top: 1px dashed #cbd5e1; padding-top: 16px;">
               <p style="font-size: 0.85rem; color: #64748b; margin-top: 0; margin-bottom: 12px; font-weight: 600; text-align: center;">⚡ Acceso Rápido de Prueba (1 Clic):</p>
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                <button class="btn-demo-role" onclick="quickLogin('admin')" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 4px;">👑 Super Admin</button>
-                <button class="btn-demo-role" onclick="quickLogin('solicitante')" style="padding: 10px; border: 1px solid #0284c7; border-radius: 8px; background: #f0f9ff; color: #0369a1; font-weight: 700; cursor: pointer; transition: all 0.15s; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 4px;">📨 Solicitante SGC</button>
-                <button class="btn-demo-role" onclick="quickLogin('tech', 'T-01')" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 4px;">👨‍🔧 Tec Carlos</button>
-                <button class="btn-demo-role" onclick="quickLogin('tech', 'T-02')" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 4px;">👩‍🔧 Tec Sofía</button>
+                <button class="btn-demo-role" onclick="quickLogin('admin')" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 4px;">👑 Super Admin Demo</button>
+                <button class="btn-demo-role" onclick="quickLogin('solicitante')" style="padding: 10px; border: 1px solid #0284c7; border-radius: 8px; background: #f0f9ff; color: #0369a1; font-weight: 700; cursor: pointer; transition: all 0.15s; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 4px;">📨 Solicitante Demo</button>
+                <button class="btn-demo-role" onclick="quickLogin('tech', 'T-DEMO-01')" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 4px;">👨‍🔧 Técnico Demo 01</button>
+                <button class="btn-demo-role" onclick="quickLogin('tech', 'T-DEMO-02')" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 600; cursor: pointer; transition: all 0.15s; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 4px;">👩‍🔧 Técnico Demo 02</button>
               </div>
             </div>
 
@@ -286,7 +286,6 @@
             <span class="detail-item-value" id="check-result-date">03/06/2026</span>
           </div>
         </div>
-
         <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; color: var(--primary-dark);">Historial de Cambios</h4>
         <div id="check-timeline-list" style="display: flex; flex-direction: column; gap: 12px;">
           <!-- Items generados en app.js -->
@@ -305,15 +304,14 @@
         <p>Centro de Control y Gestión Operativa</p>
       </div>
 
-      <!-- Selector Rápido para Prueba (WOW factor, facilita testeo al usuario) -->
+      <!-- Selector Rápido para Prueba (Sandbox Aislado) -->
       <div class="demo-selector-box" id="login-demo-box">
-        <p>Acceso rápido de prueba:</p>
+        <p>Acceso rápido de prueba (Sandbox):</p>
         <div class="demo-buttons-grid">
-          <button class="btn-demo-role" onclick="quickLogin('admin')">👑 Super Admin</button>
-          <button class="btn-demo-role" onclick="quickLogin('solicitante')">📨 Solicitante (SGC)</button>
-          <button class="btn-demo-role" onclick="quickLogin('tech', 'T-01')">👨‍🔧 Técnico Carlos</button>
-          <button class="btn-demo-role" onclick="quickLogin('tech', 'T-02')">👩‍🔧 Técnico Sofía</button>
-          <button class="btn-demo-role" onclick="quickLogin('tech', 'T-03')">👨‍🔧 Técnico Alejandro</button>
+          <button class="btn-demo-role" onclick="quickLogin('admin')">👑 Super Admin Demo</button>
+          <button class="btn-demo-role" onclick="quickLogin('solicitante')">📨 Solicitante Demo</button>
+          <button class="btn-demo-role" onclick="quickLogin('tech', 'T-DEMO-01')">👨‍🔧 Técnico Demo 01</button>
+          <button class="btn-demo-role" onclick="quickLogin('tech', 'T-DEMO-02')">👩‍🔧 Técnico Demo 02</button>
         </div>
       </div>
 
@@ -427,6 +425,10 @@
         </li>
         <li class="menu-item" id="menu-admin-excel" onclick="switchAdminPanel('excel')">
           <a>📥 Centro de Carga Excel</a>
+        </li>
+        <li class="menu-item" id="menu-admin-agents" onclick="switchAdminPanel('agents')">
+          <svg class="menu-icon" viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM4 11a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8zm4 3a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm8 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm-4 4a3 3 0 0 0 2.82-2H9.18A3 3 0 0 0 12 18z" fill="currentColor"/></svg>
+          <a>🤖 Centro de Agentes IA</a>
         </li>
         <li class="menu-item" id="menu-admin-config" onclick="switchAdminPanel('config')">
           <a>⚙️ Configuración</a>
@@ -1833,6 +1835,94 @@
         </div>
 
         <!-- ====== PANEL: RESPUESTAS DE CHECKLIST ====== -->
+        <!-- ==========================================================================
+             PANEL: CENTRO DE AGENTES IA (PRD-AG-AUD-001-R1 §23-28, §42-43)
+             ========================================================================== -->
+        <div id="panel-admin-agents" class="admin-panel-content" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2 style="margin: 0; font-size: 1.4rem; font-weight: 800; color: #0f172a;">🤖 Centro de Control de Agentes IA</h2>
+              <p style="margin: 4px 0 0; color: #64748b; font-size: 0.88rem;">Supervisión operativa, telemetría y trazabilidad end-to-end de los 16 agentes especialistas.</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button type="button" class="btn-action-primary" onclick="renderAdminAgentsCenter()" style="display: flex; align-items: center; gap: 6px;">
+                <span>⚡ Actualizar Métricas</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- NIVEL 1: DASHBOARD EJECUTIVO -->
+          <div style="margin-bottom: 24px;">
+            <h3 style="font-size: 1rem; font-weight: 700; color: #1e293b; margin: 0 0 12px 0;">📊 Nivel 1 — Salud Operacional & Impacto</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+              <div style="background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; border-left: 4px solid #22c55e;">
+                <span style="font-size: 0.78rem; color: #64748b; font-weight: 700;">AGENTES SALUDABLES</span>
+                <div style="font-size: 1.5rem; font-weight: 800; color: #166534; margin-top: 4px;" id="agent-kpi-healthy">16 / 16</div>
+                <span style="font-size: 0.72rem; color: #16a34a;">100% disponibles</span>
+              </div>
+              <div style="background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; border-left: 4px solid #0284c7;">
+                <span style="font-size: 0.78rem; color: #64748b; font-weight: 700;">EJECUCIONES REGISTRADAS</span>
+                <div style="font-size: 1.5rem; font-weight: 800; color: #0369a1; margin-top: 4px;" id="agent-kpi-executions">0</div>
+                <span style="font-size: 0.72rem; color: #64748b;">Bitácora activa</span>
+              </div>
+              <div style="background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; border-left: 4px solid #10b981;">
+                <span style="font-size: 0.78rem; color: #64748b; font-weight: 700;">TASA DE ÉXITO</span>
+                <div style="font-size: 1.5rem; font-weight: 800; color: #047857; margin-top: 4px;" id="agent-kpi-success-rate">100%</div>
+                <span style="font-size: 0.72rem; color: #10b981;">0 fallos críticos</span>
+              </div>
+              <div style="background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; border-left: 4px solid #8b5cf6;">
+                <span style="font-size: 0.78rem; color: #64748b; font-weight: 700;">CONVERSIÓN A ACCIÓN</span>
+                <div style="font-size: 1.5rem; font-weight: 800; color: #6d28d9; margin-top: 4px;" id="agent-kpi-conversion">85%</div>
+                <span style="font-size: 0.72rem; color: #8b5cf6;">Propuestas aceptadas</span>
+              </div>
+              <div style="background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; border-left: 4px solid #f59e0b;">
+                <span style="font-size: 0.78rem; color: #64748b; font-weight: 700;">COSTO TOTAL USD</span>
+                <div style="font-size: 1.5rem; font-weight: 800; color: #b45309; margin-top: 4px;" id="agent-kpi-cost">$0.0000</div>
+                <span style="font-size: 0.72rem; color: #64748b;">Tarifas canónicas</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- NIVEL 2: ESTADO POR AGENTE -->
+          <div style="margin-bottom: 24px;">
+            <h3 style="font-size: 1rem; font-weight: 700; color: #1e293b; margin: 0 0 12px 0;">🎴 Nivel 2 — Estado de los 16 Agentes Especialistas</h3>
+            <div id="agents-grid-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px;">
+              <!-- Inyectado por JS -->
+            </div>
+          </div>
+
+          <!-- BITÁCORA DE EJECUCIONES EN VIVO -->
+          <div style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <h3 style="margin: 0; font-size: 1rem; font-weight: 700; color: #0f172a;">📜 Bitácora de Telemetría y Ejecuciones en Vivo</h3>
+                <p style="margin: 2px 0 0; color: #64748b; font-size: 0.8rem;">Historial inmutable con correlation_id, tokens y duración.</p>
+              </div>
+              <input type="text" id="agent-log-filter" placeholder="🔍 Filtrar por agente o ID..." oninput="filterAdminAgentLogs()" style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; max-width: 250px;">
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Execution ID</th>
+                    <th>Agente</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Duración</th>
+                    <th>Tokens</th>
+                    <th>Costo USD</th>
+                    <th>Fecha / Hora</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-agent-executions">
+                  <tr><td colspan="9" style="text-align: center; padding: 20px; color: #64748b;">Cargando bitácora de ejecuciones…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <div id="panel-admin-respchk" class="admin-panel-content" style="display: none;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">📋 Respuestas de Checklist por OT</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Respuestas capturadas al ejecutar checklists en órdenes de trabajo.</p></div>
@@ -2414,6 +2504,14 @@
 
             <form id="form-solic-new-request" onsubmit="event.preventDefault(); submitSolicitanteNewRequest();" style="display: flex; flex-direction: column; gap: 16px;">
               
+              <!-- 0. Nombre del Solicitante o Reportante (Opcional) -->
+              <div class="form-group">
+                <label for="solic-req-applicant-name" style="font-weight: 600; font-size: 0.88rem; color: #334155;">
+                  👤 Nombre del Solicitante o Reportante (Opcional)
+                </label>
+                <input type="text" id="solic-req-applicant-name" class="form-control" placeholder="Ej. Juan Pérez, Supervisor Turno 1 (Opcional)...">
+              </div>
+
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div class="form-group">
                   <label for="solic-req-type">1. Tipo de Solicitud *</label>
@@ -2438,12 +2536,41 @@
                 </div>
               </div>
 
-              <div class="form-group">
-                <label for="solic-req-machine">3. Máquina de tu Área *</label>
-                <select id="solic-req-machine" class="form-control" onchange="onSolicitanteMachineSelectChange(this.value)" required>
-                  <option value="">Selecciona máquina...</option>
-                </select>
-                <div id="solic-machine-calendar-notice" style="display:none; margin-top:8px; padding:10px 14px; background:#eff6ff; border-left:4px solid #3b82f6; border-radius:6px; font-size:0.83rem; color:#1e40af;">
+              <!-- 3. Filtro y Buscador de Maquinaria por Área (PRD-REQ-UX-001-R1) -->
+              <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                  <label style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0;">
+                    ⚙️ 3. Selección y Filtro de Máquina *
+                  </label>
+                  <span style="font-size: 0.78rem; color: #64748b;">Filtra por área o busca por código/nombre</span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 180px 1fr; gap: 10px;">
+                  <div>
+                    <label for="solic-req-machine-area-filter" style="font-size: 0.78rem; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Área:</label>
+                    <select id="solic-req-machine-area-filter" class="form-control" onchange="onSolicitanteMachineFilterChange()" style="font-size: 0.85rem; font-weight: 600;">
+                      <option value="ALL">🏢 Todas las Áreas</option>
+                      <option value="PF">🧵 PF — Producción</option>
+                      <option value="CF">✂️ CF — Costura</option>
+                      <option value="TF">🎨 TF — Tintorería</option>
+                      <option value="AF">🏢 AF — Administrativo</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label for="solic-req-machine-search" style="font-size: 0.78rem; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Buscar Máquina:</label>
+                    <input type="text" id="solic-req-machine-search" class="form-control" placeholder="🔍 Buscar por código, equipo o modelo..." oninput="onSolicitanteMachineFilterChange()" style="font-size: 0.85rem;">
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin: 0;">
+                  <label for="solic-req-machine" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Máquina / Equipo Resultante *</label>
+                  <select id="solic-req-machine" class="form-control" onchange="onSolicitanteMachineSelectChange(this.value)" required style="font-weight: 600;">
+                    <option value="">Selecciona máquina...</option>
+                  </select>
+                </div>
+
+                <div id="solic-machine-calendar-notice" style="display:none; padding:10px 14px; background:#eff6ff; border-left:4px solid #3b82f6; border-radius:6px; font-size:0.83rem; color:#1e40af;">
                   <!-- Información de mantenimiento programado de la máquina -->
                 </div>
               </div>
@@ -2488,17 +2615,32 @@
                 <textarea id="solic-req-description" class="form-control" rows="3" placeholder="Describe síntomas, ruidos, fugas, códigos de error o la actividad requerida..." required></textarea>
               </div>
 
+              <!-- 8. Técnico Preferido / Sugerido (Opcional - PRD-REQ-UX-001-R1) -->
               <div class="form-group">
-                <label for="solic-req-file">8. Evidencia (Fotografía / Celular)</label>
+                <label for="solic-req-preferred-tech" style="font-weight: 600; font-size: 0.88rem; color: #334155;">
+                  🔧 8. Técnico Preferido / Sugerido (Opcional)
+                </label>
+                <select id="solic-req-preferred-tech" class="form-control">
+                  <option value="">No tengo preferencia (El Super Administrador asignará)</option>
+                </select>
+                <span style="font-size: 0.75rem; color: #64748b; margin-top: 3px; display: block;">
+                  Nota: Tu sugerencia será revisada por el Super Administrador quien confirmará la asignación final.
+                </span>
+              </div>
+
+              <div class="form-group">
+                <label for="solic-req-file">9. Evidencia (Fotografía / Celular)</label>
                 <input type="file" id="solic-req-file" class="form-control" accept="image/*">
               </div>
 
               <div class="form-group">
-                <label for="solic-req-observations">9. Observaciones (Opcional)</label>
+                <label for="solic-req-observations">10. Observaciones Adicionales (Opcional)</label>
                 <textarea id="solic-req-observations" class="form-control" rows="2" placeholder="Notas adicionales o instrucciones específicas..."></textarea>
               </div>
 
-              <button type="submit" class="btn-action-primary" style="margin-top: 8px; padding: 12px; font-weight: 700; font-size: 1rem;">🚀 Registrar Solicitud de Mantenimiento</button>
+              <button type="submit" id="btn-solic-submit-request" class="btn-action-primary" style="margin-top: 8px; padding: 12px; font-weight: 700; font-size: 1rem;">
+                🚀 Registrar Solicitud de Mantenimiento
+              </button>
             </form>
           </div>
         </div>
@@ -2540,125 +2682,170 @@
 
         <!-- Panel 3: Calendario por Área (Vistas y Filtros Sin Prompts Internos IA) -->
         <!-- Panel 3: Calendario por Área (Solo Lectura - Réplica de Calendarios Oficiales) -->
-        <!-- ===== PANEL 3: Calendario ===== -->
+        <!-- ===== PANEL 3: Calendario por Área (Solo Lectura - Mismo formato que Administrador) ===== -->
         <div id="panel-solic-calendar" class="solic-panel-content" style="display: none;">
           <button class="solic-back-btn" onclick="switchSolicitantePanel('home')">← Regresar al Inicio</button>
           
-          <!-- Encabezado del Calendario con Indicador de Área y Modo Solo Lectura -->
-          <div style="background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-            <div>
-              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap;">
-                <h3 style="margin: 0; font-weight: 700; font-size: 1.25rem;">📅 Calendario de Mantenimiento por Área</h3>
-                <span id="solic-calendar-area-badge" class="badge" style="background:#0284c7; color:white; font-weight:700; font-size:0.85rem; padding:4px 10px; border-radius:6px;">ÁREA: PF</span>
-                <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:600; font-size:0.78rem; padding:4px 8px; border-radius:6px;">🔒 Solo Lectura</span>
-              </div>
-              <p style="margin: 0; color: #64748b; font-size: 0.85rem;" id="solic-calendar-subtitle">Programación oficial de mantenimientos Preventivo, Predictivo y Autónomo para las máquinas de tu Área.</p>
-            </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="btn-nav btn-nav-primary" onclick="renderSolicitanteCalendar()" style="display: flex; align-items: center; gap: 6px;">↻ Recargar Calendario</button>
-            </div>
-          </div>
-
-          <!-- Métricas Resumen del Área -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
-            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #0284c7;">
-              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🛠️ Preventivos Anuales</div>
-              <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="solic-cal-stat-prev">0</div>
-              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">1 intervención anual / máq</div>
-            </div>
-            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #7c3aed;">
-              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🔮 Predictivos Mensuales</div>
-              <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="solic-cal-stat-pred">0</div>
-              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Viernes certificados</div>
-            </div>
-            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #059669;">
-              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🤖 Autónomos Semanales</div>
-              <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="solic-cal-stat-auto">0</div>
-              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Balanceados Lun-Sáb</div>
-            </div>
-            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #f59e0b;">
-              <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">📅 Total Programadas</div>
-              <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="solic-cal-stat-total">0</div>
-              <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Actividades en tu área</div>
-            </div>
-          </div>
-
-          <!-- Barra de Filtros y Búsqueda -->
-          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
-            <div>
-              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Tipo de Mantenimiento:</label>
-              <select id="filter-solic-cal-type" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
-                <option value="ALL">TODOS (Todos los tipos)</option>
-                <option value="PREVENTIVO">🛠️ PREVENTIVO ANUAL</option>
-                <option value="PREDICTIVO">🔮 PREDICTIVO SEMANAL</option>
-                <option value="AUTONOMO">🤖 AUTÓNOMO SEMANAL</option>
-              </select>
-            </div>
-
-            <div>
-              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Desde:</label>
-              <input type="date" id="solic-cal-filter-from" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
-            </div>
-
-            <div>
-              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Hasta:</label>
-              <input type="date" id="solic-cal-filter-to" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
-            </div>
-
-            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-              <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setSolicitanteCalendarQuickFilter('all')">Todo el Año</button>
-              <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setSolicitanteCalendarQuickFilter('month')">Este Mes</button>
-              <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setSolicitanteCalendarQuickFilter('next30')">Próx. 30 Días</button>
-              <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setSolicitanteCalendarQuickFilter('clear')">Limpiar</button>
-            </div>
-
-            <div style="flex: 1; min-width: 180px;">
-              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Buscar Máquina / Actividad:</label>
-              <input type="text" id="solic-cal-filter-search" class="form-control" placeholder="Ej. TEL201, Revisión, Vibración..." style="font-size: 0.85rem; height: 36px;" oninput="renderSolicitanteCalendar()">
-            </div>
-
-            <div>
-              <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Orden:</label>
-              <select id="solic-cal-sort-order" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
-                <option value="ASC">Más cercano primero (ASC)</option>
-                <option value="DESC">Más lejano primero (DESC)</option>
-              </select>
-            </div>
-
-            <div style="display: flex; gap: 4px; align-items: center; margin-left: auto;">
-              <button type="button" id="btn-solic-mode-table" class="btn-nav btn-nav-secondary active" style="height: 36px;" onclick="switchSolicitanteCalendarMode('table')">📋 Tabla</button>
-              <button type="button" id="btn-solic-mode-cards" class="btn-nav btn-nav-secondary" style="height: 36px;" onclick="switchSolicitanteCalendarMode('cards')">🃏 Tarjetas</button>
-            </div>
-          </div>
-
-          <!-- Contenedor Principal de la Vista del Calendario -->
-          <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #cbd5e1;">
-            <div id="solic-cal-counter" style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px; font-weight: 600;">Mostrando 0 actividades</div>
+          <div style="background-color: white; padding: 24px; border-radius: var(--border-radius); border: 1px solid #cbd5e1; display: flex; flex-direction: column; gap: 20px;">
             
-            <!-- Vista 1: Tabla Detallada -->
-            <div id="solic-cal-view-table" style="overflow-x: auto;">
-              <table class="custom-table" style="width: 100%;">
-                <thead>
-                  <tr>
-                    <th>Máquina / Equipo</th>
-                    <th>Tipo</th>
-                    <th>Actividad Programada</th>
-                    <th>Fecha Programada</th>
-                    <th>Prioridad</th>
-                    <th>Responsable Sugerido</th>
-                    <th>Estado</th>
-                  </tr>
-                </thead>
-                <tbody id="tbody-solic-calendar">
-                  <tr><td colspan="7" style="text-align: center; padding: 30px; color: #64748b;">Cargando calendario de tu área...</td></tr>
-                </tbody>
-              </table>
+            <!-- Header section -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap;">
+                  <h3 style="font-weight: 700; margin: 0; font-size: 1.4rem;">📅 Calendario de Mantenimiento por Área</h3>
+                  <span id="solic-calendar-area-badge" class="badge" style="background:#0284c7; color:white; font-weight:700; font-size:0.85rem; padding:4px 10px; border-radius:6px;">ÁREA: PF</span>
+                  <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:600; font-size:0.78rem; padding:4px 8px; border-radius:6px;">🔒 Solo Lectura</span>
+                </div>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin: 4px 0 0;" id="solic-calendar-subtitle">Programación de maquinaria y actividades de mantenimiento de tu Área (Preventivo, Predictivo y Autónomo).</p>
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <button class="btn-nav" id="btn-solic-toggle-view-grid" onclick="switchSolicitanteCalendarViewMode('grid')" style="width: auto; padding: 8px 16px; background-color: var(--primary-color); color: white; border: 1px solid var(--primary-color); border-radius: var(--border-radius); cursor: pointer; font-weight: 600;">📅 Vista Calendario</button>
+                <button class="btn-nav" id="btn-solic-toggle-view-table" onclick="switchSolicitanteCalendarViewMode('table')" style="width: auto; padding: 8px 16px; background-color: #f1f5f9; color: var(--text-color); border: 1px solid #cbd5e1; border-radius: var(--border-radius); cursor: pointer; font-weight: 600;">📋 Lista de Propuestas</button>
+                <button class="btn-nav btn-nav-primary" onclick="renderSolicitanteCalendar()" style="width: auto; padding: 8px 16px;">↻ Recargar</button>
+              </div>
             </div>
 
-            <!-- Vista 2: Grid de Tarjetas -->
-            <div id="solic-cal-view-cards" style="display: none; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
-              <!-- Tarjetas renderizadas dinámicamente -->
+            <!-- Métricas Resumen del Área -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+              <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #0284c7;">
+                <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🛠️ Preventivos Anuales</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="solic-cal-stat-prev">0</div>
+                <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Intervención anual / máq</div>
+              </div>
+              <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #7c3aed;">
+                <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🔮 Predictivos Semanales</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="solic-cal-stat-pred">0</div>
+                <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Por segundas / calidad</div>
+              </div>
+              <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #059669;">
+                <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🤖 Autónomos Semanales</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="solic-cal-stat-auto">0</div>
+                <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Checklists operativos</div>
+              </div>
+              <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; border-left: 4px solid #f59e0b;">
+                <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase;">📅 Total Programadas</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 4px;" id="solic-cal-stat-total">0</div>
+                <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Actividades en tu área</div>
+              </div>
             </div>
+
+            <!-- Filters & Legend (Grid Mode Only) -->
+            <div id="solic-calendar-grid-filters" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                <span style="font-weight: 600; font-size: 0.85rem; color: #475569;">Filtros:</span>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
+                  <input type="checkbox" id="filter-solic-cal-correctivo" checked onchange="renderSolicitanteCalendar()" style="accent-color: var(--color-critical); cursor: pointer;">
+                  <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-critical); display: inline-block;"></span> Correctivos (OT)
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
+                  <input type="checkbox" id="filter-solic-cal-preventivo" checked onchange="renderSolicitanteCalendar()" style="accent-color: var(--color-preventive); cursor: pointer;">
+                  <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-preventive); display: inline-block;"></span> Preventivos
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
+                  <input type="checkbox" id="filter-solic-cal-predictivo" checked onchange="renderSolicitanteCalendar()" style="accent-color: #f97316; cursor: pointer;">
+                  <span style="width: 10px; height: 10px; border-radius: 50%; background: #f97316; display: inline-block;"></span> Predictivos (IA)
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
+                  <input type="checkbox" id="filter-solic-cal-autonomo" checked onchange="renderSolicitanteCalendar()" style="accent-color: var(--accent-blue); cursor: pointer;">
+                  <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--accent-blue); display: inline-block;"></span> Autónomos (Calidad)
+                </label>
+              </div>
+              
+              <!-- Scale Toggles & Navigation -->
+              <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                <!-- Toggles de Escala -->
+                <div style="display: flex; background: #e2e8f0; border-radius: var(--border-radius); padding: 2px;">
+                  <button id="btn-solic-scale-year" onclick="setSolicitanteCalendarScale('year')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: transparent; color: var(--text-color); cursor: pointer;">Año</button>
+                  <button id="btn-solic-scale-month" onclick="setSolicitanteCalendarScale('month')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: white; color: var(--primary-color); cursor: pointer; box-shadow: var(--box-shadow-sm);">Mes</button>
+                  <button id="btn-solic-scale-week" onclick="setSolicitanteCalendarScale('week')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: transparent; color: var(--text-color); cursor: pointer;">Semana</button>
+                </div>
+                
+                <!-- Botón Hoy -->
+                <button class="btn-table-action" onclick="jumpToSolicitanteToday()" style="padding: 6px 12px; font-weight: bold; border-radius: var(--border-radius); border: 1px solid #cbd5e1; background: white; cursor: pointer;">Hoy</button>
+
+                <!-- Navegación -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button class="btn-table-action" onclick="changeSolicitanteCalendarPeriod(-1)" style="padding: 6px 12px; font-weight: bold; border-radius: var(--border-radius); border: 1px solid #cbd5e1; background: white; cursor: pointer;">◀ Ant</button>
+                  <span id="solic-calendar-month-label" style="font-weight: 700; font-size: 1rem; min-width: 140px; text-align: center; display: inline-block;">Junio 2026</span>
+                  <button class="btn-table-action" onclick="changeSolicitanteCalendarPeriod(1)" style="padding: 6px 12px; font-weight: bold; border-radius: var(--border-radius); border: 1px solid #cbd5e1; background: white; cursor: pointer;">Sig ▶</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- CONTAINER A: Calendar Grid -->
+            <div id="solic-calendar-view-grid-mode" style="display: block;">
+              <div class="calendar-grid" id="solic-calendar-grid-container">
+                <!-- Creado dinámicamente en app.js -->
+              </div>
+            </div>
+
+            <!-- CONTAINER B: Calendar Table Mode (Read-Only) -->
+            <div id="solic-calendar-view-table-mode" style="display: none; flex-direction: column; gap: 16px;">
+              <!-- Barra de Filtros de la Tabla -->
+              <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+                <div>
+                  <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Tipo de Mantenimiento:</label>
+                  <select id="filter-solic-table-type" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
+                    <option value="ALL">TODOS (Todos los tipos)</option>
+                    <option value="PREVENTIVO">🛠️ PREVENTIVO ANUAL / SEMANAL</option>
+                    <option value="PREDICTIVO">🔮 PREDICTIVO SEMANAL</option>
+                    <option value="AUTONOMO">🤖 AUTÓNOMO SEMANAL</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Desde:</label>
+                  <input type="date" id="solic-cal-filter-from" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
+                </div>
+
+                <div>
+                  <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Hasta:</label>
+                  <input type="date" id="solic-cal-filter-to" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
+                </div>
+
+                <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                  <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setSolicitanteCalendarQuickFilter('all')">Todo el Año</button>
+                  <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setSolicitanteCalendarQuickFilter('month')">Este Mes</button>
+                  <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setSolicitanteCalendarQuickFilter('next30')">Próx. 30 Días</button>
+                  <button type="button" class="btn-nav btn-nav-secondary" style="font-size: 0.78rem; padding: 6px 10px; height: 36px;" onclick="setSolicitanteCalendarQuickFilter('clear')">Limpiar</button>
+                </div>
+
+                <div style="flex: 1; min-width: 180px;">
+                  <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Buscar Máquina / Actividad:</label>
+                  <input type="text" id="solic-cal-filter-search" class="form-control" placeholder="Ej. TEL201, Revisión, Vibración..." style="font-size: 0.85rem; height: 36px;" oninput="renderSolicitanteCalendar()">
+                </div>
+
+                <div>
+                  <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Orden:</label>
+                  <select id="solic-cal-sort-order" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
+                    <option value="ASC">Más cercano primero (ASC)</option>
+                    <option value="DESC">Más lejano primero (DESC)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Tabla de Propuestas del Área -->
+              <div style="background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; overflow-x: auto;">
+                <div id="solic-cal-counter" style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px; font-weight: 600;">Mostrando 0 actividades</div>
+                <table class="custom-table" style="width: 100%;">
+                  <thead>
+                    <tr>
+                      <th>Máquina / Equipo</th>
+                      <th>Tipo</th>
+                      <th>Actividad Programada</th>
+                      <th>Fecha Programada</th>
+                      <th>Prioridad</th>
+                      <th>Responsable Sugerido</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-solic-calendar">
+                    <tr><td colspan="7" style="text-align: center; padding: 30px; color: #64748b;">Cargando calendario de tu área...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -2710,13 +2897,12 @@
                     <th>Folio OT</th>
                     <th>Fecha Validación</th>
                     <th>Validado Por</th>
-                    <th>Estatus Cierre</th>
-                    <th>Calificación</th>
-                    <th>Comentario de Calidad / Motivo Corrección</th>
+                    <th>Decisión</th>
+                    <th>Comentarios / Motivo</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-solic-history-val">
-                  <tr><td colspan="6" style="text-align:center; padding: 30px; color: #64748b;">No hay validaciones registradas aún.</td></tr>
+                  <tr><td colspan="5" style="text-align:center; padding: 30px; color: #64748b;">No hay validaciones registradas aún.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -2728,7 +2914,7 @@
   </div>
 
   <!-- ==========================================================================
-       MODALES DEL SOLICITANTE (Detalle, Aceptar Trabajo y Solicitar Corrección)
+       MODALES DEL SOLICITANTE (Detalle, Aceptar Trabajo y El Problema Continúa)
        ========================================================================== -->
   
   <!-- Modal Detalle de Cierre para Validación -->
@@ -2785,98 +2971,86 @@
       <div class="modal-footer" style="display: flex; justify-content: space-between; gap: 12px; padding: 16px; border-top: 1px solid #e2e8f0;">
         <button type="button" class="btn-action-secondary" onclick="closeModal('modal-solic-detail-view')">Cerrar</button>
         <div style="display: flex; gap: 8px;">
-          <button type="button" class="btn-tech-status btn-tech-subtask" style="background:#ef4444; border-color:#ef4444;" id="btn-solic-modal-reject">SOLICITAR CORRECCIÓN</button>
-          <button type="button" class="btn-tech-status btn-tech-start" id="btn-solic-modal-accept">ACEPTAR TRABAJO</button>
+          <button type="button" class="btn-tech-status btn-tech-subtask" style="background:#ef4444; border-color:#ef4444;" id="btn-solic-modal-reject">⚠️ EL PROBLEMA CONTINÚA</button>
+          <button type="button" class="btn-tech-status btn-tech-start" id="btn-solic-modal-accept">✅ CONFIRMAR SOLUCIÓN</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Modal Formulario de Aceptación y Calificación (1 a 5 Estrellas) -->
+  <!-- Modal Formulario de Aceptación de Entrega (PRD-REQ-CLOSE-001-R1) -->
   <div class="modal-overlay" id="modal-solic-accept-work" style="display: none;">
     <div class="modal-card" style="max-width: 500px;">
       <div class="modal-header">
-        <h3 style="margin: 0; font-weight: 700;">⭐ Aceptar Trabajo y Calificar Atención</h3>
+        <h3 style="margin: 0; font-weight: 700; color: #166534; display: flex; align-items: center; gap: 8px;">
+          <span>✅</span> Confirmar Solución y Entrega
+        </h3>
         <button class="btn-close-modal" onclick="closeModal('modal-solic-accept-work')">✕</button>
       </div>
       <form id="form-solic-accept-rating" onsubmit="event.preventDefault(); submitSolicitanteAcceptWork();" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
         <input type="hidden" id="solic-accept-ot-id">
         
-        <div class="form-group">
-          <label style="font-weight: 700;">1. Calificación de la Atención (1 a 5 Estrellas) *</label>
-          <select id="solic-accept-stars" class="form-control" required style="font-size: 1.1rem; font-weight: 700;">
-            <option value="5">⭐⭐⭐⭐⭐ 5 ★ — Excelente</option>
-            <option value="4">⭐⭐⭐⭐ 4 ★ — Bueno</option>
-            <option value="3">⭐⭐⭐ 3 ★ — Regular</option>
-            <option value="2">⭐⭐ 2 ★ — Malo</option>
-            <option value="1">⭐ 1 ★ — Muy malo</option>
-          </select>
+        <div style="background: #f0fdf4; padding: 14px; border-radius: 8px; border: 1px solid #bbf7d0; font-size: 0.92rem; color: #166534; font-weight: 600;">
+          ¿Confirmas que el equipo o servicio fue entregado satisfactoriamente y la avería quedó resuelta?
         </div>
 
         <div class="form-group">
-          <label for="solic-accept-comments">2. Comentarios de Calidad (Opcional)</label>
-          <textarea id="solic-accept-comments" class="form-control" rows="3" placeholder="Comentarios sobre el tiempo de respuesta, limpieza o atención del técnico..."></textarea>
-        </div>
-
-        <div style="background: #f0fdf4; padding: 12px; border-radius: 6px; border: 1px solid #bbf7d0; font-size: 0.85rem; color: #166534;">
-          <strong>Confirmación de Cierre:</strong> ¿Confirma que el trabajo fue realizado satisfactoriamente? Al continuar, la orden cambiará a estatus <strong>CERRADA</strong>.
+          <label for="solic-accept-comments" style="font-weight: 600; font-size: 0.85rem; color: #334155;">Comentarios sobre la Entrega (Opcional):</label>
+          <textarea id="solic-accept-comments" class="form-control" rows="3" placeholder="Ej. Equipo probado y operando correctamente en producción..."></textarea>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <button type="button" class="btn-action-secondary" onclick="closeModal('modal-solic-accept-work')">Cancelar</button>
-          <button type="submit" class="btn-action-primary" style="background: #16a34a; border-color: #16a34a;">Confirmar y Cerrar OT</button>
+          <button type="submit" class="btn-action-primary" style="background: #16a34a; border-color: #16a34a; font-weight: 700; padding: 10px 18px;">
+            ✅ Confirmar Solución y Cerrar OT
+          </button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Modal Solicitar Corrección (Motivo Obligatorio y Retrabajo) -->
+  <!-- Modal Solicitar Corrección / Rechazo de Entrega (PRD-REQ-CLOSE-001-R1) -->
   <div class="modal-overlay" id="modal-solic-request-correction" style="display: none;">
     <div class="modal-card" style="max-width: 550px;">
       <div class="modal-header" style="background: #fef2f2; border-bottom: 1px solid #fecaca;">
-        <h3 style="margin: 0; font-weight: 700; color: #991b1b;">⚠️ Solicitar Corrección / Retrabajo</h3>
+        <h3 style="margin: 0; font-weight: 700; color: #991b1b; display: flex; align-items: center; gap: 8px;">
+          <span>⚠️</span> El Problema Continúa
+        </h3>
         <button class="btn-close-modal" onclick="closeModal('modal-solic-request-correction')">✕</button>
       </div>
       <form id="form-solic-correction" onsubmit="event.preventDefault(); submitSolicitanteCorrection();" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
         <input type="hidden" id="solic-correct-ot-id">
         
+        <div style="background: #fff1f2; padding: 12px; border-radius: 6px; border: 1px solid #fecdd3; font-size: 0.85rem; color: #9f1239;">
+          <strong>Aviso de Calidad:</strong> La orden pasará a estatus <strong>REQUIERE REVISIÓN</strong> para que el Jefe de Mantenimiento / Super Admin asigne una nueva intervención técnica sobre la misma OT.
+        </div>
+
         <div class="form-group">
-          <label for="solic-correct-reason" style="font-weight: 700;">1. Motivo de la Corrección *</label>
-          <select id="solic-correct-reason" class="form-control" required>
-            <option value="La falla continúa">La falla continúa</option>
-            <option value="Trabajo incompleto">Trabajo incompleto</option>
-            <option value="El problema no fue solucionado">El problema no fue solucionado</option>
-            <option value="El equipo continúa presentando anomalías">El equipo continúa presentando anomalías</option>
-            <option value="Falta alguna actividad">Falta alguna actividad</option>
-            <option value="Otro">Otro</option>
+          <label for="solic-correct-reason-select" style="font-weight: 700; font-size: 0.85rem; color: #334155;">1. Motivo Principal *</label>
+          <select id="solic-correct-reason-select" class="form-control" required style="font-weight: 600;">
+            <option value="">Selecciona motivo...</option>
+            <option value="FALLA_PERSISTE">🔴 El problema / síntoma continúa presente</option>
+            <option value="FALLA_REAPARECIO">🟠 La falla reapareció al encender la máquina</option>
+            <option value="TRABAJO_INCOMPLETO">🟡 El trabajo quedó incompleto / falta ajuste</option>
+            <option value="EQUIPO_NO_OPERATIVO">⛔ Equipo no liberado para producción</option>
+            <option value="OTRO">📋 Otro motivo específico</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label for="solic-correct-comments" style="font-weight: 700;">2. Detalle de la Corrección Requerida *</label>
-          <textarea id="solic-correct-comments" class="form-control" rows="3" placeholder="Explica exactamente qué falta por resolver o qué síntoma sigue presente para que el técnico lo corrija..." required></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="solic-correct-file">3. Evidencia Fotográfica (Opcional)</label>
-          <input type="file" id="solic-correct-file" class="form-control" accept="image/*">
-        </div>
-
-        <div style="background: #fff1f2; padding: 12px; border-radius: 6px; border: 1px solid #fecdd3; font-size: 0.85rem; color: #9f1239;">
-          <strong>Nota de Flujo:</strong> La orden cambiará a estatus <strong>REQUIERE CORRECCIÓN</strong> devolviéndose al técnico asignado sin generar una nueva OT.
+          <label for="solic-correct-comments" style="font-weight: 700; font-size: 0.85rem; color: #334155;">2. Detalle del Problema Observado * (¿Qué ocurre? ¿Qué síntoma se presenta?):</label>
+          <textarea id="solic-correct-comments" class="form-control" rows="3" placeholder="Explica detalladamente por qué el equipo no quedó listo..." required></textarea>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <button type="button" class="btn-action-secondary" onclick="closeModal('modal-solic-request-correction')">Cancelar</button>
-          <button type="submit" class="btn-action-primary" style="background: #dc2626; border-color: #dc2626;">Solicitar Corrección</button>
+          <button type="submit" class="btn-action-primary" style="background: #dc2626; border-color: #dc2626; font-weight: 700; padding: 10px 18px;">
+            ⚠️ Enviar Reporte para Revisión
+          </button>
         </div>
       </form>
     </div>
   </div>
-
-  <!-- ==========================================================================
-       MODAL AUDITORÍA INTEGRAL 360° DE OT Y SUBTAREAS (SUPER ADMINISTRADOR)
-       ========================================================================== -->
   <div class="modal-overlay" id="modal-ot-360-audit" style="display: none;">
     <div class="modal-card" style="max-width: 950px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
       
@@ -2975,6 +3149,61 @@
               </div>
             </div>
 
+            <!-- Métricas Segregadas de Tiempo (PRD-TECH-WAIT-001-R1) -->
+            <div style="margin-top: 14px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px;">
+              <h5 style="margin: 0 0 10px 0; font-weight: 700; color: #0f172a; font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
+                <span>⏱️</span> Desglose de Tiempos y Periodos de Espera de la Intervención
+              </h5>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 12px;">
+                <div style="background: white; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                  <span style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block;">Tiempo Activo Técnico:</span>
+                  <strong id="ot360-time-active" style="font-size: 1.05rem; color: #0284c7;">0 min</strong>
+                </div>
+                <div style="background: white; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                  <span style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block;">Tiempo Acumulado en Espera:</span>
+                  <strong id="ot360-time-wait" style="font-size: 1.05rem; color: #f59e0b;">0 min</strong>
+                </div>
+                <div style="background: white; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                  <span style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block;">Tiempo Total de Ciclo:</span>
+                  <strong id="ot360-time-total-cycle" style="font-size: 1.05rem; color: #16a34a;">0 min</strong>
+                </div>
+              </div>
+              <h6 style="margin: 8px 0 6px 0; font-weight: 700; color: #334155; font-size: 0.82rem;">Historial de Periodos de Espera:</h6>
+              <div id="ot360-wait-periods-container" style="display: flex; flex-direction: column; gap: 6px; font-size: 0.8rem;">
+                <p style="margin: 0; color: #94a3b8; font-style: italic;">Sin periodos de espera registrados.</p>
+              </div>
+              <!-- Historial de Técnicos y Sesiones (PRD-TECH-HANDOFF-001-R1) -->
+              <h6 style="margin: 14px 0 6px 0; font-weight: 700; color: #334155; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+                <span>👥</span> Trazabilidad de Técnicos y Sesiones Operativas:
+              </h6>
+              <div id="ot360-technician-sessions-container" style="display: flex; flex-direction: column; gap: 6px; font-size: 0.8rem;">
+                <p style="margin: 0; color: #94a3b8; font-style: italic;">Sin transferencias de técnico registradas.</p>
+              </div>
+            </div>
+
+              <!-- Desglose de Intentos de Validación y Cierre por el Solicitante (PRD-REQ-CLOSE-001-R1) -->
+              <div style="margin-top: 14px;">
+                <label style="font-size: 0.8rem; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                  <span>📋</span> Intentos de Validación y Decisiones del Solicitante:
+                </label>
+                <div id="ot360-validation-history-container" style="display: flex; flex-direction: column; gap: 6px;">
+                  <div style="font-size: 0.82rem; color: #64748b; font-style: italic;">Sin solicitudes de validación registradas aún.</div>
+                </div>
+              </div>
+
+            <!-- Acciones de Agentes de Inteligencia (AG-011 & AG-012) -->
+            <div style="background: #f1f5f9; padding: 16px; border-radius: 8px; border: 1px solid #94a3b8; display: flex; flex-direction: column; gap: 10px;">
+              <h4 style="margin: 0; color: #0f172a; font-weight: 700; font-size: 0.95rem;">🤖 Inteligencia de Agentes Especialistas</h4>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button type="button" class="btn-action-secondary" style="font-size: 0.82rem; padding: 8px 14px;" onclick="triggerTechnicalMemoryRegister(document.getElementById('ot360-info-machine')?.innerText, document.getElementById('ot360-diag-tech-root')?.innerText)">
+                  🧠 Registrar en Memoria Técnica (AG-011)
+                </button>
+                <button type="button" class="btn-action-secondary" style="font-size: 0.82rem; padding: 8px 14px;" onclick="triggerLifecycleEvaluation(document.getElementById('ot360-info-machine')?.innerText)">
+                  🔄 Evaluar Ciclo de Vida (AG-012)
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -3024,18 +3253,68 @@
         </div>
 
         <!-- Pestaña 5: Galería Completa de Evidencias Fotografías -->
+        <!-- Pestaña 5: Galería Completa de Evidencias Fotografías & Comparador 360° -->
         <div id="tab-content-ot360-gallery" class="ot360-tab-panel" style="display: none;">
-          <div style="margin-bottom: 16px;">
-            <h4 style="margin: 0 0 4px 0; font-weight: 700; color: #0f172a;">📷 Galería de Evidencias Fotografías</h4>
-            <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Evidencias de Solicitud (Antes), Ejecución (Durante), Conclusión (Después) y Subtareas.</p>
+          <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <h4 style="margin: 0 0 4px 0; font-weight: 700; color: #0f172a;">📷 Evidencias Operacionales 360° (Antes, Durante, Hallazgo, Después)</h4>
+              <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Inspección visual estructurada y trazable de la intervención técnica.</p>
+            </div>
+            <div style="display: flex; gap: 6px;" id="ot360-gallery-filter-buttons">
+              <button type="button" class="badge" style="background:#0f172a; color:white; border:none; cursor:pointer;" onclick="filterOT360Gallery('TODAS')">TODAS (<span id="ot360-count-all">0</span>)</button>
+              <button type="button" class="badge" style="background:#0284c7; color:white; border:none; cursor:pointer;" onclick="filterOT360Gallery('ANTES')">ANTES (<span id="ot360-count-before">0</span>)</button>
+              <button type="button" class="badge" style="background:#eab308; color:#0f172a; border:none; cursor:pointer;" onclick="filterOT360Gallery('DURANTE')">DURANTE (<span id="ot360-count-during">0</span>)</button>
+              <button type="button" class="badge" style="background:#ef4444; color:white; border:none; cursor:pointer;" onclick="filterOT360Gallery('HALLAZGO')">HALLAZGOS (<span id="ot360-count-findings">0</span>)</button>
+              <button type="button" class="badge" style="background:#16a34a; color:white; border:none; cursor:pointer;" onclick="filterOT360Gallery('DESPUES')">DESPUÉS (<span id="ot360-count-after">0</span>)</button>
+            </div>
           </div>
 
-          <div id="ot360-gallery-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;">
-            <p style="color: #64748b; text-align: center; grid-column: 1 / -1; padding: 30px;">Cargando evidencias fotográficas...</p>
+          <!-- SECCIÓN A: COMPARADOR VISUAL ANTES ↔ DESPUÉS -->
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+            <h5 style="margin: 0 0 12px 0; font-weight: 700; color: #1e293b; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+              <span>🔄</span> Comparador de Condición: Estado Inicial (Antes) vs Estado Final (Después)
+            </h5>
+            <div id="ot360-comparison-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;">
+              <!-- Tarjeta ANTES Principal -->
+              <div style="background: white; border: 2px solid #0284c7; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <span class="badge" style="background:#0284c7; color:white; font-weight:700;">🔵 CONDICIÓN INICIAL (ANTES)</span>
+                  <span id="ot360-comp-before-time" style="font-size:0.75rem; color:#64748b;">-</span>
+                </div>
+                <div id="ot360-comp-before-img-box" style="height: 180px; background: #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                  <span style="font-size: 0.85rem; color: #64748b;">Sin foto inicial registrada</span>
+                </div>
+                <p id="ot360-comp-before-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: #475569; text-align: left;"></p>
+              </div>
+
+              <!-- Tarjeta DESPUÉS Principal -->
+              <div style="background: white; border: 2px solid #16a34a; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <span class="badge" style="background:#16a34a; color:white; font-weight:700;">🟢 CONDICIÓN FINAL (DESPUÉS)</span>
+                  <span id="ot360-comp-after-time" style="font-size:0.75rem; color:#64748b;">-</span>
+                </div>
+                <div id="ot360-comp-after-img-box" style="height: 180px; background: #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                  <span style="font-size: 0.85rem; color: #166534;">Sin foto final registrada</span>
+                </div>
+                <p id="ot360-comp-after-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: #475569; text-align: left;"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECCIÓN B: LÍNEA DE TIEMPO DE EVIDENCIAS -->
+          <div style="margin-bottom: 20px;">
+            <h5 style="margin: 0 0 10px 0; font-weight: 700; color: #1e293b; font-size: 0.95rem;">⏱️ Línea de Tiempo de Registro de Evidencias</h5>
+            <div id="ot360-timeline-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; padding-right: 6px;">
+              <p style="color: #64748b; font-size: 0.85rem;">Cargando línea de tiempo...</p>
+            </div>
+          </div>
+
+          <!-- SECCIÓN C: GALERÍA DE TODAS LAS EVIDENCIAS -->
+          <h5 style="margin: 0 0 10px 0; font-weight: 700; color: #1e293b; font-size: 0.95rem;">🖼️ Galería Completa de Evidencias Adjuntas</h5>
+          <div id="ot360-gallery-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px;">
+            <p style="color: #64748b; text-align: center; grid-column: 1 / -1; padding: 20px;">Cargando evidencias fotográficas...</p>
           </div>
         </div>
-
-        <!-- Pestaña 6: Cierre, Calificación e Historial de Validaciones -->
         <div id="tab-content-ot360-validation" class="ot360-tab-panel" style="display: none;">
           
           <div style="background: #f8fafc; padding: 18px; border-radius: 10px; border: 1px solid #cbd5e1; margin-bottom: 20px;">
@@ -3305,6 +3584,12 @@
             </select>
           </div>
 
+          <div class="form-group full-width" style="margin-bottom: 6px;">
+            <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; padding:8px 12px; font-size:0.84rem; display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:#0369a1; font-weight:600;">Técnico preferido por el solicitante:</span>
+              <strong id="review-req-preferred-tech" style="color:#0284c7;">Sin preferencia</strong>
+            </div>
+          </div>
           <div class="form-group">
             <label for="review-tech">Técnico Activo Disponible *</label>
             <select id="review-tech" class="form-control" required>
@@ -3442,9 +3727,28 @@
             <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-pause-work" onclick="pauseWorkOnOT()" style="display: none; background: var(--color-warning); color: white; padding: 8px 16px;">⏸️ En Espera</button>
             <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-resume-work" onclick="resumeWorkOnOT()" style="display: none; background: var(--accent-blue); color: white; padding: 8px 16px;">▶️ Reanudar Trabajo</button>
             <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-finish-work" onclick="finishWorkOnOT()" style="display: none; background: #8b5cf6; color: white; padding: 8px 16px;">✅ Finalizar Trabajo</button>
+            <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-handoff-work" onclick="openHandoffModal()" style="display: none; background: #475569; color: white; padding: 8px 16px;">🔄 Transferir OT</button>
           </div>
         </div>
 
+        <!-- Alerta visual cuando la OT está en espera -->
+        <!-- Alerta visual cuando la OT tiene transferencia en curso -->
+        <div id="tech-ot-handoff-banner" style="display: none; background: #f1f5f9; border: 1px solid #94a3b8; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; color: #1e293b; font-size: 0.88rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 4px;">
+            <span>🔄 TRANSFERENCIA EN TRÁMITE</span>
+            <span id="tech-ot-handoff-banner-status" class="badge badge-priority-media">SOLICITADA</span>
+          </div>
+          <div id="tech-ot-handoff-banner-info" style="font-weight: 600;">Motivo: Cambio de turno</div>
+          <div id="tech-ot-handoff-banner-note" style="font-size: 0.82rem; margin-top: 4px; font-style: italic; color: #475569;">Nota: ...</div>
+        </div>
+        <div id="tech-ot-waiting-banner" style="display: none; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; color: #92400e; font-size: 0.88rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 4px;">
+            <span>⏸️ TRABAJO DETENIDO (EN ESPERA)</span>
+            <span id="tech-ot-waiting-banner-time" style="font-size: 0.8rem; font-weight: 600;">Hace 0 min</span>
+          </div>
+          <div id="tech-ot-waiting-banner-reason" style="font-weight: 600;">Motivo: Esperando refacción</div>
+          <div id="tech-ot-waiting-banner-obs" style="font-size: 0.82rem; margin-top: 4px; font-style: italic; color: #78350f;">Observación: ...</div>
+        </div>
         <h4 style="font-weight: 700; color: var(--accent-blue); font-size: 1rem; border-left: 3px solid var(--accent-blue); padding-left: 8px;">Datos Generales de la OT</h4>
         
         <div class="detail-grid">
@@ -3642,16 +3946,49 @@
             </ul>
           </div>
 
-          <div class="form-group full-width">
-            <label>Evidencia Final (Cierre del Trabajo)</label>
-            <div class="file-upload-zone" onclick="triggerFileInput('tech-file')">
-              <span class="file-upload-icon">📸</span>
-              <span class="file-upload-text">Subir foto del trabajo terminado</span>
-              <span id="tech-file-preview" class="file-upload-preview"></span>
+          <!-- SECCIÓN: EVIDENCIAS FOTOGRÁFICAS ESTRUCTURADAS (ANTES / DURANTE / HALLAZGO / DESPUÉS) -->
+          <div class="form-group full-width" style="border-top: 2px solid #e2e8f0; padding-top: 18px; margin-top: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <h4 style="margin: 0; font-weight: 700; color: var(--accent-blue); font-size: 1.05rem;">📷 Evidencias Fotográficas de la Intervención</h4>
+                <p style="margin: 3px 0 0 0; font-size: 0.82rem; color: #64748b;">Documenta visualmente el estado de la máquina antes, durante y después del trabajo.</p>
+              </div>
+              <span id="tech-evidence-summary-badge" class="badge badge-priority-baja" style="font-size: 0.78rem;">0 Evidencias</span>
             </div>
-            <input type="file" id="tech-file" style="display: none;" onchange="handleFileSelected(this, 'tech-file-preview')">
-          </div>
 
+            <!-- Botones de Acción Rápida por Categoría -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px;">
+              <button type="button" class="btn-table-action" onclick="triggerTechPhotoUpload('ANTES')" style="background: #0284c7; color: white; border: none; padding: 10px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <span>🔵</span> <span>+ Foto ANTES</span>
+              </button>
+              <button type="button" class="btn-table-action" onclick="triggerTechPhotoUpload('DURANTE')" style="background: #eab308; color: #0f172a; border: none; padding: 10px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <span>🟡</span> <span>+ DURANTE</span>
+              </button>
+              <button type="button" class="btn-table-action" onclick="openHallazgoEvidenceModal()" style="background: #ef4444; color: white; border: none; padding: 10px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <span>🔴</span> <span>+ HALLAZGO</span>
+              </button>
+              <button type="button" class="btn-table-action" onclick="triggerTechPhotoUpload('DESPUES')" style="background: #16a34a; color: white; border: none; padding: 10px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <span>🟢</span> <span>+ Foto DESPUÉS</span>
+              </button>
+            </div>
+
+            <!-- Barra de Progreso de Subida Asíncrona -->
+            <div id="tech-photo-upload-progress" style="display: none; background: #f1f5f9; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; border: 1px solid #cbd5e1;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; color: #334155; margin-bottom: 6px;">
+                <span id="tech-photo-progress-text">Subiendo evidencia...</span>
+                <span id="tech-photo-progress-pct">0%</span>
+              </div>
+              <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                <div id="tech-photo-progress-bar" style="width: 0%; height: 100%; background: #0284c7; transition: width 0.2s ease;"></div>
+              </div>
+            </div>
+
+            <!-- Lista / Galería de Evidencias de la OT -->
+            <div id="tech-ot-photos-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;">
+              <p style="grid-column: 1 / -1; color: #94a3b8; font-size: 0.82rem; margin: 4px 0; text-align: center; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">Sin evidencias fotográficas adjuntas aún. Añade fotos con los botones superiores.</p>
+            </div>
+            <input type="file" id="tech-photo-hidden-file-input" accept="image/jpeg,image/png,image/webp" style="display: none;" onchange="onTechPhotoSelected(this)">
+          </div>
           <div class="form-group full-width">
             <label for="tech-observations">Observaciones Generales</label>
             <textarea id="tech-observations" class="form-control" rows="2" placeholder="Sugerencias, alertas o recomendaciones de operación futura..."></textarea>
@@ -3660,7 +3997,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn-action-secondary" onclick="closeModal('modal-tech-ot-detail')">Cerrar</button>
-        <button class="btn-action-primary" onclick="saveTechnicalLog()">💾 Guardar Bitácora</button>
+        <button type="button" id="btn-tech-save-log" class="btn-action-primary" onclick="saveTechnicalLog()">💾 Guardar Bitácora</button>
       </div>
     </div>
   </div>
@@ -4971,6 +5308,7 @@
             <label for="proposal-type" style="font-weight: 600; display: block; margin-bottom: 6px; color: #334155;">Tipo de Calendario</label>
             <select id="proposal-type" class="form-control" onchange="toggleProposalPeriodFields()" required style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size: 0.95rem;">
               <option value="PREVENTIVO">Preventivo Anual</option>
+              <option value="PREVENTIVO_SEMANAL">Preventivo Semanal</option>
               <option value="PREDICTIVO">Predictivo Semanal</option>
               <option value="AUTONOMO">Autónomo Semanal</option>
             </select>
@@ -4978,12 +5316,12 @@
 
           <div class="form-group" style="margin-bottom: 16px;">
             <label for="proposal-year" style="font-weight: 600; display: block; margin-bottom: 6px; color: #334155;">Año</label>
-            <input type="number" id="proposal-year" class="form-control" value="2026" min="2020" max="2035" onchange="validateProposalPeriod()" required style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size: 0.95rem;">
+            <input type="number" id="proposal-year" class="form-control" value="2026" min="2020" max="2035" onchange="syncProposalMonthAndWeek('year')" required style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size: 0.95rem;">
           </div>
 
           <div class="form-group" id="proposal-month-group" style="margin-bottom: 16px; display: none;">
             <label for="proposal-month" style="font-weight: 600; display: block; margin-bottom: 6px; color: #334155;">Mes</label>
-            <select id="proposal-month" class="form-control" onchange="validateProposalPeriod()" style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size: 0.95rem;">
+            <select id="proposal-month" class="form-control" onchange="syncProposalMonthAndWeek('month')" style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size: 0.95rem;">
               <option value="0">Enero</option>
               <option value="1">Febrero</option>
               <option value="2">Marzo</option>
@@ -5001,7 +5339,7 @@
 
           <div class="form-group" id="proposal-week-group" style="margin-bottom: 16px; display: none;">
             <label for="proposal-week" style="font-weight: 600; display: block; margin-bottom: 6px; color: #334155;">Semana del Año (1-52)</label>
-            <input type="number" id="proposal-week" class="form-control" value="1" min="1" max="52" onchange="validateProposalPeriod()" style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size: 0.95rem;">
+            <input type="number" id="proposal-week" class="form-control" value="1" min="1" max="52" onchange="syncProposalMonthAndWeek('week')" style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size: 0.95rem;">
           </div>
 
           <!-- Live warning badge for validations -->
@@ -5335,6 +5673,139 @@
   <!-- ==========================================================================
        7. MENSAJES FLOTANTES (Toasts)
        ========================================================================== -->
+  <!-- ==========================================================================
+       MODAL: CONTEXTO INTELIGENTE DE MAQUINARIA (PRD-AG-AUD-001-R1 §12-15)
+       ========================================================================== -->
+  <div class="modal-overlay" id="modal-machine-ai-context" style="display: none;">
+    <div class="modal-card" style="max-width: 900px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
+      
+      <!-- Header -->
+      <div class="modal-header" style="background: #0f172a; color: white; padding: 18px 24px; border-top-left-radius: 12px; border-top-right-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <h3 style="margin: 0; font-weight: 800; color: white; font-size: 1.3rem;" id="ctx-machine-title">🤖 Contexto Inteligente de Maquinaria</h3>
+            <span id="ctx-risk-badge" class="badge badge-priority-alta">ALTO RIESGO</span>
+          </div>
+          <p style="margin: 4px 0 0; color: #94a3b8; font-size: 0.84rem;" id="ctx-machine-subtitle">Consolidado analítico multi-agente con evidencia operacional verificable.</p>
+        </div>
+        <button class="btn-close-modal" onclick="closeModal('modal-machine-ai-context')" style="color: white; background: transparent; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div style="display: flex; gap: 6px; background: #0f172a; padding: 8px 16px 0; overflow-x: auto; border-bottom: 2px solid #334155;">
+        <button type="button" class="tab-btn-360 active" id="tab-btn-ctx-summary" onclick="switchMachineContextTab('summary')" style="background: #0284c7; color: white; border: none; padding: 8px 14px; border-radius: 6px 6px 0 0; font-weight: 700; font-size: 0.84rem; cursor: pointer;">📊 Resumen & Riesgo</button>
+        <button type="button" class="tab-btn-360" id="tab-btn-ctx-recurrence" onclick="switchMachineContextTab('recurrence')" style="background: #1e293b; color: #cbd5e1; border: none; padding: 8px 14px; border-radius: 6px 6px 0 0; font-weight: 600; font-size: 0.84rem; cursor: pointer;">🔍 Recurrencias (AG-008)</button>
+        <button type="button" class="tab-btn-360" id="tab-btn-ctx-calendars" onclick="switchMachineContextTab('calendars')" style="background: #1e293b; color: #cbd5e1; border: none; padding: 8px 14px; border-radius: 6px 6px 0 0; font-weight: 600; font-size: 0.84rem; cursor: pointer;">📅 Calendarios</button>
+        <button type="button" class="tab-btn-360" id="tab-btn-ctx-memory" onclick="switchMachineContextTab('memory')" style="background: #1e293b; color: #cbd5e1; border: none; padding: 8px 14px; border-radius: 6px 6px 0 0; font-weight: 600; font-size: 0.84rem; cursor: pointer;">🧠 Memoria Técnica (AG-011)</button>
+        <button type="button" class="tab-btn-360" id="tab-btn-ctx-3r" onclick="switchMachineContextTab('3r')" style="background: #1e293b; color: #cbd5e1; border: none; padding: 8px 14px; border-radius: 6px 6px 0 0; font-weight: 600; font-size: 0.84rem; cursor: pointer;">🔄 Ciclo de Vida 3R (AG-012)</button>
+        <button type="button" class="tab-btn-360" id="tab-btn-ctx-evidence" onclick="switchMachineContextTab('evidence')" style="background: #1e293b; color: #cbd5e1; border: none; padding: 8px 14px; border-radius: 6px 6px 0 0; font-weight: 600; font-size: 0.84rem; cursor: pointer;">🎯 Evidencia ("¿Por qué?")</button>
+      </div>
+
+      <!-- Body Panels -->
+      <div class="modal-body" style="padding: 20px; overflow-y: auto; flex: 1;">
+        
+        <!-- Tab 1: Resumen & Riesgo -->
+        <div id="ctx-tab-panel-summary" class="ctx-tab-panel">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 18px;">
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <span style="font-size: 0.75rem; color: #64748b; font-weight: 700;">SCORE DE RIESGO IA</span>
+              <div style="font-size: 1.4rem; font-weight: 800; color: #ef4444;" id="ctx-summary-score">78 / 100</div>
+              <span style="font-size: 0.72rem; color: #64748b;" id="ctx-summary-driver">Factor: Recurrencia</span>
+            </div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <span style="font-size: 0.75rem; color: #64748b; font-weight: 700;">ÓRDENES ABIERTAS</span>
+              <div style="font-size: 1.4rem; font-weight: 800; color: #0284c7;" id="ctx-summary-open-ots">1 OT</div>
+              <span style="font-size: 0.72rem; color: #64748b;" id="ctx-summary-last-closed">Último cierre: Hace 10d</span>
+            </div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <span style="font-size: 0.75rem; color: #64748b; font-weight: 700;">FALLAS 90 DÍAS</span>
+              <div style="font-size: 1.4rem; font-weight: 800; color: #d97706;" id="ctx-summary-failures">4 Eventos</div>
+              <span style="font-size: 0.72rem; color: #64748b;" id="ctx-summary-downtime">320 min paro acumulado</span>
+            </div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <span style="font-size: 0.75rem; color: #64748b; font-weight: 700;">% SEGUNDAS CALIDAD</span>
+              <div style="font-size: 1.4rem; font-weight: 800; color: #7c3aed;" id="ctx-summary-defects">8.7%</div>
+              <span style="font-size: 0.72rem; color: #7c3aed;">Señal para AG-003</span>
+            </div>
+          </div>
+
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <h4 style="margin: 0 0 6px 0; color: #166534; font-weight: 700;">💡 Recomendación Operativa Principal</h4>
+            <p id="ctx-summary-main-rec" style="margin: 0; font-size: 0.9rem; color: #14532d;">Inspección focalizada en rodamiento principal antes del próximo ciclo predictivo.</p>
+          </div>
+        </div>
+
+        <!-- Tab 2: Recurrencias AG-008 -->
+        <div id="ctx-tab-panel-recurrence" class="ctx-tab-panel" style="display: none;">
+          <div style="background: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <h4 style="margin: 0 0 8px 0; color: #c2410c; font-weight: 700;">⚠️ Diagnóstico de Confiabilidad (AG-008)</h4>
+            <p id="ctx-recurrence-desc" style="margin: 0; font-size: 0.9rem; color: #9a3412;">Se han detectado 4 eventos con síntoma similar en los últimos 90 días.</p>
+          </div>
+          <div id="ctx-recurrence-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Inyectado por JS -->
+          </div>
+        </div>
+
+        <!-- Tab 3: Calendarios -->
+        <div id="ctx-tab-panel-calendars" class="ctx-tab-panel" style="display: none;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+            <div style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px;">
+              <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; color: #0369a1;">📅 Preventivo Anual (AG-002)</h4>
+              <div id="ctx-cal-prev" style="font-size: 0.85rem; color: #334155;">Programado para 2026</div>
+            </div>
+            <div style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px;">
+              <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; color: #d97706;">🔮 Predictivo Semanal (AG-003)</h4>
+              <div id="ctx-cal-pred" style="font-size: 0.85rem; color: #334155;">Sin propuesta activa</div>
+            </div>
+            <div style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px;">
+              <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; color: #16a34a;">🛠️ Autónomo Semanal (AG-004)</h4>
+              <div id="ctx-cal-auto" style="font-size: 0.85rem; color: #334155;">Al día</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Memoria Técnica AG-011 -->
+        <div id="ctx-tab-panel-memory" class="ctx-tab-panel" style="display: none;">
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 6px 0; color: #0f172a; font-weight: 700;">🧠 Lecciones Aprendidas y Soluciones Exitosas</h4>
+            <div id="ctx-memory-content" style="font-size: 0.88rem; color: #475569;">
+              No hay memorias técnicas específicas para este equipo aún.
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 5: Ciclo de Vida 3R AG-012 -->
+        <div id="ctx-tab-panel-3r" class="ctx-tab-panel" style="display: none;">
+          <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <span style="font-size: 0.8rem; font-weight: 700; color: #64748b;">ESTRATEGIA 3R RECOMENDADA</span>
+              <span id="ctx-3r-decision" class="badge badge-priority-baja" style="font-size: 0.9rem;">REPARAR</span>
+            </div>
+            <p id="ctx-3r-justification" style="margin: 0; font-size: 0.9rem; color: #334155;">Evaluación multicriterio indica que el costo de reparación representa una fracción menor al valor de reposición.</p>
+          </div>
+        </div>
+
+        <!-- Tab 6: Evidencia ("¿Por qué?") -->
+        <div id="ctx-tab-panel-evidence" class="ctx-tab-panel" style="display: none;">
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px;">
+            <h4 style="margin: 0 0 10px 0; color: #0f172a; font-weight: 700;">🔍 Hechos Operacionales Considerados (Anti-Alucinación)</h4>
+            <ul id="ctx-evidence-list" style="margin: 0; padding-left: 20px; font-size: 0.88rem; color: #334155; display: flex; flex-direction: column; gap: 6px;">
+              <!-- Inyectado por JS -->
+            </ul>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div style="padding: 12px 24px; background: #f8fafc; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+        <span style="font-size: 0.75rem; color: #64748b;" id="ctx-timestamp">Contexto actualizado: 30/08/2026 16:40</span>
+        <button type="button" class="btn-action-secondary" onclick="closeModal('modal-machine-ai-context')">Cerrar</button>
+      </div>
+
+    </div>
+  </div>
+
   <div id="toast" class="toast-notification">
     <span id="toast-text">Notificación exitosa!</span>
   </div>
@@ -5386,5 +5857,256 @@
       });
     }
   </script>
+<div id="tsmai-demo-banner" style="display:none; position:fixed; bottom:14px; right:14px; z-index:999999; background:#d97706; color:#ffffff; padding:8px 16px; border-radius:30px; font-weight:800; font-size:0.82rem; box-shadow:0 4px 14px rgba(217,119,6,0.4); border:1px solid #fde68a; pointer-events:none;">🧪 MODO DEMO / SANDBOX AISLADO</div>
+  <!-- ==========================================================================
+       MODAL: LIGHTBOX INTERACTIVO DE EVIDENCIA FOTOGRÁFICA 360°
+       ========================================================================== -->
+  <div class="modal-overlay" id="modal-photo-lightbox" style="z-index: 10000; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);" onclick="closePhotoLightbox()">
+    <div class="modal-card" style="max-width: 900px; width: 95%; background: #0f172a; color: white; border: 1px solid #334155; border-radius: 12px; overflow: hidden;" onclick="event.stopPropagation()">
+      <div class="modal-header" style="background: #1e293b; border-bottom: 1px solid #334155; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span id="lightbox-badge-type" class="badge" style="background: #0284c7; color: white; font-weight: 700;">ANTES</span>
+          <h4 id="lightbox-title" style="margin: 0; font-size: 1rem; color: #f8fafc; font-weight: 600;">Evidencia OT</h4>
+        </div>
+        <button type="button" class="btn-close-modal" style="color: #cbd5e1; font-size: 1.5rem;" onclick="closePhotoLightbox()">×</button>
+      </div>
+      <div class="modal-body" style="padding: 0; text-align: center; background: #020617; position: relative; min-height: 360px; display: flex; align-items: center; justify-content: center;">
+        <img id="lightbox-img" src="" alt="Evidencia Fotográfica" style="max-height: 65vh; max-width: 100%; object-fit: contain; border-radius: 4px;">
+      </div>
+      <div class="modal-footer" style="background: #1e293b; border-top: 1px solid #334155; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="font-size: 0.85rem; color: #94a3b8; text-align: left;">
+          <div><strong>OT:</strong> <span id="lightbox-ot-folio" style="color: #f1f5f9;">-</span> | <strong>Máquina:</strong> <span id="lightbox-machine" style="color: #38bdf8;">-</span></div>
+          <div style="margin-top: 2px;"><strong>Técnico:</strong> <span id="lightbox-tech" style="color: #f1f5f9;">-</span> | <strong>Fecha/Hora:</strong> <span id="lightbox-timestamp" style="color: #f1f5f9;">-</span></div>
+          <div id="lightbox-desc-box" style="margin-top: 4px; color: #e2e8f0; font-style: italic;"></div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn-action-secondary" style="background: #334155; color: white; border: none; padding: 6px 14px;" onclick="closePhotoLightbox()">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: REGISTRO DE EVIDENCIA HALLAZGO / ANOMALÍA TÉCNICA
+       ========================================================================== -->
+  <div class="modal-overlay" id="modal-tech-hallazgo-desc" style="z-index: 9999;">
+    <div class="modal-card" style="max-width: 500px; width: 90%;">
+      <div class="modal-header" style="background: #fee2e2; border-bottom: 1px solid #fecaca;">
+        <h3 style="margin: 0; color: #991b1b; font-size: 1.1rem; font-weight: 700;">🔴 Registrar Hallazgo / Anomalía</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-tech-hallazgo-desc')">×</button>
+      </div>
+      <div class="modal-body" style="padding: 18px;">
+        <p style="font-size: 0.85rem; color: #475569; margin-top: 0;">Un hallazgo requiere una fotografía obligatoria y una descripción técnica de la anomalía detectada.</p>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="tech-hallazgo-input-desc" style="font-weight: 700; color: #0f172a;">Descripción del Hallazgo *</label>
+          <textarea id="tech-hallazgo-input-desc" class="form-control" rows="3" placeholder="Ej. Rodamiento con fractura en pista interna y juego axial excesivo..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label style="font-weight: 700; color: #0f172a;">Fotografía del Hallazgo *</label>
+          <div class="file-upload-zone" onclick="triggerFileInput('tech-hallazgo-file-input')" style="padding: 16px;">
+            <span class="file-upload-icon">📸</span>
+            <span class="file-upload-text" id="tech-hallazgo-file-label">Seleccionar o tomar fotografía</span>
+            <span id="tech-hallazgo-file-preview" class="file-upload-preview"></span>
+          </div>
+          <input type="file" id="tech-hallazgo-file-input" accept="image/jpeg,image/png,image/webp" style="display: none;" onchange="onHallazgoFileSelected(this)">
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn-action-secondary" onclick="closeModal('modal-tech-hallazgo-desc')">Cancelar</button>
+        <button type="button" class="btn-action-primary" style="background: #dc2626; border-color: #dc2626;" onclick="submitHallazgoEvidence()">💾 Guardar Hallazgo</button>
+      </div>
+    </div>
+  </div>
+  <!-- ==========================================================================
+       MODAL: PONER ORDEN DE TRABAJO EN ESPERA (PRD-TECH-WAIT-001-R1)
+       ========================================================================== -->
+  <div class="modal-overlay" id="modal-tech-set-waiting" style="z-index: 9999;">
+    <div class="modal-card" style="max-width: 520px; width: 92%;">
+      <div class="modal-header" style="background: #fef3c7; border-bottom: 1px solid #fde68a;">
+        <h3 style="margin: 0; color: #92400e; font-size: 1.1rem; font-weight: 700;">⏸️ Poner Orden en Espera</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-tech-set-waiting')">×</button>
+      </div>
+      <div class="modal-body" style="padding: 18px;">
+        <p style="font-size: 0.85rem; color: #475569; margin-top: 0;">Al poner la orden en espera, el cronómetro de trabajo técnico activo se pausará y se registrará la causa para seguimiento.</p>
+        
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="tech-waiting-reason-select" style="font-weight: 700; color: #0f172a;">Motivo de la Espera *</label>
+          <select id="tech-waiting-reason-select" class="form-control" onchange="onWaitingReasonChanged(this.value)" required>
+            <option value="">Selecciona el motivo...</option>
+            <option value="REFACCION">Esperando refacción</option>
+            <option value="AUTORIZACION">Esperando autorización</option>
+            <option value="PRODUCCION">Equipo no liberado por Producción</option>
+            <option value="HERRAMIENTA">Esperando herramienta/equipo</option>
+            <option value="PROVEEDOR">Esperando proveedor externo</option>
+            <option value="SEGURIDAD">Condición de seguridad</option>
+            <option value="INFORMACION">Falta información técnica</option>
+            <option value="OTRO">Otro motivo</option>
+          </select>
+        </div>
+
+        <!-- Contenedor condicional para REFACCION -->
+        <div id="tech-waiting-part-box" style="display: none; background: #f1f5f9; padding: 12px; border-radius: 8px; margin-bottom: 14px; border: 1px solid #cbd5e1;">
+          <label style="font-weight: 700; color: #334155; font-size: 0.82rem; margin-bottom: 6px; display: block;">Detalle de Refacción Requerida (Opcional)</label>
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+            <input type="text" id="tech-waiting-part-code" class="form-control" placeholder="Código o nombre de refacción">
+            <input type="number" id="tech-waiting-part-qty" class="form-control" placeholder="Cant." min="1" step="1">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 8px;">
+          <label for="tech-waiting-obs-text" style="font-weight: 700; color: #0f172a;">Observaciones Obligatorias *</label>
+          <textarea id="tech-waiting-obs-text" class="form-control" rows="3" placeholder="Explica detalladamente por qué se detiene el trabajo y qué se requiere para continuar..." required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn-action-secondary" onclick="closeModal('modal-tech-set-waiting')">Cancelar</button>
+        <button type="button" class="btn-action-primary" style="background: #d97706; border-color: #d97706;" onclick="submitSetOTWaiting()">⏸️ Confirmar Poner en Espera</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: REANUDAR TRABAJO (PRD-TECH-WAIT-001-R1)
+       ========================================================================== -->
+  <div class="modal-overlay" id="modal-tech-resume-waiting" style="z-index: 9999;">
+    <div class="modal-card" style="max-width: 500px; width: 90%;">
+      <div class="modal-header" style="background: #e0f2fe; border-bottom: 1px solid #bae6fd;">
+        <h3 style="margin: 0; color: #0369a1; font-size: 1.1rem; font-weight: 700;">▶️ Reanudar Orden de Trabajo</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-tech-resume-waiting')">×</button>
+      </div>
+      <div class="modal-body" style="padding: 18px;">
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 0.85rem; color: #334155;">
+          <div><strong>Motivo actual:</strong> <span id="tech-resume-modal-reason">Esperando refacción</span></div>
+          <div style="margin-top: 4px;"><strong>En espera desde:</strong> <span id="tech-resume-modal-started">10:30 AM</span></div>
+          <div style="margin-top: 4px;"><strong>Tiempo detenido:</strong> <span id="tech-resume-modal-duration" style="font-weight: 700; color: #d97706;">45 min</span></div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 8px;">
+          <label for="tech-resume-note-text" style="font-weight: 700; color: #0f172a;">Nota de Resolución (Opcional)</label>
+          <textarea id="tech-resume-note-text" class="form-control" rows="2" placeholder="Ej. Refacción recibida de almacén, personal de producción liberó equipo..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn-action-secondary" onclick="closeModal('modal-tech-resume-waiting')">Cancelar</button>
+        <button type="button" class="btn-action-primary" style="background: #0284c7; border-color: #0284c7;" onclick="submitResumeOTWaiting()">▶️ Reanudar Trabajo</button>
+      </div>
+    </div>
+  </div>
+  <!-- ==========================================================================
+       MODAL: SOLICITAR TRANSFERENCIA DE OT (PRD-TECH-HANDOFF-001-R1)
+       ========================================================================== -->
+  <div class="modal-overlay" id="modal-tech-handoff" style="z-index: 9999;">
+    <div class="modal-card" style="max-width: 520px; width: 92%;">
+      <div class="modal-header" style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+        <h3 style="margin: 0; color: #1e293b; font-size: 1.1rem; font-weight: 700;">🔄 Transferir Orden de Trabajo</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-tech-handoff')">×</button>
+      </div>
+      <div class="modal-body" style="padding: 18px;">
+        <p style="font-size: 0.85rem; color: #475569; margin-top: 0;">Al solicitar la transferencia, se cerrará tu sesión operativa actual preservando tu tiempo activo. La orden quedará en espera de asignación para el siguiente turno o técnico.</p>
+        
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="tech-handoff-reason-select" style="font-weight: 700; color: #0f172a;">Motivo de la Transferencia *</label>
+          <select id="tech-handoff-reason-select" class="form-control" required>
+            <option value="">Selecciona el motivo...</option>
+            <option value="CAMBIO_TURNO">Cambio de turno</option>
+            <option value="CAMBIO_ESPECIALIDAD">Cambio de especialidad requerida</option>
+            <option value="AUSENCIA">Ausencia / Salida programada</option>
+            <option value="CARGA_TRABAJO">Rebalanceo de carga de trabajo</option>
+            <option value="REASIGNACION_ADMIN">Reasignación administrativa</option>
+            <option value="OTRO">Otro motivo</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="tech-handoff-specialty-select" style="font-weight: 700; color: #0f172a;">Especialidad Sugerida / Requerida</label>
+          <select id="tech-handoff-specialty-select" class="form-control">
+            <option value="GENERAL">General / Polivalente</option>
+            <option value="MECANICO">Mecánico</option>
+            <option value="ELECTRICO">Eléctrico</option>
+            <option value="ELECTRONICO">Electrónico / Automatización</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 8px;">
+          <label for="tech-handoff-note-text" style="font-weight: 700; color: #0f172a;">Nota de Entrega Obligatoria *</label>
+          <textarea id="tech-handoff-note-text" class="form-control" rows="3" placeholder="¿Qué se hizo? ¿Qué falta? ¿Qué debe revisar o continuar el siguiente técnico?..." required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn-action-secondary" onclick="closeModal('modal-tech-handoff')">Cancelar</button>
+        <button type="button" class="btn-action-primary" style="background: #475569; border-color: #475569;" onclick="submitHandoffRequest()">🔄 Solicitar Transferencia</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: REASIGNAR TRANSFERENCIA (SUPER ADMIN) (PRD-TECH-HANDOFF-001-R1)
+       ========================================================================== -->
+  <div class="modal-overlay" id="modal-admin-handoff-assign" style="z-index: 9999;">
+    <div class="modal-card" style="max-width: 500px; width: 90%;">
+      <div class="modal-header" style="background: #e2e8f0; border-bottom: 1px solid #cbd5e1;">
+        <h3 style="margin: 0; color: #0f172a; font-size: 1.1rem; font-weight: 700;">👤 Reasignar Transferencia de OT</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-admin-handoff-assign')">×</button>
+      </div>
+      <div class="modal-body" style="padding: 18px;">
+        <input type="hidden" id="admin-handoff-id">
+        <input type="hidden" id="admin-handoff-ot-id">
+        
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 0.85rem; color: #334155;">
+          <div><strong>Entregada por:</strong> <span id="admin-handoff-source-tech">Técnico A</span></div>
+          <div style="margin-top: 4px;"><strong>Motivo:</strong> <span id="admin-handoff-reason">Cambio de turno</span></div>
+          <div style="margin-top: 4px;"><strong>Nota de entrega:</strong> <span id="admin-handoff-note" style="font-style: italic;">...</span></div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="admin-handoff-tech-select" style="font-weight: 700; color: #0f172a;">Nuevo Técnico Responsable *</label>
+          <select id="admin-handoff-tech-select" class="form-control" required>
+            <option value="">Selecciona técnico...</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 8px;">
+          <label for="admin-handoff-admin-note" style="font-weight: 700; color: #0f172a;">Instrucciones del Administrador (Opcional)</label>
+          <textarea id="admin-handoff-admin-note" class="form-control" rows="2" placeholder="Indicaciones para el nuevo técnico..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn-action-secondary" onclick="closeModal('modal-admin-handoff-assign')">Cancelar</button>
+        <button type="button" class="btn-action-primary" style="background: #0284c7; border-color: #0284c7;" onclick="submitAdminHandoffAssignment()">👤 Confirmar Asignación</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: ACEPTAR TRANSFERENCIA (TÉCNICO ENTRANTE) (PRD-TECH-HANDOFF-001-R1)
+       ========================================================================== -->
+  <div class="modal-overlay" id="modal-tech-handoff-accept" style="z-index: 9999;">
+    <div class="modal-card" style="max-width: 500px; width: 90%;">
+      <div class="modal-header" style="background: #e0f2fe; border-bottom: 1px solid #bae6fd;">
+        <h3 style="margin: 0; color: #0369a1; font-size: 1.1rem; font-weight: 700;">📬 Orden de Trabajo Transferida</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-tech-handoff-accept')">×</button>
+      </div>
+      <div class="modal-body" style="padding: 18px;">
+        <input type="hidden" id="tech-accept-handoff-id">
+        <input type="hidden" id="tech-accept-ot-id">
+
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 0.85rem; color: #334155;">
+          <div><strong>Folio OT:</strong> <span id="tech-accept-folio">DEMO-OT-003</span></div>
+          <div style="margin-top: 4px;"><strong>Máquina:</strong> <span id="tech-accept-machine">Equipo</span></div>
+          <div style="margin-top: 4px;"><strong>Técnico anterior:</strong> <span id="tech-accept-source-tech">Técnico A</span></div>
+          <div style="margin-top: 4px;"><strong>Motivo de entrega:</strong> <span id="tech-accept-reason">Cambio de turno</span></div>
+          <div style="margin-top: 6px; background: white; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <strong style="display: block; font-size: 0.78rem; color: #64748b;">Nota de Entrega:</strong>
+            <span id="tech-accept-note" style="font-size: 0.85rem; color: #0f172a;">...</span>
+          </div>
+        </div>
+        <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 0;">Al aceptar la orden, asumirás la responsabilidad técnica. Podrás iniciar o reanudar el trabajo cuando estés listo en el equipo.</p>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn-action-secondary" onclick="closeModal('modal-tech-handoff-accept')">Cerrar</button>
+        <button type="button" class="btn-action-primary" style="background: #16a34a; border-color: #16a34a;" onclick="submitAcceptHandoff()">✅ Aceptar Responsabilidad</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

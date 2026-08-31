@@ -1,0 +1,30 @@
+{
+  "scenario": "E2E-GOLD-002",
+  "steps": [
+    {
+      "step": 1,
+      "action": "INGEST_SEGUNDAS",
+      "result": "11.2%_DEFECTS"
+    },
+    {
+      "step": 2,
+      "action": "AG003_RANKING",
+      "result": "TOP_4_SLOTS"
+    },
+    {
+      "step": 3,
+      "action": "HITL_REPROGRAM",
+      "result": "NEW_DATE_SAVED"
+    },
+    {
+      "step": 4,
+      "action": "HITL_APPROVE",
+      "result": "PROPOSAL_APROBADO"
+    },
+    {
+      "step": 5,
+      "action": "AG009_1_DISPATCH",
+      "result": "OT_PREDICTIVA_CREATED"
+    }
+  ]
+}

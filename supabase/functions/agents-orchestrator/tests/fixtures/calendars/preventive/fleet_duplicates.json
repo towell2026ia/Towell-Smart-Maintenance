@@ -1,0 +1,15 @@
+{
+  "target_year": 2026,
+  "machines": [
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "departamento_codigo": "PF",
+      "activo": true
+    },
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "departamento_codigo": "PF",
+      "activo": true
+    }
+  ]
+}

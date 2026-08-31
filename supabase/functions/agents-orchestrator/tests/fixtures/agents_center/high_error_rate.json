@@ -1,0 +1,7 @@
+{
+  "total_executions": 100,
+  "successful": 80,
+  "failed": 20,
+  "failure_rate_pct": 20,
+  "status": "ALERT_TRIGGERED"
+}

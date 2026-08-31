@@ -1,0 +1,24 @@
+{
+  "error_scenarios": [
+    {
+      "type": "INVALID_INPUT",
+      "ui_message_shown": true,
+      "no_500": true
+    },
+    {
+      "type": "LLM_DOWN",
+      "fallback_to_fast_path": true,
+      "plant_continuity": true
+    },
+    {
+      "type": "NETWORK_BLIP",
+      "retry_supported": true,
+      "no_duplicate_ot": true
+    },
+    {
+      "type": "SESSION_EXPIRED",
+      "relogin_prompted": true,
+      "unauthorized_blocked": true
+    }
+  ]
+}

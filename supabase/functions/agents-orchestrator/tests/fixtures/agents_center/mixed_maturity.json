@@ -1,0 +1,8 @@
+{
+  "total_agents": 16,
+  "maturity_counts": {
+    "VERIFICADO": 9,
+    "EJECUTABLE": 6,
+    "INTEGRADO": 1
+  }
+}

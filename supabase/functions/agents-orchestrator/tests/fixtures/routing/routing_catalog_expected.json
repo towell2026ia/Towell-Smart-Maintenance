@@ -1,0 +1,177 @@
+[
+  {
+    "event_code": "PREVENTIVO_GENERAR",
+    "expected_agent": "AG-002",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "PREVENTIVO_PRESUPUESTO_CONSULTAR",
+    "expected_agent": "AG-007",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "PREVENTIVE_BUDGET_REQUESTED",
+    "expected_agent": "AG-007",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "PREDICTIVO_GENERAR",
+    "expected_agent": "AG-003",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "EXCEL_SEGUNDAS_CARGADO",
+    "expected_agent": "AG-003",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "AUTONOMO_GENERAR",
+    "expected_agent": "AG-004",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "EXCEL_BASE_CARGADA",
+    "expected_agent": "AG-005",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 0,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "FORMULARIO_CARGADO",
+    "expected_agent": "AG-006",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "FORMULARIO_VALIDAR",
+    "expected_agent": "AG-006",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "FAILURE_ANALYSIS_REQUESTED",
+    "expected_agent": "AG-008",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "AI_RECOMMENDATIONS_REQUESTED",
+    "expected_agent": "AG-001",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 0,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "SYSTEM_ALERTS_REQUESTED",
+    "expected_agent": "AG-007",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 0,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "MACHINE_AI_CONTEXT_REQUESTED",
+    "expected_agent": "AG-001",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 0,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "AGENTS_METRICS_REQUESTED",
+    "expected_agent": "AG-001",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 0,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "LEVANTAMIENTO_AUTONOMO_NO_CONFORME",
+    "expected_agent": "AG-009.2",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 2,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "LEVANTAMIENTO_PREDICTIVO_NO_CONFORME",
+    "expected_agent": "AG-009.3",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 2,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "ANALISIS_CAUSA_RAIZ_SOLICITADO",
+    "expected_agent": "AG-010",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "MEMORIA_TECNICA_REGISTRAR",
+    "expected_agent": "AG-011",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "EVALUACION_CICLO_VIDA",
+    "expected_agent": "AG-012",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "ASSET_INTERVENTION_STRATEGY_REQUESTED",
+    "expected_agent": "AG-012",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "BAD_ACTOR_ANALYSIS_REQUESTED",
+    "expected_agent": "AG-013",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 1,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "PREVENTIVE_SCHEDULE_ITEM",
+    "expected_agent": "AG-009.1",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 2,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "AUTONOMOUS_SCHEDULE_ITEM",
+    "expected_agent": "AG-009.2",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 2,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "AUTONOMO_EJECUTAR",
+    "expected_agent": "AG-009.2",
+    "route_type": "DETERMINISTIC",
+    "authority_level": 2,
+    "expected_tokens": 0
+  },
+  {
+    "event_code": "TEXTO_AMBIGUO",
+    "expected_agent": "AG-001",
+    "route_type": "SEMANTIC_AI",
+    "authority_level": 0,
+    "expected_tokens": 120
+  }
+]

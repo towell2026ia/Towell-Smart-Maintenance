@@ -1,0 +1,5 @@
+{
+  "error": true,
+  "code": "MACHINE_NOT_FOUND",
+  "message": "La máquina solicitada no fue encontrada en el catálogo."
+}

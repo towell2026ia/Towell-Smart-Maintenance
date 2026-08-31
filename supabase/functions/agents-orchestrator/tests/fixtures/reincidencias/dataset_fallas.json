@@ -1,0 +1,35 @@
+{
+  "scope": "PLANT_WIDE",
+  "raw_failures": [
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "categoria_falla": "Mecánica / Rodamiento",
+      "descripcion": "Vibración en biela",
+      "fecha": "2026-08-01"
+    },
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "categoria_falla": "Mecánica / Rodamiento",
+      "descripcion": "Ruido anormal rodamiento",
+      "fecha": "2026-08-10"
+    },
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "categoria_falla": "Mecánica / Rodamiento",
+      "descripcion": "Calentamiento en chumacera",
+      "fecha": "2026-08-18"
+    },
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "categoria_falla": "Mecánica / Rodamiento",
+      "descripcion": "Holgura excesiva",
+      "fecha": "2026-08-25"
+    },
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "categoria_falla": "Mecánica / Rodamiento",
+      "descripcion": "Paro por vibración",
+      "fecha": "2026-08-28"
+    }
+  ]
+}

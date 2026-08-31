@@ -36,7 +36,9 @@ export function detectMacroSignatures(fileData: string | Uint8Array | Record<str
 
   const str = typeof fileData === 'string' 
     ? fileData 
-    : new TextDecoder('latin1').decode(fileData as Uint8Array);
+    : (ArrayBuffer.isView(fileData) || fileData instanceof Uint8Array)
+      ? new TextDecoder('latin1').decode(fileData as Uint8Array)
+      : JSON.stringify(fileData || '');
 
   if (str.includes('vbaProject.bin') || str.includes('VBA/') || str.includes('Sub AutoOpen') || str.includes('Sub Workbook_Open')) {
     macroNames.push('VBA_Project_Macro');

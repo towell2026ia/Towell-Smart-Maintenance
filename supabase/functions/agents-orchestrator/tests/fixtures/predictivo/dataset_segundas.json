@@ -1,0 +1,77 @@
+{
+  "upload_date": "2026-09-02",
+  "machines": [
+    {
+      "equipo_towell": "TOW-TEL201-TEJI",
+      "clave": "TEL-201",
+      "departamento_codigo": "PF",
+      "area": "TEJIDO",
+      "activo": true
+    },
+    {
+      "equipo_towell": "TOW-TEL202-TEJI",
+      "clave": "TEL-202",
+      "departamento_codigo": "PF",
+      "area": "TEJIDO",
+      "activo": true
+    },
+    {
+      "equipo_towell": "TOW-TEL203-TEJI",
+      "clave": "TEL-203",
+      "departamento_codigo": "PF",
+      "area": "TEJIDO",
+      "activo": true
+    },
+    {
+      "equipo_towell": "TOW-TEL204-TEJI",
+      "clave": "TEL-204",
+      "departamento_codigo": "PF",
+      "area": "TEJIDO",
+      "activo": true
+    },
+    {
+      "equipo_towell": "TOW-TEL205-TEJI",
+      "clave": "TEL-205",
+      "departamento_codigo": "PF",
+      "area": "TEJIDO",
+      "activo": true
+    }
+  ],
+  "quality_rows": [
+    {
+      "maquina_id": "TOW-TEL204-TEJI",
+      "pzas_rollo": 100,
+      "cantidad_defecto": 11.2,
+      "defecto": "Trama Suelta",
+      "fecha": "2026-09-01"
+    },
+    {
+      "maquina_id": "TOW-TEL202-TEJI",
+      "pzas_rollo": 100,
+      "cantidad_defecto": 8.7,
+      "defecto": "Urdimbre Floja",
+      "fecha": "2026-09-01"
+    },
+    {
+      "maquina_id": "TOW-TEL205-TEJI",
+      "pzas_rollo": 100,
+      "cantidad_defecto": 9.3,
+      "defecto": "Rotura Hilo",
+      "fecha": "2026-09-01"
+    },
+    {
+      "maquina_id": "TOW-TEL203-TEJI",
+      "pzas_rollo": 100,
+      "cantidad_defecto": 3.1,
+      "defecto": "Mancha Aceite",
+      "fecha": "2026-09-01"
+    },
+    {
+      "maquina_id": "TOW-TEL201-TEJI",
+      "pzas_rollo": 100,
+      "cantidad_defecto": 1.2,
+      "defecto": "Tensión",
+      "fecha": "2026-09-01"
+    }
+  ]
+}
