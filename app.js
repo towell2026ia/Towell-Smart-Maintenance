@@ -15694,6 +15694,11 @@ async function validateProposalPeriod() {
 function resolveAreaFromMachineCode(code, clave) {
   const c = (code || '').toUpperCase();
   const k = (clave || '').toUpperCase();
+  // Soporte explícito para máquinas DEMO
+  if (c === 'DEMO-MAQ-001' || c === 'DEMO-MAQ-002' || c === 'DEMO-MAQ-003') return 'PF';
+  if (c === 'DEMO-MAQ-004') return 'TF';
+  if (c === 'DEMO-MAQ-005') return 'CF';
+  if (c === 'DEMO-MAQ-006') return 'AF';
   // PF (Tejido/Urdido): telares, engomados, urdidos, jacquard, KM, revisadoras, polipastos, montacargas, rasuradoras, CRUD
   if (c.endsWith('-TEJI') || c.endsWith('-TEJ') || c.endsWith('-URDI') || c.includes('-KM') ||
       c.endsWith('-RASU') || c.endsWith('-CRUD') ||
@@ -17466,6 +17471,76 @@ async function fetchCalendarDetailsFromDb() {
   if (window._cachedCalendarDetails && (Date.now() - (window._cachedCalendarDetailsTime || 0) < 15000)) {
     return window._cachedCalendarDetails;
   }
+  
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const now = new Date();
+    const demoCalendarDetails = [
+      {
+        id_detalle: 'DEMO-CAL-001',
+        maquina_id: 'DEMO-MAQ-001',
+        tipo_mantenimiento: 'PREVENTIVO',
+        actividad_sugerida: 'Mantenimiento Preventivo Bimestral — Revisión de peines y lubricación',
+        fecha_programada: new Date(Date.now() + 86400000 * 3).toISOString(),
+        prioridad: 'Alta',
+        observaciones: JSON.stringify({ area: 'PF' }),
+        calendarios_mantenimiento: { anio: now.getFullYear(), mes: now.getMonth() + 1, semana: 35, tipo_calendario: 'PREVENTIVO' }
+      },
+      {
+        id_detalle: 'DEMO-CAL-002',
+        maquina_id: 'DEMO-MAQ-002',
+        tipo_mantenimiento: 'PREDICTIVO',
+        actividad_sugerida: 'Análisis de vibraciones en rodamiento de cabezal',
+        fecha_programada: new Date(Date.now() + 86400000 * 7).toISOString(),
+        prioridad: 'Media',
+        observaciones: JSON.stringify({ area: 'PF' }),
+        calendarios_mantenimiento: { anio: now.getFullYear(), mes: now.getMonth() + 1, semana: 36, tipo_calendario: 'PREDICTIVO' }
+      },
+      {
+        id_detalle: 'DEMO-CAL-003',
+        maquina_id: 'DEMO-MAQ-003',
+        tipo_mantenimiento: 'AUTONOMO',
+        actividad_sugerida: 'Inspección de guías y tensión de hilos',
+        fecha_programada: new Date(Date.now() + 86400000 * 10).toISOString(),
+        prioridad: 'Baja',
+        observaciones: JSON.stringify({ area: 'PF' }),
+        calendarios_mantenimiento: { anio: now.getFullYear(), mes: now.getMonth() + 1, semana: 36, tipo_calendario: 'AUTONOMO' }
+      },
+      {
+        id_detalle: 'DEMO-CAL-004',
+        maquina_id: 'DEMO-MAQ-004',
+        tipo_mantenimiento: 'PREVENTIVO',
+        actividad_sugerida: 'Limpieza de filtros y verificación de toberas de secado',
+        fecha_programada: new Date(Date.now() + 86400000 * 4).toISOString(),
+        prioridad: 'Alta',
+        observaciones: JSON.stringify({ area: 'TF' }),
+        calendarios_mantenimiento: { anio: now.getFullYear(), mes: now.getMonth() + 1, semana: 35, tipo_calendario: 'PREVENTIVO' }
+      },
+      {
+        id_detalle: 'DEMO-CAL-005',
+        maquina_id: 'DEMO-MAQ-005',
+        tipo_mantenimiento: 'AUTONOMO',
+        actividad_sugerida: 'Afilado de cuchillas y limpieza de mesa de corte',
+        fecha_programada: new Date(Date.now() + 86400000 * 6).toISOString(),
+        prioridad: 'Media',
+        observaciones: JSON.stringify({ area: 'CF' }),
+        calendarios_mantenimiento: { anio: now.getFullYear(), mes: now.getMonth() + 1, semana: 35, tipo_calendario: 'AUTONOMO' }
+      },
+      {
+        id_detalle: 'DEMO-CAL-006',
+        maquina_id: 'DEMO-MAQ-006',
+        tipo_mantenimiento: 'PREVENTIVO',
+        actividad_sugerida: 'Cambio de filtro de aire y purga de condensados',
+        fecha_programada: new Date(Date.now() + 86400000 * 12).toISOString(),
+        prioridad: 'Media',
+        observaciones: JSON.stringify({ area: 'AF' }),
+        calendarios_mantenimiento: { anio: now.getFullYear(), mes: now.getMonth() + 1, semana: 36, tipo_calendario: 'PREVENTIVO' }
+      }
+    ];
+    window._cachedCalendarDetails = demoCalendarDetails;
+    window._cachedCalendarDetailsTime = Date.now();
+    return demoCalendarDetails;
+  }
+
   if (!supabaseClient) {
     return [];
   }
@@ -17758,20 +17833,8 @@ async function renderSolicitanteCalendar() {
     });
   }
 
-  // 4. Obtener propuestas reales de base de datos filtradas estrictamente por Área
-  let allDetails = [];
-  try {
-    if (supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('calendario_mantenimiento_detalle')
-        .select('*, calendarios_mantenimiento(anio, mes, semana, tipo_calendario)')
-        .order('fecha_programada', { ascending: true });
-
-      if (!error && data) allDetails = data;
-    }
-  } catch (err) {
-    console.error('[Solicitante Calendar] DB fetch error:', err);
-  }
+  // 4. Obtener propuestas reales o de DEMO filtradas estrictamente por Área
+  let allDetails = await fetchCalendarDetailsFromDb();
 
   // Filtro canónico por Área del Solicitante
   const areaDetails = allDetails.filter(item => {
