@@ -596,7 +596,7 @@ function triggerRecoveryUI() {
   const userIdInput = document.getElementById('change-pass-user-id');
   if (userIdInput) userIdInput.value = 'RECOVERY_MODE';
 
-  const targetRol = (recoverySession?.user?.user_metadata?.rol === 'SUPER_ADMINISTRADOR') ? 'admin' : 'tech';
+  const targetRol = (['SUPER_ADMINISTRADOR', 'ADMINISTRADOR', 'ADMIN', 'JEFE_MANTENIMIENTO', 'GERENTE', 'DIRECTOR'].includes(recoverySession?.user?.user_metadata?.rol)) ? 'admin' : 'tech';
   const targetViewInput = document.getElementById('change-pass-target-view');
   if (targetViewInput) targetViewInput.value = targetRol;
   
@@ -843,7 +843,7 @@ function getUserUUID(cve) {
 // Get Admin UUID
 function getAdminUUID() {
   const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-  const admin = users.find(u => u.rol === 'SUPER_ADMINISTRADOR');
+  const admin = users.find(u => ['SUPER_ADMINISTRADOR', 'ADMINISTRADOR', 'ADMIN'].includes(u.rol)) || users.find(u => normalizeUserRole(u.rol) === 'admin');
   return admin ? admin.id_usuario : '00000000-0000-0000-0000-000000000000';
 }
 
@@ -8799,6 +8799,7 @@ function renderAdminUsersTable() {
     // Formatear rol
     let rolText = u.rol;
     if (u.rol === 'SUPER_ADMINISTRADOR') rolText = 'Super Administrador';
+    else if (u.rol === 'ADMINISTRADOR' || u.rol === 'ADMIN') rolText = 'Administrador';
     else if (u.rol === 'MANTENIMIENTO') rolText = `Técnico (${u.cve_tecnico || 'Sin Clave'})`;
     else if (u.rol === 'SOLICITANTE_PUBLICO') rolText = 'Solicitante Público';
 
@@ -8922,10 +8923,12 @@ function openAdminUserModal(userId = null) {
   
   if (userId) {
     const users = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-    // Búsqueda robusta: primero por id_usuario, luego por uuid/id, luego por correo
+    const cleanId = String(userId).toLowerCase().trim();
+    // Búsqueda robusta: por id_usuario, uuid, id, correo o clave de empleado
     let u = users.find(item => item.id_usuario === userId);
     if (!u) u = users.find(item => (item.id || item.uuid) === userId);
-    if (!u) u = users.find(item => item.correo === userId); // fallback por correo
+    if (!u) u = users.find(item => String(item.correo || '').toLowerCase().trim() === cleanId);
+    if (!u) u = users.find(item => String(item.cve_empleado || '').toLowerCase().trim() === cleanId);
     if (!u) {
       console.warn('[TSMAI] openAdminUserModal: usuario no encontrado con ID:', userId, '— Lista de usuarios:', users.map(x => ({id: x.id_usuario, correo: x.correo})));
       showToast('⚠️ No se pudo cargar el usuario. Intenta sincronizar (botón Sync).');
@@ -8937,11 +8940,12 @@ function openAdminUserModal(userId = null) {
     document.getElementById('admin-user-email').value = u.correo || '';
     document.getElementById('admin-user-phone').value = u.telefono || '';
 
-    // Normalizar el rol al valor del select (SOLICITANTE_PUBLICO → SOLICITANTE)
+    // Normalizar el rol al valor del select
     let rolNorm = (u.rol || 'SOLICITANTE').toUpperCase().trim();
     if (rolNorm === 'SOLICITANTE_PUBLICO' || rolNorm === 'SOLICITANTE PUBLICO' || rolNorm === 'SOLICITANTE_PÚBLICO') rolNorm = 'SOLICITANTE';
-    if (rolNorm === 'ADMIN' || rolNorm === 'ADMINISTRADOR') rolNorm = 'SUPER_ADMINISTRADOR';
-    if (rolNorm === 'TECNICO' || rolNorm === 'TÉCNICO' || rolNorm === 'TECH') rolNorm = 'MANTENIMIENTO';
+    else if (rolNorm === 'SUPER_ADMINISTRADOR' || rolNorm === 'SUPER_ADMIN' || rolNorm === 'SUPERADMIN') rolNorm = 'SUPER_ADMINISTRADOR';
+    else if (rolNorm === 'ADMIN' || rolNorm === 'ADMINISTRADOR') rolNorm = 'ADMINISTRADOR';
+    else if (rolNorm === 'TECNICO' || rolNorm === 'TÉCNICO' || rolNorm === 'TECH') rolNorm = 'MANTENIMIENTO';
     roleSelect.value = rolNorm;
 
     codeInput.value = u.cve_empleado || '';
@@ -9004,7 +9008,46 @@ function openAdminUserModal(userId = null) {
   openModal('modal-admin-user-detail');
 }
 
+async function sendUserInvitationEmail(email, nombre, rol) {
+  if (!supabaseClient) return false;
+  try {
+    const supabaseUrl = typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '';
+    const edgeFnUrl = supabaseUrl.replace('.supabase.co', '.supabase.co') + '/functions/v1/invite-user';
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const accessToken = session?.access_token || '';
+
+    const resp = await fetch(edgeFnUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        email: email,
+        nombre: nombre,
+        rol: rol,
+        redirectTo: 'https://tsmail-towell.netlify.app'
+      })
+    });
+
+    const result = await resp.json();
+    if (resp.ok && result.success) {
+      showToast(`✅ Invitación enviada a ${email}.`);
+      return true;
+    } else {
+      console.warn('[Invite] Edge Function notice:', result.error || result.message);
+      return false;
+    }
+  } catch (inviteErr) {
+    console.warn('[Invite] Error llamando Edge Function:', inviteErr);
+    return false;
+  }
+}
+
 async function saveAdminUser() {
+  const saveBtn = document.getElementById('btn-save-admin-user');
+  const originalBtnText = saveBtn ? saveBtn.innerHTML : '💾 Guardar Usuario';
+  
   const id = document.getElementById('admin-user-id').value;
   const nombre = document.getElementById('admin-user-name').value.trim();
   const correo = document.getElementById('admin-user-email').value.trim();
@@ -9019,7 +9062,7 @@ async function saveAdminUser() {
   const puesto = isTech ? 'Técnico de Mantenimiento' : (document.getElementById('admin-user-puesto')?.value || '').trim();
   const area = isTech ? 'Mantenimiento' : ((document.getElementById('admin-user-area')?.value || '').trim() || 'General');
 
-  // Permisos
+  // Permisos: el administrador tiene control total sobre cada checkbox
   const puedeCrear = document.getElementById('perm-create-req').checked;
   const puedeVerAsignadas = document.getElementById('perm-view-assigned').checked;
   const puedeVerTodas = document.getElementById('perm-view-all').checked;
@@ -9041,211 +9084,260 @@ async function saveAdminUser() {
     return;
   }
 
-  let finalTechCode = (rol === 'MANTENIMIENTO' || cveTecnico) ? (cveTecnico || cveEmpleado || (id && !id.includes('@') ? id : null)) : null;
-  if (rol === 'MANTENIMIENTO' && !finalTechCode) {
-    const existingTechs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
-    const nextNum = existingTechs.length + 1;
-    finalTechCode = `T-${String(nextNum).padStart(2, '0')}`;
-  }
-  const finalEmpCode = cveEmpleado || finalTechCode || null;
-  const tempPass = 'TSM' + Math.floor(100000 + Math.random() * 900000);
-
-  const finalCanCreate = rol === 'MANTENIMIENTO' ? false : puedeCrear;
-
-  const userObj = {
-    nombre_completo: nombre,
-    correo: correo,
-    telefono: telefono || null,
-    rol: rol,
-    puesto: puesto || null,
-    area: area || 'General',
-    cve_empleado: finalEmpCode,
-    cve_tecnico: finalTechCode,
-    departamento: departamento || null,
-    turno: shift ? parseInt(shift) : null,
-    puede_crear_solicitud: finalCanCreate,
-    puede_ver_ordenes_asignadas: (rol === 'MANTENIMIENTO') ? true : puedeVerAsignadas,
-    puede_ver_todas_ordenes: puedeVerTodas,
-    puede_atender_orden: (rol === 'MANTENIMIENTO') ? true : puedeAtender,
-    puede_cerrar_orden: (rol === 'MANTENIMIENTO') ? true : puedeCerrar,
-    puede_validar_cierre: puedeValidar,
-    puede_editar_catalogos: puedeEditar,
-    puede_ver_dashboards: puedeVerDash,
-    puede_configurar_sistema: puedeConfig,
-    recibe_alertas: recibeAlertas,
-    activo: activo,
-    observaciones: observaciones || null,
-    fecha_actualizacion: new Date().toISOString()
-  };
-
-  const isUUID = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-  const isEmail = id && !isUUID && id.includes('@');
-  const isExistingUser = isUUID || isEmail; // true = update, false = insert
-
-  if (!isExistingUser) {
-    userObj.contrasenia = tempPass;
-    userObj.debe_cambiar_contrasenia = true;
-    userObj.fecha_alta = new Date().toISOString();
+  // Prevenir doble envío y mostrar indicador visual
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '⏳ Guardando...';
   }
 
-  let shouldShowEmail = false;
+  try {
+    let finalTechCode = (rol === 'MANTENIMIENTO' || cveTecnico) ? (cveTecnico || cveEmpleado || (id && !id.includes('@') ? id : null)) : null;
+    if (rol === 'MANTENIMIENTO' && !finalTechCode) {
+      const existingTechs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
+      const nextNum = existingTechs.length + 1;
+      finalTechCode = `T-${String(nextNum).padStart(2, '0')}`;
+    }
+    const finalEmpCode = cveEmpleado || finalTechCode || null;
+    const tempPass = 'TSM' + Math.floor(100000 + Math.random() * 900000);
 
-  if (supabaseClient) {
-    try {
-      // 1. Asegurar la clave de empleado en cat_empleados si existe
-      if (finalEmpCode) {
-        showToast('Sincronizando catálogo de empleados...');
-        const { error: empErr } = await supabaseClient
-          .from('cat_empleados')
-          .upsert([{
-            cve_empleado: finalEmpCode,
-            nombre_empleado: nombre,
-            correo: correo,
-            telefono: telefono || null,
-            activo: activo,
-            fecha_actualizacion: new Date().toISOString()
-          }], { onConflict: 'cve_empleado' });
-        if (empErr) console.warn('Aviso en cat_empleados:', empErr);
+    const userObj = {
+      nombre_completo: nombre,
+      correo: correo,
+      telefono: telefono || null,
+      rol: rol,
+      puesto: puesto || null,
+      area: area || 'General',
+      cve_empleado: finalEmpCode,
+      cve_tecnico: finalTechCode,
+      departamento: departamento || null,
+      turno: shift ? parseInt(shift) : null,
+      puede_crear_solicitud: puedeCrear,
+      puede_ver_ordenes_asignadas: puedeVerAsignadas,
+      puede_ver_todas_ordenes: puedeVerTodas,
+      puede_atender_orden: puedeAtender,
+      puede_cerrar_orden: puedeCerrar,
+      puede_validar_cierre: puedeValidar,
+      puede_editar_catalogos: puedeEditar,
+      puede_ver_dashboards: puedeVerDash,
+      puede_configurar_sistema: puedeConfig,
+      recibe_alertas: recibeAlertas,
+      activo: activo,
+      observaciones: observaciones || null,
+      fecha_actualizacion: new Date().toISOString()
+    };
+
+    const isUUID = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const isEmail = id && !isUUID && id.includes('@');
+    let targetUserId = isUUID ? id : null;
+    let targetUserEmail = isEmail ? id : correo;
+    let shouldShowEmail = false;
+
+    if (supabaseClient) {
+      // 1. Si no tenemos UUID explícito en el formulario, verificar si el correo ya existe en cat_usuarios_roles
+      if (!targetUserId) {
+        try {
+          const { data: existingUser } = await supabaseClient
+            .from('cat_usuarios_roles')
+            .select('id_usuario, correo')
+            .ilike('correo', correo)
+            .maybeSingle();
+          if (existingUser) {
+            targetUserId = existingUser.id_usuario;
+            targetUserEmail = existingUser.correo;
+            userObj.id_usuario = existingUser.id_usuario;
+          }
+        } catch (checkErr) {
+          console.warn('[saveAdminUser] Advertencia al buscar usuario por correo:', checkErr);
+        }
       }
 
-      // 2. Si el rol es MANTENIMIENTO o tiene clave de técnico, asegurar registro en cat_tecnicos
+      // 2. Asegurar la clave de empleado en cat_empleados si existe
+      if (finalEmpCode) {
+        try {
+          await supabaseClient
+            .from('cat_empleados')
+            .upsert([{
+              cve_empleado: finalEmpCode,
+              nombre_empleado: nombre,
+              correo: correo,
+              telefono: telefono || null,
+              activo: activo,
+              fecha_actualizacion: new Date().toISOString()
+            }], { onConflict: 'cve_empleado' });
+        } catch (empErr) {
+          console.warn('Aviso en cat_empleados:', empErr);
+        }
+      }
+
+      // 3. Si el rol es MANTENIMIENTO o tiene clave de técnico, sincronizar cat_tecnicos
       if ((rol === 'MANTENIMIENTO' || finalTechCode) && finalTechCode) {
-        showToast('Sincronizando catálogo de técnicos...');
-        const { error: techErr } = await supabaseClient
-          .from('cat_tecnicos')
-          .upsert([{
-            cve_tecnico: finalTechCode,
-            nombre_tecnico: nombre,
-            correo: correo,
-            telefono: telefono || null,
-            activo: activo,
-            especialidad: observaciones || departamento || 'Mantenimiento General',
-            fecha_actualizacion: new Date().toISOString()
-          }], { onConflict: 'cve_tecnico' });
-        if (techErr) console.warn('Aviso en cat_tecnicos:', techErr);
+        try {
+          await supabaseClient
+            .from('cat_tecnicos')
+            .upsert([{
+              cve_tecnico: finalTechCode,
+              nombre_tecnico: nombre,
+              correo: correo,
+              telefono: telefono || null,
+              activo: activo,
+              especialidad: observaciones || departamento || 'Mantenimiento General',
+              fecha_actualizacion: new Date().toISOString()
+            }], { onConflict: 'cve_tecnico' });
+        } catch (techErr) {
+          console.warn('Aviso en cat_tecnicos:', techErr);
+        }
       } else if (rol !== 'MANTENIMIENTO' && (correo || finalTechCode)) {
-        // Si el rol cambió de Técnico a Solicitante/Admin, desactivar en cat_tecnicos
         try {
           await supabaseClient
             .from('cat_tecnicos')
             .update({ activo: false, fecha_actualizacion: new Date().toISOString() })
             .eq('correo', correo);
-        } catch (e) { console.warn('Aviso al desactivar en cat_tecnicos:', e); }
+        } catch (e) {
+          console.warn('Aviso al desactivar en cat_tecnicos:', e);
+        }
       }
 
-      // 3. Actualizar la tabla principal cat_usuarios_roles
+      // 4. Guardar en cat_usuarios_roles (UPDATE inteligente o INSERT)
       const dbPayload = { ...userObj };
       delete dbPayload.contrasenia;
 
-      if (isUUID) {
-        // Caso normal: usuario identificado por UUID
-        const { error } = await supabaseClient
+      if (targetUserId) {
+        // Usuario existente por UUID
+        const { error: updErr } = await supabaseClient
           .from('cat_usuarios_roles')
           .update(dbPayload)
-          .eq('id_usuario', id);
-        if (error) throw error;
-        showToast('✅ Usuario actualizado con éxito en Supabase.');
-      } else if (isEmail) {
-        // Caso fallback: usuario identificado por correo (sin UUID en TSMAI_users)
-        const { error } = await supabaseClient
+          .eq('id_usuario', targetUserId);
+        if (updErr) throw updErr;
+        userObj.id_usuario = targetUserId;
+        showToast('✅ Usuario y permisos actualizados en Supabase.');
+      } else if (targetUserEmail) {
+        // Buscar si existe por correo antes de insertar
+        const { data: matchByMail } = await supabaseClient
           .from('cat_usuarios_roles')
-          .update(dbPayload)
-          .eq('correo', id);
-        if (error) throw error;
-        showToast('✅ Usuario actualizado por correo en Supabase.');
-      } else {
-        // Caso: nuevo usuario — insertar en cat_usuarios_roles
-        const { error } = await supabaseClient
-          .from('cat_usuarios_roles')
-          .insert([dbPayload]);
-        if (error) throw error;
-        showToast('✅ Usuario creado en BD. Enviando invitación por correo...');
-        shouldShowEmail = true;
+          .select('id_usuario')
+          .ilike('correo', targetUserEmail)
+          .maybeSingle();
+
+        if (matchByMail) {
+          const { error: updMailErr } = await supabaseClient
+            .from('cat_usuarios_roles')
+            .update(dbPayload)
+            .eq('id_usuario', matchByMail.id_usuario);
+          if (updMailErr) throw updMailErr;
+          userObj.id_usuario = matchByMail.id_usuario;
+          showToast('✅ Usuario y permisos actualizados por correo en Supabase.');
+        } else {
+          // No existe: Insertar nuevo usuario
+          userObj.contrasenia = tempPass;
+          userObj.debe_cambiar_contrasenia = true;
+          userObj.fecha_alta = new Date().toISOString();
+          dbPayload.fecha_alta = userObj.fecha_alta;
+
+          const { data: insData, error: insErr } = await supabaseClient
+            .from('cat_usuarios_roles')
+            .insert([dbPayload])
+            .select();
+
+          if (insErr) {
+            // Manejo de condición de carrera si el correo ya existe
+            if (insErr.code === '23505' || String(insErr.message).includes('cat_usuarios_roles_correo_key')) {
+              console.warn('[saveAdminUser] Usuario ya existía en BD, ejecutando actualización...');
+              const { error: fallbackUpd } = await supabaseClient
+                .from('cat_usuarios_roles')
+                .update(dbPayload)
+                .ilike('correo', correo);
+              if (fallbackUpd) throw fallbackUpd;
+              showToast('✅ Usuario existente actualizado con éxito.');
+            } else {
+              throw insErr;
+            }
+          } else {
+            if (insData && insData[0]?.id_usuario) {
+              userObj.id_usuario = insData[0].id_usuario;
+            }
+            showToast('✅ Usuario creado en BD. Preparando invitación por correo...');
+            shouldShowEmail = true;
+          }
+        }
       }
-    } catch (err) {
-      console.error('Error guardando usuario en Supabase:', err);
-      alert('Error guardando en Supabase: ' + err.message);
-      return;
-    }
-  } else {
-    showToast('Guardado localmente (Offline).');
-  }
-
-  // Sincronizar sesión en memoria si el usuario editado es el usuario actual logueado
-  if (currentUser && (currentUser.uuid === id || currentUser.email === correo)) {
-    currentUser.rol = rol;
-    currentUser.role = normalizeUserRole(rol);
-    currentUser.name = nombre;
-    currentUser.cve_tecnico = finalTechCode;
-    currentUser.id = finalTechCode || currentUser.uuid;
-    persistSessionUser(currentUser);
-  }
-
-  if (supabaseClient) {
-    await syncDatabases();
-  } else {
-    let localUsers = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
-    if (id) {
-      localUsers = localUsers.map(u => (u.id_usuario === id || u.correo === id) ? { ...u, ...userObj } : u);
     } else {
-      userObj.id_usuario = crypto.randomUUID ? crypto.randomUUID() : 'local-' + Math.random().toString(36).substr(2, 9);
+      showToast('Guardado localmente (Offline).');
+    }
+
+    // 5. Actualizar sesión activa si el usuario editado es el actual
+    if (currentUser && (currentUser.uuid === targetUserId || (currentUser.email && currentUser.email.toLowerCase() === correo.toLowerCase()))) {
+      currentUser.rol = rol;
+      currentUser.role = normalizeUserRole(rol);
+      currentUser.name = nombre;
+      currentUser.cve_tecnico = finalTechCode;
+      currentUser.id = finalTechCode || currentUser.uuid;
+      persistSessionUser(currentUser);
+    }
+
+    // 6. Actualizar inmediatamente en memoria y localStorage para feedback instantáneo
+    let localUsers = JSON.parse(localStorage.getItem('TSMAI_users') || '[]');
+    const effectiveMatchId = targetUserId || id;
+    const cleanMail = correo.toLowerCase();
+    const existingIdx = localUsers.findIndex(u => (effectiveMatchId && u.id_usuario === effectiveMatchId) || (u.correo && u.correo.toLowerCase() === cleanMail));
+
+    if (existingIdx !== -1) {
+      localUsers[existingIdx] = { ...localUsers[existingIdx], ...userObj };
+      if (!userObj.id_usuario && localUsers[existingIdx].id_usuario) {
+        userObj.id_usuario = localUsers[existingIdx].id_usuario;
+      }
+    } else {
+      if (!userObj.id_usuario) {
+        userObj.id_usuario = crypto.randomUUID ? crypto.randomUUID() : 'local-' + Date.now();
+      }
       localUsers.push(userObj);
     }
     localStorage.setItem('TSMAI_users', JSON.stringify(localUsers));
-    const localTechs = localUsers.filter(u => u.rol === 'MANTENIMIENTO').map(t => ({
+
+    // Actualizar catálogo local de técnicos
+    const localTechs = localUsers.filter(u => {
+      const uRol = (u.rol || '').toUpperCase();
+      return uRol === 'MANTENIMIENTO' || uRol === 'TECNICO' || !!u.cve_tecnico;
+    }).map(t => ({
       id: t.cve_tecnico || t.id_usuario,
       uuid: t.id_usuario,
+      cve_tecnico: t.cve_tecnico || null,
       name: t.nombre_completo,
       email: t.correo,
       specialty: t.observaciones || 'General',
-      avatar: '👨‍🔧'
+      avatar: '👨‍🔧',
+      department: t.departamento,
+      activo: t.activo !== false
     }));
     localStorage.setItem('TSMAI_technicians', JSON.stringify(localTechs));
-  }
 
-  // Plan A: Enviar invitación real via Edge Function (solo para usuarios nuevos con Supabase activo)
-  if (shouldShowEmail && supabaseClient) {
-    try {
-      showToast('📧 Enviando correo de invitación real...');
-      const supabaseUrl = typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '';
-      const edgeFnUrl = supabaseUrl.replace('.supabase.co', '.supabase.co') + '/functions/v1/invite-user';
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      const accessToken = session?.access_token || '';
+    // 7. Cerrar modal y refrescar la tabla de inmediato
+    closeModal('modal-admin-user-detail');
+    populateTectSelects();
+    renderAdminUsersTable();
+    if (typeof renderAdminTecnicos === 'function') renderAdminTecnicos();
+    refreshActiveViewSilently();
+    broadcastAppUpdate('USER_SAVED');
 
-      const resp = await fetch(edgeFnUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          email: correo,
-          nombre: nombre,
-          rol: rol,
-          redirectTo: 'https://tsmail-towell.netlify.app'
-        })
-      });
+    // 8. Tareas en segundo plano (no bloquean la interfaz)
+    if (shouldShowEmail && supabaseClient) {
+      sendUserInvitationEmail(correo, nombre, rol).catch(e => console.warn('[Invite bg]', e));
+    }
+    if (supabaseClient) {
+      syncDatabases().then(() => {
+        renderAdminUsersTable();
+        if (typeof renderAdminTecnicos === 'function') renderAdminTecnicos();
+      }).catch(e => console.warn('[Sync bg]', e));
+    }
 
-      const result = await resp.json();
-      if (resp.ok && result.success) {
-        showToast(`✅ Correo de invitación enviado a ${correo}. El usuario recibirá el enlace para establecer su contraseña.`);
-      } else {
-        console.warn('[Invite] Edge Function error:', result.error);
-        // Fallback informativo: mostrar toast con instrucciones manuales
-        showToast(`⚠️ No se pudo enviar la invitación automática (${result.error || 'error'}). Comparte el acceso manualmente con ${correo}.`);
-      }
-    } catch (inviteErr) {
-      console.warn('[Invite] Error llamando Edge Function:', inviteErr);
-      showToast(`⚠️ Usuario creado, pero la invitación por correo falló. Verifica la Edge Function en Supabase.`);
+  } catch (err) {
+    console.error('Error guardando usuario en Supabase:', err);
+    alert('Error guardando en Supabase: ' + (err.message || err));
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = originalBtnText;
     }
   }
-
-  closeModal('modal-admin-user-detail');
-  populateTectSelects();
-  renderAdminUsersTable();
-  if (typeof renderAdminTecnicos === 'function') renderAdminTecnicos();
-  refreshActiveViewSilently();
-  broadcastAppUpdate('USER_SAVED');
 }
 
 async function deleteAdminUser(userId) {
@@ -15109,7 +15201,8 @@ async function submitChangedPassword() {
 
     // Iniciar sesión del usuario
     const dbUser = targetUser;
-    if (dbUser.rol === 'SUPER_ADMINISTRADOR') {
+    const userRoleKey = normalizeUserRole(dbUser.rol);
+    if (userRoleKey === 'admin' || ['SUPER_ADMINISTRADOR', 'ADMINISTRADOR', 'ADMIN'].includes(dbUser.rol)) {
       currentUser = { 
         role: 'admin', 
         name: dbUser.nombre_completo, 
@@ -15117,7 +15210,7 @@ async function submitChangedPassword() {
         uuid: dbUser.id_usuario 
       };
       closeModal('modal-change-password');
-      showToast(`Sesión iniciada como Super Admin: ${dbUser.nombre_completo}`);
+      showToast(`Sesión iniciada como Administrador: ${dbUser.nombre_completo}`);
       showView('admin');
       switchAdminPanel('dashboard');
     } else if (dbUser.rol === 'MANTENIMIENTO') {
@@ -17374,7 +17467,7 @@ function renderSolicitanteProfileHeader() {
     if (homeNameEl) homeNameEl.innerText = userName.split(' ')[0]; // Solo primer nombre
     if (homeAreaEl) homeAreaEl.innerText = userArea;
 
-    const isSuperAdmin = currentUser.rol === 'SUPER_ADMINISTRADOR' || currentUser.cve_tecnico === '2025';
+    const isSuperAdmin = currentUser.role === 'admin' || ['SUPER_ADMINISTRADOR', 'ADMINISTRADOR', 'ADMIN', 'JEFE_MANTENIMIENTO', 'GERENTE', 'DIRECTOR'].includes(currentUser.rol) || currentUser.cve_tecnico === '2025';
     if (switchAdminBtn) switchAdminBtn.style.display = isSuperAdmin ? 'block' : 'none';
 
     const trackSub = document.getElementById('solic-tracking-subtitle');

@@ -4303,6 +4303,7 @@
             <label for="admin-user-role">Rol Principal *</label>
             <select id="admin-user-role" class="form-control" onchange="toggleAdminUserRoleFields()">
               <option value="SUPER_ADMINISTRADOR">Super Administrador</option>
+              <option value="ADMINISTRADOR">Administrador</option>
               <option value="MANTENIMIENTO">Mantenimiento (Técnico)</option>
               <option value="SOLICITANTE">Solicitante (Producción / Operación)</option>
               <!-- Alias de BD — normalizado a SOLICITANTE en JS, pero existe como fallback -->
@@ -4391,7 +4392,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn-action-secondary" onclick="closeModal('modal-admin-user-detail')">Cancelar</button>
-        <button class="btn-action-primary" onclick="saveAdminUser()">💾 Guardar Usuario</button>
+        <button class="btn-action-primary" id="btn-save-admin-user" onclick="saveAdminUser()">💾 Guardar Usuario</button>
       </div>
     </div>
   </div>
