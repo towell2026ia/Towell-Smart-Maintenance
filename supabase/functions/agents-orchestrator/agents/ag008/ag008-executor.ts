@@ -45,8 +45,35 @@ export async function executeAG008FailureAnalysis(
           es_recurrente: f.es_recurrente
         }));
       }
+
+      // Query ordenes_trabajo to ingest live OTs alongside historical failures
+      let otQuery = supabase
+        .from('ordenes_trabajo')
+        .select('*')
+        .order('fecha_carga', { ascending: false })
+        .limit(500);
+
+      if (targetId) {
+        otQuery = otQuery.eq('maquina_id', targetId);
+      }
+
+      const { data: dbOts, error: otErr } = await otQuery;
+      if (!otErr && dbOts) {
+        const otFailures = dbOts.map(o => ({
+          id: o.folio || o.id_orden,
+          source_type: 'OT_HISTORICA' as any,
+          source_table: 'ordenes_trabajo',
+          maquina_id: o.maquina_id,
+          depto: o.area || o.departamento,
+          descripcion: o.descripcion || o.falla || 'Intervención en OT',
+          fecha: o.fecha_inicio || o.fecha_carga,
+          categoria_falla: o.falla || 'Mecánica',
+          es_recurrente: o.es_reincidente || false
+        })).filter(f => f.maquina_id);
+        rawFailures = [...rawFailures, ...otFailures];
+      }
     } catch (err) {
-      console.warn('[AG-008 Executor] Warning fetching fallas_por_maquina:', err);
+      console.warn('[AG-008 Executor] Warning fetching fallas and OTs:', err);
     }
   }
 

@@ -1870,9 +1870,9 @@
                 <span style="font-size: 0.72rem; color: #10b981;">0 fallos críticos</span>
               </div>
               <div style="background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; border-left: 4px solid #8b5cf6;">
-                <span style="font-size: 0.78rem; color: #64748b; font-weight: 700;">CONVERSIÓN A ACCIÓN</span>
-                <div style="font-size: 1.5rem; font-weight: 800; color: #6d28d9; margin-top: 4px;" id="agent-kpi-conversion">85%</div>
-                <span style="font-size: 0.72rem; color: #8b5cf6;">Propuestas aceptadas</span>
+                <span style="font-size: 0.78rem; color: #64748b; font-weight: 700;">EFECTIVIDAD OPERATIVA</span>
+                <div style="font-size: 1.5rem; font-weight: 800; color: #6d28d9; margin-top: 4px;" id="agent-kpi-conversion">—</div>
+                <span style="font-size: 0.72rem; color: #8b5cf6;" id="agent-kpi-conversion-sub">Calculando desde OTs reales...</span>
               </div>
               <div style="background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; border-left: 4px solid #f59e0b;">
                 <span style="font-size: 0.78rem; color: #64748b; font-weight: 700;">COSTO TOTAL USD</span>
@@ -5817,16 +5817,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.5.7"></script>
-  <script src="agents-client.js?v=3.5.7"></script>
-  <script src="app.js?v=3.5.7"></script>
-  <script src="dashboard.js?v=3.5.7"></script>
+  <script src="seed.js?v=3.5.8"></script>
+  <script src="agents-client.js?v=3.5.8"></script>
+  <script src="app.js?v=3.5.8"></script>
+  <script src="dashboard.js?v=3.5.8"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.5.7')
+        navigator.serviceWorker.register('./sw.js?v=3.5.8')
           .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
           .catch(err => console.warn('⚠️ ServiceWorker error:', err));
       });

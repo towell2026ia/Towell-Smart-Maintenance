@@ -150,16 +150,18 @@ export async function getMachineContextSnapshot(
   let qualityRows: any[] = [];
   let calendarDetails: any[] = [];
   let recurrenceRows: any[] = [];
+  let bitacoraRows: any[] = [];
 
   if (supabase) {
     try {
-      const [mRes, otRes, fRes, qRes, cRes, rRes] = await Promise.all([
+      const [mRes, otRes, fRes, qRes, cRes, rRes, bRes] = await Promise.all([
         supabase.from('cat_maquinas').select('*').or(`equipo_towell.eq.${normId},clave.eq.${normId}`).maybeSingle(),
         supabase.from('ordenes_trabajo').select('*').eq('maquina_id', normId).order('fecha_carga', { ascending: false }).limit(50),
         supabase.from('fallas_por_maquina').select('*').eq('maquina_id', normId).order('fecha_creada', { ascending: false }).limit(100),
         supabase.from('segundas_por_rollo').select('*').eq('maquina_id', normId).order('fecha', { ascending: false }).limit(50),
         supabase.from('calendario_mantenimiento_detalle').select('*').eq('maquina_id', normId).limit(20),
-        supabase.from('analisis_repetibilidad_fallas').select('*').eq('maquina_id', normId).limit(10)
+        supabase.from('analisis_repetibilidad_fallas').select('*').eq('maquina_id', normId).limit(10),
+        supabase.from('bitacora_mantenimiento').select('*').eq('maquina_id', normId).order('fecha_hora_fin', { ascending: false }).limit(10)
       ]);
 
       machineData = mRes?.data || null;
@@ -168,6 +170,7 @@ export async function getMachineContextSnapshot(
       qualityRows = qRes?.data || [];
       calendarDetails = cRes?.data || [];
       recurrenceRows = rRes?.data || [];
+      bitacoraRows = bRes?.data || [];
     } catch (err) {
       console.warn('[MachineContext] DB fetch non-blocking warning:', err);
     }
@@ -381,9 +384,17 @@ export async function getMachineContextSnapshot(
       agent: 'AG-008'
     },
     technical_memory: {
-      has_previous_solutions: true,
-      solutions_count: 1,
-      top_solution: { id: `MEM-${normId}-01`, summary: `Calibración y lubricación de soporte principal`, effectiveness: 95 },
+      has_previous_solutions: bitacoraRows.length > 0 || workOrders.length > 0,
+      solutions_count: bitacoraRows.length > 0 ? bitacoraRows.length : workOrders.length,
+      top_solution: bitacoraRows[0] ? {
+        id: bitacoraRows[0].id_bitacora || `MEM-${normId}-01`,
+        summary: bitacoraRows[0].descripcion_actividad || bitacoraRows[0].observaciones || 'Intervención registrada en bitácora',
+        effectiveness: 90
+      } : workOrders[0] ? {
+        id: workOrders[0].folio || `MEM-${normId}-01`,
+        summary: workOrders[0].descripcion || workOrders[0].falla || 'Intervención técnica en OT',
+        effectiveness: 85
+      } : null,
       agent: 'AG-011'
     },
     lifecycle: {

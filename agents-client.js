@@ -150,6 +150,7 @@
           event_id: data?.event_id || `EVT-${now}`,
           correlation_id: data?.correlation_id || corrId,
           status: data?.status || 'COMPLETED',
+          success: data?.success !== false,
           result: data?.result || data,
           message: mapUiFriendlyErrorMessage(data?.status)
         };
