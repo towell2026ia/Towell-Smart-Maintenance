@@ -8986,7 +8986,7 @@ function openAdminUserModal(userId = null) {
     const puestoEl2 = document.getElementById('admin-user-puesto');
     if (puestoEl2) puestoEl2.value = '';
     const areaEl2 = document.getElementById('admin-user-area');
-    if (areaEl2) areaEl2.value = 'General';
+    if (areaEl2) areaEl2.value = '';
 
     // Checkboxes defaults
     document.getElementById('perm-create-req').checked = true;
@@ -9060,7 +9060,17 @@ async function saveAdminUser() {
   const shift = isTech ? null : document.getElementById('admin-user-shift').value;
   const observaciones = document.getElementById('admin-user-obs').value.trim();
   const puesto = isTech ? 'Técnico de Mantenimiento' : (document.getElementById('admin-user-puesto')?.value || '').trim();
-  const area = isTech ? 'Mantenimiento' : ((document.getElementById('admin-user-area')?.value || '').trim() || 'General');
+  const inputArea = (document.getElementById('admin-user-area')?.value || '').trim();
+  const deptUpper = (departamento || '').toUpperCase().trim();
+
+  // Validar y normalizar área compatible con la restricción check_area_solicitante de Supabase ('CF', 'TF', 'AF' o NULL)
+  const validDbAreas = ['CF', 'TF', 'AF'];
+  let dbArea = null;
+  if (validDbAreas.includes(inputArea.toUpperCase())) {
+    dbArea = inputArea.toUpperCase();
+  } else if (validDbAreas.includes(deptUpper)) {
+    dbArea = deptUpper;
+  }
 
   // Permisos: el administrador tiene control total sobre cada checkbox
   const puedeCrear = document.getElementById('perm-create-req').checked;
@@ -9106,7 +9116,7 @@ async function saveAdminUser() {
       telefono: telefono || null,
       rol: rol,
       puesto: puesto || null,
-      area: area || 'General',
+      area: dbArea,
       cve_empleado: finalEmpCode,
       cve_tecnico: finalTechCode,
       departamento: departamento || null,
