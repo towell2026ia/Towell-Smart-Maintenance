@@ -9447,7 +9447,7 @@ async function sendUserInvitationEmail(email, nombre, rol) {
         email: email,
         nombre: nombre,
         rol: rol,
-        redirectTo: (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null') ? window.location.origin : 'https://towell-integraq.netlify.app'
+        redirectTo: (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null') ? window.location.origin : 'https://tsmail-towell.netlify.app'
       })
     });
 
@@ -15766,7 +15766,7 @@ async function resetAdminUserPassword(userId) {
 
     // 2. Enviar correo real via Supabase Auth (resetPasswordForEmail)
     const { error: resetErr } = await supabaseClient.auth.resetPasswordForEmail(correoDestino, {
-      redirectTo: (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null') ? window.location.origin : 'https://towell-integraq.netlify.app'
+      redirectTo: (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null') ? window.location.origin : 'https://tsmail-towell.netlify.app'
     });
 
     if (resetErr) {
