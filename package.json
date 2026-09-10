@@ -4,6 +4,7 @@
   "description": "Towell Smart Maintenance AI",
   "main": "app.js",
   "scripts": {
+    "build": "node build.js",
     "import-excel": "node importar_excel.js"
   },
   "dependencies": {

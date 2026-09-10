@@ -10,3 +10,15 @@ config.js
 .env.agents
 .env
 *.env
+
+# Local Netlify folder
+.netlify
+.netlify/
+
+# Local sensitive environment and testing artifacts
+env_config.js
+scratch/
+scratch_*
+*.txt
+.temp/
+supabase/.temp/
