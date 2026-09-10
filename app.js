@@ -2794,7 +2794,6 @@ function getPartsByMachine(machineId, filterName = '') {
         };
       });
     }
-  }
 
   // 4. Aplicar filtro en tiempo real por nombre de refacción o código
   if (filterName && filterName.trim() !== '') {
