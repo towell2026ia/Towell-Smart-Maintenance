@@ -1281,16 +1281,20 @@ async function dbGetParts() {
     try {
       const { data, error } = await supabaseClient
         .from('cat_refacciones')
-        .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, costo_unitario, activo');
+        .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, costo_unitario, activo, maquina_id, cantidad_estandar');
       if (error) throw error;
       return (data || []).map(p => ({
         id: p.codigo_articulo,
+        code: p.codigo_articulo,
         name: p.nombre_articulo,
         category: p.familia,
         stock: parseFloat(p.stock_actual) || 0,
         minStock: parseFloat(p.stock_minimo) || 0,
         cost: parseFloat(p.costo_unitario) || 0,
-        activo: p.activo !== false
+        activo: p.activo !== false,
+        maquina_id: p.maquina_id || null,
+        machineId: p.maquina_id || null,
+        cantidad_estandar: parseFloat(p.cantidad_estandar) || 1
       }));
     } catch (err) {
       console.error('Error fetching parts from Supabase:', err);
@@ -1576,7 +1580,7 @@ async function syncDatabases() {
       const to = from + pageSize - 1;
       const { data, error } = await supabaseClient
         .from('cat_refacciones')
-        .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, costo_unitario, activo')
+        .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, costo_unitario, activo, maquina_id, cantidad_estandar')
         .range(from, to);
 
       if (error || !data || data.length === 0) {
@@ -1600,7 +1604,10 @@ async function syncDatabases() {
         stock: parseFloat(p.stock_actual) || 0,
         minStock: parseFloat(p.stock_minimo) || 0,
         cost: parseFloat(p.costo_unitario) || 0,
-        activo: p.activo !== false
+        activo: p.activo !== false,
+        maquina_id: p.maquina_id || null,
+        machineId: p.maquina_id || null,
+        cantidad_estandar: parseFloat(p.cantidad_estandar) || 1
       }));
       console.log(`[TSMAI] Refacciones sincronizadas: ${localParts.length} artículos.`);
       localStorage.setItem('TSMAI_parts', JSON.stringify(localParts));
@@ -2718,34 +2725,50 @@ function getPartsByMachine(machineId, filterName = '') {
     return mac && (mac === cleanMacId || mac.includes(cleanMacId) || cleanMacId.includes(mac));
   });
 
-  if (linkedParts.length > 0) {
-    resultParts = linkedParts.map(lp => ({
-      id: lp.codigo_articulo || lp.id,
-      code: lp.codigo_articulo || lp.code || lp.id,
-      name: lp.nombre_articulo || lp.nombre || lp.name || 'Refacción sin nombre',
-      cost: parseFloat(lp.precio_costo_unitario || lp.costo || 0),
-      stock: parseFloat(lp.cantidad_estandar || lp.stock || 10),
-      machineId: cleanMacId,
-      isDirectMatch: true
-    }));
-  } else {
-    // 2. Coincidencia en el catálogo general por machineId explícito
-    const directMacParts = allParts.filter(p => {
-      const pMac = String(p.machineId || p.maquina_id || p.maquina || '').toUpperCase().trim();
-      return pMac && (pMac === cleanMacId || pMac.includes(cleanMacId) || cleanMacId.includes(pMac));
-    });
+  // 1. Filtrar refacciones asociadas explícitamente por máquina (en tabla relacional y catálogo general)
+  const partMap = new Map();
 
-    if (directMacParts.length > 0) {
-      resultParts = directMacParts.map(p => ({
-        id: p.id || p.code || p.codigo_articulo,
-        code: p.code || p.id || p.codigo_articulo,
-        name: p.name || p.nombre || p.nombre_articulo || 'Refacción sin nombre',
-        cost: parseFloat(p.cost || p.costo_unitario || p.precio_unitario || 0),
-        stock: parseFloat(p.stock || 10),
-        machineId: p.machineId || p.maquina_id || cleanMacId,
-        isDirectMatch: true
-      }));
-    } else {
+  // De refacciones_por_maquina
+  refPorMaquina.forEach(rm => {
+    const mac = String(rm.maquina_id || rm.maquina || rm.equipo || '').toUpperCase().trim();
+    if (mac && (mac === cleanMacId || mac.includes(cleanMacId) || cleanMacId.includes(mac))) {
+      const code = String(rm.codigo_articulo || rm.code || rm.id || '').toUpperCase().trim();
+      if (code && !partMap.has(code)) {
+        partMap.set(code, {
+          id: rm.codigo_articulo || rm.id,
+          code: rm.codigo_articulo || rm.code || rm.id,
+          name: rm.nombre_articulo || rm.nombre || rm.name || 'Refacción sin nombre',
+          cost: parseFloat(rm.precio_costo_unitario || rm.costo || 0),
+          stock: parseFloat(rm.cantidad_estandar || rm.stock || 10),
+          machineId: cleanMacId,
+          isDirectMatch: true
+        });
+      }
+    }
+  });
+
+  // De catálogo general cat_refacciones (TSMAI_parts)
+  allParts.forEach(p => {
+    const pMac = String(p.machineId || p.maquina_id || p.maquina || '').toUpperCase().trim();
+    if (pMac && (pMac === cleanMacId || pMac.includes(cleanMacId) || cleanMacId.includes(pMac))) {
+      const code = String(p.id || p.code || p.codigo_articulo || '').toUpperCase().trim();
+      if (code && !partMap.has(code)) {
+        partMap.set(code, {
+          id: p.id || p.code || p.codigo_articulo,
+          code: p.code || p.id || p.codigo_articulo,
+          name: p.name || p.nombre || p.nombre_articulo || 'Refacción sin nombre',
+          cost: parseFloat(p.cost || p.costo_unitario || p.precio_unitario || 0),
+          stock: parseFloat(p.stock || p.cantidad_estandar || 10),
+          machineId: p.machineId || p.maquina_id || cleanMacId,
+          isDirectMatch: true
+        });
+      }
+    }
+  });
+
+  if (partMap.size > 0) {
+    resultParts = Array.from(partMap.values());
+  } else {
       // 3. Fallback Contextual Inteligente + Catálogo Universal Completo
       // Identificar prefijos/tokens de la máquina (ej: 'TEL', 'RECT', 'COST', 'JET', 'TIN', 'JUKI', 'BROTHER', 'SANTEX', 'THIES')
       const macTokens = cleanMacId.split(/[-_\s/]+/).filter(t => t.length >= 3);
@@ -6395,22 +6418,24 @@ async function renderAdminRefMaquina() {
   tbody.innerHTML = emptyRow(7, 'Cargando consumo de refacciones…');
   
   try {
-    let data = [];
-    if (supabaseClient) {
-      const { data: dbData, error } = await supabaseClient
-        .from('cat_refacciones')
-        .select('*')
-        .neq('maquina_id', 'NO_APLICA')
-        .order('codigo_articulo')
-        .limit(300);
-      if (!error && dbData) data = dbData;
-    }
-
+    let data = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
     if (!data || data.length === 0) {
-      data = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
+      if (supabaseClient) {
+        const { data: dbData } = await supabaseClient
+          .from('cat_refacciones')
+          .select('codigo_articulo, nombre_articulo, familia, costo_unitario, stock_actual, maquina_id, cantidad_estandar, fecha_carga')
+          .neq('maquina_id', 'NO_APLICA')
+          .order('codigo_articulo');
+        if (dbData) data = dbData;
+      }
     }
 
-    currentRefMaquinaData = data;
+    // Filtrar refacciones con maquina_id asignada
+    currentRefMaquinaData = data.filter(r => {
+      const mid = r.maquina_id || r.machineId || r.maquina;
+      return mid && mid !== 'NO_APLICA' && mid !== 'General' && mid !== 'NONE';
+    });
+
     onRefMaquinaAreaFilterChange();
   } catch (err) { 
     tbody.innerHTML = emptyRow(7, `❌ Error: ${err.message}`); 
@@ -6427,7 +6452,7 @@ function onRefMaquinaAreaFilterChange() {
 
   let html = '<option value="ALL">Todas las Máquinas (' + filteredMachines.length + ')</option>';
   filteredMachines.forEach(m => {
-    const id = m.id || m.clave;
+    const id = m.id || m.equipo_towell || m.clave;
     const name = m.name || m.nombre || id;
     html += `<option value="${id}">${id} - ${name}</option>`;
   });
@@ -6437,12 +6462,32 @@ function onRefMaquinaAreaFilterChange() {
 }
 
 function onRefMaquinaMachineFilterChange() {
+  const areaSelect = document.getElementById('filter-refmaq-area');
   const macSelect = document.getElementById('filter-refmaq-machine');
   const partSelect = document.getElementById('filter-refmaq-part');
   if (!macSelect || !partSelect) return;
 
+  const areaVal = areaSelect ? areaSelect.value : 'ALL';
   const macId = macSelect.value;
-  const filteredParts = getPartsByMachine(macId);
+
+  let filteredParts = [];
+  if (macId && macId !== 'ALL') {
+    filteredParts = getPartsByMachine(macId);
+  } else if (areaVal && areaVal !== 'ALL') {
+    const machinesInArea = getMachinesByArea(areaVal);
+    const macSet = new Set(machinesInArea.map(m => String(m.id || m.equipo_towell || m.clave).toUpperCase().trim()));
+    const seen = new Set();
+    currentRefMaquinaData.forEach(p => {
+      const pMac = String(p.machineId || p.maquina_id || p.maquina || '').toUpperCase().trim();
+      const code = p.codigo_articulo || p.code || p.id;
+      if (pMac && macSet.has(pMac) && !seen.has(code)) {
+        seen.add(code);
+        filteredParts.push(p);
+      }
+    });
+  } else {
+    filteredParts = currentRefMaquinaData;
+  }
 
   let html = '<option value="ALL">Todas las Refacciones (' + filteredParts.length + ')</option>';
   filteredParts.forEach(p => {
@@ -6470,9 +6515,16 @@ function applyRefMaquinaTableFilter() {
 
     // Filtrar Área
     if (areaVal !== 'ALL') {
-      const macObj = machines.find(m => String(m.id || m.clave).toUpperCase().trim() === rMacId);
-      const macArea = macObj ? String(macObj.area || macObj.departamento || '').toUpperCase().trim() : '';
-      if (macArea !== areaVal.toUpperCase().trim() && !rMacId.includes(areaVal.toUpperCase().trim())) return false;
+      const macObj = machines.find(m => {
+        const mId = String(m.id || m.equipo_towell || '').toUpperCase().trim();
+        const mClave = String(m.clave || '').toUpperCase().trim();
+        return mId === rMacId || mClave === rMacId;
+      });
+      let macArea = macObj ? String(macObj.area || macObj.departamento || '').toUpperCase().trim() : '';
+      if (!macArea) {
+        macArea = typeof resolveAreaFromMachineCode === 'function' ? resolveAreaFromMachineCode(rMacId, '') : 'PF';
+      }
+      if (macArea !== areaVal.toUpperCase().trim()) return false;
     }
 
     // Filtrar Máquina
@@ -6493,15 +6545,16 @@ function applyRefMaquinaTableFilter() {
     return;
   }
 
-  tbody.innerHTML = filtered.map(r => `<tr>
+  const displayRows = filtered.slice(0, 300);
+  tbody.innerHTML = displayRows.map(r => `<tr>
     <td>${fmtDate(r.fecha_carga || new Date())}</td>
-    <td><strong>${r.maquina_id || r.maquina || 'Planta'}</strong></td>
-    <td>${r.nombre_articulo || r.nombre || r.codigo_articulo || r.id}</td>
+    <td><strong>${r.maquina_id || r.maquina || r.machineId || 'Planta'}</strong></td>
+    <td>${r.nombre_articulo || r.nombre || r.name || r.codigo_articulo || r.id}</td>
     <td>${parseFloat(r.cantidad_estandar || r.stock || 1).toFixed(2)}</td>
     <td>${fmtCurrency(r.costo_unitario || r.cost || 0)}</td>
     <td><strong>${fmtCurrency((parseFloat(r.cantidad_estandar || r.stock) || 1) * (parseFloat(r.costo_unitario || r.cost) || 0))}</strong></td>
     <td>Catálogo / Ingesta</td>
-  </tr>`).join('');
+  </tr>`).join('') + (filtered.length > 300 ? `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:10px;">Mostrando primeros 300 de ${filtered.length} artículos. Refina por Máquina o Refacción para ver específicos.</td></tr>` : '');
 }
 
 // ── CIERRES DE OT ─────────────────────────────────────────────────────────────
@@ -6992,29 +7045,48 @@ async function fetchOrBuildCanonicalPreventiveBudget() {
 
     let partsList = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
     if (typeof supabaseClient !== 'undefined' && supabaseClient?.from) {
-      const { data: dbParts } = await supabaseClient.from('cat_refacciones').select('codigo_articulo, nombre_articulo, costo_unitario');
+      const { data: dbParts } = await supabaseClient.from('cat_refacciones').select('codigo_articulo, nombre_articulo, costo_unitario, maquina_id, cantidad_estandar');
       if (dbParts && dbParts.length > 0) partsList = dbParts;
     }
     partsList.forEach(p => {
       const code = String(p.codigo_articulo || p.code || p.id || '').toUpperCase().trim();
       const price = parseFloat(p.costo_unitario || p.cost || p.precio_unitario) || 0;
       if (price > 0 && !priceMap.has(code)) priceMap.set(code, price);
+
+      const pMid = String(p.maquina_id || p.machineId || '').toUpperCase().trim();
+      if (pMid && pMid !== 'NO_APLICA') {
+        if (!partsByMachine.has(pMid)) partsByMachine.set(pMid, []);
+        partsByMachine.get(pMid).push({
+          codigo_articulo: code,
+          nombre_articulo: p.nombre_articulo || p.name || code,
+          cantidad_estandar: parseFloat(p.cantidad_estandar) || 1,
+          precio_costo_unitario: price
+        });
+      }
     });
 
     const areaByMachine = new Map();
     let macList = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     if (typeof supabaseClient !== 'undefined' && supabaseClient?.from) {
-      const { data: dbMacs } = await supabaseClient.from('cat_maquinas').select('id_maquina, area');
+      const { data: dbMacs } = await supabaseClient.from('cat_maquinas').select('id_maquina, equipo_towell, clave, area, departamento_codigo');
       if (dbMacs && dbMacs.length > 0) macList = dbMacs;
     }
     macList.forEach(m => {
-      const mid = String(m.id_maquina || m.id || m.name || '').toUpperCase().trim();
-      let area = String(m.area || 'PF').toUpperCase().trim();
+      let area = String(m.area || m.departamento_codigo || '').toUpperCase().trim();
+      if (!area || area === 'NONE' || area === 'UNKNOWN') {
+        area = typeof resolveAreaFromMachineCode === 'function'
+          ? resolveAreaFromMachineCode(m.equipo_towell || m.id_maquina || m.id, m.clave || '')
+          : 'PF';
+      }
       if (area.includes('TEJI') || area === 'PF') area = 'PF';
       else if (area.includes('COST') || area === 'CF') area = 'CF';
       else if (area.includes('TINT') || area === 'TF') area = 'TF';
       else if (area.includes('PLAN') || area === 'AF') area = 'AF';
-      areaByMachine.set(mid, area);
+
+      if (m.equipo_towell) areaByMachine.set(String(m.equipo_towell).toUpperCase().trim(), area);
+      if (m.id_maquina) areaByMachine.set(String(m.id_maquina).toUpperCase().trim(), area);
+      if (m.id) areaByMachine.set(String(m.id).toUpperCase().trim(), area);
+      if (m.clave) areaByMachine.set(String(m.clave).toUpperCase().trim(), area);
     });
 
     let calDetails = [];
@@ -7059,7 +7131,17 @@ async function fetchOrBuildCanonicalPreventiveBudget() {
       const mid = String(d.maquina_id || '').toUpperCase().trim();
       const dateStr = String(d.fecha_programada || '').substring(0, 10);
       const monthStr = dateStr.substring(0, 7);
-      const area = areaByMachine.get(mid) || 'PF';
+      let area = areaByMachine.get(mid);
+      if (!area && d.observaciones) {
+        try {
+          const o = typeof d.observaciones === 'object' ? d.observaciones : JSON.parse(d.observaciones);
+          if (o.area) area = String(o.area).toUpperCase().trim();
+        } catch (_) {}
+      }
+      if (!area && typeof resolveAreaFromMachineCode === 'function') {
+        area = resolveAreaFromMachineCode(mid, d.actividad_sugerida || '');
+      }
+      if (!area) area = 'PF';
 
       let obsObj = {};
       if (d.observaciones) {
@@ -9166,8 +9248,14 @@ async function renderAdminPartsTable() {
       if (!error && data && data.length > 0) {
         parts = data.map(p => ({
           id: p.codigo_articulo || p.id,
+          code: p.codigo_articulo || p.id,
           name: p.nombre_articulo || p.codigo_articulo,
           maquina: p.maquina_id || 'General',
+          maquina_id: p.maquina_id || null,
+          machineId: p.maquina_id || null,
+          category: p.familia || null,
+          stock: parseFloat(p.stock_actual) || 0,
+          minStock: parseFloat(p.stock_minimo) || 0,
           cantidadEstandar: parseFloat(p.cantidad_estandar) || 1,
           cost: parseFloat(p.costo_unitario || p.precio_costo_unitario || 0),
           activo: p.activo !== false
