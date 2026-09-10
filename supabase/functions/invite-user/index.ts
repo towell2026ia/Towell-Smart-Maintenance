@@ -3,7 +3,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ALLOWED_ORIGINS = [
+  "https://towell-integraq.netlify.app",
   "https://tsmail-towell.netlify.app",
+  "https://soles-towell.netlify.app",
   "http://localhost:5500",
   "http://localhost:3000",
   "http://127.0.0.1:5500"

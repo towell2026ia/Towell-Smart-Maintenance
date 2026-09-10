@@ -1087,6 +1087,17 @@
 
             <!-- Filters & Legend (Grid Mode Only) -->
             <div id="calendar-grid-filters" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <!-- Selector de Proceso para Super Administrador (PRD-CAL001-R1 FASE 14) -->
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label for="admin-cal-process-select" style="font-weight: 700; font-size: 0.85rem; color: #1e293b;">Proceso:</label>
+                <select id="admin-cal-process-select" class="form-control" onchange="onAdminCalendarProcessChange()" style="font-size: 0.85rem; font-weight: 700; height: 36px; padding: 4px 10px; border: 2px solid var(--primary-color); border-radius: 6px; background: white; cursor: pointer;">
+                  <option value="PF" selected>PF — Producción / Tejido</option>
+                  <option value="CF">CF — Confección / Costura</option>
+                  <option value="TF">TF — Tintorería / Acabados</option>
+                  <option value="AF">AF — Servicios Auxiliares / Planta</option>
+                </select>
+              </div>
+
               <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
                 <span style="font-weight: 600; font-size: 0.85rem; color: #475569;">Filtros:</span>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
@@ -1107,13 +1118,13 @@
                 </label>
               </div>
               
-              <!-- Scale Toggles & Navigation -->
+              <!-- Scale Toggles & Navigation (Default Semana PRD FASE 12) -->
               <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
                 <!-- Toggles de Escala -->
                 <div style="display: flex; background: #e2e8f0; border-radius: var(--border-radius); padding: 2px;">
                   <button id="btn-scale-year" onclick="setCalendarScale('year')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: transparent; color: var(--text-color); cursor: pointer;">Año</button>
-                  <button id="btn-scale-month" onclick="setCalendarScale('month')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: white; color: var(--primary-color); cursor: pointer; box-shadow: var(--box-shadow-sm);">Mes</button>
-                  <button id="btn-scale-week" onclick="setCalendarScale('week')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: transparent; color: var(--text-color); cursor: pointer;">Semana</button>
+                  <button id="btn-scale-month" onclick="setCalendarScale('month')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: transparent; color: var(--text-color); cursor: pointer;">Mes</button>
+                  <button id="btn-scale-week" onclick="setCalendarScale('week')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: white; color: var(--primary-color); cursor: pointer; box-shadow: var(--box-shadow-sm);">Semana</button>
                   <button id="btn-scale-day" onclick="setCalendarScale('day')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: transparent; color: var(--text-color); cursor: pointer;">Día</button>
                 </div>
                 
@@ -2752,11 +2763,11 @@
               
               <!-- Scale Toggles & Navigation -->
               <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
-                <!-- Toggles de Escala -->
+                <!-- Toggles de Escala (Default Semana PRD FASE 12) -->
                 <div style="display: flex; background: #e2e8f0; border-radius: var(--border-radius); padding: 2px;">
                   <button id="btn-solic-scale-year" onclick="setSolicitanteCalendarScale('year')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: transparent; color: var(--text-color); cursor: pointer;">Año</button>
-                  <button id="btn-solic-scale-month" onclick="setSolicitanteCalendarScale('month')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: white; color: var(--primary-color); cursor: pointer; box-shadow: var(--box-shadow-sm);">Mes</button>
-                  <button id="btn-solic-scale-week" onclick="setSolicitanteCalendarScale('week')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: transparent; color: var(--text-color); cursor: pointer;">Semana</button>
+                  <button id="btn-solic-scale-month" onclick="setSolicitanteCalendarScale('month')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: transparent; color: var(--text-color); cursor: pointer;">Mes</button>
+                  <button id="btn-solic-scale-week" onclick="setSolicitanteCalendarScale('week')" style="border: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: var(--border-radius); background: white; color: var(--primary-color); cursor: pointer; box-shadow: var(--box-shadow-sm);">Semana</button>
                 </div>
                 
                 <!-- Botón Hoy -->
@@ -2958,11 +2969,64 @@
           </div>
         </div>
 
-        <!-- Evidencias Fotográficas -->
-        <div>
-          <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; font-weight: 700;">📷 Evidencias Fotográficas</h4>
-          <div id="solic-detail-evidences" style="display: flex; gap: 12px; overflow-x: auto; padding: 4px;">
-            <span style="font-size: 0.85rem; color: #64748b;">Sin evidencias fotográficas adjuntas.</span>
+        <!-- Evidencias Fotográficas Antes / Después (PRD-EVI001-R1 §39-47) -->
+        <div style="background: #ffffff; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #0284c7; display: flex; align-items: center; gap: 6px;">
+              <span>📷</span> Evidencias Fotográficas Técnicas
+            </h4>
+            <span id="solic-detail-evidence-total-badge" class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700; font-size:0.75rem;">
+              0 Evidencias
+            </span>
+          </div>
+          
+          <!-- Comparador Visual Lado a Lado ANTES | DESPUÉS -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;" id="solic-detail-evidence-columns">
+            <!-- Columna ANTES -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
+                <span class="badge" style="background: #0284c7; color: white; font-weight: 700; font-size: 0.72rem;">🔵 CONDICIÓN INICIAL (ANTES)</span>
+                <span id="solic-count-before" style="font-size: 0.75rem; font-weight: 700; color: #0369a1;">0</span>
+              </div>
+              <div id="solic-detail-evidences-before" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; min-height: 80px;">
+                <span style="font-size: 0.8rem; color: #94a3b8; grid-column: 1/-1; text-align: center; padding: 18px;">ℹ️ Sin evidencia ANTES registrada</span>
+              </div>
+            </div>
+
+            <!-- Columna DESPUÉS -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
+                <span class="badge" style="background: #16a34a; color: white; font-weight: 700; font-size: 0.72rem;">🟢 CONDICIÓN FINAL (DESPUÉS)</span>
+                <span id="solic-count-after" style="font-size: 0.75rem; font-weight: 700; color: #15803d;">0</span>
+              </div>
+              <div id="solic-detail-evidences-after" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; min-height: 80px;">
+                <span style="font-size: 0.8rem; color: #94a3b8; grid-column: 1/-1; text-align: center; padding: 18px;">ℹ️ Sin evidencia DESPUÉS registrada</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fila adicional opcional para DURANTE / OTRA -->
+          <div id="solic-detail-other-evidences-container" style="display: none; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
+            <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 6px; display: block;">🟡 Evidencias Durante la Intervención / Otras:</span>
+            <div id="solic-detail-evidences-other" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+          </div>
+        </div>
+
+        <!-- Checklist y Bitácora Técnica -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <!-- Bloque Checklist -->
+          <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <h4 style="margin: 0 0 6px 0; font-size: 0.85rem; font-weight: 700; color: #334155;">📋 Checklist de Servicio</h4>
+            <div id="solic-detail-checklist" style="font-size: 0.8rem; color: #475569; max-height: 120px; overflow-y: auto;">
+              <span style="color: #94a3b8;">Sin respuestas de checklist registradas.</span>
+            </div>
+          </div>
+          <!-- Bloque Bitácora -->
+          <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <h4 style="margin: 0 0 6px 0; font-size: 0.85rem; font-weight: 700; color: #334155;">📝 Registro en Bitácora Técnica</h4>
+            <div id="solic-detail-bitacora" style="font-size: 0.8rem; color: #475569; max-height: 120px; overflow-y: auto;">
+              <span style="color: #94a3b8;">Sin bitácoras técnicas adicionales.</span>
+            </div>
           </div>
         </div>
 
@@ -2970,81 +3034,131 @@
       <div class="modal-footer" style="display: flex; justify-content: space-between; gap: 12px; padding: 16px; border-top: 1px solid #e2e8f0;">
         <button type="button" class="btn-action-secondary" onclick="closeModal('modal-solic-detail-view')">Cerrar</button>
         <div style="display: flex; gap: 8px;">
-          <button type="button" class="btn-tech-status btn-tech-subtask" style="background:#ef4444; border-color:#ef4444;" id="btn-solic-modal-reject">⚠️ EL PROBLEMA CONTINÚA</button>
-          <button type="button" class="btn-tech-status btn-tech-start" id="btn-solic-modal-accept">✅ CONFIRMAR SOLUCIÓN</button>
+          <button type="button" class="btn-tech-status btn-tech-subtask" style="background:#ef4444; border-color:#ef4444; font-weight:700;" id="btn-solic-modal-reject">⚠️ EL PROBLEMA CONTINÚA</button>
+          <button type="button" class="btn-tech-status btn-tech-start" style="font-weight:700;" id="btn-solic-modal-accept">✅ VALIDAR Y CERRAR OT</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Modal Formulario de Aceptación de Entrega (PRD-REQ-CLOSE-001-R1) -->
+  <!-- Modal Formulario de Aceptación, Calificación y Cierre (PRD-OT001-R1) -->
   <div class="modal-overlay" id="modal-solic-accept-work" style="display: none;">
-    <div class="modal-card" style="max-width: 500px;">
+    <div class="modal-card" style="max-width: 550px;">
       <div class="modal-header">
         <h3 style="margin: 0; font-weight: 700; color: #166534; display: flex; align-items: center; gap: 8px;">
-          <span>✅</span> Confirmar Solución y Entrega
+          <span>✅</span> Validación, Calificación y Cierre
         </h3>
         <button class="btn-close-modal" onclick="closeModal('modal-solic-accept-work')">✕</button>
       </div>
       <form id="form-solic-accept-rating" onsubmit="event.preventDefault(); submitSolicitanteAcceptWork();" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
         <input type="hidden" id="solic-accept-ot-id">
+        <input type="hidden" id="solic-accept-stars" value="5">
         
-        <div style="background: #f0fdf4; padding: 14px; border-radius: 8px; border: 1px solid #bbf7d0; font-size: 0.92rem; color: #166534; font-weight: 600;">
-          ¿Confirmas que el equipo o servicio fue entregado satisfactoriamente y la avería quedó resuelta?
+        <!-- Previsualización de Evidencias Técnicas Antes / Después (PRD-EVI001-R1 §39, §40) -->
+        <div id="solic-accept-evidences-preview-box" style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label style="font-weight: 700; font-size: 0.82rem; color: #0369a1; margin: 0;">
+              📷 Evidencias Técnicas (Antes vs Después)
+            </label>
+            <span id="solic-accept-evidence-badge" style="font-size: 0.72rem; color: #64748b; font-weight: 600;">Consultando...</span>
+          </div>
+          <div id="solic-accept-evidences-preview-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <!-- Miniaturas comparativas renderizadas dinámicamente -->
+          </div>
         </div>
 
+        <!-- 1. Calificación de Satisfacción (1 a 5 Estrellas Obligatoria - PRD-OT003-R1 §19, §20, §21) -->
+        <div class="form-group" style="background: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
+          <label style="font-weight: 700; font-size: 0.88rem; color: #1e293b; display: block; margin-bottom: 6px;">
+            1. Calificación Obligatoria del Servicio Recibido (1 a 5 Estrellas) *
+          </label>
+          <div id="star-rating-container" style="display: flex; justify-content: center; gap: 8px; font-size: 2rem; cursor: pointer; user-select: none;">
+            <span class="star-rating-item" data-val="1" style="color: #eab308;" onclick="setStarRating(1)" onmouseover="hoverStarRating(1)" onmouseout="resetStarRating()">★</span>
+            <span class="star-rating-item" data-val="2" style="color: #eab308;" onclick="setStarRating(2)" onmouseover="hoverStarRating(2)" onmouseout="resetStarRating()">★</span>
+            <span class="star-rating-item" data-val="3" style="color: #eab308;" onclick="setStarRating(3)" onmouseover="hoverStarRating(3)" onmouseout="resetStarRating()">★</span>
+            <span class="star-rating-item" data-val="4" style="color: #eab308;" onclick="setStarRating(4)" onmouseover="hoverStarRating(4)" onmouseout="resetStarRating()">★</span>
+            <span class="star-rating-item" data-val="5" style="color: #eab308;" onclick="setStarRating(5)" onmouseover="hoverStarRating(5)" onmouseout="resetStarRating()">★</span>
+          </div>
+          <span id="star-rating-label" style="font-size: 0.82rem; font-weight: 700; color: #059669; display: block; margin-top: 4px;">5 / 5 — Excelente trabajo y pronta resolución</span>
+        </div>
+
+        <!-- 2. Bloque de Cierre Sustituto por Jefatura / Administración (PRD-OT003-R1 §10, §53, §55) -->
+        <div id="solic-accept-substitute-container" style="display: none; background: #fffbeb; padding: 12px; border-radius: 8px; border: 1px solid #fde68a;">
+          <div style="display: flex; align-items: center; gap: 6px; color: #b45309; font-weight: 700; font-size: 0.85rem; margin-bottom: 6px;">
+            <span>⚠️</span> Cierre Sustituto Autorizado (Jefatura / Administración)
+          </div>
+          <p style="font-size: 0.78rem; color: #78350f; margin: 0 0 8px 0;">
+            El cierre no está siendo ejecutado por el solicitante original. Por norma de auditoría (PRD-OT003-R1), debes especificar el motivo justificado.
+          </p>
+          <label for="solic-accept-substitute-reason" style="font-weight: 700; font-size: 0.82rem; color: #451a03; display: block; margin-bottom: 4px;">
+            Motivo Obligatorio de Sustitución *
+          </label>
+          <select id="solic-accept-substitute-reason" class="form-control" style="font-weight: 600; font-size: 0.82rem;">
+            <option value="">Selecciona el motivo justificado...</option>
+            <option value="SOLICITANTE_AUSENTE">Solicitante ausente de turno / planta</option>
+            <option value="SOLICITANTE_VACACIONES">Solicitante en periodo vacacional</option>
+            <option value="CAMBIO_TURNO">Cambio de turno operativo</option>
+            <option value="VALIDACION_JEFATURA">Validación física directa realizada por jefatura</option>
+            <option value="AUTORIZACION_OPERATIVA">Autorización operativa de emergencia / continuidad</option>
+            <option value="OTRO">Otro motivo específico (requiere detalle en comentarios)</option>
+          </select>
+        </div>
+
+        <!-- 3. Comentarios de Validación -->
         <div class="form-group">
-          <label for="solic-accept-comments" style="font-weight: 600; font-size: 0.85rem; color: #334155;">Comentarios sobre la Entrega (Opcional):</label>
-          <textarea id="solic-accept-comments" class="form-control" rows="3" placeholder="Ej. Equipo probado y operando correctamente en producción..."></textarea>
+          <label for="solic-accept-comments" id="lbl-solic-accept-comments" style="font-weight: 600; font-size: 0.85rem; color: #334155;">
+            Comentarios u Observaciones de Cierre:
+          </label>
+          <textarea id="solic-accept-comments" class="form-control" rows="3" placeholder="Detalles de la entrega, pruebas de funcionamiento o justificación si aplica..."></textarea>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <button type="button" class="btn-action-secondary" onclick="closeModal('modal-solic-accept-work')">Cancelar</button>
-          <button type="submit" class="btn-action-primary" style="background: #16a34a; border-color: #16a34a; font-weight: 700; padding: 10px 18px;">
-            ✅ Confirmar Solución y Cerrar OT
+          <button type="submit" class="btn-action-primary" id="btn-submit-accept-work" style="background: #16a34a; border-color: #16a34a; font-weight: 700; padding: 10px 18px;">
+            ✅ Confirmar y Cerrar Definitivamente
           </button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Modal Solicitar Corrección / Rechazo de Entrega (PRD-REQ-CLOSE-001-R1) -->
+  <!-- Modal Solicitar Corrección / Rechazo de Entrega (PRD-OT003-R1 §4, §5, §30, §66, §67) -->
   <div class="modal-overlay" id="modal-solic-request-correction" style="display: none;">
     <div class="modal-card" style="max-width: 550px;">
       <div class="modal-header" style="background: #fef2f2; border-bottom: 1px solid #fecaca;">
         <h3 style="margin: 0; font-weight: 700; color: #991b1b; display: flex; align-items: center; gap: 8px;">
-          <span>⚠️</span> El Problema Continúa
+          <span>⚠️</span> Rechazar Trabajo y Generar Seguimiento
         </h3>
         <button class="btn-close-modal" onclick="closeModal('modal-solic-request-correction')">✕</button>
       </div>
       <form id="form-solic-correction" onsubmit="event.preventDefault(); submitSolicitanteCorrection();" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
         <input type="hidden" id="solic-correct-ot-id">
         
-        <div style="background: #fff1f2; padding: 12px; border-radius: 6px; border: 1px solid #fecdd3; font-size: 0.85rem; color: #9f1239;">
-          <strong>Aviso de Calidad:</strong> La orden pasará a estatus <strong>REQUIERE REVISIÓN</strong> para que el Jefe de Mantenimiento / Super Admin asigne una nueva intervención técnica sobre la misma OT.
+        <div style="background: #fff1f2; padding: 12px; border-radius: 6px; border: 1px solid #fecdd3; font-size: 0.85rem; color: #9f1239; line-height: 1.4;">
+          <strong>Principio Histórico y de Trazabilidad (PRD-OT003-R1):</strong> La orden actual cerrará su ciclo operativo y quedará preservada como <strong>RECHAZADA</strong> (sin calificar). Se generará automáticamente una <strong>NUEVA SOLICITUD DE SEGUIMIENTO</strong> (nuevo ID y nuevo ciclo) vinculada a la orden original para que jefatura asigne una nueva atención técnica sin perder el historial.
         </div>
 
         <div class="form-group">
-          <label for="solic-correct-reason-select" style="font-weight: 700; font-size: 0.85rem; color: #334155;">1. Motivo Principal *</label>
-          <select id="solic-correct-reason-select" class="form-control" required style="font-weight: 600;">
+          <label for="solic-correct-reason-select" style="font-weight: 700; font-size: 0.85rem; color: #334155;">1. Motivo Obligatorio del Rechazo *</label>
+          <select id="solic-correct-reason-select" class="form-control" required style="font-weight: 600;" onchange="onRejectReasonChange(this.value)">
             <option value="">Selecciona motivo...</option>
-            <option value="FALLA_PERSISTE">🔴 El problema / síntoma continúa presente</option>
-            <option value="FALLA_REAPARECIO">🟠 La falla reapareció al encender la máquina</option>
-            <option value="TRABAJO_INCOMPLETO">🟡 El trabajo quedó incompleto / falta ajuste</option>
-            <option value="EQUIPO_NO_OPERATIVO">⛔ Equipo no liberado para producción</option>
-            <option value="OTRO">📋 Otro motivo específico</option>
+            <option value="FALLA_PERSISTE">🔴 FALLA_PERSISTE — El problema / síntoma continúa presente</option>
+            <option value="FALLA_REAPARECIO">🟠 FALLA_REAPARECIO — La falla reapareció al encender la máquina</option>
+            <option value="TRABAJO_INCOMPLETO">🟡 TRABAJO_INCOMPLETO — El trabajo quedó incompleto / falta ajuste</option>
+            <option value="EQUIPO_NO_OPERATIVO">⛔ EQUIPO_NO_OPERATIVO — Equipo no liberado para producción</option>
+            <option value="OTRO">📋 OTRO — Otro motivo específico (comentario obligatorio)</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label for="solic-correct-comments" style="font-weight: 700; font-size: 0.85rem; color: #334155;">2. Detalle del Problema Observado * (¿Qué ocurre? ¿Qué síntoma se presenta?):</label>
-          <textarea id="solic-correct-comments" class="form-control" rows="3" placeholder="Explica detalladamente por qué el equipo no quedó listo..." required></textarea>
+          <label for="solic-correct-comments" id="lbl-solic-correct-comments" style="font-weight: 700; font-size: 0.85rem; color: #334155;">2. Detalle del Problema Observado (¿Qué ocurre? ¿Qué síntoma se presenta?):</label>
+          <textarea id="solic-correct-comments" class="form-control" rows="3" placeholder="Explica detalladamente qué problema continúa..."></textarea>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <button type="button" class="btn-action-secondary" onclick="closeModal('modal-solic-request-correction')">Cancelar</button>
-          <button type="submit" class="btn-action-primary" style="background: #dc2626; border-color: #dc2626; font-weight: 700; padding: 10px 18px;">
-            ⚠️ Enviar Reporte para Revisión
+          <button type="submit" class="btn-action-primary" id="btn-submit-reject-work" style="background: #dc2626; border-color: #dc2626; font-weight: 700; padding: 10px 18px;">
+            ⚠️ Rechazar y Crear Seguimiento
           </button>
         </div>
       </form>
@@ -5358,29 +5472,64 @@
 
   <!-- Modal: Editar Fecha de Propuesta -->
   <div class="modal-overlay" id="modal-edit-proposal-date">
-    <div class="modal-card" style="max-width: 400px; background: #ffffff; color: #1e293b; border-radius: 12px;">
+    <div class="modal-card" style="max-width: 460px; background: #ffffff; color: #1e293b; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);">
       <div class="modal-header" style="border-bottom: 1px solid #e2e8f0; padding: 16px 20px;">
-        <h4 style="font-weight:700; margin:0; font-size:1.15rem; color: #0f172a;">✏️ Reprogramar Fecha</h4>
+        <h4 style="font-weight:700; margin:0; font-size:1.15rem; color: #0f172a;">✏️ Reagendar Mantenimiento de Maquinaria</h4>
         <button class="btn-close-modal" onclick="closeModal('modal-edit-proposal-date')" style="color: #64748b;">×</button>
       </div>
       <div class="modal-body" style="padding: 20px;">
         <form id="form-edit-proposal-date" onsubmit="handleSaveProposalDate(event)">
           <input type="hidden" id="edit-proposal-detail-id">
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label style="font-weight: 600; display: block; margin-bottom: 4px; color: #334155;">Máquina</label>
-            <div id="edit-proposal-machine" style="font-weight: 700; font-size: 1rem; margin-bottom: 8px; color: #0284c7;">--</div>
+          <input type="hidden" id="edit-proposal-orig-date-raw">
+          
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:0.8rem; color:#64748b; font-weight:600;">MÁQUINA:</span>
+              <span id="edit-proposal-machine" style="font-weight:700; font-size:0.95rem; color:#0284c7;">--</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:0.8rem; color:#64748b; font-weight:600;">SERVICIO / TAREA:</span>
+              <span id="edit-proposal-service" style="font-size:0.85rem; color:#334155; font-weight:600;">--</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <span style="font-size:0.8rem; color:#64748b; font-weight:600;">FECHA ORIGINAL:</span>
+              <span id="edit-proposal-orig-date-display" style="font-size:0.85rem; color:#059669; font-weight:700;">--</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.8rem; color:#64748b; font-weight:600;">FECHA ACTUAL:</span>
+              <span id="edit-proposal-curr-date-display" style="font-size:0.85rem; color:#b45309; font-weight:700;">--</span>
+            </div>
           </div>
+
           <div class="form-group" style="margin-bottom: 12px;">
-            <label style="font-weight: 600; display: block; margin-bottom: 4px; color: #334155;">Servicio</label>
-            <div id="edit-proposal-service" style="font-size: 0.9rem; margin-bottom: 8px; color: #64748b;">--</div>
+            <label for="edit-proposal-new-date" style="font-weight: 600; display: block; margin-bottom: 4px; color: #334155;">Nueva Fecha Programada <span style="color:#ef4444;">*</span></label>
+            <input type="date" id="edit-proposal-new-date" class="form-control" required style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size:0.95rem;">
           </div>
+
           <div class="form-group" style="margin-bottom: 12px;">
-            <label for="edit-proposal-new-date" style="font-weight: 600; display: block; margin-bottom: 4px; color: #334155;">Nueva Fecha Programada</label>
-            <input type="date" id="edit-proposal-new-date" class="form-control" required style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%;">
+            <label for="edit-proposal-motivo" style="font-weight: 600; display: block; margin-bottom: 4px; color: #334155;">Motivo de Reagendamiento <span style="color:#ef4444;">*</span></label>
+            <select id="edit-proposal-motivo" class="form-control" required onchange="onRescheduleMotivoChange()" style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size:0.9rem;">
+              <option value="">-- Seleccionar motivo --</option>
+              <option value="MAQUINA_EN_PRODUCCION">Máquina en producción activa</option>
+              <option value="NO_AUTORIZADA_PARADA">Parada no autorizada</option>
+              <option value="FALTA_REFACCION">Falta de refacción o insumo</option>
+              <option value="FALTA_TECNICO">Falta de personal técnico</option>
+              <option value="CAMBIO_PLAN_PRODUCCION">Cambio en plan de producción</option>
+              <option value="PRIORIDAD_OPERATIVA">Prioridad operativa / Emergencia</option>
+              <option value="VENTANA_MANTENIMIENTO">Ventana de paro general</option>
+              <option value="OTRA_EMERGENCIA">Falla de suministros (luz/vapor/aire)</option>
+              <option value="OTRO">Otro motivo operacional (especificar)</option>
+            </select>
           </div>
-          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
+
+          <div class="form-group" id="group-edit-proposal-comentario" style="margin-bottom: 12px; display: none;">
+            <label for="edit-proposal-comentario" style="font-weight: 600; display: block; margin-bottom: 4px; color: #334155;">Comentario / Justificación <span id="span-comentario-req" style="color:#ef4444; display:none;">*</span></label>
+            <textarea id="edit-proposal-comentario" rows="2" class="form-control" placeholder="Especifique la justificación técnica y operativa del cambio..." style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; width: 100%; font-size: 0.9rem;"></textarea>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; border-top: 1px solid #f1f5f9; padding-top: 14px;">
             <button type="button" class="btn-action-secondary" onclick="closeModal('modal-edit-proposal-date')">Cancelar</button>
-            <button type="submit" class="btn-action-primary" style="background: #059669; color: #ffffff; padding: 10px 18px; border-radius: 6px; font-weight: 600; border: none;">💾 Guardar Fecha</button>
+            <button type="submit" id="btn-submit-reschedule" class="btn-action-primary" style="background: #059669; color: #ffffff; padding: 10px 18px; border-radius: 6px; font-weight: 700; border: none; cursor:pointer;">💾 Guardar Reagendamiento</button>
           </div>
         </form>
       </div>
@@ -5619,20 +5768,28 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem; margin-bottom: 12px;">
           <div><strong>Tipo Mantenimiento:</strong> <span id="cal-detail-type">Preventivo</span></div>
+          <div><strong>Proceso / Área:</strong> <span id="cal-detail-process" class="badge" style="background:#0284c7; color:white; font-weight:700;">PF</span></div>
           <div><strong>Fecha Programada:</strong> <span id="cal-detail-date">2026-08-15</span></div>
           <div><strong>Prioridad:</strong> <span id="cal-detail-priority">Alta</span></div>
-          <div><strong>Técnico Sugerido:</strong> <span id="cal-detail-tech">Carlos Ruiz</span></div>
+          <div><strong>Estado:</strong> <span id="cal-detail-status">PROPUESTO</span></div>
+          <div><strong>Responsable / Técnico:</strong> <span id="cal-detail-tech">Carlos Ruiz</span></div>
+          <div><strong>Origen:</strong> <span id="cal-detail-origin">CALENDARIO_PLANTA</span></div>
+          <div><strong>OT Asociada:</strong> <span id="cal-detail-ot" style="font-weight:700; color:var(--primary-color);">Ninguna</span></div>
         </div>
 
-        <div style="border-top: 1px dashed #cbd5e1; padding-top: 10px; margin-bottom: 12px;">
-          <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-color); margin-bottom: 6px;">🧠 Justificación e Indicadores de IA / Planta:</div>
-          <div id="cal-detail-reasons" style="font-size: 0.8rem; background: #eef2ff; padding: 10px; border-radius: 6px; color: #312e81; white-space: pre-line;">
-            - Criticidad del equipo<br>- Historial de paros y refacciones consumidas.<br>- Anticipación de despacho: 7 días antes a Solicitudes Nuevas.
+        <div id="section-cal-detail-reschedule-history" style="display:none; border-top: 1px dashed #cbd5e1; padding-top: 10px; margin-bottom: 12px;">
+          <div style="font-weight: 600; font-size: 0.85rem; color: #b45309; margin-bottom: 6px; display:flex; align-items:center; gap:6px;">
+            <span>📅 Historial de Reagendamientos:</span>
+            <span id="badge-reag-count" class="badge" style="background:#fef3c7; color:#92400e; font-size:0.75rem; border:1px solid #fde68a;">0 cambios</span>
+          </div>
+          <div id="cal-detail-reschedule-history-list" style="font-size: 0.8rem; background: #fffbeb; border: 1px solid #fef3c7; padding: 10px; border-radius: 6px; color: #78350f; max-height: 140px; overflow-y: auto;">
+            <!-- Inyectado dinámicamente -->
           </div>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
           <button type="button" class="btn-action-secondary" onclick="closeModal('modal-calendar-event-detail')">Cerrar</button>
+          <button type="button" class="btn-action-secondary" id="btn-cal-reschedule-detail" onclick="triggerRescheduleFromEventDetail()" style="display:none; background:#f59e0b; color:#ffffff; border:none; font-weight:700; cursor:pointer;">✏️ Reagendar Fecha</button>
           <button type="button" class="btn-action-primary" id="btn-cal-dispatch-now" onclick="dispatchCalendarEventNow()">⚡ Despachar Ahora a Solicitudes Nuevas</button>
         </div>
       </div>

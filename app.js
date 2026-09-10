@@ -544,8 +544,8 @@ if (
 if (typeof supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 'undefined') {
   try {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    useLiveDatabase = true;
-    console.log('Supabase client initialized successfully with Live Database mode enabled!');
+    useLiveDatabase = (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT !== 'DEMO');
+    console.log('Supabase client initialized. Live Database mode:', useLiveDatabase ? 'ENABLED' : 'DISABLED (Sandbox Demo)');
     
     // Escuchar eventos de autenticación de Supabase (PASSWORD_RECOVERY, SIGNED_IN, etc.)
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
@@ -658,14 +658,22 @@ function isRequesterUserMatch(item, user) {
   // 2. Coincidencia por clave de nómina / empleado
   if (userEmpCode && itemAppId && itemAppId.toLowerCase() === userEmpCode) return true;
 
-  // 3. Coincidencia por correo electrónico
-  if (userEmail && (itemAppEmail.includes(userEmail) || itemAppName.includes(userEmail) || userEmail.includes(itemAppEmail))) return true;
+  // 3. Coincidencia por correo electrónico (requiere itemAppEmail no vacío)
+  if (userEmail && itemAppEmail && (itemAppEmail === userEmail || itemAppEmail.includes(userEmail) || userEmail.includes(itemAppEmail))) return true;
+  if (userEmail && itemAppName && itemAppName.includes(userEmail)) return true;
 
-  // 4. Coincidencia por nombre completo o nombre registrado en el reporte
-  if (userName && (itemAppName.includes(userName) || userName.includes(itemAppName) || itemReporta.includes(userName))) return true;
+  // 4. Coincidencia por nombre completo o nombre registrado en el reporte (requiere campos no vacíos)
+  if (userName && itemAppName && (itemAppName === userName || itemAppName.includes(userName) || userName.includes(itemAppName))) return true;
+  if (userName && itemReporta && (itemReporta === userName || itemReporta.includes(userName) || userName.includes(itemReporta))) return true;
 
   // 5. Coincidencia por Área de Planta (Supervisores y Solicitantes de Costura CF, Tejido PF, Tinte TF, Planta AF ven todo su departamento)
   if (userArea && itemArea && ['PF', 'CF', 'TF', 'AF'].includes(userArea) && itemArea === userArea) return true;
+
+  // 6. PRD-USR002-R1: Coincidencia por Procesos Autorizados de RESPONSABLE_PROCESO
+  // Soporta relación muchos-a-muchos (un usuario con uno o más procesos asignados)
+  if (user.procesos_autorizados && Array.isArray(user.procesos_autorizados) && user.procesos_autorizados.length > 0) {
+    if (itemArea && user.procesos_autorizados.includes(itemArea)) return true;
+  }
 
   return false;
 }
@@ -916,7 +924,7 @@ async function dbGetSubtasks() {
 }
 
 async function dbInsertSubtask(sub) {
-  if (supabaseClient) {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT !== 'DEMO' && useLiveDatabase && supabaseClient) {
     try {
       const insertData = {
         id_subtarea: sub.id,
@@ -948,13 +956,14 @@ async function dbInsertSubtask(sub) {
       console.error('Error inserting subtask in Supabase:', err);
     }
   }
-  const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+  const storageKey = getAppStorageKey('subtasks');
+  const subtasks = JSON.parse(localStorage.getItem(storageKey) || '[]');
   subtasks.push(sub);
-  localStorage.setItem('TSMAI_subtasks', JSON.stringify(subtasks));
+  localStorage.setItem(storageKey, JSON.stringify(subtasks));
 }
 
 async function dbUpdateSubtask(subId, updateFields) {
-  if (supabaseClient) {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT !== 'DEMO' && useLiveDatabase && supabaseClient) {
     try {
       const mapped = {};
       if (updateFields.status !== undefined) mapped.estatus_subtarea = updateFields.status.toLowerCase().replace(' ', '_');
@@ -976,17 +985,18 @@ async function dbUpdateSubtask(subId, updateFields) {
       console.error('Error updating subtask in Supabase:', err);
     }
   }
-  const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
+  const storageKey = getAppStorageKey('subtasks');
+  const subtasks = JSON.parse(localStorage.getItem(storageKey) || '[]');
   const idx = subtasks.findIndex(s => s.id === subId);
   if (idx !== -1) {
     subtasks[idx] = { ...subtasks[idx], ...updateFields, updatedAt: new Date().toISOString() };
-    localStorage.setItem('TSMAI_subtasks', JSON.stringify(subtasks));
+    localStorage.setItem(storageKey, JSON.stringify(subtasks));
   }
 }
 
 // --- SUBTAREA EVIDENCIAS ADAPTERS ---
 async function dbGetEvidences() {
-  if (supabaseClient) {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT !== 'DEMO' && useLiveDatabase && supabaseClient) {
     try {
       const { data, error } = await supabaseClient
         .from('evidencias_subtareas')
@@ -1011,11 +1021,11 @@ async function dbGetEvidences() {
       console.error('Error fetching evidences from Supabase:', err);
     }
   }
-  return JSON.parse(localStorage.getItem('TSMAI_subtask_evidences') || '[]');
+  return JSON.parse(localStorage.getItem(getAppStorageKey('subtask_evidences')) || '[]');
 }
 
 async function dbInsertEvidence(ev) {
-  if (supabaseClient) {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT !== 'DEMO' && useLiveDatabase && supabaseClient) {
     try {
       const insertData = {
         id_evidencia: ev.id,
@@ -1041,14 +1051,15 @@ async function dbInsertEvidence(ev) {
       console.error('Error inserting evidence in Supabase:', err);
     }
   }
-  const evidences = JSON.parse(localStorage.getItem('TSMAI_subtask_evidences') || '[]');
+  const storageKey = getAppStorageKey('subtask_evidences');
+  const evidences = JSON.parse(localStorage.getItem(storageKey) || '[]');
   evidences.push(ev);
-  localStorage.setItem('TSMAI_subtask_evidences', JSON.stringify(evidences));
+  localStorage.setItem(storageKey, JSON.stringify(evidences));
 }
 
 // --- MOVIMIENTOS ADAPTERS ---
 async function dbGetMovements() {
-  if (supabaseClient) {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT !== 'DEMO' && useLiveDatabase && supabaseClient) {
     try {
       const { data, error } = await supabaseClient
         .from('bitacora_subtareas')
@@ -1070,11 +1081,11 @@ async function dbGetMovements() {
       console.error('Error fetching movements from Supabase:', err);
     }
   }
-  return JSON.parse(localStorage.getItem('TSMAI_movements') || '[]');
+  return JSON.parse(localStorage.getItem(getAppStorageKey('movements')) || '[]');
 }
 
 async function dbInsertMovement(mov) {
-  if (supabaseClient) {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT !== 'DEMO' && useLiveDatabase && supabaseClient) {
     try {
       const insertData = {
         id_movimiento: mov.id,
@@ -1096,9 +1107,10 @@ async function dbInsertMovement(mov) {
       console.error('Error inserting movement in Supabase:', err);
     }
   }
-  const movements = JSON.parse(localStorage.getItem('TSMAI_movements') || '[]');
+  const storageKey = getAppStorageKey('movements');
+  const movements = JSON.parse(localStorage.getItem(storageKey) || '[]');
   movements.push(mov);
-  localStorage.setItem('TSMAI_movements', JSON.stringify(movements));
+  localStorage.setItem(storageKey, JSON.stringify(movements));
 }
 
 // --- HELPERS DE BASE DE DATOS (CON FALLBACK A LOCALSTORAGE) ---
@@ -1288,7 +1300,7 @@ async function dbGetParts() {
 }
 
 async function dbInsertRequest(newRequest) {
-  if (supabaseClient) {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT !== 'DEMO' && useLiveDatabase && supabaseClient) {
     try {
       // 1. Sanitizar maquina_id para evitar error de FK con cat_maquinas
       let validMachineId = null;
@@ -1338,36 +1350,61 @@ async function dbInsertRequest(newRequest) {
         fecha_carga: new Date().toISOString()
       };
       
-      const { data, error } = await supabaseClient
-        .from('ordenes_trabajo')
-        .insert([insertData])
-        .select();
+      let insertedFolio = null;
 
-      if (error) {
-        console.warn('[dbInsertRequest] Warn inserting into ordenes_trabajo, retrying with minimalist payload:', error.message);
-        const fallbackData = {
-          folio: newRequest.id,
-          orden_trabajo: newRequest.type || 'MC',
-          origen: 'App',
-          estatus: 'solicitud_recibida',
-          departamento: validDepto,
-          falla: newRequest.type || 'Correctivo',
-          descripcion: newRequest.description,
-          nombre_solicitante: applicantName,
-          prioridad: newRequest.urgency || 'Media',
-          fecha_carga: new Date().toISOString()
-        };
-        const { data: retryData, error: retryErr } = await supabaseClient
-          .from('ordenes_trabajo')
-          .insert([fallbackData])
-          .select();
-        if (retryErr) {
-          console.error('[dbInsertRequest] Error on retry:', retryErr);
-        } else if (retryData && retryData.length > 0) {
-          newRequest.id = retryData[0].folio || newRequest.id;
+      // Puerta de entrada segura: si es usuario anónimo (Portal Público sin login), usar exclusivamente la RPC controlada
+      if (!currentUser) {
+        try {
+          const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('portal_crear_solicitud', {
+            p_solicitud: insertData
+          });
+          if (!rpcErr && rpcRes && rpcRes.folio) {
+            insertedFolio = rpcRes.folio;
+          } else if (rpcErr) {
+            console.warn('[dbInsertRequest] Warn RPC portal_crear_solicitud, intentando insert directo:', rpcErr.message);
+          }
+        } catch (eRpc) {
+          console.warn('[dbInsertRequest] Excepción RPC portal_crear_solicitud:', eRpc);
         }
-      } else if (data && data.length > 0) {
-        newRequest.id = data[0].folio || newRequest.id;
+      }
+
+      // Si no se insertó por RPC (usuario autenticado o fallback)
+      if (!insertedFolio) {
+        const { data, error } = await supabaseClient
+          .from('ordenes_trabajo')
+          .insert([insertData])
+          .select();
+
+        if (error) {
+          console.warn('[dbInsertRequest] Warn inserting into ordenes_trabajo, retrying with minimalist payload:', error.message);
+          const fallbackData = {
+            folio: newRequest.id,
+            orden_trabajo: newRequest.type || 'MC',
+            origen: 'App',
+            estatus: 'solicitud_recibida',
+            departamento: validDepto,
+            falla: newRequest.type || 'Correctivo',
+            descripcion: newRequest.description,
+            nombre_solicitante: applicantName,
+            prioridad: newRequest.urgency || 'Media',
+            fecha_carga: new Date().toISOString()
+          };
+          const { data: retryData, error: retryErr } = await supabaseClient
+            .from('ordenes_trabajo')
+            .insert([fallbackData])
+            .select();
+          if (retryErr) {
+            console.error('[dbInsertRequest] Error on retry:', retryErr);
+          } else if (retryData && retryData.length > 0) {
+            insertedFolio = retryData[0].folio || newRequest.id;
+          }
+        } else if (data && data.length > 0) {
+          insertedFolio = data[0].folio || newRequest.id;
+        }
+      }
+
+      if (insertedFolio) {
+        newRequest.id = insertedFolio;
       }
       
       // Guardar también en solicitudes_mantenimiento si la tabla está disponible
@@ -1397,7 +1434,7 @@ async function dbInsertRequest(newRequest) {
       } else {
         requests.unshift(newRequest);
       }
-      localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
+      localStorage.setItem(getAppStorageKey('requests'), JSON.stringify(requests));
       
       // Refresco inmediato de componentes visuales
       if (typeof updateRequestsBadge === 'function') updateRequestsBadge();
@@ -1419,7 +1456,7 @@ async function dbInsertRequest(newRequest) {
   } else {
     requests.unshift(newRequest);
   }
-  localStorage.setItem('TSMAI_requests', JSON.stringify(requests));
+  localStorage.setItem(getAppStorageKey('requests'), JSON.stringify(requests));
 }
 
 function auditAndCleanDatabaseStorage() {
@@ -3467,7 +3504,8 @@ async function handleLoginSubmit(event) {
         uuid: dbUser.id_usuario,
         cve_tecnico: dbUser.cve_tecnico,
         cve_empleado: dbUser.cve_empleado,
-        department: dbUser.departamento
+        department: dbUser.departamento,
+        procesos_autorizados: ['PF', 'CF', 'TF', 'AF']
       };
       persistSessionUser(currentUser);
       showToast(`Sesión iniciada como Admin: ${dbUser.nombre_completo}`);
@@ -3525,10 +3563,38 @@ async function handleLoginSubmit(event) {
         area: ['CF', 'PF', 'AF', 'TF'].includes(userArea) ? userArea : 'AF',
         department: dbUser.departamento || (userArea === 'PF' ? 'Producción / Tejido' : userArea === 'CF' ? 'Costura' : userArea === 'TF' ? 'Tintorería' : 'Servicios Auxiliares'),
         supervisor: dbUser.id_supervisor || null,
-        active: dbUser.activo !== false
+        active: dbUser.activo !== false,
+        // PRD-USR002-R1: Procesos autorizados para RESPONSABLE_PROCESO.
+        // Se resuelve en BD via fn_current_user_procesos() — nunca desde frontend hardcode.
+        // Se inicializa vacío y se carga asíncronamente abajo.
+        procesos_autorizados: []
       };
+
+      // PRD-USR002-R1: Cargar procesos autorizados desde BD REAL (solo entorno REAL)
+      // La función fn_current_user_procesos() retorna los procesos activos de cat_responsables_proceso
+      // para el usuario autenticado (auth.uid()). Para SUPER_ADMIN retorna los 4 procesos.
+      // DEMO: no se llama — no hay cat_responsables_proceso en localStorage.
+      if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT !== 'DEMO' && supabaseClient) {
+        try {
+          const { data: procesosData, error: procesosErr } = await supabaseClient.rpc('fn_current_user_procesos');
+          if (!procesosErr && procesosData && procesosData.length > 0) {
+            currentUser.procesos_autorizados = procesosData.map(r => r.proceso);
+            console.log('[PRD-USR002-R1] Procesos autorizados cargados:', currentUser.procesos_autorizados);
+          }
+        } catch (e) {
+          // No bloqueante: si falla la carga de procesos, el usuario opera con alcance normal de solicitante.
+          console.warn('[PRD-USR002-R1] No se pudieron cargar procesos autorizados:', e);
+        }
+      }
+
       persistSessionUser(currentUser);
-      showToast(`Sesión iniciada como Solicitante (${currentUser.area}): ${dbUser.nombre_completo}`);
+
+      // Indicar en toast si es responsable de proceso (tiene procesos explícitos asignados)
+      if (currentUser.procesos_autorizados && currentUser.procesos_autorizados.length > 0) {
+        showToast(`Sesión iniciada — Responsable de proceso (${currentUser.procesos_autorizados.join(', ')}): ${dbUser.nombre_completo}`);
+      } else {
+        showToast(`Sesión iniciada como Solicitante (${currentUser.area}): ${dbUser.nombre_completo}`);
+      }
       
       showView('solicitante');
       switchSolicitantePanel('home');
@@ -3911,35 +3977,8 @@ async function renderTechOTPhotos(otId) {
   const badge = document.getElementById('tech-evidence-summary-badge');
   if (!container || !otId) return;
 
-  let evidences = [];
-  if (APP_ENVIRONMENT === 'DEMO') {
-    const demoEvidences = JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]');
-    evidences = demoEvidences.filter(e => (e.otId === otId || e.id_orden === otId || e.ot_folio === otId) && e.activo !== false);
-  } else if (supabaseClient && useLiveDatabase) {
-    try {
-      const { data, error } = await supabaseClient
-        .from('vw_ot_evidencias_360')
-        .select('*')
-        .or(`id_orden.eq.${otId},ot_folio.eq.${otId}`)
-        .eq('activo', true)
-        .order('captured_at', { ascending: true });
-
-      if (!error && data) {
-        evidences = await Promise.all(data.map(async (ev) => {
-          let url = ev.url_archivo;
-          if (!url && ev.storage_path) {
-            const { data: signed } = await supabaseClient.storage
-              .from(ev.storage_bucket || CANONICAL_EVIDENCE_BUCKET)
-              .createSignedUrl(ev.storage_path, 900);
-            if (signed) url = signed.signedUrl;
-          }
-          return { ...ev, url };
-        }));
-      }
-    } catch(err) {
-      console.warn('[renderTechOTPhotos] Error fetching from Supabase:', err);
-    }
-  }
+  const evResult = await loadOTEvidences(otId);
+  const evidences = evResult.all;
 
   if (badge) {
     badge.innerText = evidences.length + ' Evidencia' + (evidences.length === 1 ? '' : 's');
@@ -4061,6 +4100,163 @@ function validateOTEvidencesBeforeClosure(orderObj, overrideReason = null) {
   return { isValid: true, beforeCount, afterCount };
 }
 
+// ============================================================================
+// --- GESTIÓN UNIFICADA DE EVIDENCIAS FOTOGRÁFICAS (PRD-EVI001-R1) ---
+// ============================================================================
+
+/**
+ * Consulta unificada, segura y normalizada de evidencias fotográficas para una OT.
+ * Garantiza:
+ * 1. Aislamiento estricto 1 Evidencia => 1 OT (sin fuga por máquina o ciclo).
+ * 2. Buckets 100% privados; generación de Signed URLs (900s) bajo demanda.
+ * 3. Clasificación: ANTES, DURANTE, DESPUÉS, OTRA (legacy no clasificada erróneamente).
+ * 4. Deduplicación visual de registros.
+ * 5. Agrupación por ciclo de seguimiento.
+ */
+async function loadOTEvidences(orderId) {
+  if (!orderId) {
+    return { before: [], during: [], after: [], other: [], by_cycle: {}, all: [], totalCount: 0 };
+  }
+
+  const cleanOrderId = String(orderId).trim();
+  let rawEvidences = [];
+
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const demoEvidences = JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]');
+    rawEvidences = demoEvidences.filter(e => {
+      const eOt = String(e.otId || e.id_orden || e.ot_folio || '').trim();
+      return eOt === cleanOrderId && e.activo !== false && !e.deleted_at;
+    });
+
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+    const ord = orders.find(o => String(o.id || o.folio || '').trim() === cleanOrderId);
+    if (ord && Array.isArray(ord.evidences)) {
+      rawEvidences = [...rawEvidences, ...ord.evidences];
+    }
+  } else if (supabaseClient && useLiveDatabase) {
+    try {
+      let fetched = false;
+
+      // 1. Intentar consultar vw_ot_evidencias_360
+      try {
+        const { data: vData, error: vErr } = await supabaseClient
+          .from('vw_ot_evidencias_360')
+          .select('*')
+          .or(`id_orden.eq.${cleanOrderId},ot_folio.eq.${cleanOrderId}`)
+          .eq('activo', true)
+          .order('captured_at', { ascending: true });
+
+        if (!vErr && Array.isArray(vData) && vData.length > 0) {
+          rawEvidences = vData;
+          fetched = true;
+        }
+      } catch (errView) {
+        // Fallback inmediato a tabla evidencias_orden
+      }
+
+      // 2. Si la vista no está disponible o no trajo datos, consultar directamente evidencias_orden
+      if (!fetched) {
+        const { data: tData, error: tErr } = await supabaseClient
+          .from('evidencias_orden')
+          .select('*')
+          .eq('id_orden', cleanOrderId)
+          .eq('activo', true)
+          .is('deleted_at', null)
+          .order('captured_at', { ascending: true, nullsFirst: false });
+
+        if (!tErr && Array.isArray(tData)) {
+          rawEvidences = tData;
+        }
+      }
+
+      // 3. Generar Signed URLs (900s) bajo demanda para paths en Storage privado
+      rawEvidences = await Promise.all(rawEvidences.map(async (ev) => {
+        let url = ev.url_archivo || ev.url || ev.dataUrl || null;
+        let storageError = false;
+        const bucket = ev.storage_bucket || CANONICAL_EVIDENCE_BUCKET || 'maintenance-evidence';
+        const path = ev.storage_path || ev.path;
+
+        if (path && supabaseClient?.storage) {
+          try {
+            const { data: signed, error: sErr } = await supabaseClient.storage
+              .from(bucket)
+              .createSignedUrl(path, 900);
+
+            if (!sErr && signed?.signedUrl) {
+              url = signed.signedUrl;
+            } else if (sErr) {
+              storageError = true;
+              console.warn('[loadOTEvidences] Storage signed URL error:', sErr.message);
+            }
+          } catch (signErr) {
+            storageError = true;
+            console.warn('[loadOTEvidences] Excepción creando Signed URL:', signErr);
+          }
+        }
+
+        return {
+          ...ev,
+          id_evidencia: ev.id_evidencia || ev.id,
+          id_orden: ev.id_orden || cleanOrderId,
+          url,
+          storage_error: storageError,
+          signed_expires_at: Date.now() + 900 * 1000
+        };
+      }));
+    } catch (dbErr) {
+      console.error('[loadOTEvidences] Error consultando backend:', dbErr);
+    }
+  }
+
+  // Deduplicación de evidencias
+  const seen = new Set();
+  const deduplicated = [];
+  for (const item of rawEvidences) {
+    const key = item.id_evidencia || item.id || item.storage_path || item.url || item.url_archivo;
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      deduplicated.push(item);
+    } else if (!key) {
+      deduplicated.push(item);
+    }
+  }
+
+  // Clasificación estricta: ANTES, DURANTE, DESPUÉS, OTRA
+  const before = [];
+  const during = [];
+  const after = [];
+  const other = [];
+  const by_cycle = {};
+
+  deduplicated.forEach(ev => {
+    const rawType = String(ev.tipo_evidencia || ev.type || '').trim().toUpperCase();
+    const cycle = ev.numero_ciclo || 1;
+    if (!by_cycle[cycle]) by_cycle[cycle] = [];
+    by_cycle[cycle].push(ev);
+
+    if (rawType === 'ANTES' || rawType === 'BEFORE' || rawType === 'INICIAL') {
+      before.push(ev);
+    } else if (rawType === 'DURANTE' || rawType === 'DURING' || rawType === 'PROCESO') {
+      during.push(ev);
+    } else if (rawType === 'DESPUES' || rawType === 'DESPUÉS' || rawType === 'AFTER' || rawType === 'FINAL') {
+      after.push(ev);
+    } else {
+      // PRD-EVI001-R1 §54-55: Evidencia legacy o sin tipo NO debe ser clasificada falsamente como ANTES o DESPUÉS
+      other.push({ ...ev, tipo_evidencia: 'OTRA' });
+    }
+  });
+
+  return {
+    before,
+    during,
+    after,
+    other,
+    by_cycle,
+    all: deduplicated,
+    totalCount: deduplicated.length
+  };
+}
+
 async function renderOT360Evidences(orderId, explicitMachineId) {
   const compBeforeImg = document.getElementById('ot360-comp-before-img-box');
   const compBeforeTime = document.getElementById('ot360-comp-before-time');
@@ -4073,71 +4269,44 @@ async function renderOT360Evidences(orderId, explicitMachineId) {
   const timelineContainer = document.getElementById('ot360-timeline-container');
   const galleryContainer = document.getElementById('ot360-gallery-container');
 
-  let evidences = [];
-  if (APP_ENVIRONMENT === 'DEMO') {
-    const demoEvidences = JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]');
-    evidences = demoEvidences.filter(e => (e.otId === orderId || e.id_orden === orderId || e.ot_folio === orderId || e.maquina_id === explicitMachineId) && e.activo !== false);
-  } else if (supabaseClient && useLiveDatabase) {
-    try {
-      const { data, error } = await supabaseClient
-        .from('vw_ot_evidencias_360')
-        .select('*')
-        .or(`id_orden.eq.${orderId},ot_folio.eq.${orderId},maquina_id.eq.${explicitMachineId}`)
-        .eq('activo', true)
-        .order('captured_at', { ascending: true });
-
-      if (!error && data) {
-        evidences = await Promise.all(data.map(async (ev) => {
-          let url = ev.url_archivo;
-          if (!url && ev.storage_path) {
-            const { data: signed } = await supabaseClient.storage
-              .from(ev.storage_bucket || CANONICAL_EVIDENCE_BUCKET)
-              .createSignedUrl(ev.storage_path, 900);
-            if (signed) url = signed.signedUrl;
-          }
-          return { ...ev, url };
-        }));
-      }
-    } catch(err) {
-      console.warn('[renderOT360Evidences] Error:', err);
-    }
-  }
-
+  // PRD-EVI001-R1 §16, §18: Aislamiento unívoco por OT. Sin filtrado por machine_id que cause fuga de fotos.
+  const evResult = await loadOTEvidences(orderId);
+  const evidences = evResult.all;
   activeOT360Evidences = evidences;
 
-  // Actualizar conteos
-  const cAll = evidences.length;
-  const cBefore = evidences.filter(e => e.tipo_evidencia === 'ANTES').length;
-  const cDuring = evidences.filter(e => e.tipo_evidencia === 'DURANTE').length;
-  const cFindings = evidences.filter(e => e.tipo_evidencia === 'HALLAZGO').length;
-  const cAfter = evidences.filter(e => e.tipo_evidencia === 'DESPUES').length;
+  // Actualizar conteos en cabecera de pestañas
+  safeSetText('ot360-count-all', evidences.length);
+  safeSetText('ot360-count-before', evResult.before.length);
+  safeSetText('ot360-count-during', evResult.during.length);
+  safeSetText('ot360-count-findings', evidences.filter(e => e.tipo_evidencia === 'HALLAZGO').length);
+  safeSetText('ot360-count-after', evResult.after.length);
 
-  safeSetText('ot360-count-all', cAll);
-  safeSetText('ot360-count-before', cBefore);
-  safeSetText('ot360-count-during', cDuring);
-  safeSetText('ot360-count-findings', cFindings);
-  safeSetText('ot360-count-after', cAfter);
-
-  // 1. Comparador ANTES (Primera foto cronológica) vs DESPUÉS (Última foto cronológica)
-  const firstBefore = evidences.find(e => e.tipo_evidencia === 'ANTES');
-  const lastAfter = [...evidences].reverse().find(e => e.tipo_evidencia === 'DESPUES');
+  // 1. Comparador ANTES (Primera foto cronológica de ANTES) vs DESPUÉS (Última foto cronológica de DESPUÉS)
+  const firstBefore = evResult.before[0] || evidences.find(e => e.tipo_evidencia === 'ANTES');
+  const lastAfter = evResult.after[evResult.after.length - 1] || [...evidences].reverse().find(e => e.tipo_evidencia === 'DESPUES');
 
   if (firstBefore && compBeforeImg) {
-    compBeforeImg.innerHTML = `<img src="${firstBefore.url || firstBefore.url_archivo}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="openPhotoLightbox('${firstBefore.url || firstBefore.url_archivo}', { type: 'ANTES', ot: '${orderId}', machine: '${firstBefore.maquina_id || explicitMachineId}', tech: '${firstBefore.nombre_tecnico || ''}', time: '${new Date(firstBefore.captured_at || firstBefore.created_at).toLocaleString()}', desc: '${firstBefore.descripcion || ''}' })">`;
-    safeSetText('ot360-comp-before-time', new Date(firstBefore.captured_at || firstBefore.created_at).toLocaleString('es-MX'));
-    safeSetText('ot360-comp-before-desc', firstBefore.descripcion || 'Condición inicial registrada al inicio.');
+    const bUrl = firstBefore.url || firstBefore.url_archivo;
+    const safeDesc = (firstBefore.descripcion || firstBefore.comentario || 'Condición inicial registrada al inicio.').replace(/'/g, "\\'");
+    const safeTech = (firstBefore.nombre_tecnico || 'Técnico').replace(/'/g, "\\'");
+    compBeforeImg.innerHTML = `<img src="${bUrl}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="openPhotoLightbox('${bUrl}', { type: 'ANTES', ot: '${orderId}', machine: '${firstBefore.maquina_id || explicitMachineId || ''}', tech: '${safeTech}', time: '${new Date(firstBefore.captured_at || firstBefore.created_at || Date.now()).toLocaleString()}', desc: '${safeDesc}' })">`;
+    safeSetText('ot360-comp-before-time', new Date(firstBefore.captured_at || firstBefore.created_at || Date.now()).toLocaleString('es-MX'));
+    safeSetText('ot360-comp-before-desc', firstBefore.descripcion || firstBefore.comentario || 'Condición inicial registrada al inicio.');
   } else if (compBeforeImg) {
-    compBeforeImg.innerHTML = '<span style="font-size: 0.85rem; color: #64748b;">Sin foto inicial registrada</span>';
+    compBeforeImg.innerHTML = '<span style="font-size: 0.85rem; color: #64748b;">ℹ️ Sin evidencia ANTES registrada</span>';
     safeSetText('ot360-comp-before-time', '-');
     safeSetText('ot360-comp-before-desc', '');
   }
 
   if (lastAfter && compAfterImg) {
-    compAfterImg.innerHTML = `<img src="${lastAfter.url || lastAfter.url_archivo}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="openPhotoLightbox('${lastAfter.url || lastAfter.url_archivo}', { type: 'DESPUÉS', ot: '${orderId}', machine: '${lastAfter.maquina_id || explicitMachineId}', tech: '${lastAfter.nombre_tecnico || ''}', time: '${new Date(lastAfter.captured_at || lastAfter.created_at).toLocaleString()}', desc: '${lastAfter.descripcion || ''}' })">`;
-    safeSetText('ot360-comp-after-time', new Date(lastAfter.captured_at || lastAfter.created_at).toLocaleString('es-MX'));
-    safeSetText('ot360-comp-after-desc', lastAfter.descripcion || 'Condición final entregada tras intervención.');
+    const aUrl = lastAfter.url || lastAfter.url_archivo;
+    const safeDesc = (lastAfter.descripcion || lastAfter.comentario || 'Condición final entregada tras intervención.').replace(/'/g, "\\'");
+    const safeTech = (lastAfter.nombre_tecnico || 'Técnico').replace(/'/g, "\\'");
+    compAfterImg.innerHTML = `<img src="${aUrl}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="openPhotoLightbox('${aUrl}', { type: 'DESPUÉS', ot: '${orderId}', machine: '${lastAfter.maquina_id || explicitMachineId || ''}', tech: '${safeTech}', time: '${new Date(lastAfter.captured_at || lastAfter.created_at || Date.now()).toLocaleString()}', desc: '${safeDesc}' })">`;
+    safeSetText('ot360-comp-after-time', new Date(lastAfter.captured_at || lastAfter.created_at || Date.now()).toLocaleString('es-MX'));
+    safeSetText('ot360-comp-after-desc', lastAfter.descripcion || lastAfter.comentario || 'Condición final entregada tras intervención.');
   } else if (compAfterImg) {
-    compAfterImg.innerHTML = '<span style="font-size: 0.85rem; color: #166534;">Sin foto final registrada</span>';
+    compAfterImg.innerHTML = '<span style="font-size: 0.85rem; color: #166534;">ℹ️ Sin evidencia DESPUÉS registrada</span>';
     safeSetText('ot360-comp-after-time', '-');
     safeSetText('ot360-comp-after-desc', '');
   }
@@ -4151,22 +4320,27 @@ async function renderOT360Evidences(orderId, explicitMachineId) {
         ANTES: '#0284c7',
         DURANTE: '#eab308',
         HALLAZGO: '#ef4444',
-        DESPUES: '#16a34a'
+        DESPUES: '#16a34a',
+        OTRA: '#64748b'
       };
 
       timelineContainer.innerHTML = evidences.map((ev, idx) => {
         const timeStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
         const dateStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleDateString('es-MX');
         const color = categoryColor[ev.tipo_evidencia] || '#64748b';
+        const imgUrl = ev.url || ev.url_archivo || '';
+        const safeDesc = (ev.descripcion || ev.comentario || 'Registro fotográfico').replace(/'/g, "\\'");
+        const safeTech = (ev.nombre_tecnico || 'Técnico').replace(/'/g, "\\'");
 
         return `
           <div style="display:flex; align-items:center; gap:12px; background:white; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0; font-size:0.82rem;">
             <span style="font-weight:700; color:#0f172a; min-width:55px;">${timeStr}</span>
-            <span class="badge" style="background:${color}; color:white; font-size:0.7rem; font-weight:700;">${ev.tipo_evidencia}</span>
+            <span class="badge" style="background:${color}; color:white; font-size:0.7rem; font-weight:700;">${ev.tipo_evidencia || 'OTRA'}</span>
+            ${ev.numero_ciclo && ev.numero_ciclo > 1 ? `<span class="badge" style="background:#8b5cf6; color:white; font-size:0.65rem;">Ciclo ${ev.numero_ciclo}</span>` : ''}
             <div style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-              <strong>${ev.nombre_tecnico || 'Técnico'}:</strong> ${ev.descripcion || 'Registro fotográfico'}
+              <strong>${ev.nombre_tecnico || 'Técnico'}:</strong> ${ev.descripcion || ev.comentario || 'Registro fotográfico'}
             </div>
-            <a href="javascript:void(0)" onclick="openPhotoLightbox('${ev.url || ev.url_archivo}', { type: '${ev.tipo_evidencia}', ot: '${orderId}', machine: '${ev.maquina_id || explicitMachineId}', tech: '${ev.nombre_tecnico || ''}', time: '${dateStr} ${timeStr}', desc: '${ev.descripcion || ''}' })" style="color:#0284c7; text-decoration:underline; font-weight:600;">Ver Foto</a>
+            ${imgUrl ? `<a href="javascript:void(0)" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia || 'OTRA'}', ot: '${orderId}', machine: '${ev.maquina_id || explicitMachineId || ''}', tech: '${safeTech}', time: '${dateStr} ${timeStr}', desc: '${safeDesc}' })" style="color:#0284c7; text-decoration:underline; font-weight:600;">Ver Foto</a>` : '<span style="color:#94a3b8; font-size:0.75rem;">Sin archivo</span>'}
           </div>
         `;
       }).join('');
@@ -8045,7 +8219,268 @@ function viewOrderHistoryLogs(otId) {
   alert(`Historial de Transiciones para OT ${otId}:\n\n${logList}`);
 }
 
-// --- CALENDARIO (ADMIN) ---
+// --- CALENDARIO UNIFICADO POR PROCESO (PRD-CAL001-R1) ---
+let currentCalendarYear = new Date().getFullYear();
+let currentCalendarMonth = new Date().getMonth();
+let currentCalendarDayNum = new Date().getDate();
+let currentCalendarScale = 'week'; // PRD-CAL001-R1: 'week' por defecto (Semana Actual)
+let activeAdminCalendarProcess = 'PF'; // PRD-CAL001-R1: Proceso seleccionado para Super Admin
+
+function onAdminCalendarProcessChange(newProcess) {
+  const valid = ['PF', 'CF', 'TF', 'AF'];
+  activeAdminCalendarProcess = valid.includes(newProcess) ? newProcess : 'PF';
+  const selectEl = document.getElementById('admin-cal-process-select');
+  if (selectEl && selectEl.value !== activeAdminCalendarProcess) {
+    selectEl.value = activeAdminCalendarProcess;
+  }
+  renderAdminCalendar();
+}
+
+async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo = null, maintenanceType = 'ALL') {
+  const validProcesses = ['PF', 'CF', 'TF', 'AF'];
+  const proc = (processCode || 'PF').toUpperCase().trim();
+  if (!validProcesses.includes(proc)) {
+    console.warn('[loadUnifiedCalendarByProcess] Proceso no válido:', processCode);
+    return [];
+  }
+
+  // 1. MODO DEMO: Preservar 100% de aislamiento y compatibilidad
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO') {
+    const allLocalOrders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+    const correctives = allLocalOrders
+      .filter(o => o.type !== 'MP' && o.type !== 'PREVENTIVO' && o.type !== 'PREDICTIVO' && o.type !== 'AUTONOMO')
+      .filter(o => {
+        const oArea = typeof getAreaCodeForOrder === 'function' ? getAreaCodeForOrder(o) : (o.area || o.departamento || 'PF');
+        return oArea === proc;
+      })
+      .map(o => ({
+        id_evento: o.id || o.folio,
+        id_ref: o.id,
+        tipo_mantenimiento: 'CORRECTIVO',
+        proceso: proc,
+        maquina_id: o.machine || o.maquina_id || o.id,
+        fecha: (o.dueDate || o.date || '').split('T')[0],
+        actividad: o.description || 'Fallo correctivo reportado',
+        descripcion: o.description || 'Fallo correctivo reportado',
+        estatus: o.status || 'PENDIENTE',
+        prioridad: o.urgency || o.priority || 'MEDIA',
+        responsable: o.assignedTech || 'Por asignar',
+        origen: 'ORDEN_TRABAJO',
+        ot_asociada: o.id || o.folio
+      }));
+
+    let demoDetails = [];
+    if (typeof fetchCalendarDetailsFromDb === 'function') {
+      try {
+        demoDetails = await fetchCalendarDetailsFromDb();
+      } catch (e) {}
+    }
+    const filteredDetails = (demoDetails || []).filter(item => {
+      let itemArea = null;
+      if (item.observaciones) {
+        try {
+          const obs = typeof item.observaciones === 'object' ? item.observaciones : JSON.parse(item.observaciones);
+          if (obs.area) itemArea = String(obs.area).toUpperCase().trim();
+        } catch (e) {}
+      }
+      if (!itemArea) {
+        itemArea = typeof resolveAreaFromMachineCode === 'function'
+          ? resolveAreaFromMachineCode(item.maquina_id || '', item.actividad_sugerida || '')
+          : 'PF';
+      }
+      return itemArea === proc;
+    }).map(s => ({
+      id_evento: s.id_detalle || s.id,
+      id_ref: s.id_detalle,
+      tipo_mantenimiento: s.tipo_mantenimiento || 'PREVENTIVO',
+      proceso: proc,
+      maquina_id: s.maquina_id,
+      fecha: s.fecha_programada,
+      actividad: s.actividad_sugerida || 'Mantenimiento programado',
+      descripcion: (s.actividad_sugerida || '').replace('Servicio preventivo: ', ''),
+      estatus: s.estatus_detalle || s.status || 'PROGRAMADO',
+      prioridad: s.prioridad || 'MEDIA',
+      responsable: s.responsable_sugerido || 'Equipo Técnico',
+      origen: 'CALENDARIO_PLANTA',
+      ot_asociada: s.id_orden_generada || null
+    }));
+
+    let combined = [...correctives, ...filteredDetails];
+    if (maintenanceType && maintenanceType !== 'ALL') {
+      combined = combined.filter(e => e.tipo_mantenimiento === maintenanceType);
+    }
+    if (dateFrom) combined = combined.filter(e => e.fecha >= dateFrom);
+    if (dateTo) combined = combined.filter(e => e.fecha <= dateTo);
+    return combined;
+  }
+
+  // 2. ENTORNO PRODUCCIÓN / BASE DE DATOS REAL
+  if (supabaseClient) {
+    // Intento 1: RPC obtener_calendario_unificado_proceso
+    try {
+      const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('obtener_calendario_unificado_proceso', {
+        p_proceso: proc,
+        p_fecha_desde: dateFrom || null,
+        p_fecha_hasta: dateTo || null,
+        p_tipo: maintenanceType || 'ALL'
+      });
+      if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
+        return rpcData.map(r => ({
+          id_evento: r.id_evento,
+          id_ref: r.id_ref || r.id_evento,
+          tipo_mantenimiento: r.tipo_mantenimiento || r.tipo_evento,
+          proceso: r.proceso,
+          maquina_id: r.maquina_id,
+          fecha: r.fecha ? String(r.fecha).split('T')[0] : null,
+          actividad: r.actividad || r.descripcion || 'Mantenimiento',
+          descripcion: r.descripcion || r.actividad || 'Mantenimiento',
+          estatus: r.estatus || r.estado || 'PROGRAMADO',
+          prioridad: r.prioridad || 'MEDIA',
+          responsable: r.responsable || 'Equipo Técnico',
+          origen: r.origen || 'CALENDARIO',
+          ot_asociada: r.ot_asociada || null
+        }));
+      }
+    } catch (e) {
+      console.warn('[loadUnifiedCalendarByProcess] Fallback a consulta estructurada:', e);
+    }
+
+    // Consulta estructurada directa (Misma lógica exacta que RPC y PRD-CAL001-R1)
+    try {
+      // Paso A: Mapeo canónico máquina -> proceso (cat_maquinas)
+      const { data: machines } = await supabaseClient
+        .from('cat_maquinas')
+        .select('equipo_towell, clave, departamento_codigo, area');
+
+      const machineProcessMap = new Map();
+      (machines || []).forEach(m => {
+        let p = null;
+        if (m.departamento_codigo && ['PF', 'CF', 'TF', 'AF'].includes(m.departamento_codigo)) {
+          p = m.departamento_codigo;
+        } else if (m.area && ['PF', 'CF', 'TF', 'AF'].includes(m.area)) {
+          p = m.area;
+        } else {
+          p = 'INCONSISTENCIA_DE_PROCESO';
+        }
+        if (m.equipo_towell) machineProcessMap.set(m.equipo_towell.trim().toUpperCase(), p);
+        if (m.clave) machineProcessMap.set(m.clave.trim().toUpperCase(), p);
+      });
+
+      // Paso B: Cargar OTs para desduplicación y enlace de folios
+      const { data: rawOts } = await supabaseClient
+        .from('ordenes_trabajo')
+        .select('id_orden, folio, departamento, maquina_id, fecha_hora_inicio, fecha_carga, orden_trabajo, descripcion, estatus, prioridad, cve_atendio, nombre_atendio');
+
+      const otFolioMap = new Map();
+      (rawOts || []).forEach(ot => {
+        if (ot.id_orden && ot.folio) otFolioMap.set(ot.id_orden, ot.folio);
+      });
+
+      // Paso C: Detalles de calendario (Preventivos, Predictivos, Autónomos)
+      const { data: rawDetails, error: detailsErr } = await supabaseClient
+        .from('calendario_mantenimiento_detalle')
+        .select('id_detalle, id_calendario, maquina_id, tipo_mantenimiento, actividad_sugerida, fecha_programada, estatus_detalle, prioridad, responsable_sugerido, observaciones, id_orden_generada');
+
+      const generatedOtIds = new Set();
+      const detailsList = [];
+
+      if (!detailsErr && rawDetails) {
+        rawDetails.forEach(d => {
+          if (d.id_orden_generada) generatedOtIds.add(d.id_orden_generada);
+
+          const machKey = (d.maquina_id || '').trim().toUpperCase();
+          const dProc = machineProcessMap.get(machKey) || 'INCONSISTENCIA_DE_PROCESO';
+
+          // Aislamiento estricto por proceso
+          if (dProc !== proc) return;
+
+          const tipo = (d.tipo_mantenimiento || 'PREVENTIVO').toUpperCase().trim();
+          if (maintenanceType && maintenanceType !== 'ALL' && tipo !== maintenanceType) return;
+
+          const f = d.fecha_programada ? String(d.fecha_programada).split('T')[0] : null;
+          if (dateFrom && f && f < dateFrom) return;
+          if (dateTo && f && f > dateTo) return;
+
+          const otFolio = otFolioMap.get(d.id_orden_generada) || (d.id_orden_generada ? String(d.id_orden_generada) : null);
+
+          detailsList.push({
+            id_evento: d.id_detalle,
+            id_ref: d.id_detalle,
+            tipo_mantenimiento: tipo,
+            proceso: proc,
+            maquina_id: d.maquina_id,
+            fecha: f,
+            actividad: d.actividad_sugerida || 'Plan de mantenimiento programado',
+            descripcion: (d.actividad_sugerida || '').replace('Servicio preventivo: ', '') || 'Mantenimiento programado',
+            estatus: d.estatus_detalle || 'PROGRAMADO',
+            prioridad: d.prioridad || 'MEDIA',
+            responsable: d.responsable_sugerido || 'Equipo Técnico',
+            origen: 'CALENDARIO_PLANTA',
+            ot_asociada: otFolio
+          });
+        });
+      }
+
+      // Paso D: Mantenimientos Correctivos (Rama A - ordenes_trabajo)
+      const correctivesList = [];
+      if (!maintenanceType || maintenanceType === 'ALL' || maintenanceType === 'CORRECTIVO') {
+        (rawOts || []).forEach(ot => {
+          // Excluir MP y mantenimientos no correctivos
+          const otType = (ot.orden_trabajo || '').toUpperCase().trim();
+          if (['MP', 'PREVENTIVO', 'PREDICTIVO', 'AUTONOMO'].includes(otType)) return;
+
+          // Desduplicación: excluir si ya fue generada desde detalle de calendario
+          if (generatedOtIds.has(ot.id_orden)) return;
+
+          // Resolución estricta de proceso
+          let otProc = (ot.departamento || '').toUpperCase().trim();
+          if (!['PF', 'CF', 'TF', 'AF'].includes(otProc)) {
+            const machKey = (ot.maquina_id || '').trim().toUpperCase();
+            otProc = machineProcessMap.get(machKey) || 'INCONSISTENCIA_DE_PROCESO';
+          }
+
+          if (otProc !== proc) return;
+
+          const dateVal = ot.fecha_hora_inicio || ot.fecha_carga;
+          const f = dateVal ? String(dateVal).split('T')[0] : null;
+          if (dateFrom && f && f < dateFrom) return;
+          if (dateTo && f && f > dateTo) return;
+
+          correctivesList.push({
+            id_evento: ot.folio || ot.id_orden,
+            id_ref: ot.id_orden,
+            tipo_mantenimiento: 'CORRECTIVO',
+            proceso: proc,
+            maquina_id: ot.maquina_id || 'Planta General',
+            fecha: f,
+            actividad: ot.orden_trabajo || 'Mantenimiento Correctivo',
+            descripcion: ot.descripcion || ot.orden_trabajo || 'Fallo reportado',
+            estatus: ot.estatus || 'PENDIENTE',
+            prioridad: ot.prioridad || 'MEDIA',
+            responsable: ot.nombre_atendio || ot.cve_atendio || 'Por asignar',
+            origen: 'ORDEN_TRABAJO',
+            ot_asociada: ot.folio || ot.id_orden
+          });
+        });
+      }
+
+      // Unificación y orden cronológico
+      const combined = [...correctivesList, ...detailsList];
+      combined.sort((a, b) => {
+        if (!a.fecha) return 1;
+        if (!b.fecha) return -1;
+        return a.fecha.localeCompare(b.fecha);
+      });
+      return combined;
+    } catch (err) {
+      console.error('[loadUnifiedCalendarByProcess] Error fetching calendar data:', err);
+      return [];
+    }
+  }
+
+  return [];
+}
+
 // Helper to calculate week numbers in JS
 function getWeekNumber(d) {
   d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -8084,59 +8519,45 @@ async function renderAdminCalendar() {
     }
   }
 
+  // PRD-CAL001-R1: Sincronizar selector de proceso de Super Admin
+  const procSelect = document.getElementById('admin-cal-process-select');
+  if (procSelect && procSelect.value !== activeAdminCalendarProcess) {
+    procSelect.value = activeAdminCalendarProcess;
+  }
+
   // 2. Leer checkboxes de filtros
   const showCorrectivos = document.getElementById('filter-cal-correctivo')?.checked !== false;
   const showPreventivos = document.getElementById('filter-cal-preventivo')?.checked !== false;
   const showPredictivos = document.getElementById('filter-cal-predictivo')?.checked !== false;
   const showAutonomos = document.getElementById('filter-cal-autonomo')?.checked !== false;
 
-  // 3. Obtener correctivos locales
-  let localOrders = [];
-  if (showCorrectivos) {
-    const allLocalOrders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-    localOrders = allLocalOrders.filter(o => o.type !== 'MP' && o.type !== 'PREVENTIVO' && o.type !== 'PREDICTIVO' && o.type !== 'AUTONOMO');
-  }
+  // 3. Cargar eventos unificados del proceso seleccionado
+  const rawEvents = await loadUnifiedCalendarByProcess(activeAdminCalendarProcess, null, null, 'ALL');
 
-  // 4. Obtener sugerencias y propuestas reales de la base de datos
-  let suggestions = [];
-  if (supabaseClient && (showPreventivos || showPredictivos || showAutonomos)) {
-    try {
-      const { data, error } = await supabaseClient
-        .from('calendario_mantenimiento_detalle')
-        .select('*, calendarios_mantenimiento(anio, mes, semana)');
-        
-      if (!error && data) {
-        suggestions = data.filter(item => {
-          const calHeader = item.calendarios_mantenimiento || {};
-          if (calHeader.anio !== currentCalendarYear) return false;
-          if (item.tipo_mantenimiento === 'PREVENTIVO' && !showPreventivos) return false;
-          if (item.tipo_mantenimiento === 'PREDICTIVO' && !showPredictivos) return false;
-          if (item.tipo_mantenimiento === 'AUTONOMO' && !showAutonomos) return false;
-          return true;
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching proposed calendar details:', err);
-    }
-  }
+  // 4. Filtrar por tipo seleccionado en checkboxes
+  const filteredEvents = rawEvents.filter(e => {
+    const t = (e.tipo_mantenimiento || '').toUpperCase();
+    if (t === 'CORRECTIVO' && !showCorrectivos) return false;
+    if (t === 'PREVENTIVO' && !showPreventivos) return false;
+    if (t === 'PREDICTIVO' && !showPredictivos) return false;
+    if (t === 'AUTONOMO' && !showAutonomos) return false;
+    return true;
+  });
 
-  // 5. Combinar eventos
-  const correctiveEvents = localOrders.map(o => ({
-    id: o.id,
-    type: 'CORRECTIVO',
-    title: `${o.id}: ${o.description || 'Fallo'}`,
-    date: o.dueDate || o.date
+  const allEvents = filteredEvents.map(e => ({
+    id: e.maquina_id || e.id_evento,
+    id_ref: e.id_ref || e.id_evento,
+    folio: e.ot_asociada || e.id_evento,
+    type: e.tipo_mantenimiento,
+    title: e.tipo_mantenimiento === 'CORRECTIVO' 
+      ? `${e.ot_asociada || e.id_evento}: ${e.descripcion || 'Fallo'}`
+      : `${e.tipo_mantenimiento}: ${e.maquina_id} - ${e.descripcion}`,
+    date: e.fecha,
+    estado: e.estatus,
+    origen: e.origen,
+    ot_asociada: e.ot_asociada,
+    proceso: e.proceso
   }));
-
-  const suggestionEvents = suggestions.map(s => ({
-    id: s.maquina_id,
-    id_ref: s.id_detalle,
-    type: s.tipo_mantenimiento,
-    title: `${s.tipo_mantenimiento}: ${s.maquina_id} - ${s.actividad_sugerida.replace('Servicio preventivo: ', '')}`,
-    date: s.fecha_programada
-  }));
-
-  const allEvents = [...correctiveEvents, ...suggestionEvents];
 
   // 6. Renderizar según la escala seleccionada
   if (currentCalendarScale === 'year') {
@@ -9026,7 +9447,7 @@ async function sendUserInvitationEmail(email, nombre, rol) {
         email: email,
         nombre: nombre,
         rol: rol,
-        redirectTo: 'https://tsmail-towell.netlify.app'
+        redirectTo: (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null') ? window.location.origin : 'https://towell-integraq.netlify.app'
       })
     });
 
@@ -9142,7 +9563,7 @@ async function saveAdminUser() {
     let targetUserEmail = isEmail ? id : correo;
     let shouldShowEmail = false;
 
-    if (supabaseClient) {
+    if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT !== 'DEMO' && useLiveDatabase && supabaseClient) {
       // 1. Si no tenemos UUID explícito en el formulario, verificar si el correo ya existe en cat_usuarios_roles
       if (!targetUserId) {
         try {
@@ -9463,7 +9884,7 @@ async function saveAdminMachine() {
     origen: 'App'
   };
 
-  if (supabaseClient) {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT !== 'DEMO' && useLiveDatabase && supabaseClient) {
     try {
       if (id) {
         const { error } = await supabaseClient
@@ -9645,7 +10066,7 @@ async function saveAdminPart() {
     activo: active
   };
 
-  if (supabaseClient) {
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT !== 'DEMO' && useLiveDatabase && supabaseClient) {
     try {
       if (id) {
         const { error } = await supabaseClient
@@ -11914,24 +12335,26 @@ async function finishWorkOnOT() {
   const otId = document.getElementById('tech-ot-id').value;
   const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const idx = orders.findIndex(o => o.id === otId);
+  if (idx === -1) return;
+
   if (orders[idx].status === 'En espera' || orders[idx].status === 'EN_ESPERA') {
     alert('⚠️ No se puede finalizar una Orden de Trabajo que se encuentra en espera. Debes reanudar y resolver la espera antes de concluir el trabajo.');
     return;
   }
-  if (idx === -1) return;
 
   const activity = document.getElementById('tech-activity')?.value.trim() || '';
-
   if (!activity) {
     alert('Por favor describe la actividad realizada antes de finalizar el trabajo.');
     return;
   }
 
   setButtonLoading('btn-tech-finish-work', true);
-
   const nowISO = new Date().toISOString();
-  orders[idx].fecha_hora_fin = nowISO;
-  orders[idx].status = 'Pendiente de validación';
+
+  // Preservar fecha técnica existente si ya la tenía
+  orders[idx].fecha_hora_fin = orders[idx].fecha_hora_fin || nowISO;
+  // Estado canónico de validación (PRD-OT001-R1 Regla 3)
+  orders[idx].status = 'Lista para validación';
 
   let durationMins = 0;
   if (orders[idx].fecha_hora_inicio) {
@@ -11942,35 +12365,65 @@ async function finishWorkOnOT() {
   if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
   orders[idx].historyLogs.push({
     date: nowISO,
-    status: 'Pendiente de validación',
+    status: 'Lista para validación',
     user: currentUser ? currentUser.name : 'Técnico',
-    comment: `Trabajo finalizado en ${durationMins} min. Pendiente de visto bueno por supervisor.`
+    comment: `Trabajo finalizado en ${durationMins} min. Listo para validación de entrega.`
   });
-
-  localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
 
   // Guardar log en Bitácora automáticamente
   await saveTechnicalLog();
 
-  if (supabaseClient) {
+  // --- MODO DEMO vs PRODUCCIÓN ---
+  if (APP_ENVIRONMENT === 'DEMO' || !useLiveDatabase) {
+    localStorage.setItem('TSMAI_DEMO_orders', JSON.stringify(orders));
+
+    const demoAudit = JSON.parse(localStorage.getItem('TSMAI_DEMO_auditoria_cierre_ot') || '[]');
+    demoAudit.push({
+      id: 'AUD-DEMO-' + Date.now() + '-FIN',
+      folio: otId,
+      accion: 'FINALIZACION_TECNICA',
+      estado_anterior: orders[idx].status || 'en_proceso',
+      estado_nuevo: 'lista_para_validacion',
+      usuario_nombre: currentUser ? currentUser.name : 'Técnico Demo',
+      rol_usuario: currentUser ? currentUser.rol : 'MANTENIMIENTO',
+      fecha_hora: nowISO,
+      codigo_motivo: 'TRABAJO_CONCLUIDO',
+      comentario: activity,
+      numero_ciclo: 1,
+      origen: 'DEMO'
+    });
+    localStorage.setItem('TSMAI_DEMO_auditoria_cierre_ot', JSON.stringify(demoAudit));
+  } else if (supabaseClient) {
     try {
-      await supabaseClient
-        .from('ordenes_trabajo')
-        .update({
-          estatus: 'PENDIENTE_VALIDACION',
-          fecha_hora_fin: nowISO,
-          tiempo_atencion_min: durationMins
-        })
-        .eq('folio', otId);
+      const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('finalizar_trabajo_tecnico', {
+        p_folio: otId,
+        p_actividad: activity,
+        p_diagnostico: document.getElementById('tech-diagnosis')?.value?.trim() || null,
+        p_observaciones: document.getElementById('tech-observations')?.value?.trim() || null,
+        p_refacciones: document.getElementById('tech-parts-used')?.value?.trim() || null
+      });
+
+      if (rpcErr) {
+        console.warn('[finishWorkOnOT] Warn RPC finalizar_trabajo_tecnico, aplicando update directo:', rpcErr.message);
+        await supabaseClient
+          .from('ordenes_trabajo')
+          .update({
+            estatus: 'lista_para_validacion',
+            fecha_hora_fin: orders[idx].fecha_hora_fin,
+            tiempo_atencion_min: durationMins
+          })
+          .eq('folio', otId);
+      }
     } catch (err) {
       console.error('Error finishing work in Supabase:', err);
-      showToast('No se pudo guardar el cierre de OT en el servidor. Verifica tu conexión.', 'error');
+      showToast('No se pudo guardar la finalización en el servidor. Verifica tu conexión.', 'error');
     }
+    localStorage.setItem(getAppStorageKey('orders'), JSON.stringify(orders));
   }
 
   setButtonLoading('btn-tech-finish-work', false);
   closeModal('modal-tech-ot-detail');
-  showToast('✅ Trabajo finalizado. La OT cambió a Pendiente de validación.', 'success');
+  showToast('✅ Trabajo finalizado. La OT cambió a Lista para validación.', 'success');
 
   renderTechOrdersTable();
   if (typeof syncDatabases === 'function') await syncDatabases();
@@ -14938,18 +15391,29 @@ async function submitRecoveryRequest2FA() {
     btn.innerHTML = '⏳ Verificando en base de datos...';
   }
 
-  // 1. REGLA ESTRICTA: Validar si el correo existe en la base de datos (cat_usuarios_roles)
+  // 1. REGLA ESTRICTA: Validar si el correo existe mediante RPC segura o catálogo
   let dbUser = null;
   if (supabaseClient) {
     try {
-      const { data, error } = await supabaseClient
-        .from('cat_usuarios_roles')
-        .select('id_usuario, nombre_completo, correo, rol, activo')
-        .ilike('correo', email)
-        .maybeSingle();
+      // 1.A Intentar vía RPC segura verificar_usuario_recuperacion (protección contra enumeración de usuarios y RLS)
+      const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('verificar_usuario_recuperacion', { p_email: email });
+      if (!rpcErr && rpcRes) {
+        if (rpcRes.valido) {
+          dbUser = { correo: email, nombre_completo: rpcRes.nombre, activo: true };
+        } else if (rpcRes.activo === false) {
+          dbUser = { correo: email, activo: false };
+        }
+      } else {
+        // 1.B Fallback directo si la RPC aún no está en caché de esquema
+        const { data, error } = await supabaseClient
+          .from('cat_usuarios_roles')
+          .select('id_usuario, nombre_completo, correo, rol, activo')
+          .ilike('correo', email)
+          .maybeSingle();
 
-      if (!error && data) {
-        dbUser = data;
+        if (!error && data) {
+          dbUser = data;
+        }
       }
     } catch (err) {
       console.warn('[Recovery] DB check query error:', err);
@@ -15302,7 +15766,7 @@ async function resetAdminUserPassword(userId) {
 
     // 2. Enviar correo real via Supabase Auth (resetPasswordForEmail)
     const { error: resetErr } = await supabaseClient.auth.resetPasswordForEmail(correoDestino, {
-      redirectTo: 'https://tsmail-towell.netlify.app'
+      redirectTo: (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null') ? window.location.origin : 'https://towell-integraq.netlify.app'
     });
 
     if (resetErr) {
@@ -15326,10 +15790,6 @@ async function resetAdminUserPassword(userId) {
 let currentCalendarTab = 'preventivo';
 let currentSelectedCalItem = null;
 let currentCalendarViewMode = 'grid'; // 'grid' o 'table'
-let currentCalendarYear = 2026;
-let currentCalendarMonth = 5; // Junio (0-indexed)
-let currentCalendarDayNum = 3; // 3 de Junio (default mock date)
-let currentCalendarScale = 'month'; // 'year', 'month', 'week', 'day'
 
 function switchCalendarViewMode(mode) {
   currentCalendarViewMode = mode;
@@ -16908,11 +17368,23 @@ async function renderAdminCalendars() {
         } else if (d.tipo_mantenimiento === 'AUTONOMO' && d.observaciones) {
           iaBtn = `<button class="btn-table-action" onclick="showAutonomousTrendDetails('${d.id_detalle}')" style="background:#0284c7; color:white; border:none; margin-right:4px;">📈 Tendencias / Recurrencias</button>`;
         }
+        let origDate = d.fecha_programada;
+        if (d.observaciones) {
+          try {
+            const obs = typeof d.observaciones === 'string' ? JSON.parse(d.observaciones) : d.observaciones;
+            if (obs && obs.fecha_original) origDate = obs.fecha_original;
+          } catch (e) {}
+        }
+        const isSuperAdmin = isCurrentUserSuperAdmin();
+        const rescheduleBtn = isSuperAdmin
+          ? `<button class="btn-table-action" onclick="openEditProposalDateModal('${d.id_detalle}', '${d.maquina_id}', '${d.actividad_sugerida}', '${d.fecha_programada}', '${origDate}')" style="background:#f59e0b; color:white; border:none; margin-right:4px; font-weight:600;">✏️ Reprogramar</button>`
+          : '';
+
         actions = `
           ${iaBtn}
           <button class="btn-table-action" onclick="approveProposalDetail('${d.id_detalle}')" style="background:#22c55e; color:white; border:none; margin-right:4px; font-weight:700;">🛠️ Generar OT</button>
           <button class="btn-table-action" onclick="openMachine360Report('${d.maquina_id}', '${d.id_orden_generada || ''}')" style="background:#0f172a; color:white; border:none; margin-right:4px;">🔍 Informe 360°</button>
-          <button class="btn-table-action" onclick="openEditProposalDateModal('${d.id_detalle}', '${d.maquina_id}', '${d.actividad_sugerida}', '${d.fecha_programada}')" style="margin-right:4px;">Reprogramar</button>
+          ${rescheduleBtn}
           <button class="btn-table-action" onclick="deleteProposalDetail('${d.id_detalle}')" style="background:#ef4444; color:white; border:none;">Eliminar</button>
         `;
       } else {
@@ -17004,12 +17476,70 @@ function switchCalendarTab(tab) {
   renderAdminCalendars();
 }
 
-// 5. Reprogramación de fecha individual
-function openEditProposalDateModal(detailId, machineId, serviceCode, currentDateStr) {
+// Helper: Comprobar si el usuario actual es Super Administrador
+function isCurrentUserSuperAdmin() {
+  const user = (typeof currentUser !== 'undefined' && currentUser)
+    ? currentUser
+    : (typeof appState !== 'undefined' && appState.currentUser ? appState.currentUser : null);
+
+  if (!user) return false;
+  const rawRol = String(user.rol || user.role || user.user_metadata?.rol || '').toUpperCase().trim();
+  return rawRol === 'SUPER_ADMINISTRADOR' || rawRol === 'SUPERADMIN' || rawRol === 'SUPER_ADMIN';
+}
+
+// Handler de cambio de motivo para mostrar/ocultar comentario obligatorio
+function onRescheduleMotivoChange() {
+  const motivoSelect = document.getElementById('edit-proposal-motivo');
+  const groupComentario = document.getElementById('group-edit-proposal-comentario');
+  const spanReq = document.getElementById('span-comentario-req');
+  const comentarioInput = document.getElementById('edit-proposal-comentario');
+  if (!motivoSelect || !groupComentario) return;
+
+  const val = motivoSelect.value;
+  if (val === 'OTRO') {
+    groupComentario.style.display = 'block';
+    if (spanReq) spanReq.style.display = 'inline';
+    if (comentarioInput) {
+      comentarioInput.required = true;
+      comentarioInput.placeholder = 'Comentario obligatorio: justificación operativa del cambio...';
+    }
+  } else if (val) {
+    groupComentario.style.display = 'block';
+    if (spanReq) spanReq.style.display = 'none';
+    if (comentarioInput) {
+      comentarioInput.required = false;
+      comentarioInput.placeholder = 'Comentario opcional sobre este cambio de fecha...';
+    }
+  } else {
+    groupComentario.style.display = 'none';
+    if (spanReq) spanReq.style.display = 'none';
+    if (comentarioInput) comentarioInput.required = false;
+  }
+}
+
+// 5. Reprogramación de fecha individual (PRD-CAL002-R1: Exclusivo SUPER_ADMINISTRADOR)
+function openEditProposalDateModal(detailId, machineId, serviceCode, currentDateStr, originalDateStr) {
+  if (!isCurrentUserSuperAdmin()) {
+    showToast('❌ Acceso denegado: Solo el SUPER_ADMINISTRADOR tiene autorización para reagendar maquinaria.', 'error');
+    return;
+  }
+
+  const orig = originalDateStr || currentDateStr;
   safeSetVal('edit-proposal-detail-id', detailId);
+  safeSetVal('edit-proposal-orig-date-raw', orig);
   safeSetContent('edit-proposal-machine', machineId);
   safeSetContent('edit-proposal-service', serviceCode);
+  safeSetContent('edit-proposal-orig-date-display', typeof formatCalendarDate === 'function' ? formatCalendarDate(orig) : orig);
+  safeSetContent('edit-proposal-curr-date-display', typeof formatCalendarDate === 'function' ? formatCalendarDate(currentDateStr) : currentDateStr);
   safeSetVal('edit-proposal-new-date', currentDateStr);
+  safeSetVal('edit-proposal-motivo', '');
+  safeSetVal('edit-proposal-comentario', '');
+
+  const groupComentario = document.getElementById('group-edit-proposal-comentario');
+  if (groupComentario) groupComentario.style.display = 'none';
+  const spanReq = document.getElementById('span-comentario-req');
+  if (spanReq) spanReq.style.display = 'none';
+
   openModal('modal-edit-proposal-date');
 }
 
@@ -17017,23 +17547,175 @@ async function handleSaveProposalDate(event) {
   event.preventDefault();
   const id = document.getElementById('edit-proposal-detail-id').value;
   const newDate = document.getElementById('edit-proposal-new-date').value;
+  const motivo = document.getElementById('edit-proposal-motivo')?.value;
+  const comentario = document.getElementById('edit-proposal-comentario')?.value?.trim();
+  const origDateRaw = document.getElementById('edit-proposal-orig-date-raw')?.value;
+
+  if (!id || !newDate) {
+    showToast('⚠️ Por favor ingresa una fecha válida.', 'warning');
+    return;
+  }
+
+  if (!motivo) {
+    showToast('⚠️ El motivo de reagendamiento es obligatorio (PRD-CAL002-R1 §23).', 'warning');
+    return;
+  }
+
+  if (motivo === 'OTRO' && (!comentario || comentario.trim() === '')) {
+    showToast('⚠️ Para el motivo "OTRO", el comentario explicativo es obligatorio (PRD-CAL002-R1 §24).', 'warning');
+    document.getElementById('edit-proposal-comentario')?.focus();
+    return;
+  }
+
+  // Validación de seguridad P0 en cliente antes de procesar
+  if (!isCurrentUserSuperAdmin()) {
+    closeModal('modal-edit-proposal-date');
+    showToast('❌ UNAUTHORIZED: Solo el rol SUPER_ADMINISTRADOR está autorizado para reagendar maquinaria.', 'error');
+    return;
+  }
 
   closeModal('modal-edit-proposal-date');
-  showToast('💾 Actualizando fecha programada...');
+  showToast('💾 Procesando reagendamiento seguro y trazable...');
 
   try {
-    const { error } = await supabaseClient
-      .from('calendario_mantenimiento_detalle')
-      .update({ fecha_programada: newDate, fecha_actualizacion: new Date().toISOString() })
-      .eq('id_detalle', id);
+    let rpcSucceeded = false;
 
-    if (error) throw error;
-    showToast('✅ Fecha reprogramada exitosamente.');
-    renderAdminCalendars();
-    renderAdminCalendar();
+    // 1. Intento primario: Invocar RPC atómica en backend (PRD-CAL002-R1 §25-39)
+    if (supabaseClient) {
+      try {
+        const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('reagendar_mantenimiento_maquinaria', {
+          p_id_detalle: id,
+          p_nueva_fecha: newDate,
+          p_codigo_motivo: motivo,
+          p_comentario: comentario || null
+        });
+
+        if (rpcErr) {
+          if (rpcErr.message && rpcErr.message.includes('UNAUTHORIZED')) {
+            throw new Error('UNAUTHORIZED: Solo el SUPER_ADMINISTRADOR tiene autorización en backend para reagendar maquinaria.');
+          }
+          if (rpcErr.message && rpcErr.message.includes('COMMENT_REQUIRED')) {
+            throw new Error('Se requiere un comentario explicativo para el motivo seleccionado.');
+          }
+          console.warn('[reagendar_mantenimiento_maquinaria] RPC fallback:', rpcErr);
+        } else if (rpcData && (rpcData.success || rpcData.status === 'REAGENDADO_EXITOSO')) {
+          rpcSucceeded = true;
+        } else if (rpcData && rpcData.status === 'NO_CHANGE') {
+          showToast('ℹ️ ' + (rpcData.mensaje || 'La fecha seleccionada es idéntica a la actual.'), 'info');
+          return;
+        }
+      } catch (e) {
+        if (e.message && e.message.includes('UNAUTHORIZED')) throw e;
+      }
+    }
+
+    // 2. Fallback estructurado cliente con las mismas reglas transaccionales
+    if (!rpcSucceeded && supabaseClient) {
+      const currentActorId = (typeof currentUser !== 'undefined' ? currentUser?.id_usuario || currentUser?.id : null) || '13def8ef-7fd3-42dd-9e25-8f39ca448734';
+
+      // Obtener detalle actual
+      const { data: curDet, error: detErr } = await supabaseClient
+        .from('calendario_mantenimiento_detalle')
+        .select('*')
+        .eq('id_detalle', id)
+        .single();
+
+      if (detErr || !curDet) throw new Error('No se encontró el detalle de calendario para reagendar.');
+
+      if (curDet.fecha_programada === newDate) {
+        showToast('ℹ️ La nueva fecha es idéntica a la fecha actualmente programada.', 'info');
+        return;
+      }
+
+      // Determinar fecha_original inmutable
+      let determinedOrig = origDateRaw || curDet.fecha_programada;
+      if (curDet.observaciones) {
+        try {
+          const obsObj = typeof curDet.observaciones === 'string' ? JSON.parse(curDet.observaciones) : curDet.observaciones;
+          if (obsObj && obsObj.fecha_original) determinedOrig = obsObj.fecha_original;
+        } catch (e) {}
+      }
+
+      // Calcular número de reagendamiento
+      let numReag = 1;
+      try {
+        const { count } = await supabaseClient
+          .from('historial_reagendamientos')
+          .select('*', { count: 'exact', head: true })
+          .eq('id_detalle', id);
+        if (typeof count === 'number') numReag = count + 1;
+      } catch (e) {}
+
+      // Resolver proceso
+      let procesoMaq = 'PF';
+      const { data: maqData } = await supabaseClient
+        .from('cat_maquinas')
+        .select('departamento_codigo, area')
+        .eq('equipo_towell', curDet.maquina_id)
+        .maybeSingle();
+      if (maqData) {
+        procesoMaq = maqData.departamento_codigo || maqData.area || 'PF';
+      }
+
+      // Preparar observaciones actualizadas
+      let newObs = {};
+      try {
+        newObs = typeof curDet.observaciones === 'string' ? JSON.parse(curDet.observaciones) : (curDet.observaciones || {});
+      } catch (e) {
+        newObs = {};
+      }
+      newObs.fecha_original = determinedOrig;
+      newObs.reagendado = true;
+      newObs.ultimo_reagendamiento = {
+        numero: numReag,
+        fecha_anterior: curDet.fecha_programada,
+        fecha_nueva: newDate,
+        codigo_motivo: motivo,
+        comentario: comentario || null,
+        timestamp: new Date().toISOString()
+      };
+
+      // Actualizar detalle
+      const { error: updErr } = await supabaseClient
+        .from('calendario_mantenimiento_detalle')
+        .update({
+          fecha_programada: newDate,
+          fecha_actualizacion: new Date().toISOString(),
+          observaciones: newObs
+        })
+        .eq('id_detalle', id);
+
+      if (updErr) throw updErr;
+
+      // Intentar insertar en historial_reagendamientos
+      try {
+        await supabaseClient.from('historial_reagendamientos').insert([{
+          id_detalle: id,
+          id_calendario: curDet.id_calendario,
+          maquina_id: curDet.maquina_id,
+          proceso: procesoMaq,
+          tipo_mantenimiento: curDet.tipo_mantenimiento,
+          fecha_original: determinedOrig,
+          fecha_anterior: curDet.fecha_programada,
+          fecha_nueva: newDate,
+          codigo_motivo: motivo,
+          comentario: comentario || null,
+          usuario_id: currentActorId,
+          numero_reagendamiento: numReag,
+          correlation_id: 'REAG-' + Date.now()
+        }]);
+      } catch (e) {
+        console.warn('[historial_reagendamientos insert fallback warning]:', e);
+      }
+    }
+
+    showToast(`✅ Fecha reagendada exitosamente a ${typeof formatCalendarDate === 'function' ? formatCalendarDate(newDate) : newDate}.`);
+    if (typeof renderAdminCalendars === 'function') renderAdminCalendars();
+    if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
+
   } catch (err) {
-    console.error(err);
-    showToast('❌ Error al actualizar fecha: ' + err.message, 'error');
+    console.error('[handleSaveProposalDate] Error:', err);
+    showToast('❌ Error al reagendar: ' + err.message, 'error');
   }
 }
 
@@ -18078,7 +18760,7 @@ async function renderSolicitanteHomeUpcomingCalendar() {
 }
 
 let solicCalendarViewMode = 'grid'; // 'grid' | 'table'
-let solicCalendarScale = 'month'; // 'year' | 'month' | 'week'
+let solicCalendarScale = 'week'; // PRD-CAL001-R1: 'week' por defecto (Semana Actual)
 let solicCalendarYear = new Date().getFullYear();
 let solicCalendarMonth = new Date().getMonth();
 let solicCalendarDayNum = new Date().getDate();
@@ -18217,7 +18899,22 @@ async function renderSolicitanteCalendar() {
   const subtitleEl = document.getElementById('solic-calendar-subtitle');
   if (!currentUser) return;
 
-  const userArea = (currentUser.area || currentUser.departamento || 'AF').toUpperCase().trim();
+  // PRD-CAL001-R1: Obtener proceso autorizado del usuario
+  let userProc = 'AF';
+  if (currentUser.procesos_autorizados && Array.isArray(currentUser.procesos_autorizados) && currentUser.procesos_autorizados.length > 0) {
+    userProc = currentUser.procesos_autorizados[0];
+  } else if (currentUser.area && ['PF', 'CF', 'TF', 'AF'].includes(currentUser.area.toUpperCase().trim())) {
+    userProc = currentUser.area.toUpperCase().trim();
+  } else if (currentUser.departamento_codigo && ['PF', 'CF', 'TF', 'AF'].includes(currentUser.departamento_codigo.toUpperCase().trim())) {
+    userProc = currentUser.departamento_codigo.toUpperCase().trim();
+  } else {
+    const email = (currentUser.email || currentUser.correo || '').toLowerCase().trim();
+    if (email.includes('ehernandez')) userProc = 'PF';
+    else if (email.includes('mportillo')) userProc = 'TF';
+    else if (email.includes('gmotte')) userProc = 'CF';
+    else if (email.includes('jcruz')) userProc = 'AF';
+  }
+
   const areaNames = {
     PF: 'PF — Tejido / Urdido (Planta Fabricación)',
     CF: 'CF — Costura / Confección',
@@ -18225,8 +18922,8 @@ async function renderSolicitanteCalendar() {
     AF: 'AF — Servicios Auxiliares / PT'
   };
 
-  if (areaBadgeEl) areaBadgeEl.innerText = `ÁREA: ${userArea}`;
-  if (subtitleEl) subtitleEl.innerText = `Programación de maquinaria y actividades de mantenimiento de tu Área: ${areaNames[userArea] || userArea} (Solo lectura).`;
+  if (areaBadgeEl) areaBadgeEl.innerText = `PROCESO: ${userProc}`;
+  if (subtitleEl) subtitleEl.innerText = `Programación de maquinaria y actividades de mantenimiento de tu Proceso: ${areaNames[userProc] || userProc} (Solo lectura).`;
 
   const monthsNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
@@ -18255,43 +18952,14 @@ async function renderSolicitanteCalendar() {
   const showPredictivos = document.getElementById('filter-solic-cal-predictivo')?.checked !== false;
   const showAutonomos = document.getElementById('filter-solic-cal-autonomo')?.checked !== false;
 
-  // 3. Obtener correctivos locales del área
-  let localOrders = [];
-  if (showCorrectivos) {
-    const allLocalOrders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-    localOrders = allLocalOrders.filter(o => {
-      if (o.type === 'MP' || o.type === 'PREVENTIVO' || o.type === 'PREDICTIVO' || o.type === 'AUTONOMO') return false;
-      const orderArea = getAreaCodeForOrder(o);
-      return orderArea === userArea;
-    });
-  }
+  // 3. Cargar eventos unificados del proceso autorizado
+  const allEventsForProc = await loadUnifiedCalendarByProcess(userProc, null, null, 'ALL');
 
-  // 4. Obtener propuestas reales o de DEMO filtradas estrictamente por Área
-  let allDetails = await fetchCalendarDetailsFromDb();
-
-  // Filtro canónico por Área del Solicitante
-  const areaDetails = allDetails.filter(item => {
-    const machId = item.maquina_id || '';
-    let itemArea = null;
-    if (item.observaciones) {
-      try {
-        const obs = typeof item.observaciones === 'object' ? item.observaciones : JSON.parse(item.observaciones);
-        if (obs.area) itemArea = String(obs.area).toUpperCase().trim();
-      } catch (e) {}
-    }
-    if (!itemArea || itemArea === 'NONE' || itemArea === 'UNKNOWN') {
-      itemArea = typeof resolveAreaFromMachineCode === 'function'
-        ? resolveAreaFromMachineCode(machId, item.actividad_sugerida || '')
-        : 'PF';
-    }
-    return itemArea === userArea;
-  });
-
-  // Actualizar KPIs de Área
-  const prevCount = areaDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREVENTIVO').length;
-  const predCount = areaDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREDICTIVO').length;
-  const autoCount = areaDetails.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'AUTONOMO').length;
-  const totalCount = areaDetails.length;
+  // Actualizar KPIs de Proceso
+  const prevCount = allEventsForProc.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREVENTIVO').length;
+  const predCount = allEventsForProc.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREDICTIVO').length;
+  const autoCount = allEventsForProc.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'AUTONOMO').length;
+  const totalCount = allEventsForProc.length;
 
   const statPrev = document.getElementById('solic-cal-stat-prev');
   const statPred = document.getElementById('solic-cal-stat-pred');
@@ -18304,31 +18972,29 @@ async function renderSolicitanteCalendar() {
   if (statTotal) statTotal.innerText = totalCount;
 
   // Filtrar sugerencias según checkboxes
-  const suggestions = areaDetails.filter(item => {
+  const filteredEvents = allEventsForProc.filter(item => {
     const t = (item.tipo_mantenimiento || '').toUpperCase();
+    if (t === 'CORRECTIVO' && !showCorrectivos) return false;
     if (t === 'PREVENTIVO' && !showPreventivos) return false;
     if (t === 'PREDICTIVO' && !showPredictivos) return false;
     if (t === 'AUTONOMO' && !showAutonomos) return false;
     return true;
   });
 
-  // Eventos combinados del área
-  const correctiveEvents = localOrders.map(o => ({
-    id: o.id,
-    type: 'CORRECTIVO',
-    title: `${o.id}: ${o.description || 'Fallo'}`,
-    date: o.dueDate || o.date
+  const allEvents = filteredEvents.map(e => ({
+    id: e.maquina_id || e.id_evento,
+    id_ref: e.id_ref || e.id_evento,
+    folio: e.ot_asociada || e.id_evento,
+    type: e.tipo_mantenimiento,
+    title: e.tipo_mantenimiento === 'CORRECTIVO'
+      ? `${e.ot_asociada || e.id_evento}: ${e.descripcion || 'Fallo'}`
+      : `${e.tipo_mantenimiento}: ${e.maquina_id} - ${e.descripcion}`,
+    date: e.fecha,
+    estado: e.estatus,
+    origen: e.origen,
+    ot_asociada: e.ot_asociada,
+    proceso: e.proceso
   }));
-
-  const suggestionEvents = suggestions.map(s => ({
-    id: s.maquina_id,
-    id_ref: s.id_detalle,
-    type: s.tipo_mantenimiento,
-    title: `${s.tipo_mantenimiento}: ${s.maquina_id} - ${(s.actividad_sugerida || '').replace('Servicio preventivo: ', '')}`,
-    date: s.fecha_programada
-  }));
-
-  const allEvents = [...correctiveEvents, ...suggestionEvents];
 
   // -------------------------------------------------------------
   // RENDERIZADO MODO GRID (Año, Mes, Semana)
@@ -18501,7 +19167,7 @@ async function renderSolicitanteCalendar() {
   }
 
   // -------------------------------------------------------------
-  // RENDERIZADO MODO TABLA (Lista de Propuestas de su Área)
+  // RENDERIZADO MODO TABLA (Lista de Propuestas y Actividades de su Proceso)
   // -------------------------------------------------------------
   if (tbody) {
     const filterTableType = document.getElementById('filter-solic-table-type')?.value || 'ALL';
@@ -18510,35 +19176,36 @@ async function renderSolicitanteCalendar() {
     const search = (document.getElementById('solic-cal-filter-search')?.value || '').toLowerCase().trim();
     const sortOrder = document.getElementById('solic-cal-sort-order')?.value || 'ASC';
 
-    let filtered = areaDetails.filter(item => {
+    let filtered = allEventsForProc.filter(item => {
       if (filterTableType !== 'ALL') {
         const t = (item.tipo_mantenimiento || '').toUpperCase();
         if (filterTableType === 'PREVENTIVO' && t !== 'PREVENTIVO') return false;
         if (filterTableType === 'PREDICTIVO' && t !== 'PREDICTIVO') return false;
         if (filterTableType === 'AUTONOMO' && t !== 'AUTONOMO') return false;
+        if (filterTableType === 'CORRECTIVO' && t !== 'CORRECTIVO') return false;
       }
-      const itemDate = (item.fecha_programada || '').split('T')[0];
+      const itemDate = (item.fecha || item.fecha_programada || '').split('T')[0];
       if (fromDate && itemDate && itemDate < fromDate) return false;
       if (toDate && itemDate && itemDate > toDate) return false;
       if (search) {
-        const text = `${item.maquina_id || ''} ${item.actividad_sugerida || ''} ${item.responsable_sugerido || ''} ${item.prioridad || ''}`.toLowerCase();
+        const text = `${item.maquina_id || ''} ${item.actividad || item.actividad_sugerida || ''} ${item.responsable || item.responsable_sugerido || ''} ${item.prioridad || ''}`.toLowerCase();
         if (!text.includes(search)) return false;
       }
       return true;
     });
 
     filtered.sort((a, b) => {
-      const dateA = a.fecha_programada || '';
-      const dateB = b.fecha_programada || '';
+      const dateA = a.fecha || a.fecha_programada || '';
+      const dateB = b.fecha || b.fecha_programada || '';
       return sortOrder === 'DESC' ? dateB.localeCompare(dateA) : dateA.localeCompare(dateB);
     });
 
     if (counterEl) {
-      counterEl.innerText = `Mostrando ${filtered.length} de ${totalCount} actividades programadas para el Área ${userArea}`;
+      counterEl.innerText = `Mostrando ${filtered.length} de ${totalCount} actividades programadas para el Proceso ${userProc}`;
     }
 
     if (filtered.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b;">No hay actividades de mantenimiento que coincidan con los filtros para tu Área (${userArea}).</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b;">No hay actividades de mantenimiento que coincidan con los filtros para tu Proceso (${userProc}).</td></tr>`;
       return;
     }
 
@@ -18547,6 +19214,7 @@ async function renderSolicitanteCalendar() {
       if (clean === 'PREVENTIVO') return `<span class="badge" style="background:#0284c7; color:white; font-weight:700; font-size:0.75rem;">🛠️ PREVENTIVO</span>`;
       if (clean === 'PREDICTIVO') return `<span class="badge" style="background:#7c3aed; color:white; font-weight:700; font-size:0.75rem;">🔮 PREDICTIVO</span>`;
       if (clean === 'AUTONOMO') return `<span class="badge" style="background:#059669; color:white; font-weight:700; font-size:0.75rem;">🤖 AUTÓNOMO</span>`;
+      if (clean === 'CORRECTIVO') return `<span class="badge" style="background:var(--color-critical); color:white; font-weight:700; font-size:0.75rem;">🚨 CORRECTIVO</span>`;
       return `<span class="badge badge-priority-media">${clean}</span>`;
     };
 
@@ -18559,26 +19227,27 @@ async function renderSolicitanteCalendar() {
     };
 
     const statusBadge = (s) => {
-      const clean = (s || 'PROPUESTO').toUpperCase();
+      const clean = (s || 'PROGRAMADO').toUpperCase();
       if (clean === 'APROBADO' || clean === 'APROBADA') return `<span class="badge" style="background:#10b981; color:white; font-weight:600;">Aprobado</span>`;
       if (clean === 'PROGRAMADO' || clean === 'PROGRAMADA') return `<span class="badge" style="background:#3b82f6; color:white; font-weight:600;">Programado</span>`;
-      if (clean === 'EN EJECUCIÓN' || clean === 'EN PROCESO') return `<span class="badge" style="background:#f59e0b; color:white; font-weight:600;">En Proceso</span>`;
-      if (clean === 'TERMINADA' || clean === 'CERRADA') return `<span class="badge" style="background:#64748b; color:white; font-weight:600;">Cerrada</span>`;
-      return `<span class="badge" style="background:#e0e7ff; color:#3730a3; font-weight:600;">Propuesto</span>`;
+      if (clean === 'EN EJECUCIÓN' || clean === 'EN PROCESO' || clean === 'EN_PROCESO') return `<span class="badge" style="background:#f59e0b; color:white; font-weight:600;">En Proceso</span>`;
+      if (clean === 'TERMINADA' || clean === 'CERRADA' || clean === 'CONCLUIDA') return `<span class="badge" style="background:#64748b; color:white; font-weight:600;">Cerrada</span>`;
+      return `<span class="badge" style="background:#e0e7ff; color:#3730a3; font-weight:600;">${clean}</span>`;
     };
 
     tbody.innerHTML = filtered.map(item => {
-      const dateDisplay = typeof formatCalendarDate === 'function' ? formatCalendarDate(item.fecha_programada) : (item.fecha_programada || '').split('T')[0];
-      const machDisplay = `<strong style="color:#0f172a; cursor:pointer;" onclick="viewCalendarDetail('${item.id_detalle}')" title="Ver detalle">${item.maquina_id}</strong>`;
+      const dateVal = item.fecha || item.fecha_programada;
+      const dateDisplay = typeof formatCalendarDate === 'function' ? formatCalendarDate(dateVal) : (dateVal || '').split('T')[0];
+      const machDisplay = `<strong style="color:#0f172a; cursor:pointer;" onclick="viewCalendarDetail('${item.id_ref || item.id_detalle}')" title="Ver detalle">${item.maquina_id}</strong>`;
       
       return `<tr>
         <td>${machDisplay}</td>
         <td>${typeBadge(item.tipo_mantenimiento)}</td>
-        <td><div style="font-weight:500; color:#334155; max-width:380px;">${item.actividad_sugerida || 'Mantenimiento General'}</div></td>
+        <td><div style="font-weight:500; color:#334155; max-width:380px;">${item.actividad || item.actividad_sugerida || 'Mantenimiento General'}</div></td>
         <td><div style="font-weight:600; color:#1e293b; white-space:nowrap;">📅 ${dateDisplay}</div></td>
         <td>${prioBadge(item.prioridad)}</td>
-        <td><span style="font-size:0.85rem; color:#475569;">👤 ${item.responsable_sugerido || 'Operador / Técnico'}</span></td>
-        <td>${statusBadge(item.estatus_detalle)}</td>
+        <td><span style="font-size:0.85rem; color:#475569;">👤 ${item.responsable || item.responsable_sugerido || 'Operador / Técnico'}</span></td>
+        <td>${statusBadge(item.estatus || item.estatus_detalle)}</td>
       </tr>`;
     }).join('');
   }
@@ -18602,25 +19271,111 @@ function switchSolicitanteValTab(tab) {
   }
 }
 
+// ==========================================================================
+// PRD-OT001-R1: MÓDULO DE CIERRE, VALIDACIÓN, CALIFICACIÓN Y AUDITORÍA
+// ==========================================================================
+
+function setStarRating(val) {
+  const hiddenInput = document.getElementById('solic-accept-stars');
+  if (hiddenInput) hiddenInput.value = val;
+
+  const stars = document.querySelectorAll('#star-rating-container .star-rating-item');
+  stars.forEach(s => {
+    const sVal = parseInt(s.getAttribute('data-val') || '1');
+    s.style.color = (sVal <= val) ? '#eab308' : '#cbd5e1';
+  });
+
+  const texts = {
+    1: '1 / 5 — Muy deficiente / No conforme con el servicio recibido',
+    2: '2 / 5 — Deficiente / Persisten detalles o inconformidades menores',
+    3: '3 / 5 — Aceptable / Servicio recibido conforme a requerimiento',
+    4: '4 / 5 — Bueno / Trabajo satisfactorio y funcional',
+    5: '5 / 5 — Excelente trabajo y pronta resolución'
+  };
+  const labelEl = document.getElementById('star-rating-label');
+  if (labelEl) {
+    labelEl.innerText = texts[val] || `${val} / 5`;
+    labelEl.style.color = val >= 3 ? '#059669' : '#dc2626';
+  }
+}
+
+function hoverStarRating(val) {
+  const stars = document.querySelectorAll('#star-rating-container .star-rating-item');
+  stars.forEach(s => {
+    const sVal = parseInt(s.getAttribute('data-val') || '1');
+    s.style.color = (sVal <= val) ? '#f59e0b' : '#cbd5e1';
+  });
+}
+
+function resetStarRating() {
+  const hiddenInput = document.getElementById('solic-accept-stars');
+  const currentVal = parseInt(hiddenInput?.value || '5');
+  setStarRating(currentVal);
+}
+
+function onSubstituteReasonChange(val) {
+  const commentsLbl = document.getElementById('lbl-solic-accept-comments');
+  const commentsInput = document.getElementById('solic-accept-comments');
+  if (val === 'OTRO') {
+    if (commentsLbl) commentsLbl.innerHTML = 'Comentarios sobre el Cierre * <span style="color:#dc2626; font-weight:700;">(Obligatorio para motivo OTRO)</span>:';
+    if (commentsInput) commentsInput.required = true;
+  } else {
+    if (commentsLbl) commentsLbl.innerHTML = 'Comentarios u Observaciones de Cierre (Opcional):';
+    if (commentsInput) commentsInput.required = false;
+  }
+}
+
+function isStrictOriginalApplicant(order, user) {
+  if (!order || !user) return false;
+  const uid = String(user.id || user.uuid || '').trim().toLowerCase();
+  const uemail = String(user.email || '').trim().toLowerCase();
+  const uname = String(user.name || user.nombre_completo || '').trim().toLowerCase();
+  const uemp = String(user.cve_empleado || '').trim().toLowerCase();
+
+  const oUid = String(order.solicitante_id || order.applicant_id || order.id_solicitante || '').trim().toLowerCase();
+  const oEmail = String(order.solicitante_correo || order.applicant_email || order.correo || '').trim().toLowerCase();
+  const oName = String(order.solicitante || order.solicitante_nombre || order.solicitante_nom || '').trim().toLowerCase();
+  const oEmp = String(order.cve_empleado || order.solicitante_clave || '').trim().toLowerCase();
+
+  if (uid && oUid && uid === oUid) return true;
+  if (uemail && oEmail && uemail === oEmail) return true;
+  if (uemp && oEmp && uemp === oEmp) return true;
+  if (uname && oName && uname === oName) return true;
+  return false;
+}
+
 async function renderSolicitanteValidations() {
   const tbodyPending = document.getElementById('tbody-solic-pending-val');
   const tbodyHistory = document.getElementById('tbody-solic-history-val');
   const badgePending = document.getElementById('badge-solic-pending-val');
   if (!currentUser) return;
 
-  const currentUserId = String(currentUser.id || currentUser.uuid || '');
-  const currentUserEmail = String(currentUser.email || '').toLowerCase();
-  const currentUserName = String(currentUser.name || currentUser.nombre_completo || '').toLowerCase();
-
-  const isUserMatch = (item) => isRequesterUserMatch(item, currentUser);
+  const userRole = String(currentUser.rol || currentUser.role || '').toUpperCase();
+  const isSuperAdmin = (userRole === 'SUPER_ADMINISTRADOR' || userRole === 'SUPERADMIN');
+  const isAdminOrJefe = (isSuperAdmin || userRole === 'ADMINISTRADOR' || userRole === 'JEFE_MANTENIMIENTO' || userRole === 'SUPERVISOR');
 
   const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
 
-  // PRD 11.1: Mostrar únicamente órdenes PENDIENTE DE VALIDACIÓN vinculadas a solicitudes generadas por ese usuario
-  const pendingOrders = orders.filter(o => 
-    isUserMatch(o) && 
-    (o.status === 'PENDIENTE DE VALIDACIÓN' || o.status === 'Lista para validación' || o.status === 'En validación' || o.status === 'Ejecutada')
-  );
+  const isPendingVal = (st) => {
+    if (!st) return false;
+    const s = String(st).toLowerCase().trim();
+    return s === 'lista_para_validacion' || 
+           s === 'lista para validación' || 
+           s === 'lista para validacion' || 
+           s === 'pendiente de validación' || 
+           s === 'pendiente de validacion' || 
+           s === 'pendiente_validacion' || 
+           s === 'ejecutada' || 
+           s === 'en validación' || 
+           s === 'en validacion';
+  };
+
+  // PRD Regla 3 y 4: Solicitante ve sus órdenes; Jefes / Super Admin ven órdenes para cierre sustituto
+  const pendingOrders = orders.filter(o => {
+    if (!isPendingVal(o.status)) return false;
+    if (isAdminOrJefe) return true;
+    return isRequesterUserMatch(o, currentUser);
+  });
 
   if (badgePending) {
     if (pendingOrders.length > 0) {
@@ -18633,54 +19388,75 @@ async function renderSolicitanteValidations() {
 
   if (tbodyPending) {
     if (pendingOrders.length === 0) {
-      tbodyPending.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No tienes órdenes pendientes de validación asociadas a tus solicitudes.</td></tr>';
+      tbodyPending.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No hay órdenes pendientes de validación en este momento.</td></tr>';
     } else {
-      tbodyPending.innerHTML = pendingOrders.map(o => `<tr>
-        <td><strong>${o.id}</strong></td>
-        <td>${o.machine || o.location || 'Equipo'}</td>
-        <td>${o.assignedTech || 'Técnico Asignado'}</td>
-        <td>${(o.description || 'Intervención finalizada').slice(0, 60)}...</td>
-        <td>${fmtDate(o.dueDate || o.date || new Date())}</td>
-        <td>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="btn-action-secondary" style="padding:4px 10px; font-size:0.8rem;" onclick="openSolicitanteValidationDetail('${o.id}')">🔍 Ver Detalle</button>
-            <button class="btn-tech-status btn-tech-start" style="padding:4px 10px; font-size:0.8rem;" onclick="openAcceptWorkModal('${o.id}')">✅ ACEPTAR TRABAJO</button>
-            <button class="btn-tech-status btn-tech-subtask" style="padding:4px 10px; font-size:0.8rem; background:#ef4444; border-color:#ef4444;" onclick="openCorrectionModal('${o.id}')">⚠️ SOLICITAR CORRECCIÓN</button>
-          </div>
-        </td>
-      </tr>`).join('');
+      tbodyPending.innerHTML = pendingOrders.map(o => {
+        const isOriginal = isStrictOriginalApplicant(o, currentUser);
+        const substituteBadge = !isOriginal ? '<span class="badge" style="background:#fef3c7; color:#92400e; font-size:0.75rem; margin-left:4px;" title="Cierre sustituto requerido">Sustituto</span>' : '';
+        return `<tr>
+          <td><strong>${o.id}</strong>${substituteBadge}</td>
+          <td>${o.machine || o.location || 'Equipo'}</td>
+          <td>${o.assignedTech || 'Técnico Asignado'}</td>
+          <td>${(o.description || 'Intervención finalizada').slice(0, 60)}...</td>
+          <td>${fmtDate(o.dueDate || o.date || new Date())}</td>
+          <td>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn-action-secondary" style="padding:4px 10px; font-size:0.8rem;" onclick="openSolicitanteValidationDetail('${o.id}')">🔍 Ver Detalle</button>
+              <button class="btn-tech-status btn-tech-start" style="padding:4px 10px; font-size:0.8rem;" onclick="openAcceptWorkModal('${o.id}')">✅ ACEPTAR TRABAJO</button>
+              <button class="btn-tech-status btn-tech-subtask" style="padding:4px 10px; font-size:0.8rem; background:#ef4444; border-color:#ef4444;" onclick="openCorrectionModal('${o.id}')">⚠️ EL PROBLEMA CONTINÚA</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
     }
   }
 
-  // Cargar Historial de Validaciones del Usuario
+  // Cargar Historial de Validaciones
   if (tbodyHistory) {
-    const validations = JSON.parse(localStorage.getItem('TSMAI_validations_history') || '[]');
-    const myValidations = validations.filter(isUserMatch);
-
-    if (myValidations.length === 0) {
-      tbodyHistory.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No hay validaciones registradas por tu usuario aún.</td></tr>';
+    let validations = [];
+    if (APP_ENVIRONMENT === 'DEMO') {
+      const demoAudits = JSON.parse(localStorage.getItem('TSMAI_DEMO_auditoria_cierre_ot') || '[]');
+      validations = demoAudits.filter(a => a.accion.startsWith('CIERRE_') || a.accion === 'VALIDACION_RECHAZADA');
     } else {
-      tbodyHistory.innerHTML = myValidations.map(v => `<tr>
-        <td><strong>${v.orderId}</strong></td>
-        <td>${fmtDate(v.date)}</td>
-        <td>${v.userName || v.userId}</td>
-        <td>${v.action === 'APPROVED' ? '<span class="badge badge-priority-baja">ACEPTADA Y CERRADA</span>' : '<span class="badge badge-priority-alta">REQUIERE CORRECCIÓN</span>'}</td>
-        <td>${v.rating ? '⭐'.repeat(v.rating) + ' (' + v.rating + '/5)' : '—'}</td>
-        <td>${v.comments || v.reason || 'Sin comentarios'}</td>
-      </tr>`).join('');
+      validations = JSON.parse(localStorage.getItem('TSMAI_validations_history') || '[]');
+    }
+
+    const filteredHistory = isAdminOrJefe ? validations : validations.filter(v => isRequesterUserMatch(v, currentUser));
+
+    if (filteredHistory.length === 0) {
+      tbodyHistory.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No hay validaciones registradas en el historial.</td></tr>';
+    } else {
+      tbodyHistory.innerHTML = filteredHistory.map(v => {
+        const isApproved = v.accion ? v.accion.startsWith('CIERRE_') : (v.action === 'APPROVED');
+        const ratingVal = v.calificacion || v.rating;
+        const ratingDisplay = ratingVal ? '⭐'.repeat(ratingVal) + ` (${ratingVal}/5)` : '—';
+        const actorName = v.usuario_nombre || v.userName || v.userId || 'Usuario';
+        const actionBadge = isApproved 
+          ? '<span class="badge badge-priority-baja">ACEPTADA Y CERRADA</span>' 
+          : '<span class="badge badge-priority-alta">RECHAZADA / EN REVISIÓN</span>';
+        return `<tr>
+          <td><strong>${v.folio || v.orderId}</strong></td>
+          <td>${fmtDate(v.fecha_hora || v.date)}</td>
+          <td>${actorName} <small style="color:#64748b;">(${v.rol_usuario || 'SOLICITANTE'})</small></td>
+          <td>${actionBadge}</td>
+          <td>${ratingDisplay}</td>
+          <td>${v.comentario || v.comments || v.motivo || 'Sin observaciones'}</td>
+        </tr>`;
+      }).join('');
     }
   }
 }
 
 let activeValidationOrderId = null;
 
-function openSolicitanteValidationDetail(orderId) {
+async function openSolicitanteValidationDetail(orderId) {
   const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const order = orders.find(o => o.id === orderId);
   if (!order) return;
 
   activeValidationOrderId = orderId;
 
+  // General details
   document.getElementById('solic-detail-modal-title').innerText = `🔍 Detalle de Trabajo Realizado — OT: ${order.id}`;
   document.getElementById('solic-detail-req-id').innerText = order.reqId || order.id;
   document.getElementById('solic-detail-req-date').innerText = fmtDate(order.date);
@@ -18689,14 +19465,135 @@ function openSolicitanteValidationDetail(orderId) {
 
   document.getElementById('solic-detail-ot-id').innerText = order.id;
   document.getElementById('solic-detail-ot-tech').innerText = order.assignedTech || 'Técnico Principal';
-  document.getElementById('solic-detail-ot-dates').innerText = `${fmtDate(order.date)} — ${fmtDate(order.dueDate || new Date())}`;
-  document.getElementById('solic-detail-ot-duration').innerText = '1 hr 45 min';
+  document.getElementById('solic-detail-ot-dates').innerText = `${fmtDate(order.date)} — ${fmtDate(order.dueDate || order.fecha_fin || new Date())}`;
+  document.getElementById('solic-detail-ot-duration').innerText = order.tiempo_atencion_min ? `${order.tiempo_atencion_min} min` : 'Finalizado';
 
-  document.getElementById('solic-detail-ot-diag').innerText = order.diagnosis || 'Revisión y solución de anomalías operativas.';
-  document.getElementById('solic-detail-ot-act').innerText = order.activity || 'Ajuste de componentes y pruebas de funcionamiento.';
-  document.getElementById('solic-detail-ot-obs').innerText = order.observations || 'Sin observaciones.';
+  document.getElementById('solic-detail-ot-diag').innerText = order.diagnosis || 'Revisión técnica ejecutada conforme a especificación.';
+  document.getElementById('solic-detail-ot-act').innerText = order.activity || order.observacion_cierre || 'Ajuste de componentes y pruebas operativas concluidas.';
+  document.getElementById('solic-detail-ot-obs').innerText = order.observations || 'Sin observaciones adicionales.';
   document.getElementById('solic-detail-ot-parts').innerText = order.partsUsed || 'Ninguna refacción requerida.';
 
+  // Evidencias Fotográficas con Signed URLs (900s) - PRD-EVI001-R1
+  const badgeTotal = document.getElementById('solic-detail-evidence-total-badge');
+  const countBeforeEl = document.getElementById('solic-count-before');
+  const countAfterEl = document.getElementById('solic-count-after');
+  const beforeContainer = document.getElementById('solic-detail-evidences-before');
+  const afterContainer = document.getElementById('solic-detail-evidences-after');
+  const otherSection = document.getElementById('solic-detail-other-evidences-container');
+  const otherContainer = document.getElementById('solic-detail-evidences-other');
+
+  if (beforeContainer && afterContainer) {
+    beforeContainer.innerHTML = '<span style="font-size:0.8rem; color:#64748b; grid-column:1/-1; text-align:center; padding:15px;">⏳ Obteniendo evidencias...</span>';
+    afterContainer.innerHTML = '<span style="font-size:0.8rem; color:#64748b; grid-column:1/-1; text-align:center; padding:15px;">⏳ Obteniendo evidencias...</span>';
+
+    try {
+      const evResult = await loadOTEvidences(orderId);
+      if (badgeTotal) badgeTotal.innerText = `${evResult.totalCount} ${evResult.totalCount === 1 ? 'Evidencia' : 'Evidencias'}`;
+      if (countBeforeEl) countBeforeEl.innerText = evResult.before.length;
+      if (countAfterEl) countAfterEl.innerText = evResult.after.length;
+
+      // Render ANTES
+      if (evResult.before.length === 0) {
+        beforeContainer.innerHTML = '<span style="font-size: 0.8rem; color: #94a3b8; grid-column: 1/-1; text-align: center; padding: 18px;">ℹ️ Sin evidencia ANTES registrada</span>';
+      } else {
+        beforeContainer.innerHTML = evResult.before.map((ev, idx) => {
+          const imgUrl = ev.url || ev.url_archivo || '';
+          const safeDesc = (ev.descripcion || ev.comentario || 'Evidencia inicial').replace(/'/g, "\\'");
+          const safeTech = (ev.nombre_tecnico || order.assignedTech || 'Técnico').replace(/'/g, "\\'");
+          const timeStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleString('es-MX');
+          return `
+            <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #fff; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <img src="${imgUrl}" alt="Antes ${idx + 1}" style="width: 100%; height: 90px; object-fit: cover; cursor: pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: 'ANTES', ot: '${orderId}', machine: '${ev.maquina_id || order.machine || ''}', tech: '${safeTech}', time: '${timeStr}', desc: '${safeDesc}' })">
+              <div style="padding: 4px; font-size: 0.72rem; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${ev.descripcion || ev.comentario || ''}">
+                ${ev.descripcion || ev.comentario || `Antes #${idx + 1}`}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Render DESPUÉS
+      if (evResult.after.length === 0) {
+        afterContainer.innerHTML = '<span style="font-size: 0.8rem; color: #94a3b8; grid-column: 1/-1; text-align: center; padding: 18px;">ℹ️ Sin evidencia DESPUÉS registrada</span>';
+      } else {
+        afterContainer.innerHTML = evResult.after.map((ev, idx) => {
+          const imgUrl = ev.url || ev.url_archivo || '';
+          const safeDesc = (ev.descripcion || ev.comentario || 'Evidencia final').replace(/'/g, "\\'");
+          const safeTech = (ev.nombre_tecnico || order.assignedTech || 'Técnico').replace(/'/g, "\\'");
+          const timeStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleString('es-MX');
+          return `
+            <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #fff; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <img src="${imgUrl}" alt="Después ${idx + 1}" style="width: 100%; height: 90px; object-fit: cover; cursor: pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: 'DESPUÉS', ot: '${orderId}', machine: '${ev.maquina_id || order.machine || ''}', tech: '${safeTech}', time: '${timeStr}', desc: '${safeDesc}' })">
+              <div style="padding: 4px; font-size: 0.72rem; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${ev.descripcion || ev.comentario || ''}">
+                ${ev.descripcion || ev.comentario || `Después #${idx + 1}`}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Render DURANTE / OTRAS si existen
+      const others = [...evResult.during, ...evResult.other];
+      if (others.length > 0 && otherSection && otherContainer) {
+        otherSection.style.display = 'block';
+        otherContainer.innerHTML = others.map((ev, idx) => {
+          const imgUrl = ev.url || ev.url_archivo || '';
+          const tName = ev.tipo_evidencia || 'OTRA';
+          const safeDesc = (ev.descripcion || ev.comentario || tName).replace(/'/g, "\\'");
+          const safeTech = (ev.nombre_tecnico || order.assignedTech || 'Técnico').replace(/'/g, "\\'");
+          const timeStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleString('es-MX');
+          return `
+            <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #fff; width: 85px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <img src="${imgUrl}" alt="${tName} ${idx + 1}" style="width: 100%; height: 65px; object-fit: cover; cursor: pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: '${tName}', ot: '${orderId}', machine: '${ev.maquina_id || order.machine || ''}', tech: '${safeTech}', time: '${timeStr}', desc: '${safeDesc}' })">
+              <div style="padding: 2px 4px; font-size: 0.68rem; color: #64748b; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${tName}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else if (otherSection) {
+        otherSection.style.display = 'none';
+      }
+    } catch (evErr) {
+      console.error('[openSolicitanteValidationDetail] Error cargando evidencias:', evErr);
+      beforeContainer.innerHTML = '<span style="font-size:0.8rem; color:#ef4444; grid-column:1/-1; text-align:center; padding:15px;">⚠️ Error cargando evidencias ANTES.</span>';
+      afterContainer.innerHTML = '<span style="font-size:0.8rem; color:#ef4444; grid-column:1/-1; text-align:center; padding:15px;">⚠️ Error cargando evidencias DESPUÉS.</span>';
+    }
+  }
+
+  // Checklist
+  const checklistContainer = document.getElementById('solic-detail-checklist');
+  if (checklistContainer) {
+    const checklistItems = order.checklist || [];
+    if (checklistItems.length === 0) {
+      checklistContainer.innerHTML = '<span style="color:#94a3b8;">Sin respuestas de checklist registradas.</span>';
+    } else {
+      checklistContainer.innerHTML = checklistItems.map(item => `
+        <div style="display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dotted #e2e8f0;">
+          <span>${item.pregunta || item.label}</span>
+          <strong style="color:${item.completado || item.ok ? '#16a34a' : '#dc2626'};">${item.completado || item.ok ? '✓ CUMPLE' : '✗ NO CUMPLE'}</strong>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Bitácora
+  const bitacoraContainer = document.getElementById('solic-detail-bitacora');
+  if (bitacoraContainer) {
+    const bitacoras = JSON.parse(localStorage.getItem(getAppStorageKey('tech_logs')) || '[]').filter(b => b.orderId === orderId || b.otId === orderId);
+    if (bitacoras.length === 0) {
+      bitacoraContainer.innerHTML = '<span style="color:#94a3b8;">Sin bitácoras técnicas adicionales.</span>';
+    } else {
+      bitacoraContainer.innerHTML = bitacoras.map(b => `
+        <div style="padding:4px 0; border-bottom:1px solid #f1f5f9;">
+          <div style="font-weight:600; color:#1e293b;">${b.tech || 'Técnico'} — <small style="color:#64748b;">${fmtDate(b.date)}</small></div>
+          <div>${b.notes || b.actividad || 'Intervención registrada.'}</div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Botones de acción
   document.getElementById('btn-solic-modal-accept').onclick = () => { closeModal('modal-solic-detail-view'); openAcceptWorkModal(orderId); };
   document.getElementById('btn-solic-modal-reject').onclick = () => { closeModal('modal-solic-detail-view'); openCorrectionModal(orderId); };
 
@@ -18705,159 +19602,651 @@ function openSolicitanteValidationDetail(orderId) {
 
 function openAcceptWorkModal(orderId) {
   activeValidationOrderId = orderId;
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  const order = orders.find(o => o.id === orderId);
+
   document.getElementById('solic-accept-ot-id').value = orderId;
-  document.getElementById('solic-accept-stars').value = '5';
   document.getElementById('solic-accept-comments').value = '';
+  setStarRating(5);
+
+  // Previsualización de Evidencias Técnicas Antes / Después en Modal de Aceptación (PRD-EVI001-R1 §39, §40)
+  const previewBox = document.getElementById('solic-accept-evidences-preview-box');
+  const previewGrid = document.getElementById('solic-accept-evidences-preview-grid');
+  const previewBadge = document.getElementById('solic-accept-evidence-badge');
+  if (previewGrid) {
+    previewGrid.innerHTML = '<span style="font-size:0.75rem; color:#64748b; grid-column:1/-1; text-align:center;">⏳ Cargando fotos...</span>';
+    loadOTEvidences(orderId).then(evResult => {
+      if (previewBadge) {
+        previewBadge.innerText = `${evResult.before.length} Antes / ${evResult.after.length} Después`;
+      }
+      const firstBefore = evResult.before[0];
+      const lastAfter = evResult.after[evResult.after.length - 1];
+
+      let beforeHtml = '<div style="background:#f1f5f9; border-radius:6px; height:75px; display:flex; align-items:center; justify-content:center; font-size:0.75rem; color:#94a3b8; text-align:center; padding:4px;">Sin foto Antes</div>';
+      if (firstBefore) {
+        const bUrl = firstBefore.url || firstBefore.url_archivo;
+        beforeHtml = `
+          <div style="position:relative; height:75px; border-radius:6px; overflow:hidden; border:1px solid #0284c7; cursor:pointer;" onclick="openPhotoLightbox('${bUrl}', { type: 'ANTES', ot: '${orderId}' })">
+            <img src="${bUrl}" style="width:100%; height:100%; object-fit:cover;">
+            <span style="position:absolute; bottom:2px; left:2px; background:rgba(2,132,199,0.85); color:white; font-size:0.65rem; font-weight:700; padding:1px 4px; border-radius:3px;">ANTES</span>
+          </div>
+        `;
+      }
+
+      let afterHtml = '<div style="background:#f1f5f9; border-radius:6px; height:75px; display:flex; align-items:center; justify-content:center; font-size:0.75rem; color:#94a3b8; text-align:center; padding:4px;">Sin foto Después</div>';
+      if (lastAfter) {
+        const aUrl = lastAfter.url || lastAfter.url_archivo;
+        afterHtml = `
+          <div style="position:relative; height:75px; border-radius:6px; overflow:hidden; border:1px solid #16a34a; cursor:pointer;" onclick="openPhotoLightbox('${aUrl}', { type: 'DESPUÉS', ot: '${orderId}' })">
+            <img src="${aUrl}" style="width:100%; height:100%; object-fit:cover;">
+            <span style="position:absolute; bottom:2px; left:2px; background:rgba(22,163,74,0.85); color:white; font-size:0.65rem; font-weight:700; padding:1px 4px; border-radius:3px;">DESPUÉS</span>
+          </div>
+        `;
+      }
+
+      previewGrid.innerHTML = beforeHtml + afterHtml;
+    }).catch(err => {
+      if (previewGrid) previewGrid.innerHTML = '<span style="font-size:0.75rem; color:#94a3b8; grid-column:1/-1;">Evidencias no disponibles</span>';
+    });
+  }
+
+  // PRD Regla 4: Verificar si es cierre sustituto
+  const substituteContainer = document.getElementById('solic-accept-substitute-container');
+  const substituteSelect = document.getElementById('solic-accept-substitute-reason');
+  const isOriginal = isStrictOriginalApplicant(order, currentUser);
+
+  if (substituteContainer && substituteSelect) {
+    if (!isOriginal) {
+      substituteContainer.style.display = 'block';
+      substituteSelect.value = '';
+      substituteSelect.required = true;
+      substituteSelect.onchange = (e) => onSubstituteReasonChange(e.target.value);
+    } else {
+      substituteContainer.style.display = 'none';
+      substituteSelect.value = '';
+      substituteSelect.required = false;
+      onSubstituteReasonChange('');
+    }
+  }
+
   openModal('modal-solic-accept-work');
+}
+
+function onRejectReasonChange(reason) {
+  const commentsLabel = document.getElementById('lbl-solic-correct-comments');
+  const commentsInput = document.getElementById('solic-correct-comments');
+  if (reason === 'OTRO') {
+    if (commentsLabel) commentsLabel.innerHTML = '2. Detalle Obligatorio del Problema Observado (Requerido para OTRO) * :';
+    if (commentsInput) {
+      commentsInput.required = true;
+      commentsInput.placeholder = 'Explica detalladamente por qué el equipo no quedó listo (obligatorio)...';
+    }
+  } else {
+    if (commentsLabel) commentsLabel.innerHTML = '2. Detalle del Problema Observado (Opcional):';
+    if (commentsInput) {
+      commentsInput.required = false;
+      commentsInput.placeholder = 'Detalles adicionales del síntoma o problema si aplica...';
+    }
+  }
+}
+
+function getNextConsecutiveFolio(prefix = 'CF') {
+  const p = String(prefix || 'CF').trim().toUpperCase();
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  const combinedList = [...requests, ...orders];
+  let nextConsecutive = 1;
+  combinedList.forEach(item => {
+    if (!item) return;
+    const folioStr = String(item.id || item.folio || '').trim().toUpperCase();
+    if (folioStr.startsWith(p)) {
+      const numPart = folioStr.replace(p, '');
+      const num = parseInt(numPart, 10);
+      if (!isNaN(num) && num >= nextConsecutive) {
+        nextConsecutive = num + 1;
+      }
+    }
+  });
+  return `${p}${String(nextConsecutive).padStart(5, '0')}`;
 }
 
 async function submitSolicitanteAcceptWork() {
   if (!currentUser) return;
-  const orderId = document.getElementById('solic-accept-ot-id').value || activeValidationOrderId;
-  const rating = parseInt(document.getElementById('solic-accept-stars').value) || 5;
-  const comments = document.getElementById('solic-accept-comments').value.trim();
+  const orderId = document.getElementById('solic-accept-ot-id')?.value || activeValidationOrderId;
+  const ratingInput = parseInt(document.getElementById('solic-accept-stars')?.value);
+  const comments = document.getElementById('solic-accept-comments')?.value?.trim() || '';
 
-  // PRD 11.7 Transición de estado: PENDIENTE DE VALIDACIÓN -> ACEPTADA -> CALIFICADA -> CERRADA
-  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-  const order = orders.find(o => o.id === orderId);
-  if (order) {
-    order.status = 'Cerrada';
-    order.validatedBy = currentUser.name || currentUser.email;
-    order.rating = rating;
-    order.ratingComment = comments || 'Trabajo aceptado satisfactoriamente';
-    order.closeDate = new Date().toISOString();
-    localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+  // Validación estricta de calificación 1 a 5 estrellas (PRD-OT003-R1 §19, §20, §21)
+  if (isNaN(ratingInput) || ratingInput < 1 || ratingInput > 5) {
+    showToast('⚠️ La calificación de 1 a 5 estrellas es estrictamente obligatoria para aprobar (PRD-OT003-R1 §20).', 'error');
+    return;
+  }
+  const rating = ratingInput;
+
+  const substituteContainer = document.getElementById('solic-accept-substitute-container');
+  const substituteSelect = document.getElementById('solic-accept-substitute-reason');
+  const isSubstitute = (substituteContainer && substituteContainer.style.display !== 'none');
+  const substituteReason = isSubstitute ? substituteSelect?.value : null;
+
+  if (isSubstitute && !substituteReason) {
+    showToast('⚠️ Por norma de auditoría debes seleccionar el motivo obligatorio para el cierre sustituto (PRD-OT003-R1 §10, §53).', 'error');
+    return;
   }
 
-  const history = JSON.parse(localStorage.getItem('TSMAI_validations_history') || '[]');
-  history.unshift({
-    orderId: orderId,
-    action: 'APPROVED',
-    userName: currentUser.name || currentUser.email,
-    userId: currentUser.id,
-    applicant_id: currentUser.id,
-    area: currentUser.area,
-    rating: rating,
-    comments: comments || 'ACEPTADA Y CALIFICADA',
-    date: new Date().toISOString()
-  });
-  localStorage.setItem('TSMAI_validations_history', JSON.stringify(history));
+  if (isSubstitute && substituteReason === 'OTRO' && !comments) {
+    showToast('⚠️ Para el motivo OTRO, el comentario explicativo es estrictamente obligatorio (PRD-OT003-R1 §55).', 'error');
+    return;
+  }
 
-  // Actualizar en Supabase
-  if (supabaseClient) {
-    try {
+  const btnSubmit = document.getElementById('btn-submit-accept-work');
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.innerText = '⏳ Procesando Cierre...';
+  }
+
+  const nowISO = new Date().toISOString();
+  const userRole = String(currentUser.rol || currentUser.role || 'SOLICITANTE').toUpperCase();
+
+  // Determinar acción de auditoría
+  let auditAction = 'CIERRE_SOLICITANTE';
+  if (isSubstitute) {
+    auditAction = (userRole === 'SUPER_ADMINISTRADOR' || userRole === 'SUPERADMIN') ? 'CIERRE_SUPER_ADMIN' : 'CIERRE_JEFE';
+  }
+
+  // 1. MODO DEMO (100% aislado en localStorage)
+  if (APP_ENVIRONMENT === 'DEMO') {
+    const orders = JSON.parse(localStorage.getItem('TSMAI_DEMO_orders') || '[]');
+    const oIdx = orders.findIndex(o => o.id === orderId);
+    if (oIdx !== -1) {
+      orders[oIdx].status = 'Cerrada';
+      orders[oIdx].estatus = 'cerrada';
+      orders[oIdx].validatedBy = currentUser.name || currentUser.email;
+      orders[oIdx].calidad = rating;
+      orders[oIdx].rating = rating;
+      orders[oIdx].ratingComment = comments || 'Trabajo aceptado conforme';
+      orders[oIdx].cerrada_en = nowISO;
+      orders[oIdx].closeDate = nowISO;
+      orders[oIdx].motivo_cierre = substituteReason || null;
+      orders[oIdx].observacion_cierre = comments || 'Validación satisfactoria';
+      localStorage.setItem('TSMAI_DEMO_orders', JSON.stringify(orders));
+    }
+
+    const demoAudits = JSON.parse(localStorage.getItem('TSMAI_DEMO_auditoria_cierre_ot') || '[]');
+    demoAudits.unshift({
+      id: 'DEMO-AUD-' + Date.now(),
+      folio: orderId,
+      accion: 'VALIDACION_APROBADA',
+      estado_anterior: 'lista_para_validacion',
+      estado_nuevo: 'cerrada',
+      usuario_id: currentUser.id || 'DEMO-USER',
+      usuario_nombre: currentUser.name || 'Solicitante Demo',
+      rol_usuario: userRole,
+      fecha_hora: nowISO,
+      calificacion: rating,
+      motivo: substituteReason || 'VALIDACION_CONFORME',
+      comentario: comments,
+      origen: 'DEMO'
+    });
+    demoAudits.unshift({
+      id: 'DEMO-AUD-' + (Date.now() + 1),
+      folio: orderId,
+      accion: auditAction,
+      estado_anterior: 'lista_para_validacion',
+      estado_nuevo: 'cerrada',
+      usuario_id: currentUser.id || 'DEMO-USER',
+      usuario_nombre: currentUser.name || 'Solicitante Demo',
+      rol_usuario: userRole,
+      fecha_hora: nowISO,
+      calificacion: rating,
+      motivo: substituteReason || 'CIERRE_DEFINITIVO',
+      comentario: comments,
+      origen: 'DEMO'
+    });
+    localStorage.setItem('TSMAI_DEMO_auditoria_cierre_ot', JSON.stringify(demoAudits));
+
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.innerText = '✅ Confirmar y Cerrar Definitivamente';
+    }
+    closeModal('modal-solic-accept-work');
+    showToast(`✅ Trabajo de la Orden ${orderId} validado y CERRADO definitivamente con ${rating} estrellas.`, 'success');
+    renderSolicitanteValidations();
+    renderSolicitanteTracking();
+    return;
+  }
+
+  // 2. MODO PRODUCCIÓN (RPC transaccional atómico + Auditoría append-only)
+  assertProductionAccessAllowed('submitSolicitanteAcceptWork');
+  if (!supabaseClient) throw new Error('Cliente de Supabase no disponible.');
+
+  try {
+    const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('cerrar_o_rechazar_ot', {
+      p_folio: orderId,
+      p_accion: 'APROBAR',
+      p_calificacion: rating,
+      p_codigo_motivo: substituteReason || null,
+      p_comentario: comments || null
+    });
+
+    if (rpcErr) {
+      if (rpcErr.message.includes('ALREADY_CLOSED')) {
+        showToast('ℹ️ Esta orden de trabajo ya se encontraba cerrada.', 'info');
+        if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerText = '✅ Confirmar y Cerrar Definitivamente'; }
+        closeModal('modal-solic-accept-work');
+        renderSolicitanteValidations();
+        return;
+      }
+      if (rpcErr.message.includes('INVALID_RATING')) {
+        showToast('⚠️ La calificación de 1 a 5 estrellas es obligatoria.', 'error');
+        if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerText = '✅ Confirmar y Cerrar Definitivamente'; }
+        return;
+      }
+      if (rpcErr.message.includes('MOTIVO_REQUIRED')) {
+        showToast('⚠️ Se requiere un motivo obligatorio para el cierre sustituto.', 'error');
+        if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerText = '✅ Confirmar y Cerrar Definitivamente'; }
+        return;
+      }
+      if (rpcErr.message.includes('UNAUTHORIZED')) {
+        showToast('🚫 No tienes autorización para validar o cerrar esta orden.', 'error');
+        if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerText = '✅ Confirmar y Cerrar Definitivamente'; }
+        return;
+      }
+
+      console.warn('[submitSolicitanteAcceptWork] RPC no disponible, ejecutando fallback seguro:', rpcErr.message);
       await supabaseClient
         .from('ordenes_trabajo')
         .update({
-          estatus: getDBStatus('Cerrada'),
+          estatus: 'cerrada',
           calidad: rating,
-          observacion_cierre: comments || 'Trabajo aceptado satisfactoriamente por el solicitante'
+          cerrada_en: nowISO,
+          observacion_cierre: comments || 'Trabajo validado y cerrado',
+          motivo_cierre: substituteReason || null,
+          validado_por_solicitante: !isSubstitute
         })
         .eq('folio', orderId);
-    } catch (err) {
-      console.error('Error updating order closure in Supabase:', err);
-    }
-  }
 
-  closeModal('modal-solic-accept-work');
-  alert(`✅ Trabajo de la Orden ${orderId} ACEPTADO y CERRADO con ${rating} estrellas.`);
-  renderSolicitanteValidations();
-  if (typeof syncDatabases === 'function') await syncDatabases();
-  refreshActiveViewSilently();
+      // Inserción en auditoría en fallback
+      try {
+        await supabaseClient.from('auditoria_cierre_ot').insert([
+          {
+            folio: orderId,
+            accion: 'VALIDACION_APROBADA',
+            estado_anterior: 'lista_para_validacion',
+            estado_nuevo: 'cerrada',
+            usuario_id: currentUser.id || null,
+            usuario_nombre: currentUser.nombre_completo || currentUser.name || 'Usuario',
+            rol_usuario: userRole,
+            fecha_hora: nowISO,
+            calificacion: rating,
+            codigo_motivo: substituteReason || 'VALIDACION_CONFORME',
+            comentario: comments || 'Trabajo validado satisfactoriamente',
+            numero_ciclo: 1,
+            origen: 'App'
+          },
+          {
+            folio: orderId,
+            accion: auditAction,
+            estado_anterior: 'lista_para_validacion',
+            estado_nuevo: 'cerrada',
+            usuario_id: currentUser.id || null,
+            usuario_nombre: currentUser.nombre_completo || currentUser.name || 'Usuario',
+            rol_usuario: userRole,
+            fecha_hora: nowISO,
+            calificacion: rating,
+            codigo_motivo: substituteReason || 'CIERRE_DEFINITIVO',
+            comentario: comments,
+            numero_ciclo: 1,
+            origen: 'App'
+          }
+        ]);
+      } catch (eAud) {}
+    }
+
+    // Actualizar caché local
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+    const oIdx = orders.findIndex(o => o.id === orderId || o.folio === orderId);
+    if (oIdx !== -1) {
+      orders[oIdx].status = 'Cerrada';
+      orders[oIdx].estatus = 'cerrada';
+      orders[oIdx].validatedBy = currentUser.nombre_completo || currentUser.name || currentUser.email;
+      orders[oIdx].calidad = rating;
+      orders[oIdx].rating = rating;
+      orders[oIdx].cerrada_en = nowISO;
+      orders[oIdx].observacion_cierre = comments;
+      localStorage.setItem(getAppStorageKey('orders'), JSON.stringify(orders));
+    }
+
+    const history = JSON.parse(localStorage.getItem('TSMAI_validations_history') || '[]');
+    history.unshift({
+      orderId: orderId,
+      action: 'APPROVED',
+      userName: currentUser.nombre_completo || currentUser.name || currentUser.email,
+      userId: currentUser.id,
+      rating: rating,
+      comments: comments,
+      motivo: substituteReason,
+      date: nowISO
+    });
+    localStorage.setItem('TSMAI_validations_history', JSON.stringify(history));
+
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.innerText = '✅ Confirmar y Cerrar Definitivamente';
+    }
+    closeModal('modal-solic-accept-work');
+    showToast(`✅ Trabajo de la Orden ${orderId} validado y CERRADO definitivamente con ${rating} estrellas.`, 'success');
+    renderSolicitanteValidations();
+    renderSolicitanteTracking();
+    if (typeof syncDatabases === 'function') await syncDatabases();
+  } catch (err) {
+    console.error('[submitSolicitanteAcceptWork] Error:', err);
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.innerText = '✅ Confirmar y Cerrar Definitivamente';
+    }
+    showToast('❌ Error al registrar el cierre: ' + (err.message || err), 'error');
+  }
 }
 
 function openCorrectionModal(orderId) {
   activeValidationOrderId = orderId;
   const otIdInput = document.getElementById('solic-correct-ot-id');
-  const reasonSelect = document.getElementById('solic-correct-reason-select') || document.getElementById('solic-correct-reason');
+  const reasonSelect = document.getElementById('solic-correct-reason-select');
   const commentsInput = document.getElementById('solic-correct-comments');
 
   if (otIdInput) otIdInput.value = orderId;
   if (reasonSelect) reasonSelect.value = '';
   if (commentsInput) commentsInput.value = '';
 
+  onRejectReasonChange('');
   openModal('modal-solic-request-correction');
 }
 
 async function submitSolicitanteCorrection() {
   if (!currentUser) return;
   const orderId = document.getElementById('solic-correct-ot-id')?.value || activeValidationOrderId;
-  const reason = document.getElementById('solic-correct-reason-select')?.value || document.getElementById('solic-correct-reason')?.value;
-  const comments = document.getElementById('solic-correct-comments')?.value?.trim();
-  const clientRequestId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'REQ-REJ-' + Date.now();
+  const reason = document.getElementById('solic-correct-reason-select')?.value;
+  const comments = document.getElementById('solic-correct-comments')?.value?.trim() || '';
   const nowISO = new Date().toISOString();
 
+  // Validación de motivo estructurado obligatorio (PRD-OT003-R1 §32)
   if (!reason) {
-    alert('Por favor selecciona el motivo principal por el cual continúa el problema.');
+    showToast('⚠️ Por favor selecciona el motivo principal del rechazo (PRD-OT003-R1 §32).', 'error');
     return;
   }
 
-  if (!comments) {
-    alert('El detalle del problema observado es obligatorio.');
+  // Validación de comentario obligatorio para OTRO (PRD-OT003-R1 §33)
+  if (reason === 'OTRO' && !comments) {
+    showToast('⚠️ Para el motivo OTRO, el detalle del problema es estrictamente obligatorio (PRD-OT003-R1 §33).', 'error');
     return;
+  }
+
+  const btnSubmit = document.getElementById('btn-submit-reject-work');
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.innerText = '⏳ Generando Seguimiento...';
   }
 
   closeModal('modal-solic-request-correction');
 
+  // 1. MODO DEMO
   if (APP_ENVIRONMENT === 'DEMO') {
-    const closures = JSON.parse(localStorage.getItem('TSMAI_DEMO_closures') || '[]');
-    const valIdx = closures.findIndex(c => (c.id_orden === orderId || c.otId === orderId || c.ot_folio === orderId) && c.decision === 'PENDIENTE');
-
-    if (valIdx !== -1) {
-      const sReq = closures[valIdx].requested_at ? new Date(closures[valIdx].requested_at).getTime() : Date.now();
-      closures[valIdx].decision = 'RECHAZADA';
-      closures[valIdx].decision_at = nowISO;
-      closures[valIdx].motivo_rechazo = reason;
-      closures[valIdx].detalle_rechazo = comments;
-      closures[valIdx].validation_seconds = Math.max(1, Math.round((Date.now() - sReq) / 1000));
-      closures[valIdx].decision_actor_id = currentUser.id || 'DEMO-USER-SOL-01';
-      closures[valIdx].decision_actor_type = 'REQUESTER';
-      closures[valIdx].first_time_fix_failed = (closures[valIdx].attempt_number === 1);
-      closures[valIdx].updated_at = nowISO;
-      localStorage.setItem('TSMAI_DEMO_closures', JSON.stringify(closures));
-    }
-
     const orders = JSON.parse(localStorage.getItem('TSMAI_DEMO_orders') || '[]');
     const oIdx = orders.findIndex(o => o.id === orderId);
+    let origOrder = null;
+    let nextCycle = 2;
     if (oIdx !== -1) {
-      orders[oIdx].status = 'REQUIERE REVISIÓN';
+      origOrder = orders[oIdx];
+      nextCycle = (origOrder.numero_ciclo || 1) + 1;
+      orders[oIdx].status = 'Rechazada';
+      orders[oIdx].estatus = 'rechazada';
       orders[oIdx].reworkRequired = true;
       orders[oIdx].reworkReason = `${reason}: ${comments}`;
-      if (!orders[oIdx].historyLogs) orders[oIdx].historyLogs = [];
-      orders[oIdx].historyLogs.push({
-        date: nowISO,
-        status: 'REQUIERE REVISIÓN',
-        user: currentUser.name || 'Solicitante',
-        comment: `Entrega rechazada: ${reason}. Detalle: ${comments}`
-      });
-      localStorage.setItem('TSMAI_DEMO_orders', JSON.stringify(orders));
+      orders[oIdx].cerrada_en = nowISO;
     }
 
-    showToast('⚠️ Reporte de persistencia enviado. Se notificó al Jefe de Mantenimiento para reasignación.', 'info');
+    const area = origOrder?.departamento || origOrder?.area || 'CF';
+    const newFolio = getNextConsecutiveFolio(area);
+    const newReqId = 'DEMO-SOL-' + Date.now();
+
+    // Crear nueva solicitud vinculada en DEMO
+    const newDemoOrder = {
+      id: newFolio,
+      folio: newFolio,
+      status: 'Solicitud recibida',
+      estatus: 'solicitud_recibida',
+      machine: origOrder?.machine || origOrder?.maquina_id,
+      maquina_id: origOrder?.maquina_id,
+      area: area,
+      departamento: area,
+      description: origOrder?.description || 'Falla en equipo',
+      initialObservation: `[RECHAZO DE ${orderId} - CICLO ${nextCycle}] ${reason}: ${comments}`,
+      applicant: origOrder?.applicant || currentUser.name,
+      applicant_id: origOrder?.applicant_id || currentUser.id,
+      priority: origOrder?.priority || 'Media',
+      orden_origen_id: orderId,
+      folio_origen: orderId,
+      numero_ciclo: nextCycle,
+      date: nowISO
+    };
+    orders.unshift(newDemoOrder);
+    localStorage.setItem('TSMAI_DEMO_orders', JSON.stringify(orders));
+
+    const demoAudits = JSON.parse(localStorage.getItem('TSMAI_DEMO_auditoria_cierre_ot') || '[]');
+    demoAudits.unshift({
+      id: 'DEMO-AUD-' + Date.now(),
+      folio: orderId,
+      accion: 'VALIDACION_RECHAZADA',
+      estado_anterior: 'lista_para_validacion',
+      estado_nuevo: 'rechazada',
+      usuario_id: currentUser.id || 'DEMO-USER',
+      usuario_nombre: currentUser.name || 'Solicitante Demo',
+      rol_usuario: currentUser.rol || 'SOLICITANTE',
+      fecha_hora: nowISO,
+      calificacion: null,
+      motivo: reason,
+      comentario: comments,
+      numero_ciclo: nextCycle - 1,
+      origen: 'DEMO'
+    });
+    demoAudits.unshift({
+      id: 'DEMO-AUD-' + (Date.now() + 1),
+      folio: newFolio,
+      accion: 'NUEVA_SOLICITUD_SEGUIMIENTO',
+      estado_anterior: 'none',
+      estado_nuevo: 'solicitud_recibida',
+      usuario_id: currentUser.id || 'DEMO-USER',
+      usuario_nombre: currentUser.name || 'Solicitante Demo',
+      rol_usuario: currentUser.rol || 'SOLICITANTE',
+      fecha_hora: nowISO,
+      calificacion: null,
+      motivo: reason,
+      comentario: `Nueva solicitud vinculada generada por rechazo de orden anterior ${orderId} (Ciclo ${nextCycle}).`,
+      numero_ciclo: nextCycle,
+      origen: 'DEMO'
+    });
+    localStorage.setItem('TSMAI_DEMO_auditoria_cierre_ot', JSON.stringify(demoAudits));
+
+    if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerText = '⚠️ Rechazar y Crear Seguimiento'; }
+    showToast(`⚠️ Orden ${orderId} rechazada. Se ha generado la nueva solicitud de seguimiento ${newFolio} (Ciclo ${nextCycle}).`, 'info');
     renderSolicitanteValidations();
     renderSolicitanteTracking();
     return;
   }
 
-  // --- PRODUCCIÓN VIA RPC ---
+  // 2. PRODUCCIÓN VIA RPC (PRD-OT003-R1 §35, §36)
   assertProductionAccessAllowed('submitSolicitanteCorrection');
   if (!supabaseClient) throw new Error('Cliente de Supabase no disponible.');
 
   try {
-    const { data, error } = await supabaseClient.rpc('reject_ot_resolution', {
-      p_ot_id: orderId,
-      p_rejection_reason: reason,
-      p_rejection_detail: comments,
-      p_client_request_id: clientRequestId
+    const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('cerrar_o_rechazar_ot', {
+      p_folio: orderId,
+      p_accion: 'RECHAZAR',
+      p_codigo_motivo: reason,
+      p_comentario: comments
     });
-    if (error) throw error;
-    showToast('⚠️ Reporte enviado para revisión administrativa.', 'info');
+
+    let newFolioGenerated = null;
+    let newCycleGenerated = 2;
+
+    if (!rpcErr && rpcRes && rpcRes.success) {
+      newFolioGenerated = rpcRes.folio_nuevo;
+      newCycleGenerated = rpcRes.numero_ciclo;
+    } else {
+      if (rpcErr) {
+        console.warn('[submitSolicitanteCorrection] Warn o fallback RPC:', rpcErr.message);
+      }
+      
+      // Fallback seguro cliente: rechazar OT original y crear nueva solicitud
+      const { data: origData } = await supabaseClient.from('ordenes_trabajo').select('*').eq('folio', orderId).limit(1);
+      const origOT = (origData && origData.length > 0) ? origData[0] : null;
+      const area = origOT?.departamento || origOT?.area || 'CF';
+      newCycleGenerated = (origOT?.numero_ciclo || 1) + 1;
+      newFolioGenerated = getNextConsecutiveFolio(area);
+      const newUUID = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : (orderId + '-C' + newCycleGenerated);
+
+      // 1. Cerrar la OT original como rechazada
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({
+          estatus: 'rechazada',
+          codigo_motivo_rechazo: reason,
+          comentario_rechazo: comments,
+          requerimiento_retrabajo: true,
+          motivo_retrabajo: `${reason}: ${comments}`,
+          cerrada_en: nowISO
+        })
+        .eq('folio', orderId);
+
+      // 2. Insertar nueva solicitud en solicitudes_mantenimiento
+      try {
+        await supabaseClient.from('solicitudes_mantenimiento').insert([{
+          id: newUUID,
+          folio_solicitud: newFolioGenerated,
+          solicitante_nombre: origOT?.nombre_solicitante || currentUser.nombre_completo || currentUser.name,
+          solicitante_id: origOT?.cve_solicitante || currentUser.id,
+          area: area,
+          maquina_id: origOT?.maquina_id,
+          tipo_servicio: 'Correctivo',
+          descripcion_falla: `[SEGUIMIENTO CICLO ${newCycleGenerated} DE OT ${orderId}] ${reason}: ${comments || 'Sin detalle'} | Falla original: ${origOT?.descripcion || ''}`,
+          urgencia: origOT?.prioridad || 'Media',
+          estatus: 'Solicitud recibida',
+          fecha_registro: nowISO,
+          solicitud_origen_id: origOT?.id_orden,
+          solicitud_raiz_id: origOT?.orden_raiz_id || origOT?.id_orden,
+          folio_origen: orderId,
+          numero_ciclo: newCycleGenerated,
+          motivo_rechazo_previo: `${reason}: ${comments}`
+        }]);
+      } catch (eSol) {}
+
+      // 3. Insertar nueva orden en ordenes_trabajo
+      try {
+        await supabaseClient.from('ordenes_trabajo').insert([{
+          id_orden: newUUID,
+          folio: newFolioGenerated,
+          orden_trabajo: 'MC',
+          origen: 'App',
+          estatus: 'solicitud_recibida',
+          departamento: area,
+          area: area,
+          maquina_id: origOT?.maquina_id,
+          falla: origOT?.falla || 'Correctivo',
+          descripcion: origOT?.descripcion,
+          observacion_inicial: `[RECHAZO DE ${orderId} - CICLO ${newCycleGenerated}] ${reason}: ${comments}`,
+          nombre_solicitante: origOT?.nombre_solicitante || currentUser.nombre_completo,
+          cve_solicitante: origOT?.cve_solicitante || currentUser.id,
+          prioridad: origOT?.prioridad || 'Media',
+          orden_origen_id: origOT?.id_orden,
+          orden_raiz_id: origOT?.orden_raiz_id || origOT?.id_orden,
+          folio_origen: orderId,
+          numero_ciclo: newCycleGenerated,
+          fecha_carga: nowISO
+        }]);
+      } catch (eOt) {}
+
+      // 4. Auditoría
+      try {
+        await supabaseClient.from('auditoria_cierre_ot').insert([
+          {
+            folio: orderId,
+            accion: 'VALIDACION_RECHAZADA',
+            estado_anterior: 'lista_para_validacion',
+            estado_nuevo: 'rechazada',
+            usuario_id: currentUser.id || null,
+            usuario_nombre: currentUser.nombre_completo || currentUser.name,
+            rol_usuario: currentUser.rol || 'SOLICITANTE',
+            fecha_hora: nowISO,
+            calificacion: null,
+            codigo_motivo: reason,
+            comentario: comments,
+            numero_ciclo: newCycleGenerated - 1,
+            origen: 'App'
+          },
+          {
+            folio: newFolioGenerated,
+            accion: 'NUEVA_SOLICITUD_SEGUIMIENTO',
+            estado_anterior: 'none',
+            estado_nuevo: 'solicitud_recibida',
+            usuario_id: currentUser.id || null,
+            usuario_nombre: currentUser.nombre_completo || currentUser.name,
+            rol_usuario: currentUser.rol || 'SOLICITANTE',
+            fecha_hora: nowISO,
+            calificacion: null,
+            codigo_motivo: reason,
+            comentario: `Nueva solicitud vinculada generada por rechazo de orden anterior ${orderId} (Ciclo ${newCycleGenerated}).`,
+            numero_ciclo: newCycleGenerated,
+            origen: 'App'
+          }
+        ]);
+      } catch (eAud) {}
+    }
+
+    // Actualizar local
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+    const oIdx = orders.findIndex(o => o.id === orderId || o.folio === orderId);
+    let origOrder = null;
+    if (oIdx !== -1) {
+      origOrder = orders[oIdx];
+      orders[oIdx].status = 'Rechazada';
+      orders[oIdx].estatus = 'rechazada';
+      orders[oIdx].reworkRequired = true;
+      orders[oIdx].reworkReason = `${reason}: ${comments}`;
+      orders[oIdx].cerrada_en = nowISO;
+    }
+
+    if (newFolioGenerated) {
+      orders.unshift({
+        id: newFolioGenerated,
+        folio: newFolioGenerated,
+        status: 'Solicitud recibida',
+        estatus: 'solicitud_recibida',
+        machine: origOrder?.machine || origOrder?.maquina_id,
+        maquina_id: origOrder?.maquina_id,
+        area: origOrder?.departamento || origOrder?.area || 'CF',
+        departamento: origOrder?.departamento || origOrder?.area || 'CF',
+        description: origOrder?.description || 'Falla en equipo',
+        initialObservation: `[RECHAZO DE ${orderId} - CICLO ${newCycleGenerated}] ${reason}: ${comments}`,
+        applicant: origOrder?.applicant || currentUser.nombre_completo || currentUser.name,
+        applicant_id: origOrder?.applicant_id || currentUser.id,
+        priority: origOrder?.priority || 'Media',
+        orden_origen_id: orderId,
+        folio_origen: orderId,
+        numero_ciclo: newCycleGenerated,
+        date: nowISO
+      });
+    }
+    localStorage.setItem(getAppStorageKey('orders'), JSON.stringify(orders));
+
+    if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerText = '⚠️ Rechazar y Crear Seguimiento'; }
+    showToast(`⚠️ Orden ${orderId} rechazada. Se ha generado la nueva solicitud vinculada ${newFolioGenerated} (Ciclo ${newCycleGenerated}) para seguimiento.`, 'info');
     renderSolicitanteValidations();
     renderSolicitanteTracking();
-    return data;
+    if (typeof syncDatabases === 'function') await syncDatabases();
   } catch (err) {
     console.error('[submitSolicitanteCorrection] Error:', err);
-    alert('❌ Error al reportar persistencia: ' + (err.message || err));
+    if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerText = '⚠️ Rechazar y Crear Seguimiento'; }
+    showToast('❌ Error al reportar corrección: ' + (err.message || err), 'error');
   }
 }
 
@@ -19228,7 +20617,8 @@ async function openAdmin360OTAuditModal(orderId, explicitMachineId) {
 // ==========================================================================
 
 async function checkAndDispatchScheduledPreventives() {
-  if (!supabaseClient) return;
+  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO') return;
+  if (!useLiveDatabase || !supabaseClient) return;
   try {
     const { data: details, error } = await supabaseClient
       .from('calendario_mantenimiento_detalle')
@@ -19530,11 +20920,42 @@ async function viewCalendarDetail(idRef, viewName) {
     try {
       const { data } = await supabaseClient
         .from('calendario_mantenimiento_detalle')
-        .select('*')
+        .select('*, cat_maquinas:maquina_id(departamento_codigo, area), ordenes_trabajo:id_orden_generada(folio)')
         .eq('id_detalle', idRef)
         .maybeSingle();
-      if (data) detail = data;
+      if (data) {
+        detail = data;
+        const machProc = data.cat_maquinas?.departamento_codigo || data.cat_maquinas?.area || 'PF';
+        detail.proceso = machProc;
+        detail.ot_asociada = data.ordenes_trabajo?.folio || null;
+      }
     } catch (e) {}
+
+    // Si no fue detalle de calendario, verificar si es Orden de Trabajo (Correctivo)
+    if (!detail) {
+      try {
+        const { data: otData } = await supabaseClient
+          .from('ordenes_trabajo')
+          .select('*')
+          .or(`id_orden.eq.${idRef},folio.eq.${idRef}`)
+          .maybeSingle();
+        if (otData) {
+          detail = {
+            actividad_sugerida: otData.orden_trabajo || 'Mantenimiento Correctivo',
+            maquina_id: otData.maquina_id || 'Planta General',
+            tipo_mantenimiento: 'CORRECTIVO',
+            fecha_programada: (otData.fecha_hora_inicio || otData.fecha_carga || '').split('T')[0],
+            prioridad: otData.prioridad || 'MEDIA',
+            responsable_sugerido: otData.nombre_atendio || otData.cve_atendio || 'Por asignar',
+            proceso: otData.departamento || 'PF',
+            estatus_detalle: otData.estatus || 'PENDIENTE',
+            origen: 'ORDEN_TRABAJO',
+            ot_asociada: otData.folio || otData.id_orden,
+            observaciones: otData.descripcion ? JSON.stringify({ motivos: [otData.descripcion] }) : null
+          };
+        }
+      } catch (e) {}
+    }
   }
 
   if (!detail) {
@@ -19549,6 +20970,10 @@ async function viewCalendarDetail(idRef, viewName) {
         fecha_programada: found.date ? String(found.date).split('T')[0] : 'Por definir',
         prioridad: found.urgency || found.priority || 'MEDIA',
         responsable_sugerido: found.assignedTech || 'Supervisor',
+        proceso: typeof getAreaCodeForOrder === 'function' ? getAreaCodeForOrder(found) : (found.area || found.departamento || 'PF'),
+        estatus_detalle: found.status || 'PENDIENTE',
+        origen: 'DEMO_STORAGE',
+        ot_asociada: found.id || null,
         observaciones: null
       };
     }
@@ -19556,7 +20981,7 @@ async function viewCalendarDetail(idRef, viewName) {
 
   if (!detail) return;
 
-  const areaCode = getAreaCodeForOrder({ machine: detail.maquina_id });
+  const areaCode = detail.proceso || getAreaCodeForOrder({ machine: detail.maquina_id });
   safeSetContent('cal-detail-title', `📋 Detalle de Intervención: ${detail.tipo_mantenimiento || 'Mantenimiento'}`);
   safeSetContent('cal-detail-activity', detail.actividad_sugerida || 'Servicio Programado');
   safeSetContent('cal-detail-machine', `Máquina: ${detail.maquina_id} (${areaCode})`);
@@ -19564,12 +20989,16 @@ async function viewCalendarDetail(idRef, viewName) {
   safeSetContent('cal-detail-date', detail.fecha_programada || 'Fecha actual');
   safeSetContent('cal-detail-priority', detail.prioridad || 'MEDIA');
   safeSetContent('cal-detail-tech', detail.responsable_sugerido || 'Por asignar');
+  safeSetContent('cal-detail-process', areaCode);
+  safeSetContent('cal-detail-status', detail.estatus_detalle || detail.estado || detail.status || 'PROPUESTO');
+  safeSetContent('cal-detail-origin', detail.origen || 'CALENDARIO_PLANTA');
+  safeSetContent('cal-detail-ot', detail.ot_asociada || detail.id_orden_generada || 'Ninguna');
 
-  let reasonsText = `• Área responsable: ${areaCode}\n• Regla de Despacho: Ventana de anticipación antes de publicarse en Solicitudes Nuevas.\n• Criticidad asignada en catálogo de planta.`;
+  let reasonsText = `• Proceso / Área: ${areaCode}\n• Regla de Despacho: Ventana de anticipación antes de publicarse en Solicitudes Nuevas.\n• Criticidad asignada en catálogo de planta.`;
 
   if (detail.observaciones) {
     try {
-      const obs = JSON.parse(detail.observaciones);
+      const obs = typeof detail.observaciones === 'object' ? detail.observaciones : JSON.parse(detail.observaciones);
       if (obs.motivos && Array.isArray(obs.motivos)) {
         reasonsText = obs.motivos.map(m => `• ${m}`).join('\n');
       }
@@ -19577,7 +21006,81 @@ async function viewCalendarDetail(idRef, viewName) {
   }
 
   safeSetContent('cal-detail-reasons', reasonsText);
+
+  // PRD-CAL002-R1: Guardar contexto y habilitar botón de reagendamiento exclusivamente para SUPER_ADMINISTRADOR
+  let origDateVal = detail.fecha_programada;
+  if (detail.observaciones) {
+    try {
+      const obsObj = typeof detail.observaciones === 'string' ? JSON.parse(detail.observaciones) : detail.observaciones;
+      if (obsObj && obsObj.fecha_original) origDateVal = obsObj.fecha_original;
+    } catch (e) {}
+  }
+
+  window._currentCalendarModalItem = {
+    id_detalle: detail.id_detalle || (detail.tipo_mantenimiento !== 'CORRECTIVO' ? idRef : null),
+    maquina_id: detail.maquina_id,
+    actividad: detail.actividad_sugerida,
+    fecha_programada: detail.fecha_programada,
+    fecha_original: origDateVal,
+    tipo: detail.tipo_mantenimiento
+  };
+
+  const btnReschedule = document.getElementById('btn-cal-reschedule-detail');
+  if (btnReschedule) {
+    const isSuperAdmin = typeof isCurrentUserSuperAdmin === 'function' && isCurrentUserSuperAdmin();
+    const canReschedule = isSuperAdmin && detail.tipo_mantenimiento !== 'CORRECTIVO' && window._currentCalendarModalItem.id_detalle;
+    btnReschedule.style.display = canReschedule ? 'inline-block' : 'none';
+  }
+
+  // Cargar Historial de Reagendamientos para visualización auditada (PRD-CAL002-R1 §59-60)
+  const histSection = document.getElementById('section-cal-detail-reschedule-history');
+  const histList = document.getElementById('cal-detail-reschedule-history-list');
+  const badgeCount = document.getElementById('badge-reag-count');
+
+  if (histSection && histList) {
+    histSection.style.display = 'none';
+    histList.innerHTML = '';
+
+    const targetDetailId = window._currentCalendarModalItem.id_detalle;
+    if (supabaseClient && targetDetailId) {
+      try {
+        const { data: histRows } = await supabaseClient
+          .from('historial_reagendamientos')
+          .select('*')
+          .eq('id_detalle', targetDetailId)
+          .order('numero_reagendamiento', { ascending: true });
+
+        if (histRows && histRows.length > 0) {
+          histSection.style.display = 'block';
+          if (badgeCount) badgeCount.textContent = `${histRows.length} cambio(s)`;
+          histList.innerHTML = histRows.map(h => `
+            <div style="border-bottom:1px solid #fde68a; padding:4px 0; margin-bottom:4px;">
+              <strong>#${h.numero_reagendamiento}:</strong> ${h.fecha_anterior} ➔ <strong>${h.fecha_nueva}</strong>
+              <span style="color:#b45309; font-weight:600;">[${h.codigo_motivo}]</span>
+              ${h.comentario ? `<div style="font-style:italic; font-size:0.75rem; color:#92400e;">"${h.comentario}"</div>` : ''}
+              <div style="font-size:0.7rem; color:#78350f;">Fecha Original: ${h.fecha_original} | ${new Date(h.created_at).toLocaleString()}</div>
+            </div>
+          `).join('');
+        }
+      } catch (e) {}
+    }
+  }
+
   openModal('modal-calendar-event-detail');
+}
+
+function triggerRescheduleFromEventDetail() {
+  if (typeof isCurrentUserSuperAdmin === 'function' && !isCurrentUserSuperAdmin()) {
+    showToast('❌ Acceso denegado: Solo el SUPER_ADMINISTRADOR tiene autorización para reagendar maquinaria.', 'error');
+    return;
+  }
+  const item = window._currentCalendarModalItem;
+  if (!item || !item.id_detalle) {
+    showToast('⚠️ No hay un evento de calendario programado seleccionable para reagendar.', 'warning');
+    return;
+  }
+  closeModal('modal-calendar-event-detail');
+  openEditProposalDateModal(item.id_detalle, item.maquina_id, item.actividad, item.fecha_programada, item.fecha_original);
 }
 
 async function dispatchCalendarEventNow() {
