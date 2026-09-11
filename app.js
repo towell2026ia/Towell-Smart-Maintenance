@@ -1253,6 +1253,10 @@ async function dbGetOrders() {
         uuid: o.id_orden,
         reqId: o.folio,
         applicant: o.nombre_solicitante,
+        solicitante: o.nombre_solicitante,
+        solicitante_nombre: o.nombre_solicitante,
+        solicitante_id: o.cve_solicitante,
+        cve_empleado: o.cve_solicitante,
         shift: o.turno_solicitante === 1 ? 'Turno Mañana' : o.turno_solicitante === 2 ? 'Turno Tarde' : 'Turno Nocturno',
         area: o.departamento,
         machine: o.maquina_id,
@@ -1261,10 +1265,13 @@ async function dbGetOrders() {
         machineStopped: o.observacion_inicial ? 'Sí' : 'No',
         urgency: o.prioridad,
         status: formatStatus(o.estatus),
+        estatus: o.estatus,
         assignedTech: o.cve_atendio,
         date: o.fecha_hora_inicio || o.fecha_carga,
         dueDate: o.fecha_fin ? `${o.fecha_fin}T${o.hora_fin}` : null,
         evidence: null,
+        calidad: o.calidad,
+        cerrada_en: o.cerrada_en,
         historyLogs: [
           { date: o.fecha_carga, status: 'Solicitud recibida', user: o.nombre_solicitante, comment: 'Registro inicial' }
         ]
@@ -9960,11 +9967,18 @@ async function saveAdminMachine() {
   const process = document.getElementById('admin-machine-process').value.trim();
   const type = document.getElementById('admin-machine-type').value.trim();
   const criticality = document.getElementById('admin-machine-criticality')?.value || 'B';
+  const active = document.getElementById('admin-machine-active')?.checked ?? true;
+
+  if (!code || !name) {
+    alert('Por favor ingresa el Código y Nombre del equipo.');
+    return;
+  }
 
   const machineObj = {
     equipo_towell: code,
     clave: name,
     departamento_codigo: area,
+    area: area,
     tipo_equipo: type,
     activo: active,
     ax: null,
@@ -9997,13 +10011,19 @@ async function saveAdminMachine() {
         showToast('Equipo creado en base de datos.');
       }
 
-      // Upsert criticidad
-      await supabaseClient.from('cat_criticidad_maquina').upsert([{
+      // Guardar criticidad (select + insert/update por ausencia de UNIQUE en maquina_id)
+      const critObj = {
         maquina_id: code,
         nivel_criticidad: criticality,
         descripcion_criticidad: criticality === 'A' ? 'Equipo de alta criticidad (Paro Total)' : (criticality === 'B' ? 'Equipo de criticidad media (Paro Parcial)' : 'Equipo secundario'),
         activo: active
-      }], { onConflict: 'maquina_id' });
+      };
+      const { data: existingCrit } = await supabaseClient.from('cat_criticidad_maquina').select('id_criticidad').eq('maquina_id', code).limit(1);
+      if (existingCrit && existingCrit.length > 0) {
+        await supabaseClient.from('cat_criticidad_maquina').update(critObj).eq('id_criticidad', existingCrit[0].id_criticidad);
+      } else {
+        await supabaseClient.from('cat_criticidad_maquina').insert([critObj]);
+      }
     } catch (err) {
       console.error('Error guardando máquina en Supabase:', err);
       alert('Error guardando en Supabase: ' + err.message);
@@ -16456,13 +16476,14 @@ async function acceptWorkOrderFromModal() {
   if (idx === -1) return;
 
   const nowISO = new Date().toISOString();
-  orders[idx].status = 'Terminada';
+  orders[idx].status = 'Cerrada';
+  orders[idx].estatus = 'cerrada';
   orders[idx].closeDate = nowISO;
 
   if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
   orders[idx].historyLogs.push({
     date: nowISO,
-    status: 'Terminada',
+    status: 'Cerrada',
     user: currentUser ? currentUser.name : 'Solicitante',
     comment: 'Trabajo aceptado y orden cerrada definitivamente.'
   });
@@ -16476,7 +16497,7 @@ async function acceptWorkOrderFromModal() {
     try {
       await supabaseClient
         .from('ordenes_trabajo')
-        .update({ estatus: 'TERMINADA', fecha_hora_fin: nowISO })
+        .update({ estatus: 'cerrada', fecha_hora_fin: nowISO, cerrada_en: nowISO })
         .eq('folio', otId);
     } catch (err) {
       console.error('Error closing order in Supabase:', err);
