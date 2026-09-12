@@ -636,6 +636,93 @@ let tempSelectedParts = [];
 // Arreglo temporal de subtareas por crear en el detalle de OT del técnico
 let tempSubtasksToCreate = [];
 
+// --- HELPERS DE AUTORIZACIÓN: JEFATURA, SUPERVISIÓN Y ALCANCE DE SOLICITANTES ---
+function isJefeUser(user) {
+  if (!user) return false;
+  const role = String(user.rol || user.role || '').toUpperCase().trim();
+  if (['SUPER_ADMINISTRADOR', 'SUPERADMIN', 'ADMINISTRADOR', 'JEFE_MANTENIMIENTO', 'SUPERVISOR'].includes(role)) {
+    return true;
+  }
+  
+  // Procesos autorizados asignados explícitamente (PRD-USR002-R1)
+  if (user.procesos_autorizados && Array.isArray(user.procesos_autorizados) && user.procesos_autorizados.length > 0) {
+    return true;
+  }
+
+  // Lista de correos conocidos de jefes / supervisores de planta
+  const email = String(user.email || user.correo || '').toLowerCase().trim();
+  const jefeEmails = [
+    'ehernandez@towell.com.mx',
+    'gmotte@towell.com.mx',
+    'mportillo@towelmex.com',
+    'jcruz@towell.com.mx',
+    'supervisor.costura@towelmex.com',
+    'supervisor.tintoreria@towelmex.com',
+    'supervisor.corte@towelmex.com',
+    'supervision.produccion@towelmex.com',
+    'mantenimiento@towelmex.com',
+    'cbenites@towelmex.com',
+    'jmrodriguez@towell.com.mx',
+    'f.hernandez@towell.com.mx',
+    'fran.hrdz93@gmail.com'
+  ];
+  if (jefeEmails.includes(email)) return true;
+
+  // Puesto o Nombre contiene palabras clave de jefatura / supervisión
+  const puesto = String(user.puesto || '').toLowerCase();
+  const nombre = String(user.name || user.nombre_completo || '').toLowerCase();
+  if (puesto.includes('supervisor') || puesto.includes('jefe') || puesto.includes('gerente') || puesto.includes('coordinador') || puesto.includes('supervisión') || puesto.includes('supervision')) {
+    return true;
+  }
+  if (nombre.includes('supervisor') || nombre.includes('jefe')) {
+    return true;
+  }
+
+  return false;
+}
+
+function getJefeAuthorizedAreas(user) {
+  if (!user) return [];
+  const role = String(user.rol || user.role || '').toUpperCase().trim();
+  const email = String(user.email || user.correo || '').toLowerCase().trim();
+
+  // Super administradores y administradores generales tienen alcance total
+  if (['SUPER_ADMINISTRADOR', 'SUPERADMIN', 'ADMINISTRADOR', 'JEFE_MANTENIMIENTO'].includes(role) ||
+      ['fran.hrdz93@gmail.com', 'f.hernandez@towell.com.mx', 'mantenimiento@towelmex.com', 'cbenites@towelmex.com', 'jmrodriguez@towell.com.mx'].includes(email)) {
+    return ['PF', 'CF', 'TF', 'AF'];
+  }
+
+  const areas = [];
+  const userArea = String(user.area || user.departamento || '').toUpperCase().trim();
+  if (['PF', 'CF', 'TF', 'AF'].includes(userArea) && !areas.includes(userArea)) {
+    areas.push(userArea);
+  }
+  if (user.procesos_autorizados && Array.isArray(user.procesos_autorizados)) {
+    user.procesos_autorizados.forEach(p => {
+      const pUp = String(p).toUpperCase().trim();
+      if (['PF', 'CF', 'TF', 'AF'].includes(pUp) && !areas.includes(pUp)) {
+        areas.push(pUp);
+      }
+    });
+  }
+
+  // Mapeos canónicos por correo para jefaturas de proceso
+  if (email === 'ehernandez@towell.com.mx' || email === 'supervision.produccion@towelmex.com') {
+    if (!areas.includes('PF')) areas.push('PF');
+  }
+  if (email === 'gmotte@towell.com.mx' || email === 'supervisor.costura@towelmex.com' || email === 'supervisor.corte@towelmex.com') {
+    if (!areas.includes('CF')) areas.push('CF');
+  }
+  if (email === 'mportillo@towelmex.com' || email === 'supervisor.tintoreria@towelmex.com') {
+    if (!areas.includes('TF')) areas.push('TF');
+  }
+  if (email === 'jcruz@towell.com.mx') {
+    if (!areas.includes('AF')) areas.push('AF');
+  }
+
+  return areas;
+}
+
 // Helper universal de coincidencia para el portal del solicitante y supervisor
 function isRequesterUserMatch(item, user) {
   if (!item || !user) return false;
@@ -666,11 +753,15 @@ function isRequesterUserMatch(item, user) {
   if (userName && itemAppName && (itemAppName === userName || itemAppName.includes(userName) || userName.includes(itemAppName))) return true;
   if (userName && itemReporta && (itemReporta === userName || itemReporta.includes(userName) || userName.includes(itemReporta))) return true;
 
-  // 5. Coincidencia por Área de Planta (Supervisores y Solicitantes de Costura CF, Tejido PF, Tinte TF, Planta AF ven todo su departamento)
-  if (userArea && itemArea && ['PF', 'CF', 'TF', 'AF'].includes(userArea) && itemArea === userArea) return true;
+  // 5. Coincidencia por Área de Planta: EXCLUSIVO para Jefes y Supervisores
+  // (Los solicitantes normales NO ven todo el departamento; solo los Jefes y Supervisores ven su área completa)
+  if (isJefeUser(user)) {
+    const jefeAreas = getJefeAuthorizedAreas(user);
+    if (itemArea && jefeAreas.includes(itemArea)) return true;
+    if (userArea && itemArea && ['PF', 'CF', 'TF', 'AF'].includes(userArea) && itemArea === userArea) return true;
+  }
 
   // 6. PRD-USR002-R1: Coincidencia por Procesos Autorizados de RESPONSABLE_PROCESO
-  // Soporta relación muchos-a-muchos (un usuario con uno o más procesos asignados)
   if (user.procesos_autorizados && Array.isArray(user.procesos_autorizados) && user.procesos_autorizados.length > 0) {
     if (itemArea && user.procesos_autorizados.includes(itemArea)) return true;
   }
@@ -2454,7 +2545,19 @@ document.addEventListener('DOMContentLoaded', async () => {
               email: dbUser.correo,
               specialty: dbUser.observaciones || 'General',
               avatar: '👨‍🔧',
-              department: dbUser.departamento
+              department: dbUser.departamento,
+              puesto: dbUser.puesto || null,
+              puede_crear_solicitud: dbUser.puede_crear_solicitud !== false,
+              puede_validar_cierre: dbUser.puede_validar_cierre !== false,
+              puede_cerrar_orden: !!dbUser.puede_cerrar_orden,
+              puede_ver_todas_ordenes: !!dbUser.puede_ver_todas_ordenes,
+              puede_ver_ordenes_asignadas: !!dbUser.puede_ver_ordenes_asignadas,
+              puede_atender_orden: !!dbUser.puede_atender_orden,
+              puede_editar_catalogos: !!dbUser.puede_editar_catalogos,
+              puede_ver_dashboards: !!dbUser.puede_ver_dashboards,
+              puede_configurar_sistema: !!dbUser.puede_configurar_sistema,
+              recibe_alertas: !!dbUser.recibe_alertas,
+              procesos_autorizados: []
             };
             persistSessionUser(currentUser);
           } else if (roleKey === 'admin') {
@@ -2466,21 +2569,47 @@ document.addEventListener('DOMContentLoaded', async () => {
               uuid: dbUser.id_usuario,
               cve_tecnico: dbUser.cve_tecnico,
               cve_empleado: dbUser.cve_empleado,
-              department: dbUser.departamento
+              department: dbUser.departamento,
+              puesto: dbUser.puesto || null,
+              puede_crear_solicitud: dbUser.puede_crear_solicitud !== false,
+              puede_validar_cierre: dbUser.puede_validar_cierre !== false,
+              puede_cerrar_orden: !!dbUser.puede_cerrar_orden,
+              puede_ver_todas_ordenes: !!dbUser.puede_ver_todas_ordenes,
+              puede_ver_ordenes_asignadas: !!dbUser.puede_ver_ordenes_asignadas,
+              puede_atender_orden: !!dbUser.puede_atender_orden,
+              puede_editar_catalogos: !!dbUser.puede_editar_catalogos,
+              puede_ver_dashboards: !!dbUser.puede_ver_dashboards,
+              puede_configurar_sistema: !!dbUser.puede_configurar_sistema,
+              recibe_alertas: !!dbUser.recibe_alertas,
+              procesos_autorizados: ['PF', 'CF', 'TF', 'AF']
             };
             persistSessionUser(currentUser);
           } else if (roleKey === 'solicitante') {
             const userArea = (dbUser.departamento || dbUser.area || dbUser.departamento_codigo || 'AF').toUpperCase().trim();
             currentUser = {
               role: 'solicitante',
-              rol: 'SOLICITANTE',
+              rol: dbUser.rol || 'SOLICITANTE',
               id: dbUser.id_usuario,
               uuid: dbUser.id_usuario,
               name: dbUser.nombre_completo,
               email: dbUser.correo,
               cve_empleado: dbUser.cve_empleado,
               area: ['PF', 'CF', 'AF', 'TF'].includes(userArea) ? userArea : 'AF',
-              department: dbUser.departamento || (userArea === 'PF' ? 'Producción / Tejido' : userArea === 'CF' ? 'Costura' : userArea === 'TF' ? 'Tintorería' : 'Servicios Auxiliares')
+              department: dbUser.departamento || (userArea === 'PF' ? 'Producción / Tejido' : userArea === 'CF' ? 'Costura' : userArea === 'TF' ? 'Tintorería' : 'Servicios Auxiliares'),
+              puesto: dbUser.puesto || null,
+              puede_crear_solicitud: dbUser.puede_crear_solicitud !== false,
+              puede_validar_cierre: dbUser.puede_validar_cierre !== false,
+              puede_cerrar_orden: !!dbUser.puede_cerrar_orden,
+              puede_ver_todas_ordenes: !!dbUser.puede_ver_todas_ordenes,
+              puede_ver_ordenes_asignadas: !!dbUser.puede_ver_ordenes_asignadas,
+              puede_atender_orden: !!dbUser.puede_atender_orden,
+              puede_editar_catalogos: !!dbUser.puede_editar_catalogos,
+              puede_ver_dashboards: !!dbUser.puede_ver_dashboards,
+              puede_configurar_sistema: !!dbUser.puede_configurar_sistema,
+              recibe_alertas: !!dbUser.recibe_alertas,
+              supervisor: dbUser.id_supervisor || null,
+              active: dbUser.activo !== false,
+              procesos_autorizados: []
             };
             persistSessionUser(currentUser);
           }
@@ -3534,6 +3663,17 @@ async function handleLoginSubmit(event) {
         cve_tecnico: dbUser.cve_tecnico,
         cve_empleado: dbUser.cve_empleado,
         department: dbUser.departamento,
+        puesto: dbUser.puesto || null,
+        puede_crear_solicitud: dbUser.puede_crear_solicitud !== false,
+        puede_validar_cierre: dbUser.puede_validar_cierre !== false,
+        puede_cerrar_orden: !!dbUser.puede_cerrar_orden,
+        puede_ver_todas_ordenes: !!dbUser.puede_ver_todas_ordenes,
+        puede_ver_ordenes_asignadas: !!dbUser.puede_ver_ordenes_asignadas,
+        puede_atender_orden: !!dbUser.puede_atender_orden,
+        puede_editar_catalogos: !!dbUser.puede_editar_catalogos,
+        puede_ver_dashboards: !!dbUser.puede_ver_dashboards,
+        puede_configurar_sistema: !!dbUser.puede_configurar_sistema,
+        recibe_alertas: !!dbUser.recibe_alertas,
         procesos_autorizados: ['PF', 'CF', 'TF', 'AF']
       };
       persistSessionUser(currentUser);
@@ -3560,7 +3700,19 @@ async function handleLoginSubmit(event) {
         email: dbUser.correo,
         specialty: dbUser.observaciones || 'General',
         avatar: '👨‍🔧',
-        department: dbUser.departamento
+        department: dbUser.departamento,
+        puesto: dbUser.puesto || null,
+        puede_crear_solicitud: dbUser.puede_crear_solicitud !== false,
+        puede_validar_cierre: dbUser.puede_validar_cierre !== false,
+        puede_cerrar_orden: !!dbUser.puede_cerrar_orden,
+        puede_ver_todas_ordenes: !!dbUser.puede_ver_todas_ordenes,
+        puede_ver_ordenes_asignadas: !!dbUser.puede_ver_ordenes_asignadas,
+        puede_atender_orden: !!dbUser.puede_atender_orden,
+        puede_editar_catalogos: !!dbUser.puede_editar_catalogos,
+        puede_ver_dashboards: !!dbUser.puede_ver_dashboards,
+        puede_configurar_sistema: !!dbUser.puede_configurar_sistema,
+        recibe_alertas: !!dbUser.recibe_alertas,
+        procesos_autorizados: []
       };
       persistSessionUser(currentUser);
       showToast(`Sesión iniciada como Técnico: ${dbUser.nombre_completo}`);
@@ -3583,7 +3735,7 @@ async function handleLoginSubmit(event) {
       const userArea = (dbUser.departamento || dbUser.area || dbUser.departamento_codigo || 'AF').toUpperCase().trim();
       currentUser = { 
         role: 'solicitante', 
-        rol: 'SOLICITANTE',
+        rol: dbUser.rol || 'SOLICITANTE',
         id: dbUser.id_usuario,
         uuid: dbUser.id_usuario,
         name: dbUser.nombre_completo, 
@@ -3591,6 +3743,17 @@ async function handleLoginSubmit(event) {
         cve_empleado: dbUser.cve_empleado,
         area: ['CF', 'PF', 'AF', 'TF'].includes(userArea) ? userArea : 'AF',
         department: dbUser.departamento || (userArea === 'PF' ? 'Producción / Tejido' : userArea === 'CF' ? 'Costura' : userArea === 'TF' ? 'Tintorería' : 'Servicios Auxiliares'),
+        puesto: dbUser.puesto || null,
+        puede_crear_solicitud: dbUser.puede_crear_solicitud !== false,
+        puede_validar_cierre: dbUser.puede_validar_cierre !== false,
+        puede_cerrar_orden: !!dbUser.puede_cerrar_orden,
+        puede_ver_todas_ordenes: !!dbUser.puede_ver_todas_ordenes,
+        puede_ver_ordenes_asignadas: !!dbUser.puede_ver_ordenes_asignadas,
+        puede_atender_orden: !!dbUser.puede_atender_orden,
+        puede_editar_catalogos: !!dbUser.puede_editar_catalogos,
+        puede_ver_dashboards: !!dbUser.puede_ver_dashboards,
+        puede_configurar_sistema: !!dbUser.puede_configurar_sistema,
+        recibe_alertas: !!dbUser.recibe_alertas,
         supervisor: dbUser.id_supervisor || null,
         active: dbUser.activo !== false,
         // PRD-USR002-R1: Procesos autorizados para RESPONSABLE_PROCESO.
@@ -18186,6 +18349,19 @@ function switchSolicitantePanel(panelId) {
   if (!validPanels.includes(target)) {
     target = 'home';
   }
+
+  // Verificación de permisos de usuario
+  if (currentUser) {
+    if (target === 'new' && currentUser.puede_crear_solicitud === false) {
+      showToast('⚠️ Tu cuenta no tiene habilitado el permiso para crear solicitudes.', 'warning');
+      target = 'home';
+    }
+    if (target === 'validation' && currentUser.puede_validar_cierre === false) {
+      showToast('⚠️ Tu cuenta no tiene habilitado el permiso de "Validar y Cerrar OT".', 'warning');
+      target = 'home';
+    }
+  }
+
   activeSolicitantePanel = target;
   closeSidebarOnMobile();
 
@@ -18280,10 +18456,6 @@ function renderSolicitanteProfileHeader() {
     if (valSub) valSub.innerText = `Valida el trabajo realizado en tus solicitudes en estatus PENDIENTE DE VALIDACIÓN.`;
 
     // Conteos en vivo para los cuadrantes usando matching multicriterio consistente
-    const currentUserId = String(currentUser.id || currentUser.uuid || '');
-    const currentUserEmail = String(currentUser.email || '').toLowerCase();
-    const currentUserName = String(currentUser.name || currentUser.nombre_completo || '').toLowerCase();
-
     const isMatch = (item) => isRequesterUserMatch(item, currentUser);
 
     const userRequests = requests.filter(isMatch);
@@ -18292,13 +18464,30 @@ function renderSolicitanteProfileHeader() {
     if (trackCountEl) trackCountEl.innerText = `${activeRequestsCount} Activa${activeRequestsCount === 1 ? '' : 's'}`;
 
     const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-    const pendingVal = orders.filter(o => o && o.status === 'PENDIENTE DE VALIDACIÓN' && isMatch(o));
+    const isJefe = isJefeUser(currentUser);
+    const jefeAreas = isJefe ? getJefeAuthorizedAreas(currentUser) : [];
+    const isPendingVal = (st) => {
+      if (!st) return false;
+      const s = String(st).toLowerCase().trim();
+      return s.includes('validacion') || s.includes('validación') || s === 'ejecutada';
+    };
+    const canValidate = currentUser.puede_validar_cierre !== false;
+    const pendingVal = canValidate ? orders.filter(o => {
+      if (!isPendingVal(o.status)) return false;
+      if (isJefe) {
+        if (isStrictOriginalApplicant(o, currentUser)) return true;
+        const oArea = String(o.area || o.departamento || '').toUpperCase().trim();
+        return jefeAreas.includes(oArea);
+      }
+      return isStrictOriginalApplicant(o, currentUser);
+    }) : [];
+
     const valCountEl = document.getElementById('badge-solic-validation-count');
     const valSidebarBadge = document.getElementById('badge-solic-pending-val');
-    if (valCountEl) valCountEl.innerText = `${pendingVal.length} Pendiente${pendingVal.length === 1 ? '' : 's'}`;
+    if (valCountEl) valCountEl.innerText = canValidate ? `${pendingVal.length} Pendiente${pendingVal.length === 1 ? '' : 's'}` : 'Sin permiso';
     if (valSidebarBadge) {
       valSidebarBadge.innerText = pendingVal.length;
-      valSidebarBadge.style.display = pendingVal.length > 0 ? 'inline-block' : 'none';
+      valSidebarBadge.style.display = (canValidate && pendingVal.length > 0) ? 'inline-block' : 'none';
     }
 
     // Cargar sección de mantenimientos programados en el Home del Solicitante
@@ -18501,6 +18690,10 @@ let isSubmittingRequest = false;
 async function submitSolicitanteNewRequest() {
   if (isSubmittingRequest) return;
   if (!currentUser) { alert('Debes iniciar sesión como Solicitante.'); return; }
+  if (currentUser.puede_crear_solicitud === false) {
+    showToast('🚫 Tu cuenta no tiene habilitado el permiso para crear solicitudes de mantenimiento.', 'error');
+    return;
+  }
 
   const submitBtn = document.getElementById('btn-solic-submit-request');
   const manualApplicantName = document.getElementById('solic-req-applicant-name')?.value?.trim() || null;
@@ -19436,19 +19629,19 @@ function onSubstituteReasonChange(val) {
 function isStrictOriginalApplicant(order, user) {
   if (!order || !user) return false;
   const uid = String(user.id || user.uuid || '').trim().toLowerCase();
-  const uemail = String(user.email || '').trim().toLowerCase();
+  const uemail = String(user.email || user.correo || '').trim().toLowerCase();
   const uname = String(user.name || user.nombre_completo || '').trim().toLowerCase();
   const uemp = String(user.cve_empleado || '').trim().toLowerCase();
 
   const oUid = String(order.solicitante_id || order.applicant_id || order.id_solicitante || '').trim().toLowerCase();
   const oEmail = String(order.solicitante_correo || order.applicant_email || order.correo || '').trim().toLowerCase();
-  const oName = String(order.solicitante || order.solicitante_nombre || order.solicitante_nom || '').trim().toLowerCase();
+  const oName = String(order.solicitante || order.solicitante_nombre || order.solicitante_nom || order.applicant || '').trim().toLowerCase();
   const oEmp = String(order.cve_empleado || order.solicitante_clave || '').trim().toLowerCase();
 
   if (uid && oUid && uid === oUid) return true;
   if (uemail && oEmail && uemail === oEmail) return true;
   if (uemp && oEmp && uemp === oEmp) return true;
-  if (uname && oName && uname === oName) return true;
+  if (uname && oName && (uname === oName || oName.includes(uname) || uname.includes(oName))) return true;
   return false;
 }
 
@@ -19458,9 +19651,9 @@ async function renderSolicitanteValidations() {
   const badgePending = document.getElementById('badge-solic-pending-val');
   if (!currentUser) return;
 
-  const userRole = String(currentUser.rol || currentUser.role || '').toUpperCase();
-  const isSuperAdmin = (userRole === 'SUPER_ADMINISTRADOR' || userRole === 'SUPERADMIN');
-  const isAdminOrJefe = (isSuperAdmin || userRole === 'ADMINISTRADOR' || userRole === 'JEFE_MANTENIMIENTO' || userRole === 'SUPERVISOR');
+  const isJefe = isJefeUser(currentUser);
+  const jefeAreas = isJefe ? getJefeAuthorizedAreas(currentUser) : [];
+  const canValidate = currentUser.puede_validar_cierre !== false;
 
   const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
 
@@ -19478,11 +19671,30 @@ async function renderSolicitanteValidations() {
            s === 'en validacion';
   };
 
-  // PRD Regla 3 y 4: Solicitante ve sus órdenes; Jefes / Super Admin ven órdenes para cierre sustituto
+  // Validación de permiso de usuario: 'puede_validar_cierre'
+  if (!canValidate) {
+    if (badgePending) badgePending.style.display = 'none';
+    if (tbodyPending) {
+      tbodyPending.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:35px 20px; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:8px;">
+        <div style="font-size:1.4rem; margin-bottom:6px;">🔒</div>
+        <strong style="font-size:1rem;">Permiso no asignado</strong><br>
+        <span style="font-size:0.88rem; color:#78350f;">Tu cuenta de usuario no tiene activado el permiso <strong>"Validar y Cerrar OT"</strong>.<br>Para poder calificar y cerrar órdenes concluidas, solicita la activación a tu administrador.</span>
+      </td></tr>`;
+    }
+    return;
+  }
+
+  // Filtrado estricto:
+  // - Solicitante normal: ÚNICAMENTE las órdenes que generó ÉL MISMO (sin órdenes ajenas del área)
+  // - Jefe / Supervisor: sus órdenes propias + las órdenes de sus áreas asignadas (para cierre sustituto)
   const pendingOrders = orders.filter(o => {
     if (!isPendingVal(o.status)) return false;
-    if (isAdminOrJefe) return true;
-    return isRequesterUserMatch(o, currentUser);
+    if (isJefe) {
+      if (isStrictOriginalApplicant(o, currentUser)) return true;
+      const oArea = String(o.area || o.departamento || '').toUpperCase().trim();
+      return jefeAreas.includes(oArea);
+    }
+    return isStrictOriginalApplicant(o, currentUser);
   });
 
   if (badgePending) {
@@ -19500,7 +19712,7 @@ async function renderSolicitanteValidations() {
     } else {
       tbodyPending.innerHTML = pendingOrders.map(o => {
         const isOriginal = isStrictOriginalApplicant(o, currentUser);
-        const substituteBadge = !isOriginal ? '<span class="badge" style="background:#fef3c7; color:#92400e; font-size:0.75rem; margin-left:4px;" title="Cierre sustituto requerido">Sustituto</span>' : '';
+        const substituteBadge = (!isOriginal && isJefe) ? '<span class="badge" style="background:#fef3c7; color:#92400e; font-size:0.75rem; margin-left:4px;" title="Cierre sustituto por jefatura">Sustituto</span>' : '';
         return `<tr>
           <td><strong>${o.id}</strong>${substituteBadge}</td>
           <td>${o.machine || o.location || 'Equipo'}</td>
@@ -19529,7 +19741,7 @@ async function renderSolicitanteValidations() {
       validations = JSON.parse(localStorage.getItem('TSMAI_validations_history') || '[]');
     }
 
-    const filteredHistory = isAdminOrJefe ? validations : validations.filter(v => isRequesterUserMatch(v, currentUser));
+    const filteredHistory = isJefe ? validations : validations.filter(v => isRequesterUserMatch(v, currentUser));
 
     if (filteredHistory.length === 0) {
       tbodyHistory.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No hay validaciones registradas en el historial.</td></tr>';
@@ -19702,16 +19914,62 @@ async function openSolicitanteValidationDetail(orderId) {
   }
 
   // Botones de acción
-  document.getElementById('btn-solic-modal-accept').onclick = () => { closeModal('modal-solic-detail-view'); openAcceptWorkModal(orderId); };
-  document.getElementById('btn-solic-modal-reject').onclick = () => { closeModal('modal-solic-detail-view'); openCorrectionModal(orderId); };
+  const btnAccept = document.getElementById('btn-solic-modal-accept');
+  const btnReject = document.getElementById('btn-solic-modal-reject');
+  const canVal = !currentUser || currentUser.puede_validar_cierre !== false;
+  const isOriginal = isStrictOriginalApplicant(order, currentUser);
+  const isJefe = isJefeUser(currentUser);
+  let canOperate = canVal && (isOriginal || isJefe);
+  if (canOperate && !isOriginal && isJefe) {
+    const jefeAreas = getJefeAuthorizedAreas(currentUser);
+    const oArea = String(order.area || order.departamento || '').toUpperCase().trim();
+    if (jefeAreas.length > 0 && oArea && !jefeAreas.includes(oArea)) {
+      canOperate = false;
+    }
+  }
+
+  if (btnAccept) {
+    btnAccept.style.display = canOperate ? 'inline-block' : 'none';
+    btnAccept.onclick = () => { closeModal('modal-solic-detail-view'); openAcceptWorkModal(orderId); };
+  }
+  if (btnReject) {
+    btnReject.style.display = canOperate ? 'inline-block' : 'none';
+    btnReject.onclick = () => { closeModal('modal-solic-detail-view'); openCorrectionModal(orderId); };
+  }
 
   openModal('modal-solic-detail-view');
 }
 
 function openAcceptWorkModal(orderId) {
+  if (currentUser && currentUser.puede_validar_cierre === false) {
+    showToast('🚫 Tu cuenta no tiene habilitado el permiso de "Validar y Cerrar OT".', 'error');
+    return;
+  }
+
   activeValidationOrderId = orderId;
   const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-  const order = orders.find(o => o.id === orderId);
+  const order = orders.find(o => o.id === orderId || o.folio === orderId);
+  if (!order) {
+    showToast('⚠️ No se encontró la orden especificada.', 'error');
+    return;
+  }
+
+  const isOriginal = isStrictOriginalApplicant(order, currentUser);
+  const isJefe = isJefeUser(currentUser);
+
+  if (!isOriginal && !isJefe) {
+    showToast('🚫 Solo el solicitante que generó la OT o el supervisor de área pueden validar y cerrar este trabajo.', 'error');
+    return;
+  }
+
+  if (!isOriginal && isJefe) {
+    const jefeAreas = getJefeAuthorizedAreas(currentUser);
+    const oArea = String(order.area || order.departamento || '').toUpperCase().trim();
+    if (jefeAreas.length > 0 && oArea && !jefeAreas.includes(oArea)) {
+      showToast(`🚫 Esta orden pertenece al área ${oArea}, fuera de tus áreas autorizadas como supervisor.`, 'error');
+      return;
+    }
+  }
 
   document.getElementById('solic-accept-ot-id').value = orderId;
   document.getElementById('solic-accept-comments').value = '';
@@ -19759,12 +20017,12 @@ function openAcceptWorkModal(orderId) {
   }
 
   // PRD Regla 4: Verificar si es cierre sustituto
+  // Solo se muestra cierre sustituto si NO es el solicitante original Y ES JEFE/SUPERVISOR
   const substituteContainer = document.getElementById('solic-accept-substitute-container');
   const substituteSelect = document.getElementById('solic-accept-substitute-reason');
-  const isOriginal = isStrictOriginalApplicant(order, currentUser);
 
   if (substituteContainer && substituteSelect) {
-    if (!isOriginal) {
+    if (!isOriginal && isJefe) {
       substituteContainer.style.display = 'block';
       substituteSelect.value = '';
       substituteSelect.required = true;
@@ -19820,7 +20078,30 @@ function getNextConsecutiveFolio(prefix = 'CF') {
 
 async function submitSolicitanteAcceptWork() {
   if (!currentUser) return;
+  if (currentUser.puede_validar_cierre === false) {
+    showToast('🚫 Tu cuenta no tiene habilitado el permiso de "Validar y Cerrar OT".', 'error');
+    return;
+  }
   const orderId = document.getElementById('solic-accept-ot-id')?.value || activeValidationOrderId;
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  const order = orders.find(o => o.id === orderId || o.folio === orderId);
+
+  const isOriginal = isStrictOriginalApplicant(order, currentUser);
+  const isJefe = isJefeUser(currentUser);
+
+  if (!isOriginal && !isJefe) {
+    showToast('🚫 Solo el solicitante que generó la OT o el supervisor de área pueden validar y cerrar este trabajo.', 'error');
+    return;
+  }
+  if (!isOriginal && isJefe) {
+    const jefeAreas = getJefeAuthorizedAreas(currentUser);
+    const oArea = String(order?.area || order?.departamento || '').toUpperCase().trim();
+    if (jefeAreas.length > 0 && oArea && !jefeAreas.includes(oArea)) {
+      showToast(`🚫 Esta orden pertenece al área ${oArea}, fuera de tus áreas autorizadas como supervisor.`, 'error');
+      return;
+    }
+  }
+
   const ratingInput = parseInt(document.getElementById('solic-accept-stars')?.value);
   const comments = document.getElementById('solic-accept-comments')?.value?.trim() || '';
 
@@ -20057,6 +20338,28 @@ async function submitSolicitanteAcceptWork() {
 }
 
 function openCorrectionModal(orderId) {
+  if (currentUser && currentUser.puede_validar_cierre === false) {
+    showToast('🚫 Tu cuenta no tiene habilitado el permiso de "Validar y Cerrar OT".', 'error');
+    return;
+  }
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  const order = orders.find(o => o.id === orderId || o.folio === orderId);
+  const isOriginal = isStrictOriginalApplicant(order, currentUser);
+  const isJefe = isJefeUser(currentUser);
+
+  if (!isOriginal && !isJefe) {
+    showToast('🚫 Solo el solicitante que generó la OT o el supervisor de área pueden rechazar o solicitar corrección.', 'error');
+    return;
+  }
+  if (!isOriginal && isJefe) {
+    const jefeAreas = getJefeAuthorizedAreas(currentUser);
+    const oArea = String(order?.area || order?.departamento || '').toUpperCase().trim();
+    if (jefeAreas.length > 0 && oArea && !jefeAreas.includes(oArea)) {
+      showToast(`🚫 Esta orden pertenece al área ${oArea}, fuera de tus áreas autorizadas como supervisor.`, 'error');
+      return;
+    }
+  }
+
   activeValidationOrderId = orderId;
   const otIdInput = document.getElementById('solic-correct-ot-id');
   const reasonSelect = document.getElementById('solic-correct-reason-select');
@@ -20072,7 +20375,29 @@ function openCorrectionModal(orderId) {
 
 async function submitSolicitanteCorrection() {
   if (!currentUser) return;
+  if (currentUser.puede_validar_cierre === false) {
+    showToast('🚫 Tu cuenta no tiene habilitado el permiso de "Validar y Cerrar OT".', 'error');
+    return;
+  }
   const orderId = document.getElementById('solic-correct-ot-id')?.value || activeValidationOrderId;
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  const order = orders.find(o => o.id === orderId || o.folio === orderId);
+  const isOriginal = isStrictOriginalApplicant(order, currentUser);
+  const isJefe = isJefeUser(currentUser);
+
+  if (!isOriginal && !isJefe) {
+    showToast('🚫 Solo el solicitante que generó la OT o el supervisor de área pueden rechazar o solicitar corrección.', 'error');
+    return;
+  }
+  if (!isOriginal && isJefe) {
+    const jefeAreas = getJefeAuthorizedAreas(currentUser);
+    const oArea = String(order?.area || order?.departamento || '').toUpperCase().trim();
+    if (jefeAreas.length > 0 && oArea && !jefeAreas.includes(oArea)) {
+      showToast(`🚫 Esta orden pertenece al área ${oArea}, fuera de tus áreas autorizadas como supervisor.`, 'error');
+      return;
+    }
+  }
+
   const reason = document.getElementById('solic-correct-reason-select')?.value;
   const comments = document.getElementById('solic-correct-comments')?.value?.trim() || '';
   const nowISO = new Date().toISOString();
