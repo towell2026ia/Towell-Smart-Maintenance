@@ -863,7 +863,7 @@ function getAreaCodeForOrder(item) {
   if (mac.includes('TEJI') || mac.includes('URDI') || mac.includes('MACC') || mac.includes('ENG') || mac.includes('TELAR') || mac.includes('JACQ') || mac.includes('KM') || mac.includes('RASU')) return 'PF';
   if (mac.includes('CORT') || mac.includes('COS') || mac.includes('DOBL') || mac.includes('CONFE') || mac.includes('DETMET') || mac.includes('SUBL') || mac.includes('TEXPA')) return 'CF';
   if (mac.includes('TINT') || mac.includes('JET') || mac.includes('SECA') || mac.includes('OVER') || mac.includes('CAMP') || mac.includes('CALD') || mac.includes('ABRI') || mac.includes('RAMA') || mac.includes('BARC') || mac.includes('POZO') || mac.includes('AGUA') || mac.includes('CLAYTON')) return 'TF';
-  if (mac.includes('COMP') || mac.includes('CIST') || mac.includes('-PT') || mac.includes('PLANTA') || mac.includes('AUX')) return 'AF';
+  if (mac.includes('COMP') || mac.includes('CIST') || mac.includes('-PT') || mac.includes('PLANTA') || mac.includes('AUX') || mac.includes('MONTA') || mac.includes('GENK')) return 'AF';
 
   return 'CF';
 }
@@ -1219,11 +1219,13 @@ async function dbGetMachines() {
       return (data || []).map(m => ({
         id: m.equipo_towell,
         name: m.equipo_towell,
-        area: m.area,
+        area: m.departamento_codigo || m.area || 'AF',
+        departamento_codigo: m.departamento_codigo || m.area || 'AF',
         clave: m.clave,
         proceso: m.proceso,
         tipo_equipo: m.tipo_equipo,
-        activo: m.activo
+        activo: m.activo,
+        status: m.activo ? 'Operativa' : 'Parada'
       }));
     } catch (err) {
       console.error('Error fetching machines from Supabase:', err);
@@ -1348,6 +1350,11 @@ async function dbGetOrders() {
         solicitante_nombre: o.nombre_solicitante,
         solicitante_id: o.cve_solicitante,
         cve_empleado: o.cve_solicitante,
+        // PRD-FIX: campos de identidad del solicitante para cierre/calificación
+        applicant_email: o.correo_solicitante || null,
+        solicitante_correo: o.correo_solicitante || null,
+        applicant_id: o.id_solicitante_app || null,
+        id_solicitante: o.id_solicitante_app || null,
         shift: o.turno_solicitante === 1 ? 'Turno Mañana' : o.turno_solicitante === 2 ? 'Turno Tarde' : 'Turno Nocturno',
         area: o.departamento,
         machine: o.maquina_id,
@@ -2393,7 +2400,7 @@ function normalizeUserRole(rawRol) {
   if (['MANTENIMIENTO', 'TECNICO', 'TECH', 'MECANICO', 'ELECTRICO'].includes(r)) {
     return 'tech';
   }
-  if (['SOLICITANTE', 'SOLICITANTE_PUBLICO', 'SOLICITANTE_PLANTA', 'SOLICITANTE_PRODUCCION'].includes(r)) {
+  if (['SOLICITANTE', 'SOLICITANTE_PUBLICO', 'SOLICITANTE_PLANTA', 'SOLICITANTE_PRODUCCION', 'SUPERVISOR', 'SUPERVISOR_PRODUCCION', 'JEFE_PROCESO', 'RESPONSABLE_PROCESO'].includes(r)) {
     return 'solicitante';
   }
   return 'public';
@@ -10102,11 +10109,11 @@ function openAdminMachineModal(machineId = null) {
     document.getElementById('admin-machine-id').value = m.id;
     codeInput.value = m.id;
     codeInput.disabled = true; // No permitir cambiar código si es edición
-    document.getElementById('admin-machine-name').value = m.name || m.id;
-    document.getElementById('admin-machine-area').value = m.area || 'PF';
+    document.getElementById('admin-machine-name').value = m.name || m.clave || m.id;
+    document.getElementById('admin-machine-area').value = m.departamento_codigo || m.area || 'AF';
     document.getElementById('admin-machine-process').value = m.proceso || '';
     document.getElementById('admin-machine-type').value = m.tipo_equipo || '';
-    document.getElementById('admin-machine-active').checked = m.status === 'Operativa';
+    document.getElementById('admin-machine-active').checked = m.activo !== false && m.status !== 'Parada';
     document.getElementById('admin-machine-detail-title').innerText = `Editar Equipo: ${m.id}`;
   } else {
     document.getElementById('admin-machine-id').value = '';
@@ -10142,9 +10149,6 @@ async function saveAdminMachine() {
     clave: name,
     departamento_codigo: area,
     area: area,
-    tipo_equipo: type,
-    activo: active,
-    ax: null,
     origen: 'App'
   };
 
@@ -10174,7 +10178,7 @@ async function saveAdminMachine() {
         showToast('Equipo creado en base de datos.');
       }
 
-      // Guardar criticidad (select + insert/update por ausencia de UNIQUE en maquina_id)
+      // Guardar criticidad y estatus operativo en cat_criticidad_maquina
       const critObj = {
         maquina_id: code,
         nivel_criticidad: criticality,
@@ -10189,7 +10193,7 @@ async function saveAdminMachine() {
       }
     } catch (err) {
       console.error('Error guardando máquina en Supabase:', err);
-      alert('Error guardando en Supabase: ' + err.message);
+      alert('Error guardando en Supabase: ' + (err.message || err.error_description || JSON.stringify(err)));
       return;
     }
   } else {
@@ -10199,9 +10203,24 @@ async function saveAdminMachine() {
   if (supabaseClient) {
     await syncDatabases();
     
-    // Restaurar el nombre local personalizado si existía en LocalStorage y no se actualizó
+    // Actualizar cache local
     let localMachines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
-    localMachines = localMachines.map(m => m.id === code ? { ...m, name: name } : m);
+    const mappedLocal = {
+      id: code,
+      name: name,
+      area: area,
+      departamento_codigo: area,
+      clave: name,
+      proceso: process,
+      tipo_equipo: type,
+      status: active ? 'Operativa' : 'Parada',
+      activo: active
+    };
+    if (id) {
+      localMachines = localMachines.map(m => m.id === id ? { ...m, ...mappedLocal } : m);
+    } else {
+      localMachines.push(mappedLocal);
+    }
     localStorage.setItem('TSMAI_machines', JSON.stringify(localMachines));
   } else {
     let localMachines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
@@ -10209,10 +10228,12 @@ async function saveAdminMachine() {
       id: code,
       name: name,
       area: area,
+      departamento_codigo: area,
       clave: code.split('-')[1] || code,
       proceso: process,
       tipo_equipo: type,
-      status: active ? 'Operativa' : 'Parada'
+      status: active ? 'Operativa' : 'Parada',
+      activo: active
     };
 
     if (id) {
@@ -10243,11 +10264,29 @@ async function deleteAdminMachine(machineId) {
 
   if (supabaseClient) {
     try {
-      const { error } = await supabaseClient
-        .from('cat_maquinas')
-        .update({ activo: newStatus })
-        .eq('equipo_towell', machineId);
-      if (error) throw error;
+      const { data: existingCrit } = await supabaseClient
+        .from('cat_criticidad_maquina')
+        .select('id_criticidad')
+        .eq('maquina_id', machineId)
+        .limit(1);
+
+      if (existingCrit && existingCrit.length > 0) {
+        const { error } = await supabaseClient
+          .from('cat_criticidad_maquina')
+          .update({ activo: newStatus })
+          .eq('id_criticidad', existingCrit[0].id_criticidad);
+        if (error) throw error;
+      } else {
+        const { error } = await supabaseClient
+          .from('cat_criticidad_maquina')
+          .insert([{
+            maquina_id: machineId,
+            nivel_criticidad: 'B',
+            descripcion_criticidad: 'Equipo estándar',
+            activo: newStatus
+          }]);
+        if (error) throw error;
+      }
       showToast(`Equipo ${newStatus ? 'Operativo' : 'Parado'} en Supabase.`);
       await syncDatabases();
     } catch (err) {
@@ -16884,11 +16923,11 @@ function resolveAreaFromMachineCode(code, clave) {
   if (c === 'DEMO-MAQ-004') return 'TF';
   if (c === 'DEMO-MAQ-005') return 'CF';
   if (c === 'DEMO-MAQ-006') return 'AF';
-  // PF (Tejido/Urdido): telares, engomados, urdidos, jacquard, KM, revisadoras, polipastos, montacargas, rasuradoras, CRUD
+  // PF (Tejido/Urdido): telares, engomados, urdidos, jacquard, KM, revisadoras, polipastos, rasuradoras, CRUD
   if (c.endsWith('-TEJI') || c.endsWith('-TEJ') || c.endsWith('-URDI') || c.includes('-KM') ||
       c.endsWith('-RASU') || c.endsWith('-CRUD') ||
       k.includes('TELAR') || k.includes('URDID') || k.includes('ENGOMADO') || k.includes('JACQUARD') ||
-      k.includes('RASURADORA') || k.includes('REVISADOR') || k.includes('MONTACARGAS') ||
+      k.includes('RASURADORA') || k.includes('REVISADOR') ||
       k.includes('POLIPASTO') || k.includes('OVER LOOK 36')) return 'PF';
   // CF (Costura/Confección)
   if (c.endsWith('-COST') || c.endsWith('-CORBAT') || c.includes('ELEV-COST') ||
@@ -16902,9 +16941,11 @@ function resolveAreaFromMachineCode(code, clave) {
       k.includes('CALDERA') || k.includes('SECADORA') || k.includes('OVER FLOW') || k.includes('FOULARD') ||
       k.includes('PLANTA TRATADORA') || k.includes('CENTRO DE LAVADO') || k.includes('ABRIDORA') ||
       k.includes('OVER LOOK 35') || k.includes('BOMBA DE AGUA DEL POZO') || k.includes('CLAYTON')) return 'TF';
-  // AF (Auxiliares)
+  // AF (Auxiliares / Montacargas / Servicios Generales)
   if (c.endsWith('-PT') || (c.includes('COMP') && c.includes('HP')) || c.includes('BOMCIST') ||
-      k.includes('COMPRESOR') || k.includes('CISTERNA') || k.includes('SELLADORA PT')) return 'AF';
+      c.includes('GENK') || c.includes('MONTA') ||
+      k.includes('COMPRESOR') || k.includes('CISTERNA') || k.includes('SELLADORA PT') ||
+      k.includes('MONTACARGAS') || k.includes('MONTACARGA') || k.includes('FORKLIFT')) return 'AF';
   if (c.includes('-PT')) return 'AF';
   return 'PF'; // Default PF
 }
@@ -19628,20 +19669,43 @@ function onSubstituteReasonChange(val) {
 
 function isStrictOriginalApplicant(order, user) {
   if (!order || !user) return false;
+
+  // --- Identidad del usuario actual ---
   const uid = String(user.id || user.uuid || '').trim().toLowerCase();
   const uemail = String(user.email || user.correo || '').trim().toLowerCase();
   const uname = String(user.name || user.nombre_completo || '').trim().toLowerCase();
   const uemp = String(user.cve_empleado || '').trim().toLowerCase();
 
-  const oUid = String(order.solicitante_id || order.applicant_id || order.id_solicitante || '').trim().toLowerCase();
+  // --- Identidad almacenada en la orden ---
+  // Prioridad 1: UUID del solicitante (id_solicitante_app = user.id_usuario desde Supabase)
+  const oAppUid = String(order.id_solicitante || order.applicant_id || order.id_solicitante_app || '').trim().toLowerCase();
+  // Prioridad 2: Employee code (cve_solicitante)
+  const oEmpCve = String(order.solicitante_id || order.cve_empleado || order.solicitante_clave || '').trim().toLowerCase();
+  // Prioridad 3: Correo del solicitante
   const oEmail = String(order.solicitante_correo || order.applicant_email || order.correo || '').trim().toLowerCase();
+  // Prioridad 4: Nombre del solicitante
   const oName = String(order.solicitante || order.solicitante_nombre || order.solicitante_nom || order.applicant || '').trim().toLowerCase();
-  const oEmp = String(order.cve_empleado || order.solicitante_clave || '').trim().toLowerCase();
 
-  if (uid && oUid && uid === oUid) return true;
+  // Comprobación 1: UUID (más confiable — coincidencia exacta)
+  if (uid && oAppUid && uid === oAppUid) return true;
+
+  // Comprobación 2: Correo electrónico (segunda más confiable)
   if (uemail && oEmail && uemail === oEmail) return true;
-  if (uemp && oEmp && uemp === oEmp) return true;
-  if (uname && oName && (uname === oName || oName.includes(uname) || uname.includes(oName))) return true;
+
+  // Comprobación 3: Clave de empleado (solo si no contiene guion — descarta UUIDs usados como clave)
+  if (uemp && oEmpCve && !uemp.includes('-') && !oEmpCve.includes('-') && uemp === oEmpCve) return true;
+
+  // Comprobación 4: Nombre completo (fallback flexible — bidireccional con tolerancia a subcadenas)
+  if (uname && uname.length > 3 && oName && oName.length > 3) {
+    if (uname === oName) return true;
+    // Coincidencia por contenido (apellido o primer nombre)
+    const uParts = uname.split(' ').filter(p => p.length > 2);
+    const oParts = oName.split(' ').filter(p => p.length > 2);
+    const matchedParts = uParts.filter(up => oParts.some(op => op === up || op.startsWith(up) || up.startsWith(op)));
+    if (matchedParts.length >= 2) return true; // Al menos 2 palabras coinciden (nombre + apellido)
+    if (uParts.length === 1 && oParts.length === 1 && uParts[0] === oParts[0]) return true;
+  }
+
   return false;
 }
 
@@ -20241,54 +20305,69 @@ async function submitSolicitanteAcceptWork() {
         return;
       }
 
-      console.warn('[submitSolicitanteAcceptWork] RPC no disponible, ejecutando fallback seguro:', rpcErr.message);
-      await supabaseClient
+      console.warn('[submitSolicitanteAcceptWork] RPC no disponible, ejecutando actualización directa en ordenes_trabajo:', rpcErr.message);
+      
+      const datePart = nowISO.split('T')[0];
+      const timePart = new Date().toTimeString().split(' ')[0];
+      const obsCierre = comments ? (isSubstitute ? `[Cierre sustituto: ${substituteReason}] ${comments}` : comments) : (isSubstitute ? `[Cierre sustituto: ${substituteReason}] Trabajo validado y cerrado` : 'Trabajo validado y cerrado');
+
+      const { error: updateErr } = await supabaseClient
         .from('ordenes_trabajo')
         .update({
           estatus: 'cerrada',
           calidad: rating,
-          cerrada_en: nowISO,
-          observacion_cierre: comments || 'Trabajo validado y cerrado',
-          motivo_cierre: substituteReason || null,
-          validado_por_solicitante: !isSubstitute
+          observacion_cierre: obsCierre,
+          fecha_fin: datePart,
+          hora_fin: timePart,
+          fecha_hora_fin: nowISO
         })
         .eq('folio', orderId);
 
-      // Inserción en auditoría en fallback
+      if (updateErr) {
+        console.error('[submitSolicitanteAcceptWork] Error actualizando ordenes_trabajo:', updateErr);
+        throw updateErr;
+      }
+
+      // Registro en bitácora de orden de trabajo
       try {
-        await supabaseClient.from('auditoria_cierre_ot').insert([
-          {
-            folio: orderId,
-            accion: 'VALIDACION_APROBADA',
-            estado_anterior: 'lista_para_validacion',
-            estado_nuevo: 'cerrada',
-            usuario_id: currentUser.id || null,
-            usuario_nombre: currentUser.nombre_completo || currentUser.name || 'Usuario',
+        const { data: otRows } = await supabaseClient.from('ordenes_trabajo').select('id_orden').eq('folio', orderId).limit(1);
+        const otUuid = (otRows && otRows.length > 0) ? otRows[0].id_orden : null;
+        if (otUuid) {
+          await supabaseClient.from('bitacora_orden_trabajo').insert([{
+            id_orden: otUuid,
+            estatus_anterior: 'ejecutada',
+            estatus_nuevo: 'cerrada',
+            usuario_evento: currentUser.nombre_completo || currentUser.name || currentUser.email,
             rol_usuario: userRole,
-            fecha_hora: nowISO,
-            calificacion: rating,
-            codigo_motivo: substituteReason || 'VALIDACION_CONFORME',
-            comentario: comments || 'Trabajo validado satisfactoriamente',
-            numero_ciclo: 1,
+            tipo_evento: 'CIERRE_VALIDACION',
+            comentario: `Calificación: ${rating} estrellas. ${obsCierre}`,
             origen: 'App'
-          },
-          {
-            folio: orderId,
-            accion: auditAction,
-            estado_anterior: 'lista_para_validacion',
-            estado_nuevo: 'cerrada',
-            usuario_id: currentUser.id || null,
-            usuario_nombre: currentUser.nombre_completo || currentUser.name || 'Usuario',
-            rol_usuario: userRole,
-            fecha_hora: nowISO,
-            calificacion: rating,
-            codigo_motivo: substituteReason || 'CIERRE_DEFINITIVO',
-            comentario: comments,
-            numero_ciclo: 1,
-            origen: 'App'
-          }
-        ]);
-      } catch (eAud) {}
+          }]);
+        }
+      } catch (eBit) {
+        console.warn('[submitSolicitanteAcceptWork] Bitácora warning:', eBit);
+      }
+
+      // Registro en cierres_orden_trabajo
+      try {
+        const { data: otData } = await supabaseClient.from('ordenes_trabajo').select('id_orden, cve_atendio, nombre_atendio').eq('folio', orderId).limit(1);
+        const otRow = (otData && otData.length > 0) ? otData[0] : null;
+        await supabaseClient.from('cierres_orden_trabajo').insert([{
+          id_orden: otRow?.id_orden || null,
+          fecha_cierre: datePart,
+          cve_tecnico: otRow?.cve_atendio || null,
+          nombre_tecnico: otRow?.nombre_atendio || null,
+          usuario_valida: currentUser.nombre_completo || currentUser.name || currentUser.email,
+          fecha_validacion: nowISO,
+          observacion_cierre: obsCierre,
+          calidad: rating,
+          validado_por_solicitante: !isSubstitute,
+          estatus_cierre: 'CERRADA_SATISFACTORIA',
+          observaciones: isSubstitute ? `Cierre sustituto: ${substituteReason}` : 'Cierre validado por solicitante'
+        }]);
+      } catch (eCierre) {
+        console.warn('[submitSolicitanteAcceptWork] Cierres warning:', eCierre);
+      }
     }
 
     // Actualizar caché local
@@ -20538,16 +20617,20 @@ async function submitSolicitanteCorrection() {
       newFolioGenerated = getNextConsecutiveFolio(area);
       const newUUID = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : (orderId + '-C' + newCycleGenerated);
 
+      const datePart = nowISO.split('T')[0];
+      const timePart = new Date().toTimeString().split(' ')[0];
+
       // 1. Cerrar la OT original como rechazada
       await supabaseClient
         .from('ordenes_trabajo')
         .update({
           estatus: 'rechazada',
-          codigo_motivo_rechazo: reason,
-          comentario_rechazo: comments,
           requerimiento_retrabajo: true,
           motivo_retrabajo: `${reason}: ${comments}`,
-          cerrada_en: nowISO
+          observacion_cierre: `[RECHAZO: ${reason}] ${comments || 'Requiere retrabajo'}`,
+          fecha_fin: datePart,
+          hora_fin: timePart,
+          fecha_hora_fin: nowISO
         })
         .eq('folio', orderId);
 
@@ -20564,12 +20647,7 @@ async function submitSolicitanteCorrection() {
           descripcion_falla: `[SEGUIMIENTO CICLO ${newCycleGenerated} DE OT ${orderId}] ${reason}: ${comments || 'Sin detalle'} | Falla original: ${origOT?.descripcion || ''}`,
           urgencia: origOT?.prioridad || 'Media',
           estatus: 'Solicitud recibida',
-          fecha_registro: nowISO,
-          solicitud_origen_id: origOT?.id_orden,
-          solicitud_raiz_id: origOT?.orden_raiz_id || origOT?.id_orden,
-          folio_origen: orderId,
-          numero_ciclo: newCycleGenerated,
-          motivo_rechazo_previo: `${reason}: ${comments}`
+          fecha_registro: nowISO
         }]);
       } catch (eSol) {}
 
@@ -20588,51 +20666,29 @@ async function submitSolicitanteCorrection() {
           descripcion: origOT?.descripcion,
           observacion_inicial: `[RECHAZO DE ${orderId} - CICLO ${newCycleGenerated}] ${reason}: ${comments}`,
           nombre_solicitante: origOT?.nombre_solicitante || currentUser.nombre_completo,
-          cve_solicitante: origOT?.cve_solicitante || currentUser.id,
+          cve_solicitante: origOT?.cve_solicitante || null,
           prioridad: origOT?.prioridad || 'Media',
-          orden_origen_id: origOT?.id_orden,
-          orden_raiz_id: origOT?.orden_raiz_id || origOT?.id_orden,
-          folio_origen: orderId,
-          numero_ciclo: newCycleGenerated,
           fecha_carga: nowISO
         }]);
       } catch (eOt) {}
 
-      // 4. Auditoría
+      // 4. Bitácora
       try {
-        await supabaseClient.from('auditoria_cierre_ot').insert([
-          {
-            folio: orderId,
-            accion: 'VALIDACION_RECHAZADA',
-            estado_anterior: 'lista_para_validacion',
-            estado_nuevo: 'rechazada',
-            usuario_id: currentUser.id || null,
-            usuario_nombre: currentUser.nombre_completo || currentUser.name,
+        const { data: otRows } = await supabaseClient.from('ordenes_trabajo').select('id_orden').eq('folio', orderId).limit(1);
+        const otUuid = (otRows && otRows.length > 0) ? otRows[0].id_orden : null;
+        if (otUuid) {
+          await supabaseClient.from('bitacora_orden_trabajo').insert([{
+            id_orden: otUuid,
+            estatus_anterior: 'ejecutada',
+            estatus_nuevo: 'rechazada',
+            usuario_evento: currentUser.nombre_completo || currentUser.name,
             rol_usuario: currentUser.rol || 'SOLICITANTE',
-            fecha_hora: nowISO,
-            calificacion: null,
-            codigo_motivo: reason,
-            comentario: comments,
-            numero_ciclo: newCycleGenerated - 1,
+            tipo_evento: 'RECHAZO_VALIDACION',
+            comentario: `Motivo: ${reason}. Detalle: ${comments}`,
             origen: 'App'
-          },
-          {
-            folio: newFolioGenerated,
-            accion: 'NUEVA_SOLICITUD_SEGUIMIENTO',
-            estado_anterior: 'none',
-            estado_nuevo: 'solicitud_recibida',
-            usuario_id: currentUser.id || null,
-            usuario_nombre: currentUser.nombre_completo || currentUser.name,
-            rol_usuario: currentUser.rol || 'SOLICITANTE',
-            fecha_hora: nowISO,
-            calificacion: null,
-            codigo_motivo: reason,
-            comentario: `Nueva solicitud vinculada generada por rechazo de orden anterior ${orderId} (Ciclo ${newCycleGenerated}).`,
-            numero_ciclo: newCycleGenerated,
-            origen: 'App'
-          }
-        ]);
-      } catch (eAud) {}
+          }]);
+        }
+      } catch (eBit) {}
     }
 
     // Actualizar local
