@@ -660,6 +660,7 @@ function isJefeUser(user) {
     'supervisor.tintoreria@towelmex.com',
     'supervisor.corte@towelmex.com',
     'supervision.produccion@towelmex.com',
+    'supervisor.produccion@towelmex.com',
     'mantenimiento@towelmex.com',
     'cbenites@towelmex.com',
     'jmrodriguez@towell.com.mx',
@@ -688,15 +689,15 @@ function getJefeAuthorizedAreas(user) {
 
   // Super administradores y administradores generales tienen alcance total
   if (['SUPER_ADMINISTRADOR', 'SUPERADMIN', 'ADMINISTRADOR', 'JEFE_MANTENIMIENTO'].includes(role) ||
-      ['fran.hrdz93@gmail.com', 'f.hernandez@towell.com.mx', 'mantenimiento@towelmex.com', 'cbenites@towelmex.com', 'jmrodriguez@towell.com.mx'].includes(email)) {
+      email === 'mantenimiento@towelmex.com' || email === 'fran.hrdz93@gmail.com' ||
+      email === 'cbenites@towelmex.com' || email === 'jmrodriguez@towell.com.mx' ||
+      email === 'f.hernandez@towell.com.mx') {
     return ['PF', 'CF', 'TF', 'AF'];
   }
 
   const areas = [];
-  const userArea = String(user.area || user.departamento || '').toUpperCase().trim();
-  if (['PF', 'CF', 'TF', 'AF'].includes(userArea) && !areas.includes(userArea)) {
-    areas.push(userArea);
-  }
+
+  // PRD-USR002-R1: Autoridad basada en procesos asignados explícitamente desde BD
   if (user.procesos_autorizados && Array.isArray(user.procesos_autorizados)) {
     user.procesos_autorizados.forEach(p => {
       const pUp = String(p).toUpperCase().trim();
@@ -707,7 +708,7 @@ function getJefeAuthorizedAreas(user) {
   }
 
   // Mapeos canónicos por correo para jefaturas de proceso
-  if (email === 'ehernandez@towell.com.mx' || email === 'supervision.produccion@towelmex.com') {
+  if (email === 'ehernandez@towell.com.mx' || email === 'supervision.produccion@towelmex.com' || email === 'supervisor.produccion@towelmex.com') {
     if (!areas.includes('PF')) areas.push('PF');
   }
   if (email === 'gmotte@towell.com.mx' || email === 'supervisor.costura@towelmex.com' || email === 'supervisor.corte@towelmex.com') {
@@ -3593,10 +3594,23 @@ async function handleLoginSubmit(event) {
   const origEmail = document.getElementById('login-email');
   const origPass = document.getElementById('login-password');
 
-  if (splitEmail && splitEmail.value.trim()) {
-    email = splitEmail.value.trim().toLowerCase();
-  } else if (origEmail && origEmail.value.trim()) {
-    email = origEmail.value.trim().toLowerCase();
+  let rawInput = (splitEmail?.value || origEmail?.value || '').trim();
+  email = rawInput.toLowerCase();
+
+  // Soporte para inicio de sesión con clave de empleado (ej. "2098", "4655", "1593")
+  if (email && !email.includes('@') && supabaseClient) {
+    try {
+      const { data: empMatch } = await supabaseClient
+        .from('cat_usuarios_roles')
+        .select('correo')
+        .eq('cve_empleado', rawInput)
+        .maybeSingle();
+      if (empMatch && empMatch.correo) {
+        email = empMatch.correo.toLowerCase().trim();
+      }
+    } catch (eEmp) {
+      console.warn('[Login emp match error]', eEmp);
+    }
   }
 
   if (splitPass && splitPass.value.trim()) {
@@ -3607,7 +3621,7 @@ async function handleLoginSubmit(event) {
 
   if (!email || !password) {
     resetBtn();
-    alert('Por favor ingresa tu correo electrónico y contraseña.');
+    alert('Por favor ingresa tu correo electrónico o clave de empleado y tu contraseña.');
     return;
   }
 
@@ -3618,26 +3632,71 @@ async function handleLoginSubmit(event) {
     try {
       showToast('Autenticando en base de datos real...');
 
-      const { data: authData, error: authErr } = await supabaseClient.auth.signInWithPassword({ email, password });
+      // Intentar autenticación con el correo ingresado o normalizado
+      let authRes = await supabaseClient.auth.signInWithPassword({ email, password });
+
+      // Fallback bidireccional para supervisor.produccion <-> supervision.produccion
+      if (authRes.error) {
+        let altEmail = null;
+        if (email === 'supervisor.produccion@towelmex.com') altEmail = 'supervision.produccion@towelmex.com';
+        else if (email === 'supervision.produccion@towelmex.com') altEmail = 'supervisor.produccion@towelmex.com';
+        
+        if (altEmail) {
+          const retryRes = await supabaseClient.auth.signInWithPassword({ email: altEmail, password });
+          if (!retryRes.error && retryRes.data?.user) {
+            authRes = retryRes;
+          }
+        }
+      }
+
+      const authData = authRes.data;
+      const authErr = authRes.error;
 
       if (!authErr && authData && authData.user) {
-        // Consultar el perfil en cat_usuarios_roles por correo (case-insensitive) o por UUID
-        const { data, error } = await supabaseClient
-          .from('cat_usuarios_roles')
-          .select('*')
-          .ilike('correo', email)
-          .maybeSingle();
+        // 1. Buscar en cat_usuarios_roles por candidatos de correo (incluyendo alias)
+        const candidateEmails = [email, authData.user.email?.toLowerCase()];
+        if (email === 'supervisor.produccion@towelmex.com' || authData.user.email?.toLowerCase() === 'supervisor.produccion@towelmex.com') {
+          candidateEmails.push('supervision.produccion@towelmex.com');
+        }
+        if (email === 'supervision.produccion@towelmex.com' || authData.user.email?.toLowerCase() === 'supervision.produccion@towelmex.com') {
+          candidateEmails.push('supervisor.produccion@towelmex.com');
+        }
 
-        if (!error && data) {
-          dbUser = data;
-        } else {
-          // Fallback por ID de usuario
+        for (const cand of candidateEmails) {
+          if (!cand) continue;
+          const { data, error } = await supabaseClient
+            .from('cat_usuarios_roles')
+            .select('*')
+            .ilike('correo', cand)
+            .maybeSingle();
+
+          if (!error && data) {
+            dbUser = data;
+            break;
+          }
+        }
+
+        // 2. Fallback por ID de usuario (UUID)
+        if (!dbUser) {
           const { data: dataById } = await supabaseClient
             .from('cat_usuarios_roles')
             .select('*')
             .eq('id_usuario', authData.user.id)
             .maybeSingle();
           if (dataById) dbUser = dataById;
+        }
+
+        // 3. Fallback por clave de empleado (cve_empleado en metadata de auth)
+        if (!dbUser) {
+          const empCode = authData.user.user_metadata?.cve_empleado || authData.user.user_metadata?.numero_empleado;
+          if (empCode) {
+            const { data: dataByEmp } = await supabaseClient
+              .from('cat_usuarios_roles')
+              .select('*')
+              .eq('cve_empleado', String(empCode).trim())
+              .maybeSingle();
+            if (dataByEmp) dbUser = dataByEmp;
+          }
         }
       }
 
@@ -3822,15 +3881,32 @@ async function handleLoginSubmit(event) {
   resetBtn();
   if (supabaseClient) {
     try {
-      const { data: existingUser } = await supabaseClient
-        .from('cat_usuarios_roles')
-        .select('nombre_completo, correo, rol, activo, debe_cambiar_contrasenia')
-        .ilike('correo', email)
-        .maybeSingle();
+      const candidateEmails = [email];
+      if (email === 'supervisor.produccion@towelmex.com') candidateEmails.push('supervision.produccion@towelmex.com');
+      if (email === 'supervision.produccion@towelmex.com') candidateEmails.push('supervisor.produccion@towelmex.com');
+
+      let existingUser = null;
+      for (const cand of candidateEmails) {
+        const { data: u } = await supabaseClient
+          .from('cat_usuarios_roles')
+          .select('nombre_completo, correo, rol, activo, debe_cambiar_contrasenia')
+          .ilike('correo', cand)
+          .maybeSingle();
+        if (u) { existingUser = u; break; }
+      }
+
+      if (!existingUser && rawInput) {
+        const { data: u } = await supabaseClient
+          .from('cat_usuarios_roles')
+          .select('nombre_completo, correo, rol, activo, debe_cambiar_contrasenia')
+          .eq('cve_empleado', rawInput)
+          .maybeSingle();
+        if (u) existingUser = u;
+      }
 
       if (existingUser) {
         if (existingUser.activo === false) {
-          alert(`⛔ Acceso Denegado\n\nLa cuenta de ${existingUser.nombre_completo} (${email}) se encuentra desactivada en el sistema.\nContacta al administrador si requieres reactivarla.`);
+          alert(`⛔ Acceso Denegado\n\nLa cuenta de ${existingUser.nombre_completo} (${existingUser.correo}) se encuentra desactivada en el sistema.\nContacta al administrador si requieres reactivarla.`);
           return;
         }
 
@@ -3839,7 +3915,7 @@ async function handleLoginSubmit(event) {
           return;
         }
 
-        alert(`❌ Contraseña Incorrecta\n\nLa contraseña ingresada para ${existingUser.nombre_completo} (${email}) no es correcta.\n\nSi no recuerdas tu contraseña, haz clic en "¿Olvidaste tu contraseña?" abajo para restablecerla.`);
+        alert(`❌ Contraseña Incorrecta\n\nLa contraseña ingresada para ${existingUser.nombre_completo} (${existingUser.correo}) no es correcta.\n\nSi no recuerdas tu contraseña, haz clic en "¿Olvidaste tu contraseña?" abajo para restablecerla.`);
         return;
       }
     } catch (e) {
