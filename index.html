@@ -43,11 +43,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.6.3"></script>
+  <script src="config.js?v=3.6.4"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.6.3">
+  <link rel="stylesheet" href="style.css?v=3.6.4">
 </head>
 <body>
 
@@ -98,8 +98,8 @@
             <!-- Formulario de Iniciar Sesión (Acceso) -->
             <form id="split-form-login" onsubmit="handleSplitLoginSubmit(event)" style="display: block;">
               <div class="form-group" style="margin-bottom: 18px;">
-                <label for="split-login-email" style="display: block; font-weight: 600; font-size: 0.9rem; color: #334155; margin-bottom: 8px;">Correo Electrónico</label>
-                <input type="email" id="split-login-email" class="form-control" placeholder="usuario@towell.com.mx" required style="width:100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem;">
+                <label for="split-login-email" style="display: block; font-weight: 600; font-size: 0.9rem; color: #334155; margin-bottom: 8px;">Correo Electrónico o Clave de Empleado</label>
+                <input type="text" id="split-login-email" class="form-control" placeholder="usuario@towell.com.mx o No. Empleado (ej. 2098)" required style="width:100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem;">
               </div>
               <div class="form-group" style="margin-bottom: 24px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -318,8 +318,8 @@
       <form id="form-login" onsubmit="handleLoginSubmit(event)">
         <input type="hidden" id="login-role-target">
         <div class="form-group" style="margin-bottom: 16px;">
-          <label for="login-email">Correo Electrónico</label>
-          <input type="email" id="login-email" class="form-control" placeholder="usuario@tsm-ai.com" required>
+          <label for="login-email">Correo Electrónico o Clave de Empleado</label>
+          <input type="text" id="login-email" class="form-control" placeholder="usuario@towell.com.mx o No. Empleado (ej. 2098)" required>
         </div>
         <div class="form-group" style="margin-bottom: 24px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -5979,16 +5979,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.6.3"></script>
-  <script src="agents-client.js?v=3.6.3"></script>
-  <script src="app.js?v=3.6.3"></script>
-  <script src="dashboard.js?v=3.6.3"></script>
+  <script src="seed.js?v=3.6.4"></script>
+  <script src="agents-client.js?v=3.6.4"></script>
+  <script src="app.js?v=3.6.4"></script>
+  <script src="dashboard.js?v=3.6.4"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.6.3')
+        navigator.serviceWorker.register('./sw.js?v=3.6.4')
           .then(reg => console.log('✅ ServiceWorker registrado:', reg.scope))
           .catch(err => console.warn('⚠️ ServiceWorker error:', err));
       });
