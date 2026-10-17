@@ -105,10 +105,10 @@ async function loadDashboard() {
       { data: logs, error: logErr },
       { count: techCount, error: techErr }
     ] = await Promise.all([
-      db.from('ordenes_trabajo').select('*'),
+      db.from('ordenes_trabajo').select('*').gte('fecha_carga', '2026-10-16T20:10:00Z'),
       db.from('cat_refacciones').select('*'),
       db.from('planes_mantenimiento_preventivo').select('*'),
-      db.from('bitacora_mantenimiento').select('*'),
+      db.from('bitacora_mantenimiento').select('*').gte('fecha_registro', '2026-10-16T20:10:00Z'),
       db.from('cat_tecnicos').select('*', { count: 'exact', head: true }).eq('activo', true)
     ]);
 

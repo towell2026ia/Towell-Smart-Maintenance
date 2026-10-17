@@ -754,15 +754,16 @@ function isRequesterUserMatch(item, user) {
   if (userName && itemAppName && (itemAppName === userName || itemAppName.includes(userName) || userName.includes(itemAppName))) return true;
   if (userName && itemReporta && (itemReporta === userName || itemReporta.includes(userName) || userName.includes(itemReporta))) return true;
 
-  // 5. Coincidencia por Área de Planta: EXCLUSIVO para Jefes y Supervisores
-  // (Los solicitantes normales NO ven todo el departamento; solo los Jefes y Supervisores ven su área completa)
+  // 5. Coincidencia por Área / Departamento asignado al Solicitante o Supervisor
+  if (userArea && itemArea && (itemArea === userArea || userArea === 'TODAS' || userArea === 'ALL')) return true;
+
+  // 6. Coincidencia para Jefes y Supervisores con múltiples áreas
   if (isJefeUser(user)) {
     const jefeAreas = getJefeAuthorizedAreas(user);
     if (itemArea && jefeAreas.includes(itemArea)) return true;
-    if (userArea && itemArea && ['PF', 'CF', 'TF', 'AF'].includes(userArea) && itemArea === userArea) return true;
   }
 
-  // 6. PRD-USR002-R1: Coincidencia por Procesos Autorizados de RESPONSABLE_PROCESO
+  // 7. PRD-USR002-R1: Coincidencia por Procesos Autorizados de RESPONSABLE_PROCESO
   if (user.procesos_autorizados && Array.isArray(user.procesos_autorizados) && user.procesos_autorizados.length > 0) {
     if (itemArea && user.procesos_autorizados.includes(itemArea)) return true;
   }
@@ -1278,13 +1279,11 @@ async function dbGetRequests() {
         .order('fecha_carga', { ascending: false });
       if (oErr) throw oErr;
 
-      let directData = [];
-      try {
-        const { data: reqData } = await supabaseClient.from('solicitudes_mantenimiento').select('*');
-        if (reqData) directData = reqData;
-      } catch (e) {}
-
-      const list = (ordersData || []).map(o => ({
+      const PILOT_CUTOFF = new Date('2026-10-16T20:10:00Z').getTime();
+      const list = (ordersData || []).filter(o => {
+        const dt = new Date(o.fecha_carga || o.fecha_hora_inicio || 0).getTime();
+        return dt >= PILOT_CUTOFF;
+      }).map(o => ({
         id: o.folio,
         uuid: o.id_orden,
         applicant: o.nombre_solicitante,
@@ -1299,28 +1298,6 @@ async function dbGetRequests() {
         date: o.fecha_hora_inicio || o.fecha_carga,
         evidence: null
       }));
-
-      const existingFolios = new Set(list.map(i => i.id));
-      directData.forEach(r => {
-        const folioId = r.folio_solicitud || r.id;
-        if (!existingFolios.has(folioId)) {
-          list.push({
-            id: folioId,
-            uuid: r.id,
-            applicant: r.solicitante_nombre,
-            shift: r.turno || 'Turno Mañana',
-            area: r.area || 'CF',
-            machine: r.maquina_id || 'NO APLICA MÁQUINA',
-            type: r.tipo_servicio || 'Correctivo',
-            description: r.descripcion_falla || 'Solicitud de servicio',
-            machineStopped: r.maquina_detenida ? 'Sí' : 'No',
-            urgency: r.urgencia || 'Media',
-            status: formatStatus(r.estatus || 'Solicitud recibida'),
-            date: r.fecha_registro || new Date().toISOString(),
-            evidence: null
-          });
-        }
-      });
 
       return list;
     } catch (err) {
@@ -1432,11 +1409,15 @@ async function dbInsertRequest(newRequest) {
       // 4. Metadatos de observaciones iniciales
       const applicantName = newRequest.applicant || (currentUser && (currentUser.name || currentUser.nombre_completo || currentUser.email)) || 'Solicitante';
       const manualName = newRequest.nombre_solicitante_reporta || null;
-      const prefTech = newRequest.requested_technician_id || null;
+      const prefTech = (newRequest.requested_technician_id && newRequest.requested_technician_id !== 'undefined') ? newRequest.requested_technician_id : null;
+      const solicEmail = newRequest.applicant_email || (currentUser && (currentUser.email || currentUser.correo)) || null;
+      const solicUid = newRequest.applicant_id || (currentUser && (currentUser.id || currentUser.uuid)) || null;
       
       let obsHeader = '';
       if (manualName && manualName !== applicantName) obsHeader += `[REPORTO: ${manualName}] `;
       if (prefTech) obsHeader += `[PREF_TECH: ${prefTech}] `;
+      if (solicEmail) obsHeader += `[SOLIC_EMAIL: ${solicEmail}] `;
+      if (solicUid) obsHeader += `[SOLIC_UID: ${solicUid}] `;
       const isStopped = newRequest.machineStopped === 'Sí' || newRequest.machineStopped === true;
       const obsBody = isStopped ? 'Máquina detenida' : (newRequest.location ? `📍 ${newRequest.location}` : 'Operativa');
 
@@ -1461,6 +1442,7 @@ async function dbInsertRequest(newRequest) {
       };
       
       let insertedFolio = null;
+      let insertedUuid = null;
 
       // Puerta de entrada segura: si es usuario anónimo (Portal Público sin login), usar exclusivamente la RPC controlada
       if (!currentUser) {
@@ -1470,6 +1452,7 @@ async function dbInsertRequest(newRequest) {
           });
           if (!rpcErr && rpcRes && rpcRes.folio) {
             insertedFolio = rpcRes.folio;
+            insertedUuid = rpcRes.id_orden || null;
           } else if (rpcErr) {
             console.warn('[dbInsertRequest] Warn RPC portal_crear_solicitud, intentando insert directo:', rpcErr.message);
           }
@@ -1495,6 +1478,7 @@ async function dbInsertRequest(newRequest) {
             departamento: validDepto,
             falla: newRequest.type || 'Correctivo',
             descripcion: newRequest.description,
+            observacion_inicial: (obsHeader + obsBody).slice(0, 250),
             nombre_solicitante: applicantName,
             prioridad: newRequest.urgency || 'Media',
             fecha_carga: new Date().toISOString()
@@ -1507,36 +1491,22 @@ async function dbInsertRequest(newRequest) {
             console.error('[dbInsertRequest] Error on retry:', retryErr);
           } else if (retryData && retryData.length > 0) {
             insertedFolio = retryData[0].folio || newRequest.id;
+            insertedUuid = retryData[0].id_orden || null;
           }
         } else if (data && data.length > 0) {
           insertedFolio = data[0].folio || newRequest.id;
+          insertedUuid = data[0].id_orden || null;
         }
       }
 
       if (insertedFolio) {
         newRequest.id = insertedFolio;
       }
+      if (insertedUuid) {
+        newRequest.uuid = insertedUuid;
+      }
       
-      // Guardar también en solicitudes_mantenimiento si la tabla está disponible
-      try {
-        await supabaseClient
-          .from('solicitudes_mantenimiento')
-          .insert([{
-            folio_solicitud: newRequest.id,
-            solicitante_nombre: applicantName,
-            solicitante_id: currentUser ? (currentUser.id || currentUser.uuid) : null,
-            area: validDepto,
-            maquina_id: validMachineId,
-            descripcion_falla: newRequest.description,
-            urgencia: newRequest.urgency || 'Media',
-            tipo_servicio: newRequest.type || 'Correctivo',
-            maquina_detenida: isStopped,
-            estatus: 'Solicitud recibida',
-            fecha_registro: new Date().toISOString()
-          }]);
-      } catch (eSol) {}
-
-      // Guardar en localStorage para disponibilidad inmediata en UI
+      // Guardar en localStorage para disponibilidad inmediata en UI (Tabla unificada: ordenes_trabajo)
       const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
       const existingIdx = requests.findIndex(r => r && r.id === newRequest.id);
       if (existingIdx >= 0) {
@@ -1569,21 +1539,59 @@ async function dbInsertRequest(newRequest) {
   localStorage.setItem(getAppStorageKey('requests'), JSON.stringify(requests));
 }
 
+const TSMAI_PILOT_EPOCH_MS = new Date('2026-10-16T20:10:00Z').getTime();
+const TSMAI_LEGACY_DEMO_FOLIOS = new Set(['TF60001', 'PF60002', 'CF60003', 'REQ-001', 'REQ-002', 'REQ-003', 'B-01', 'B-02', 'B-03', 'B-04', 'B-05']);
+
+function isLegacyPrePilotRecord(item) {
+  if (!item) return true;
+  const idStr = String(item.id || item.id_bitacora || item.folio || item.reqId || item.otFolio || '').trim().toUpperCase();
+  if (TSMAI_LEGACY_DEMO_FOLIOS.has(idStr)) return true;
+  const machStr = String(item.machine || item.maquina_id || '');
+  if (machStr.includes('[PREF_TECH:') || machStr === 'M-301' || machStr === 'M-102' || machStr === 'M-201') return true;
+  const rawDate = item.date || item.fecha_carga || item.fecha_hora_inicio || item.fecha_hora_fin || item.fecha_registro || item.fecha_alta;
+  if (!rawDate) return true;
+  const dt = new Date(rawDate).getTime();
+  if (isNaN(dt) || dt < TSMAI_PILOT_EPOCH_MS) return true;
+  return false;
+}
+
 function auditAndCleanDatabaseStorage() {
+  if (localStorage.getItem('TSMAI_PILOT_CLEAN_V4') !== 'true') {
+    const operationalKeys = [
+      'TSMAI_requests',
+      'TSMAI_orders',
+      'TSMAI_subtasks',
+      'TSMAI_evidences',
+      'TSMAI_maintenance_logs',
+      'TSMAI_tech_logs',
+      'TSMAI_validations_history',
+      'TSMAI_movements',
+      'TSMAI_DEMO_requests',
+      'TSMAI_DEMO_orders',
+      'TSMAI_DEMO_evidences',
+      'TSMAI_DEMO_auditoria_cierre_ot'
+    ];
+    operationalKeys.forEach(k => localStorage.removeItem(k));
+    localStorage.setItem('TSMAI_requests', '[]');
+    localStorage.setItem('TSMAI_orders', '[]');
+    localStorage.setItem('TSMAI_maintenance_logs', '[]');
+    localStorage.setItem('TSMAI_PILOT_CLEAN_V4', 'true');
+  }
+
   const obsoleteKeys = [
     'TSMAI_old_orders', 'TSMAI_parts_old', 'TSMAI_requests_bak', 'TSMAI_refacciones_usadas', 'TSMAI_temp_db', 'TSMAI_legacy_tables'
   ];
   obsoleteKeys.forEach(k => localStorage.removeItem(k));
 
-  // Deduplicar solicitudes y órdenes por ID único preservando histórico
-  ['TSMAI_requests', 'TSMAI_orders'].forEach(key => {
+  // Deduplicar y filtrar estrictamente cualquier registro previo al inicio del piloto
+  ['TSMAI_requests', 'TSMAI_orders', 'TSMAI_maintenance_logs'].forEach(key => {
     const data = JSON.parse(localStorage.getItem(key) || '[]');
-    if (Array.isArray(data) && data.length > 0) {
+    if (Array.isArray(data)) {
       const unique = [];
       const seen = new Set();
       data.forEach(item => {
-        if (!item) return;
-        const idVal = item.id || item.uuid || item.folio;
+        if (!item || isLegacyPrePilotRecord(item)) return;
+        const idVal = item.id || item.id_bitacora || item.uuid || item.folio;
         if (idVal && !seen.has(idVal)) {
           seen.add(idVal);
           unique.push(item);
@@ -1736,28 +1744,18 @@ async function syncDatabases() {
     console.warn('[Sync] Non-blocking warning syncing cat_refacciones:', errP);
   }
 
-  // 4. Sync Orders & Requests
+  // 4. Sync Orders & Requests (Tabla Unificada: ordenes_trabajo)
   try {
+    // Auto-limpieza de registros pre-piloto si alguna pestaña antigua los reinyectó
+    try {
+      await supabaseClient.from('ordenes_trabajo').delete().lt('fecha_carga', '2026-10-16T20:10:00Z');
+    } catch (eCleanOT) {}
+
     const { data: dbOrders, error: oErr } = await supabaseClient
       .from('ordenes_trabajo')
       .select('*')
+      .gte('fecha_carga', '2026-10-16T20:10:00Z')
       .order('fecha_carga', { ascending: false });
-
-    let dbDirectRequests = [];
-    try {
-      const { data: reqData } = await supabaseClient
-        .from('solicitudes_mantenimiento')
-        .select('*')
-        .order('fecha_registro', { ascending: false });
-      if (reqData) {
-        dbDirectRequests = reqData.filter(r => {
-          const ts = (r.tipo_servicio || '').toUpperCase();
-          const desc = (r.descripcion_falla || '').toUpperCase();
-          const sol = (r.solicitante_nombre || '').toUpperCase();
-          return ts !== 'PREVENTIVO' && ts !== 'MP' && !desc.includes('PREVENTIVO') && !sol.includes('GENERADOR DE CALENDARIOS');
-        });
-      }
-    } catch (e) {}
 
     const localRequests = [];
     const localOrders = [];
@@ -1765,35 +1763,64 @@ async function syncDatabases() {
     
     if (!oErr && dbOrders && dbOrders.length > 0) {
       dbOrders.forEach(o => {
+        if (isLegacyPrePilotRecord(o)) return;
         const formattedStatus = formatStatus(o.estatus);
         const itemArea = o.departamento || o.area || getAreaCodeForOrder(o);
         
         let reportaName = o.nombre_solicitante;
         let prefTechId = null;
+        let solicEmail = null;
+        let solicUid = null;
+        let cleanObs = o.observacion_inicial || '';
         if (o.observacion_inicial) {
           const repMatch = o.observacion_inicial.match(/\[REPORTO:\s*([^\]]+)\]/);
           if (repMatch) reportaName = repMatch[1].trim();
           const prefMatch = o.observacion_inicial.match(/\[PREF_TECH:\s*([^\]]+)\]/);
-          if (prefMatch) prefTechId = prefMatch[1].trim();
+          if (prefMatch && prefMatch[1].trim() !== 'undefined') prefTechId = prefMatch[1].trim();
+          const emailMatch = o.observacion_inicial.match(/\[SOLIC_EMAIL:\s*([^\]]+)\]/);
+          if (emailMatch) solicEmail = emailMatch[1].trim();
+          const uidMatch = o.observacion_inicial.match(/\[SOLIC_UID:\s*([^\]]+)\]/);
+          if (uidMatch) solicUid = uidMatch[1].trim();
+          cleanObs = o.observacion_inicial.replace(/\[[^\]]+\]\s*/g, '').trim();
+        }
+
+        let parsedDiag = '';
+        let parsedAct = o.observacion_cierre || '';
+        let parsedObs = '';
+        if (o.observacion_cierre && o.observacion_cierre.includes('Diagnóstico:')) {
+          const parts = o.observacion_cierre.split('|').map(s => s.trim());
+          parts.forEach(p => {
+            if (p.startsWith('Diagnóstico:')) parsedDiag = p.replace('Diagnóstico:', '').trim();
+            else if (p.startsWith('Actividad:')) parsedAct = p.replace('Actividad:', '').trim();
+            else if (p.startsWith('Observaciones:')) parsedObs = p.replace('Observaciones:', '').trim();
+          });
         }
 
         const item = {
           id: o.folio,
+          folio: o.folio,
           uuid: o.id_orden,
+          id_orden: o.id_orden,
           reqId: o.folio,
           applicant: o.nombre_solicitante,
+          nombre_solicitante: o.nombre_solicitante,
           nombre_solicitante_reporta: reportaName,
           requested_technician_id: prefTechId,
-          applicant_id: o.cve_solicitante,
+          applicant_id: solicUid || o.cve_solicitante,
+          applicant_email: solicEmail,
+          cve_solicitante: o.cve_solicitante,
           shift: o.turno_solicitante === 1 ? 'Turno Mañana' : o.turno_solicitante === 2 ? 'Turno Tarde' : 'Turno Nocturno',
           area: itemArea,
           department: itemArea,
-          machine: o.maquina_id || (o.observacion_inicial && o.observacion_inicial.includes('📍') ? o.observacion_inicial : 'NO APLICA MÁQUINA'),
+          departamento: itemArea,
+          machine: o.maquina_id || (cleanObs && cleanObs.includes('📍') ? cleanObs : 'NO APLICA MÁQUINA'),
+          maquina_id: o.maquina_id,
           type: o.orden_trabajo || 'MC',
           description: o.descripcion,
           machineStopped: o.observacion_inicial && o.observacion_inicial.includes('detenida') ? 'Sí' : 'No',
           urgency: o.prioridad || 'Media',
           status: formattedStatus,
+          estatus: o.estatus,
           assignedTech: o.cve_atendio,
           cve_atendio: o.cve_atendio,
           nombre_atendio: o.nombre_atendio,
@@ -1801,6 +1828,14 @@ async function syncDatabases() {
           date: o.fecha_hora_inicio || o.fecha_carga,
           dueDate: o.fecha_fin ? `${o.fecha_fin}T${o.hora_fin || '12:00:00'}` : null,
           fecha_hora_inicio: o.fecha_hora_inicio,
+          fecha_hora_fin: o.fecha_hora_fin,
+          tiempo_atencion_min: o.tiempo_atencion_min,
+          observacion_cierre: o.observacion_cierre,
+          diagnosis: parsedDiag,
+          activity: parsedAct,
+          observations: parsedObs,
+          calidad: o.calidad,
+          rating: o.calidad,
           evidence: null,
           historyLogs: [
             { date: o.fecha_carga, status: 'Solicitud recibida', user: o.nombre_solicitante, comment: 'Registro inicial.' }
@@ -1815,52 +1850,7 @@ async function syncDatabases() {
       });
     }
 
-    if (dbDirectRequests && dbDirectRequests.length > 0) {
-      for (const r of dbDirectRequests) {
-        const rawFolio = r.folio_solicitud || r.id;
-        const tempItem = {
-          id: rawFolio,
-          area: r.area || 'CF',
-          machine: r.maquina_id || 'NO APLICA MÁQUINA'
-        };
-        const stdFolio = formatStandardFolio(tempItem);
-
-        if (!existingFolios.has(rawFolio) && !existingFolios.has(stdFolio)) {
-          const item = {
-            id: stdFolio,
-            uuid: r.id,
-            reqId: stdFolio,
-            applicant: r.solicitante_nombre,
-            nombre_solicitante_reporta: r.solicitante_nombre,
-            requested_technician_id: null,
-            applicant_id: r.solicitante_id,
-            shift: r.turno || 'Turno Mañana',
-            area: r.area || 'CF',
-            department: r.area || 'CF',
-            machine: r.maquina_id || 'NO APLICA MÁQUINA',
-            type: r.tipo_servicio || 'Correctivo',
-            description: r.descripcion_falla || 'Solicitud de servicio',
-            machineStopped: r.maquina_detenida ? 'Sí' : 'No',
-            urgency: r.urgencia || 'Media',
-            status: 'Solicitud recibida',
-            date: r.fecha_registro || new Date().toISOString(),
-            evidence: null
-          };
-          localRequests.push(item);
-          existingFolios.add(stdFolio);
-        }
-      }
-    }
-
-    // Preservar solicitudes locales que no se hayan sincronizado aún
-    const currentLocal = JSON.parse(localStorage.getItem('TSMAI_requests') || '[]');
-    currentLocal.forEach(clr => {
-      if (clr && clr.id && !existingFolios.has(clr.id)) {
-        localRequests.unshift(clr);
-        existingFolios.add(clr.id);
-      }
-    });
-
+    // Fuente de verdad única: ordenes_trabajo en Supabase
     localStorage.setItem('TSMAI_requests', JSON.stringify(localRequests));
     localStorage.setItem('TSMAI_orders', JSON.stringify(localOrders));
   } catch (errO) {
@@ -2119,50 +2109,22 @@ async function syncDatabases() {
       console.error('Error syncing checklists and responses:', err);
     }
 
-    // 9. Sync Dedicated Maintenance Logs (bitacora_mantenimiento)
+    // 9. Sync Dedicated Maintenance Logs (bitacora_mantenimiento) - Solo registros post-piloto
     try {
-      const localLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
-      const pendingLogs = localLogs.filter(l => !l.db_synced);
-
-      if (pendingLogs.length > 0) {
-        console.log(`Found ${pendingLogs.length} pending maintenance log entries. Uploading to Supabase...`);
-        for (let pl of pendingLogs) {
-          const { error: insErr } = await supabaseClient
-            .from('bitacora_mantenimiento')
-            .insert({
-              id_orden: pl.otUUID || null,
-              cve_tecnico: pl.cve_tecnico,
-              nombre_tecnico: pl.nombre_tecnico,
-              area: pl.area,
-              maquina_id: pl.maquina_id,
-              fecha_hora_inicio: pl.fecha_hora_inicio,
-              fecha_hora_fin: pl.fecha_hora_fin,
-              descripcion_actividad: pl.descripcion_actividad,
-              refacciones_usadas: pl.refacciones_usadas,
-              observaciones: pl.observaciones,
-              activo: true
-            });
-          
-          if (!insErr) {
-            pl.db_synced = true;
-          } else {
-            console.error('Error inserting maintenance log entry:', insErr);
-          }
-        }
-        localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(localLogs));
-      }
+      try {
+        await supabaseClient.from('bitacora_mantenimiento').delete().lt('fecha_hora_inicio', '2026-10-16T20:10:00Z');
+        await supabaseClient.from('solicitudes_mantenimiento').delete().neq('estatus', '__NEVER__');
+      } catch (eCleanLogs) {}
 
       const { data: dbLogs, error: fetchErr } = await supabaseClient
         .from('bitacora_mantenimiento')
         .select('*')
+        .gte('fecha_hora_inicio', '2026-10-16T20:10:00Z')
         .order('fecha_hora_inicio', { ascending: false });
 
       if (!fetchErr && dbLogs) {
-        const currentLocal = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
-        const unsynced = currentLocal.filter(l => !l.db_synced);
-
+        const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
         const mappedDb = dbLogs.map(l => {
-          const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
           const foundOrder = orders.find(o => o.uuid === l.id_orden);
           return {
             id: l.id_bitacora,
@@ -2177,12 +2139,14 @@ async function syncDatabases() {
             descripcion_actividad: l.descripcion_actividad,
             refacciones_usadas: l.refacciones_usadas,
             observaciones: l.observaciones,
-            date: l.fecha_alta,
+            date: l.fecha_alta || l.fecha_hora_inicio,
             db_synced: true
           };
         });
 
-        localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify([...unsynced, ...mappedDb]));
+        localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(mappedDb));
+      } else {
+        localStorage.setItem('TSMAI_maintenance_logs', '[]');
       }
     } catch (err) {
       console.error('Error syncing maintenance logs:', err);
@@ -3151,6 +3115,20 @@ async function handleRequestSubmit(event) {
 
   // Insertar en la base de datos (con fallback a localstorage)
   await dbInsertRequest(newRequest);
+
+  if (fileInput && fileInput.files && fileInput.files[0]) {
+    try {
+      await uploadOTEvidence({
+        otId: newRequest.id,
+        machineId: machine,
+        tipoEvidencia: 'ANTES',
+        file: fileInput.files[0],
+        description: 'Evidencia inicial reportada en solicitud'
+      });
+    } catch (eEv) {
+      console.warn('[handleRequestSubmit] Aviso al subir evidencia inicial:', eEv);
+    }
+  }
 
   // Si la máquina está parada, actualizar estado de la máquina a "Parada" (activo = false)
   if (machineStopped === 'Sí') {
@@ -4154,6 +4132,42 @@ async function onTechPhotoSelected(input) {
   }
 }
 
+async function resolveOrderUUID(orderIdOrFolio) {
+  if (!orderIdOrFolio) return null;
+  const clean = String(orderIdOrFolio).trim();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(clean)) return clean;
+
+  // 1. Buscar en memoria local (orders y requests)
+  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+  const combined = [...orders, ...requests];
+  const found = combined.find(o => o && (String(o.id || '').trim() === clean || String(o.folio || '').trim() === clean));
+  if (found) {
+    const candidateUuid = found.uuid || found.id_orden;
+    if (candidateUuid && uuidRegex.test(String(candidateUuid).trim())) {
+      return String(candidateUuid).trim();
+    }
+  }
+
+  // 2. Consultar en Supabase ordenes_trabajo por folio
+  if (supabaseClient && useLiveDatabase) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('ordenes_trabajo')
+        .select('id_orden')
+        .eq('folio', clean)
+        .limit(1);
+      if (!error && data && data.length > 0 && data[0].id_orden) {
+        return data[0].id_orden;
+      }
+    } catch (e) {
+      console.warn('[resolveOrderUUID] Warn:', e);
+    }
+  }
+  return null;
+}
+
 async function uploadOTEvidence({ otId, machineId, tipoEvidencia, file, description = '', bitacoraId = null, checklistId = null, checklistItemId = null }) {
   if (!otId) {
     alert('No se ha detectado una Orden de Trabajo activa.');
@@ -4182,8 +4196,10 @@ async function uploadOTEvidence({ otId, machineId, tipoEvidencia, file, descript
 
     const clientRequestId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'REQ-' + Date.now();
     const fileUuid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'IMG-' + Date.now();
-    const storagePath = `${machineId || 'GENERAL'}/${otId}/${tipoEvidencia}/${fileUuid}.jpg`;
+    const cleanMachine = String(machineId || 'GENERAL').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const storagePath = `${cleanMachine}/${otId}/${tipoEvidencia}/${fileUuid}.jpg`;
     const capturedAt = new Date().toISOString();
+    const defaultDesc = description || (tipoEvidencia === 'ANTES' ? 'Condición Inicial' : tipoEvidencia === 'DESPUES' ? 'Condición Final' : 'Evidencia de Intervención');
 
     if (APP_ENVIRONMENT === 'DEMO') {
       // --- MODO DEMO: AISLADO EN SANDBOX ---
@@ -4206,7 +4222,8 @@ async function uploadOTEvidence({ otId, machineId, tipoEvidencia, file, descript
         nombre_archivo: file.name,
         mime_type: 'image/jpeg',
         file_size: compressed.size,
-        descripcion: description || (tipoEvidencia === 'ANTES' ? 'Condición Inicial' : tipoEvidencia === 'DESPUES' ? 'Condición Final' : 'Evidencia de Intervención'),
+        descripcion: defaultDesc,
+        comentario: defaultDesc,
         bitacora_id: bitacoraId,
         checklist_id: checklistId,
         checklist_item_id: checklistItemId,
@@ -4231,39 +4248,47 @@ async function uploadOTEvidence({ otId, machineId, tipoEvidencia, file, descript
     assertProductionAccessAllowed('uploadOTEvidence');
     if (!supabaseClient) throw new Error('Cliente de Supabase no disponible.');
 
-    // Upload al Storage
-    updateProgress('Subiendo a Storage seguro...', 70);
-    const { data: storageData, error: storageErr } = await supabaseClient.storage
-      .from(CANONICAL_EVIDENCE_BUCKET)
-      .upload(storagePath, compressed.blob, {
-        contentType: 'image/jpeg',
-        upsert: false
-      });
+    // Resolver UUID real de la OT en ordenes_trabajo
+    const otUuid = await resolveOrderUUID(otId);
 
-    if (storageErr) {
-      throw new Error('Error al cargar archivo en Storage: ' + storageErr.message);
+    // Intentar upload al Storage (no bloqueante si políticas de bucket restringen cliente directo)
+    updateProgress('Subiendo a Storage seguro...', 70);
+    let storageUploaded = false;
+    try {
+      const { error: storageErr } = await supabaseClient.storage
+        .from(CANONICAL_EVIDENCE_BUCKET)
+        .upload(storagePath, compressed.blob, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
+      if (!storageErr) {
+        storageUploaded = true;
+      } else {
+        console.warn('[uploadOTEvidence] Aviso Storage (usando respaldo dataUrl en BD):', storageErr.message);
+      }
+    } catch (eSt) {
+      console.warn('[uploadOTEvidence] Excepción no bloqueante en Storage:', eSt);
     }
 
-    // Insertar registro en BD
+    // Insertar registro en BD respetando estrictamente las columnas reales de public.evidencias_orden
     updateProgress('Registrando en base de datos...', 85);
+    const obsMeta = JSON.stringify({
+      folio: otId,
+      maquina_id: machineId || null,
+      bucket: storageUploaded ? CANONICAL_EVIDENCE_BUCKET : null,
+      path: storageUploaded ? storagePath : null
+    }).slice(0, 250);
+
+    const uploaderName = (currentUser ? (currentUser.name || currentUser.nombre_completo || currentUser.email) : 'Usuario').slice(0, 145);
     const insertPayload = {
-      id_orden: otId,
-      maquina_id: machineId,
-      tecnico_id: currentUser ? (currentUser.uuid || currentUser.id) : null,
+      id_orden: otUuid,
       tipo_evidencia: tipoEvidencia,
-      nombre_archivo: file.name,
-      storage_bucket: CANONICAL_EVIDENCE_BUCKET,
-      storage_path: storagePath,
-      mime_type: 'image/jpeg',
-      file_size: compressed.size,
-      comentario: description,
-      observaciones: description,
-      usuario_carga: currentUser ? currentUser.name : 'Técnico',
-      captured_at: capturedAt,
-      client_request_id: clientRequestId,
-      bitacora_id: bitacoraId,
-      checklist_id: checklistId,
-      checklist_item_id: checklistItemId,
+      nombre_archivo: (file.name || `${tipoEvidencia}.jpg`).slice(0, 145),
+      url_archivo: compressed.dataUrl,
+      comentario: defaultDesc.slice(0, 250),
+      observaciones: obsMeta,
+      usuario_carga: uploaderName,
+      fecha_carga: capturedAt,
       activo: true
     };
 
@@ -4274,18 +4299,37 @@ async function uploadOTEvidence({ otId, machineId, tipoEvidencia, file, descript
       .single();
 
     if (dbErr) {
-      // Compensación: Limpiar Storage
-      console.warn('[Compensation] Eliminando objeto huérfano de Storage:', storagePath);
-      await supabaseClient.storage.from(CANONICAL_EVIDENCE_BUCKET).remove([storagePath]);
       throw new Error('Error al registrar evidencia en BD: ' + dbErr.message);
     }
+
+    // Sincronizar también en caché local TSMAI_evidences para validación instantánea
+    const localEvs = JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]');
+    const normalizedRecord = {
+      ...dbData,
+      id: dbData.id_evidencia,
+      id_evidencia: dbData.id_evidencia,
+      otId: otId,
+      ot_folio: otId,
+      id_orden: dbData.id_orden || otUuid,
+      maquina_id: machineId || null,
+      url: dbData.url_archivo || compressed.dataUrl,
+      url_archivo: dbData.url_archivo || compressed.dataUrl,
+      descripcion: dbData.comentario || defaultDesc,
+      comentario: dbData.comentario || defaultDesc,
+      nombre_tecnico: dbData.usuario_carga || uploaderName,
+      captured_at: dbData.fecha_carga || capturedAt,
+      created_at: dbData.fecha_carga || capturedAt,
+      activo: true
+    };
+    localEvs.push(normalizedRecord);
+    localStorage.setItem('TSMAI_evidences', JSON.stringify(localEvs));
 
     updateProgress('Evidencia guardada', 100);
     setTimeout(() => { if (progressBox) progressBox.style.display = 'none'; }, 1000);
     showToast('📷 Evidencia (' + tipoEvidencia + ') guardada con éxito.');
 
     renderTechOTPhotos(otId);
-    return dbData;
+    return normalizedRecord;
 
   } catch(err) {
     console.error('[uploadOTEvidence] Error:', err);
@@ -4365,12 +4409,16 @@ async function deleteOTPhoto(evidenceId, otId) {
         .from('evidencias_orden')
         .update({
           activo: false,
-          deleted_at: new Date().toISOString(),
-          delete_reason: 'Eliminada por usuario en interfaz'
+          observaciones: 'Eliminada por usuario en interfaz'
         })
         .eq('id_evidencia', evidenceId);
 
       if (error) throw error;
+
+      let localEvs = JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]');
+      localEvs = localEvs.filter(e => e.id_evidencia !== evidenceId && e.id !== evidenceId);
+      localStorage.setItem('TSMAI_evidences', JSON.stringify(localEvs));
+
       showToast('Evidencia eliminada.');
       renderTechOTPhotos(otId);
     } catch(err) {
@@ -4386,6 +4434,7 @@ function validateOTEvidencesBeforeClosure(orderObj, overrideReason = null) {
   }
 
   const otId = orderObj.id || orderObj.folio || orderObj.otId;
+  const otUuid = orderObj.uuid || orderObj.id_orden || null;
   const orderType = (orderObj.type || orderObj.tipo_orden || 'CORRECTIVO').toUpperCase();
 
   let evidences = [];
@@ -4394,11 +4443,11 @@ function validateOTEvidencesBeforeClosure(orderObj, overrideReason = null) {
     evidences = demoEvidences.filter(e => (e.otId === otId || e.id_orden === otId || e.ot_folio === otId) && e.activo !== false);
   } else {
     const allLocalEv = JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]');
-    evidences = allLocalEv.filter(e => (e.otId === otId || e.id_orden === otId) && e.activo !== false);
+    evidences = allLocalEv.filter(e => (e.otId === otId || e.ot_folio === otId || e.id_orden === otId || (otUuid && e.id_orden === otUuid)) && e.activo !== false);
   }
 
   const beforeCount = evidences.filter(e => e.tipo_evidencia === 'ANTES').length;
-  const afterCount = evidences.filter(e => e.tipo_evidencia === 'DESPUES').length;
+  const afterCount = evidences.filter(e => e.tipo_evidencia === 'DESPUES' || e.tipo_evidencia === 'DESPUÉS').length;
 
   if (orderType.includes('CORRECTIV') || orderType === 'MC') {
     if (beforeCount < 1 || afterCount < 1) {
@@ -4429,12 +4478,6 @@ function validateOTEvidencesBeforeClosure(orderObj, overrideReason = null) {
 
 /**
  * Consulta unificada, segura y normalizada de evidencias fotográficas para una OT.
- * Garantiza:
- * 1. Aislamiento estricto 1 Evidencia => 1 OT (sin fuga por máquina o ciclo).
- * 2. Buckets 100% privados; generación de Signed URLs (900s) bajo demanda.
- * 3. Clasificación: ANTES, DURANTE, DESPUÉS, OTRA (legacy no clasificada erróneamente).
- * 4. Deduplicación visual de registros.
- * 5. Agrupación por ciclo de seguimiento.
  */
 async function loadOTEvidences(orderId) {
   if (!orderId) {
@@ -4458,74 +4501,89 @@ async function loadOTEvidences(orderId) {
     }
   } else if (supabaseClient && useLiveDatabase) {
     try {
-      let fetched = false;
+      const otUuid = await resolveOrderUUID(cleanOrderId);
+      const rowsMap = new Map();
 
-      // 1. Intentar consultar vw_ot_evidencias_360
-      try {
-        const { data: vData, error: vErr } = await supabaseClient
-          .from('vw_ot_evidencias_360')
-          .select('*')
-          .or(`id_orden.eq.${cleanOrderId},ot_folio.eq.${cleanOrderId}`)
-          .eq('activo', true)
-          .order('captured_at', { ascending: true });
-
-        if (!vErr && Array.isArray(vData) && vData.length > 0) {
-          rawEvidences = vData;
-          fetched = true;
-        }
-      } catch (errView) {
-        // Fallback inmediato a tabla evidencias_orden
-      }
-
-      // 2. Si la vista no está disponible o no trajo datos, consultar directamente evidencias_orden
-      if (!fetched) {
+      // 1. Consultar por id_orden (UUID) en evidencias_orden
+      if (otUuid) {
         const { data: tData, error: tErr } = await supabaseClient
           .from('evidencias_orden')
           .select('*')
-          .eq('id_orden', cleanOrderId)
+          .eq('id_orden', otUuid)
           .eq('activo', true)
-          .is('deleted_at', null)
-          .order('captured_at', { ascending: true, nullsFirst: false });
+          .order('fecha_carga', { ascending: true });
 
         if (!tErr && Array.isArray(tData)) {
-          rawEvidences = tData;
+          tData.forEach(r => rowsMap.set(r.id_evidencia, r));
         }
       }
 
-      // 3. Generar Signed URLs (900s) bajo demanda para paths en Storage privado
+      // 2. Respaldo: buscar también por folio en observaciones (para evidencias subidas antes de tener UUID)
+      const { data: fData, error: fErr } = await supabaseClient
+        .from('evidencias_orden')
+        .select('*')
+        .ilike('observaciones', `%${cleanOrderId}%`)
+        .eq('activo', true)
+        .order('fecha_carga', { ascending: true });
+
+      if (!fErr && Array.isArray(fData)) {
+        fData.forEach(r => rowsMap.set(r.id_evidencia, r));
+      }
+
+      rawEvidences = Array.from(rowsMap.values());
+
+      // 3. Normalizar campos de evidencias_orden y resolver URLs
       rawEvidences = await Promise.all(rawEvidences.map(async (ev) => {
         let url = ev.url_archivo || ev.url || ev.dataUrl || null;
-        let storageError = false;
-        const bucket = ev.storage_bucket || CANONICAL_EVIDENCE_BUCKET || 'maintenance-evidence';
-        const path = ev.storage_path || ev.path;
+        let parsedMeta = {};
+        if (ev.observaciones && String(ev.observaciones).trim().startsWith('{')) {
+          try { parsedMeta = JSON.parse(ev.observaciones); } catch (e) {}
+        }
 
-        if (path && supabaseClient?.storage) {
+        const bucket = ev.storage_bucket || parsedMeta.bucket || CANONICAL_EVIDENCE_BUCKET || 'maintenance-evidence';
+        const path = ev.storage_path || parsedMeta.path || ev.path;
+
+        // Si no es dataUrl directa y tiene path en Storage, intentar Signed URL
+        if ((!url || !String(url).startsWith('data:')) && path && supabaseClient?.storage) {
           try {
             const { data: signed, error: sErr } = await supabaseClient.storage
               .from(bucket)
               .createSignedUrl(path, 900);
-
             if (!sErr && signed?.signedUrl) {
               url = signed.signedUrl;
-            } else if (sErr) {
-              storageError = true;
-              console.warn('[loadOTEvidences] Storage signed URL error:', sErr.message);
             }
-          } catch (signErr) {
-            storageError = true;
-            console.warn('[loadOTEvidences] Excepción creando Signed URL:', signErr);
-          }
+          } catch (signErr) {}
         }
+
+        const capTime = ev.fecha_carga || ev.captured_at || ev.fecha_alta || new Date().toISOString();
+        const descText = ev.comentario || ev.descripcion || '';
+        const techName = ev.usuario_carga || ev.nombre_tecnico || 'Técnico';
 
         return {
           ...ev,
+          id: ev.id_evidencia || ev.id,
           id_evidencia: ev.id_evidencia || ev.id,
-          id_orden: ev.id_orden || cleanOrderId,
+          id_orden: ev.id_orden || otUuid || cleanOrderId,
+          otId: cleanOrderId,
+          ot_folio: parsedMeta.folio || cleanOrderId,
+          maquina_id: ev.maquina_id || parsedMeta.maquina_id || null,
           url,
-          storage_error: storageError,
+          url_archivo: url,
+          descripcion: descText,
+          comentario: descText,
+          nombre_tecnico: techName,
+          captured_at: capTime,
+          created_at: capTime,
           signed_expires_at: Date.now() + 900 * 1000
         };
       }));
+
+      // Actualizar caché local TSMAI_evidences para esta OT
+      try {
+        const existingLocal = JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]');
+        const othersLocal = existingLocal.filter(e => e.otId !== cleanOrderId && e.ot_folio !== cleanOrderId && (!otUuid || e.id_orden !== otUuid));
+        localStorage.setItem('TSMAI_evidences', JSON.stringify([...othersLocal, ...rawEvidences]));
+      } catch (eCache) {}
     } catch (dbErr) {
       console.error('[loadOTEvidences] Error consultando backend:', dbErr);
     }
@@ -4544,7 +4602,7 @@ async function loadOTEvidences(orderId) {
     }
   }
 
-  // Clasificación estricta: ANTES, DURANTE, DESPUÉS, OTRA
+  // Clasificación estricta: ANTES, DURANTE, DESPUÉS, OTRA / HALLAZGO
   const before = [];
   const during = [];
   const after = [];
@@ -4558,13 +4616,14 @@ async function loadOTEvidences(orderId) {
     by_cycle[cycle].push(ev);
 
     if (rawType === 'ANTES' || rawType === 'BEFORE' || rawType === 'INICIAL') {
-      before.push(ev);
+      before.push({ ...ev, tipo_evidencia: 'ANTES' });
     } else if (rawType === 'DURANTE' || rawType === 'DURING' || rawType === 'PROCESO') {
-      during.push(ev);
+      during.push({ ...ev, tipo_evidencia: 'DURANTE' });
     } else if (rawType === 'DESPUES' || rawType === 'DESPUÉS' || rawType === 'AFTER' || rawType === 'FINAL') {
-      after.push(ev);
+      after.push({ ...ev, tipo_evidencia: 'DESPUES' });
+    } else if (rawType === 'HALLAZGO') {
+      other.push({ ...ev, tipo_evidencia: 'HALLAZGO' });
     } else {
-      // PRD-EVI001-R1 §54-55: Evidencia legacy o sin tipo NO debe ser clasificada falsamente como ANTES o DESPUÉS
       other.push({ ...ev, tipo_evidencia: 'OTRA' });
     }
   });
@@ -6618,21 +6677,22 @@ async function renderAdminTelegramTable() {
   if (useLiveDatabase && supabaseClient) {
     try {
       const { data, error } = await supabaseClient
-        .from('stg_telegram_ordenes_telares')
+        .from('ordenes_trabajo')
         .select('*')
-        .order('fecha', { ascending: false })
-        .order('hora', { ascending: false })
+        .eq('origen', 'Telegram')
+        .gte('fecha_carga', '2026-10-16T20:10:00Z')
+        .order('fecha_carga', { ascending: false })
         .limit(100);
       if (!error && data) {
         telegramLogs = data.map(l => ({
-          folio: l.folio || l.id,
-          fecha: l.fecha,
-          hora: l.hora,
-          maquina: l.maquina_id,
-          falla: l.falla || l.descripcion,
-          tecnico: l.nom_atendio || l.cve_atendio || '—',
-          estatus: l.estatus || 'Cerrada',
-          obs: l.obs || l.obs_cierre || '—'
+          folio: l.folio || l.id_orden,
+          fecha: l.fecha_inicio || (l.fecha_carga ? l.fecha_carga.split('T')[0] : '—'),
+          hora: l.hora_fin || '',
+          maquina: l.maquina_id || '—',
+          falla: l.descripcion || l.falla || '—',
+          tecnico: l.nombre_atendio || l.cve_atendio || '—',
+          estatus: formatStatus(l.estatus || 'Cerrada'),
+          obs: l.observacion_cierre || l.observacion_inicial || '—'
         }));
       }
     } catch (err) {
@@ -6640,17 +6700,9 @@ async function renderAdminTelegramTable() {
     }
   }
 
-  // Fallback / Demo Mode: seed simulated Telegram orders
   if (telegramLogs.length === 0) {
-    telegramLogs = JSON.parse(localStorage.getItem('TSMAI_simulated_telegram_logs') || '[]');
-    if (telegramLogs.length === 0) {
-      telegramLogs = [
-        { folio: 'TEL-COS-001', fecha: '2026-07-14', hora: '08:30:00', maquina: 'COS-01', falla: 'Rotura de aguja constante', tecnico: 'Carlos Gómez', estatus: 'Cerrada', obs: 'Ajuste de sincronización realizado' },
-        { folio: 'TEL-TIN-002', fecha: '2026-07-14', hora: '10:15:00', maquina: 'JET-02', falla: 'Fuga de vapor en válvula', tecnico: 'Sofía Ruiz', estatus: 'Cerrada', obs: 'Empaque reemplazado con éxito' },
-        { folio: 'TEL-TEJ-003', fecha: '2026-07-13', hora: '14:45:00', maquina: 'PF-03', falla: 'Paro por hilo roto defectuoso', tecnico: 'Alejandro Sanz', estatus: 'Cerrada', obs: 'Limpieza de guías de alimentación' }
-      ];
-      localStorage.setItem('TSMAI_simulated_telegram_logs', JSON.stringify(telegramLogs));
-    }
+    tbody.innerHTML = emptyRow(7, 'No hay órdenes registradas vía Telegram.');
+    return;
   }
 
   tbody.innerHTML = telegramLogs.map(l => `
@@ -6695,17 +6747,25 @@ async function renderAdminEvidencias() {
   tbody.innerHTML = emptyRow(6, 'Cargando evidencias…');
   if (!supabaseClient) { tbody.innerHTML = emptyRow(6, '⚠️ Sin conexión a Supabase.'); return; }
   try {
-    const { data, error } = await supabaseClient.from('evidencias_orden').select('*').order('fecha_carga', { ascending: false }).limit(200);
+    const { data, error } = await supabaseClient.from('evidencias_orden').select('*').eq('activo', true).order('fecha_carga', { ascending: false }).limit(200);
     if (error) throw error;
     if (!data || data.length === 0) { tbody.innerHTML = emptyRow(6, 'No hay evidencias registradas.'); return; }
-    tbody.innerHTML = data.map(r => `<tr>
-      <td><code style="font-size:0.7rem;">${r.id_orden}</code></td>
-      <td>${r.tipo_evidencia || '—'}</td>
-      <td>${r.url_archivo ? `<a href="${r.url_archivo}" target="_blank" style="color:var(--accent-cyan);">${r.nombre_archivo || 'Ver archivo'}</a>` : (r.nombre_archivo || '—')}</td>
-      <td>${r.comentario || '—'}</td>
-      <td>${r.usuario_carga || '—'}</td>
-      <td>${fmtTs(r.fecha_carga)}</td>
-    </tr>`).join('');
+    window._adminEvidencesCache = data;
+    tbody.innerHTML = data.map((r, idx) => {
+      const folMatch = (r.observaciones || '').match(/\[FOLIO:([^\]]+)\]/);
+      const dispFolio = folMatch ? folMatch[1] : r.id_orden;
+      const thumbHtml = r.url_archivo
+        ? `<img src="${r.url_archivo}" alt="${r.nombre_archivo || 'Evidencia'}" style="width:52px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid #cbd5e1;" onclick="const ev=window._adminEvidencesCache[${idx}]; openPhotoLightbox(ev.url_archivo, { type: ev.tipo_evidencia || 'EVIDENCIA', ot: '${dispFolio}', machine: '-', tech: ev.usuario_carga || '-', time: fmtTs(ev.fecha_carga), desc: ev.comentario || '' })">`
+        : (r.nombre_archivo || '—');
+      return `<tr>
+        <td><code style="font-size:0.75rem;font-weight:700;">${dispFolio}</code></td>
+        <td><span class="badge" style="background:#0284c7;color:#fff;">${r.tipo_evidencia || '—'}</span></td>
+        <td>${thumbHtml}</td>
+        <td>${r.comentario || '—'}</td>
+        <td>${r.usuario_carga || '—'}</td>
+        <td>${fmtTs(r.fecha_carga)}</td>
+      </tr>`;
+    }).join('');
   } catch (err) { tbody.innerHTML = emptyRow(6, `❌ Error: ${err.message}`); }
 }
 
@@ -8017,7 +8077,7 @@ function updateAdminKPIs() {
 function updateRequestsBadge() {
   const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
   const newCount = requests.filter(r => {
-    if (!r || !r.status) return false;
+    if (!r || !r.status || isLegacyPrePilotRecord(r)) return false;
     const s = String(r.status).toLowerCase().trim();
     return s.includes('recibid') || s === 'recibida' || s === 'solicitud recibida' || s === 'solicitud_recibida';
   }).length;
@@ -8039,9 +8099,9 @@ function renderAdminRequestsTable() {
   const tbody = document.getElementById('table-admin-requests-body');
   if (!tbody) return;
 
-  // Mostrar solo las solicitudes nuevas en esta bandeja (cualquier variación de recibida)
+  // Mostrar solo las solicitudes nuevas en esta bandeja (cualquier variación de recibida, excluyendo pre-piloto)
   const newRequests = requests.filter(r => {
-    if (!r || !r.status) return false;
+    if (!r || !r.status || isLegacyPrePilotRecord(r)) return false;
     const s = String(r.status).toLowerCase().trim();
     return s.includes('recibid') || s === 'recibida' || s === 'solicitud recibida' || s === 'solicitud_recibida';
   });
@@ -8380,14 +8440,6 @@ async function convertToWorkOrder() {
           .from('ordenes_trabajo')
           .insert([payload]);
       }
-
-      // Si existía en solicitudes_mantenimiento, actualizar estatus
-      try {
-        await supabaseClient
-          .from('solicitudes_mantenimiento')
-          .update({ estatus: 'Asignada' })
-          .eq('folio_solicitud', reqId);
-      } catch (e) {}
 
     } catch (err) {
       console.error('Error updating/inserting order in Supabase:', err);
@@ -9258,17 +9310,19 @@ async function renderAdminBitacoraTable() {
 
   await syncFinishedOTsToBitacora();
 
-  let maintenanceLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
+  let maintenanceLogs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]')
+    .filter(l => !isLegacyPrePilotRecord(l));
 
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient
         .from('bitacora_mantenimiento')
         .select('*')
+        .gte('fecha_hora_inicio', '2026-10-16T20:10:00Z')
         .order('fecha_hora_inicio', { ascending: false })
         .limit(200);
       if (!error && data) {
-        maintenanceLogs = data.map(l => {
+        maintenanceLogs = data.filter(l => !isLegacyPrePilotRecord(l)).map(l => {
           const sTime = l.fecha_hora_inicio ? new Date(l.fecha_hora_inicio).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
           const eTime = l.fecha_hora_fin ? new Date(l.fecha_hora_fin).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
           return {
@@ -12775,7 +12829,9 @@ async function finishWorkOnOT() {
     return;
   }
 
+  const diagnosis = document.getElementById('tech-diagnosis')?.value.trim() || 'Revisión técnica ejecutada';
   const activity = document.getElementById('tech-activity')?.value.trim() || '';
+  const observations = document.getElementById('tech-observations')?.value.trim() || '';
   if (!activity) {
     alert('Por favor describe la actividad realizada antes de finalizar el trabajo.');
     return;
@@ -12783,11 +12839,17 @@ async function finishWorkOnOT() {
 
   setButtonLoading('btn-tech-finish-work', true);
   const nowISO = new Date().toISOString();
+  const combinedObs = `Diagnóstico: ${diagnosis} | Actividad: ${activity}${observations ? ' | Observaciones: ' + observations : ''}`;
 
   // Preservar fecha técnica existente si ya la tenía
   orders[idx].fecha_hora_fin = orders[idx].fecha_hora_fin || nowISO;
   // Estado canónico de validación (PRD-OT001-R1 Regla 3)
   orders[idx].status = 'Lista para validación';
+  orders[idx].estatus = 'lista_para_validacion';
+  orders[idx].diagnosis = diagnosis;
+  orders[idx].activity = activity;
+  orders[idx].observations = observations;
+  orders[idx].observacion_cierre = combinedObs;
 
   let durationMins = 0;
   if (orders[idx].fecha_hora_inicio) {
@@ -12803,8 +12865,8 @@ async function finishWorkOnOT() {
     comment: `Trabajo finalizado en ${durationMins} min. Listo para validación de entrega.`
   });
 
-  // Guardar log en Bitácora automáticamente
-  await saveTechnicalLog();
+  // Registrar en Bitácora de Mantenimiento automáticamente
+  await autoCreateBitacoraOnOTClose(orders[idx], 'Lista para validación', combinedObs);
 
   // --- MODO DEMO vs PRODUCCIÓN ---
   if (APP_ENVIRONMENT === 'DEMO' || !useLiveDatabase) {
@@ -12815,37 +12877,44 @@ async function finishWorkOnOT() {
       id: 'AUD-DEMO-' + Date.now() + '-FIN',
       folio: otId,
       accion: 'FINALIZACION_TECNICA',
-      estado_anterior: orders[idx].status || 'en_proceso',
+      estado_anterior: 'en_proceso',
       estado_nuevo: 'lista_para_validacion',
       usuario_nombre: currentUser ? currentUser.name : 'Técnico Demo',
       rol_usuario: currentUser ? currentUser.rol : 'MANTENIMIENTO',
       fecha_hora: nowISO,
       codigo_motivo: 'TRABAJO_CONCLUIDO',
-      comentario: activity,
+      comentario: combinedObs,
       numero_ciclo: 1,
       origen: 'DEMO'
     });
     localStorage.setItem('TSMAI_DEMO_auditoria_cierre_ot', JSON.stringify(demoAudit));
   } else if (supabaseClient) {
     try {
-      const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('finalizar_trabajo_tecnico', {
+      const datePart = nowISO.split('T')[0];
+      const timePart = new Date().toTimeString().split(' ')[0];
+      const { error: rpcErr } = await supabaseClient.rpc('finalizar_trabajo_tecnico', {
         p_folio: otId,
         p_actividad: activity,
-        p_diagnostico: document.getElementById('tech-diagnosis')?.value?.trim() || null,
-        p_observaciones: document.getElementById('tech-observations')?.value?.trim() || null,
+        p_diagnostico: diagnosis,
+        p_observaciones: observations || null,
         p_refacciones: document.getElementById('tech-parts-used')?.value?.trim() || null
       });
 
+      // Asegurar siempre actualización directa en ordenes_trabajo con observacion_cierre y estatus
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({
+          estatus: 'lista_para_validacion',
+          observacion_cierre: combinedObs,
+          fecha_fin: datePart,
+          hora_fin: timePart,
+          fecha_hora_fin: orders[idx].fecha_hora_fin,
+          tiempo_atencion_min: durationMins
+        })
+        .eq('folio', otId);
+
       if (rpcErr) {
-        console.warn('[finishWorkOnOT] Warn RPC finalizar_trabajo_tecnico, aplicando update directo:', rpcErr.message);
-        await supabaseClient
-          .from('ordenes_trabajo')
-          .update({
-            estatus: 'lista_para_validacion',
-            fecha_hora_fin: orders[idx].fecha_hora_fin,
-            tiempo_atencion_min: durationMins
-          })
-          .eq('folio', otId);
+        console.warn('[finishWorkOnOT] Nota RPC finalizar_trabajo_tecnico (respaldo directo aplicado):', rpcErr.message);
       }
     } catch (err) {
       console.error('Error finishing work in Supabase:', err);
@@ -12991,9 +13060,11 @@ function openTechOrderDetailModal(otId) {
     tempSelectedParts = [];
     renderTechSelectedPartsList();
 
-    // Reset file upload
-    document.getElementById('tech-file').value = '';
-    document.getElementById('tech-file-preview').style.display = 'none';
+    // Reset file upload (si existe el elemento legacy)
+    const techFileSub = document.getElementById('tech-file');
+    if (techFileSub) techFileSub.value = '';
+    const techPreviewSub = document.getElementById('tech-file-preview');
+    if (techPreviewSub) techPreviewSub.style.display = 'none';
 
     // Reset temporal subtasks
     tempSubtasksToCreate = [];
@@ -13075,9 +13146,11 @@ function openTechOrderDetailModal(otId) {
     }
     renderTechSelectedPartsList();
 
-    // Reset file upload
-    document.getElementById('tech-file').value = '';
-    document.getElementById('tech-file-preview').style.display = 'none';
+    // Reset file upload (si existe el elemento legacy)
+    const techFileEl = document.getElementById('tech-file');
+    if (techFileEl) techFileEl.value = '';
+    const techPreviewEl = document.getElementById('tech-file-preview');
+    if (techPreviewEl) techPreviewEl.style.display = 'none';
 
     // Reset temporal subtasks
     tempSubtasksToCreate = [];
@@ -13087,6 +13160,7 @@ function openTechOrderDetailModal(otId) {
     updateTechActionButtons(order);
 
     openModal('modal-tech-ot-detail');
+    renderTechOTPhotos(otId);
   }
 }
 
@@ -13638,7 +13712,7 @@ async function saveTechnicalLog() {
     // Cargar evidencia si aplica y guardarla en evidencias_subtareas
     const fileInput = document.getElementById('tech-file');
     let evidenceName = null;
-    if (fileInput.files && fileInput.files[0]) {
+    if (fileInput && fileInput.files && fileInput.files[0]) {
       evidenceName = fileInput.files[0].name;
       const evUUID = crypto.randomUUID ? crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36));
       const newEv = {
@@ -13710,8 +13784,7 @@ async function saveTechnicalLog() {
   });
 
   if (interventionTypes.length === 0) {
-    alert('Selecciona al menos un tipo de intervención.');
-    return;
+    interventionTypes.push('General');
   }
 
   const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
@@ -13773,12 +13846,13 @@ async function saveTechnicalLog() {
   if (tempSubtasksToCreate.length > 0) {
     orders[orderIndex].status = 'Requiere subtarea';
   } else {
-    orders[orderIndex].status = 'Ejecutada';
+    orders[orderIndex].status = 'Lista para validación';
+    orders[orderIndex].estatus = 'lista_para_validacion';
   }
 
-  // Simular carga de archivo de cierre
+  // Simular carga de archivo de cierre si existe input legacy
   const fileInput = document.getElementById('tech-file');
-  if (fileInput.files && fileInput.files[0]) {
+  if (fileInput && fileInput.files && fileInput.files[0]) {
     orders[orderIndex].finalEvidence = fileInput.files[0].name;
   }
 
@@ -14748,10 +14822,11 @@ async function renderTechBitacora() {
       const { data, error } = await supabaseClient
         .from('bitacora_mantenimiento')
         .select('*')
+        .gte('fecha_hora_inicio', '2026-10-16T20:10:00Z')
         .order('fecha_hora_inicio', { ascending: false });
       if (!error && data) {
         const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-        logs = data.map(l => {
+        logs = data.filter(l => !isLegacyPrePilotRecord(l)).map(l => {
           const foundOrder = orders.find(o => o.uuid === l.id_orden);
           return {
             id: l.id_bitacora,
@@ -14778,7 +14853,8 @@ async function renderTechBitacora() {
   }
 
   if (logs.length === 0) {
-    logs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
+    logs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]')
+      .filter(l => !isLegacyPrePilotRecord(l));
   }
 
   // Auto-sintetizar registros de bitácora para cualquier OT finalizada, en validación o cerrada
@@ -18932,14 +19008,16 @@ async function submitSolicitanteNewRequest() {
       newReqId = `${prefix}${String(nextConsecutive).padStart(5, '0')}`;
     }
 
-    const applicantDisplayName = manualApplicantName || currentUser.name || currentUser.nombre_completo || currentUser.email;
+    const applicantDisplayName = currentUser.name || currentUser.nombre_completo || manualApplicantName || currentUser.email;
+    const solicFileEl = document.getElementById('solic-req-file');
+    const initialFile = (solicFileEl && solicFileEl.files && solicFileEl.files[0]) ? solicFileEl.files[0] : null;
 
     const newRequest = {
       id: newReqId,
       applicant: applicantDisplayName,
       applicant_id: currentUser.id || currentUser.uuid,
-      applicant_email: currentUser.email,
-      nombre_solicitante_reporta: manualApplicantName,
+      applicant_email: currentUser.email || currentUser.correo,
+      nombre_solicitante_reporta: manualApplicantName || applicantDisplayName,
       requested_technician_id: preferredTechId,
       client_request_id: clientRequestId,
       shift: shift,
@@ -18954,7 +19032,8 @@ async function submitSolicitanteNewRequest() {
       urgency: urgency,
       risk: riskVal,
       status: 'Solicitud recibida',
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
+      evidence: initialFile ? initialFile.name : null
     };
 
     if (APP_ENVIRONMENT === 'DEMO') {
@@ -18965,13 +19044,30 @@ async function submitSolicitanteNewRequest() {
       await dbInsertRequest(newRequest);
     }
 
+    // Si el solicitante adjuntó fotografía inicial (ANTES), subirla y asociarla a la OT
+    if (initialFile) {
+      try {
+        await uploadOTEvidence({
+          otId: newRequest.id,
+          machineId: newRequest.machine_id || newRequest.machine,
+          tipoEvidencia: 'ANTES',
+          file: initialFile,
+          description: 'Evidencia inicial reportada por solicitante'
+        });
+      } catch (eEv) {
+        console.warn('[submitSolicitanteNewRequest] Aviso al subir evidencia inicial:', eEv);
+      }
+    }
+
     // Actualizar indicadores del administrador
     updateRequestsBadge();
     if (typeof renderAdminRequestsTable === 'function') renderAdminRequestsTable();
 
     // Confirmación visual exitosa con folio
-    showToast(`✅ Solicitud ${newReqId} creada correctamente.`, 'success');
+    showToast(`✅ Solicitud ${newRequest.id} creada correctamente.`, 'success');
     document.getElementById('form-solic-new-request').reset();
+    const previewEl = document.getElementById('solic-req-file-preview');
+    if (previewEl) { previewEl.innerText = ''; previewEl.style.display = 'none'; }
     switchSolicitantePanel('tracking');
 
   } catch (err) {
@@ -19799,35 +19895,40 @@ function isStrictOriginalApplicant(order, user) {
   const uemail = String(user.email || user.correo || '').trim().toLowerCase();
   const uname = String(user.name || user.nombre_completo || '').trim().toLowerCase();
   const uemp = String(user.cve_empleado || '').trim().toLowerCase();
+  const uarea = String(user.area || user.departamento || '').trim().toUpperCase();
 
   // --- Identidad almacenada en la orden ---
-  // Prioridad 1: UUID del solicitante (id_solicitante_app = user.id_usuario desde Supabase)
   const oAppUid = String(order.id_solicitante || order.applicant_id || order.id_solicitante_app || '').trim().toLowerCase();
-  // Prioridad 2: Employee code (cve_solicitante)
-  const oEmpCve = String(order.solicitante_id || order.cve_empleado || order.solicitante_clave || '').trim().toLowerCase();
-  // Prioridad 3: Correo del solicitante
+  const oEmpCve = String(order.solicitante_id || order.cve_empleado || order.solicitante_clave || order.cve_solicitante || '').trim().toLowerCase();
   const oEmail = String(order.solicitante_correo || order.applicant_email || order.correo || '').trim().toLowerCase();
-  // Prioridad 4: Nombre del solicitante
-  const oName = String(order.solicitante || order.solicitante_nombre || order.solicitante_nom || order.applicant || '').trim().toLowerCase();
+  const oName = String(order.solicitante || order.solicitante_nombre || order.solicitante_nom || order.applicant || order.nombre_solicitante || '').trim().toLowerCase();
+  const oReporta = String(order.nombre_solicitante_reporta || '').trim().toLowerCase();
+  const oArea = String(order.area || order.departamento || '').trim().toUpperCase();
 
-  // Comprobación 1: UUID (más confiable — coincidencia exacta)
+  // Comprobación 1: UUID (coincidencia exacta)
   if (uid && oAppUid && uid === oAppUid) return true;
 
-  // Comprobación 2: Correo electrónico (segunda más confiable)
+  // Comprobación 2: Correo electrónico
   if (uemail && oEmail && uemail === oEmail) return true;
 
-  // Comprobación 3: Clave de empleado (solo si no contiene guion — descarta UUIDs usados como clave)
+  // Comprobación 3: Clave de empleado
   if (uemp && oEmpCve && !uemp.includes('-') && !oEmpCve.includes('-') && uemp === oEmpCve) return true;
 
-  // Comprobación 4: Nombre completo (fallback flexible — bidireccional con tolerancia a subcadenas)
-  if (uname && uname.length > 3 && oName && oName.length > 3) {
-    if (uname === oName) return true;
-    // Coincidencia por contenido (apellido o primer nombre)
-    const uParts = uname.split(' ').filter(p => p.length > 2);
-    const oParts = oName.split(' ').filter(p => p.length > 2);
-    const matchedParts = uParts.filter(up => oParts.some(op => op === up || op.startsWith(up) || up.startsWith(op)));
-    if (matchedParts.length >= 2) return true; // Al menos 2 palabras coinciden (nombre + apellido)
-    if (uParts.length === 1 && oParts.length === 1 && uParts[0] === oParts[0]) return true;
+  // Comprobación 4: Nombre completo o nombre reportante
+  for (const candidateName of [oName, oReporta]) {
+    if (uname && uname.length > 3 && candidateName && candidateName.length > 3) {
+      if (uname === candidateName || uname.includes(candidateName) || candidateName.includes(uname)) return true;
+      const uParts = uname.split(' ').filter(p => p.length > 2);
+      const oParts = candidateName.split(' ').filter(p => p.length > 2);
+      const matchedParts = uParts.filter(up => oParts.some(op => op === up || op.startsWith(up) || up.startsWith(op)));
+      if (matchedParts.length >= 2) return true;
+      if (uParts.length === 1 && oParts.length === 1 && uParts[0] === oParts[0]) return true;
+    }
+  }
+
+  // Comprobación 5: Coincidencia por Área / Departamento del usuario Solicitante autorizado para validar cierre
+  if (user.puede_validar_cierre !== false && uarea && oArea && (uarea === oArea || uarea === 'TODAS' || uarea === 'ALL')) {
+    return true;
   }
 
   return false;
@@ -20529,6 +20630,38 @@ async function submitSolicitanteAcceptWork() {
     showToast(`✅ Trabajo de la Orden ${orderId} validado y CERRADO definitivamente con ${rating} estrellas.`, 'success');
     renderSolicitanteValidations();
     renderSolicitanteTracking();
+
+    // Alimentar a los Agentes de IA (AG-011 Memoria Técnica y AG-001 Salud del Activo)
+    if (typeof dispatchAgentEvent === 'function') {
+      try {
+        const finalMachId = order?.machine || order?.maquina_id || 'EQUIPO_GENERAL';
+        const finalDiag = order?.diagnosis || order?.observacion_cierre || comments || 'Reparación conforme';
+        const finalAct = order?.activity || 'Trabajo ejecutado por técnico y validado por solicitante';
+
+        dispatchAgentEvent('MEMORIA_TECNICA_REGISTRAR', {
+          origin: 'SOLICITANTE_VALIDATION_APPROVAL',
+          payload: {
+            maquina_id: finalMachId,
+            asset_id: finalMachId,
+            diagnostico: `[OT ${orderId}] ${finalDiag} | Actividad: ${finalAct}`,
+            calificacion: rating,
+            folio_ot: orderId,
+            validado_por: currentUser.nombre_completo || currentUser.name || currentUser.email
+          }
+        }).catch(err => console.warn('[AgentFeed] Warn AG-011:', err));
+
+        dispatchAgentEvent('MACHINE_AI_CONTEXT_REQUESTED', {
+          origin: 'OT_CLOSED_UPDATE',
+          payload: {
+            machine_id: finalMachId,
+            folio_ot: orderId
+          }
+        }).catch(err => console.warn('[AgentFeed] Warn AG-001:', err));
+      } catch (eAgent) {
+        console.warn('[ValidationApproved] Error alimentando agentes:', eAgent);
+      }
+    }
+
     if (typeof syncDatabases === 'function') await syncDatabases();
   } catch (err) {
     console.error('[submitSolicitanteAcceptWork] Error:', err);
@@ -20704,6 +20837,7 @@ async function submitSolicitanteCorrection() {
     localStorage.setItem('TSMAI_DEMO_auditoria_cierre_ot', JSON.stringify(demoAudits));
 
     if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerText = '⚠️ Rechazar y Crear Seguimiento'; }
+    closeModal('modal-solic-request-correction');
     showToast(`⚠️ Orden ${orderId} rechazada. Se ha generado la nueva solicitud de seguimiento ${newFolio} (Ciclo ${nextCycle}).`, 'info');
     renderSolicitanteValidations();
     renderSolicitanteTracking();
@@ -20758,24 +20892,7 @@ async function submitSolicitanteCorrection() {
         })
         .eq('folio', orderId);
 
-      // 2. Insertar nueva solicitud en solicitudes_mantenimiento
-      try {
-        await supabaseClient.from('solicitudes_mantenimiento').insert([{
-          id: newUUID,
-          folio_solicitud: newFolioGenerated,
-          solicitante_nombre: origOT?.nombre_solicitante || currentUser.nombre_completo || currentUser.name,
-          solicitante_id: origOT?.cve_solicitante || currentUser.id,
-          area: area,
-          maquina_id: origOT?.maquina_id,
-          tipo_servicio: 'Correctivo',
-          descripcion_falla: `[SEGUIMIENTO CICLO ${newCycleGenerated} DE OT ${orderId}] ${reason}: ${comments || 'Sin detalle'} | Falla original: ${origOT?.descripcion || ''}`,
-          urgencia: origOT?.prioridad || 'Media',
-          estatus: 'Solicitud recibida',
-          fecha_registro: nowISO
-        }]);
-      } catch (eSol) {}
-
-      // 3. Insertar nueva orden en ordenes_trabajo
+      // 2. Insertar nueva orden de seguimiento en ordenes_trabajo
       try {
         await supabaseClient.from('ordenes_trabajo').insert([{
           id_orden: newUUID,
@@ -20852,9 +20969,31 @@ async function submitSolicitanteCorrection() {
     localStorage.setItem(getAppStorageKey('orders'), JSON.stringify(orders));
 
     if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerText = '⚠️ Rechazar y Crear Seguimiento'; }
+    closeModal('modal-solic-request-correction');
     showToast(`⚠️ Orden ${orderId} rechazada. Se ha generado la nueva solicitud vinculada ${newFolioGenerated} (Ciclo ${newCycleGenerated}) para seguimiento.`, 'info');
     renderSolicitanteValidations();
     renderSolicitanteTracking();
+
+    // Alimentar a los Agentes de IA (AG-008 Detección de Reincidencias y AG-010 Causa Raíz)
+    if (typeof dispatchAgentEvent === 'function') {
+      try {
+        const rejMachId = origOrder?.machine || origOrder?.maquina_id || 'EQUIPO_GENERAL';
+        dispatchAgentEvent('FAILURE_ANALYSIS_REQUESTED', {
+          origin: 'SOLICITANTE_VALIDATION_REJECTION',
+          payload: {
+            maquina_id: rejMachId,
+            folio_origen: orderId,
+            folio_nuevo: newFolioGenerated,
+            motivo_rechazo: reason,
+            comentario_rechazo: comments,
+            ciclo: newCycleGenerated
+          }
+        }).catch(err => console.warn('[AgentFeed] Warn AG-008:', err));
+      } catch (eAgent) {
+        console.warn('[ValidationRejected] Error alimentando agentes:', eAgent);
+      }
+    }
+
     if (typeof syncDatabases === 'function') await syncDatabases();
   } catch (err) {
     console.error('[submitSolicitanteCorrection] Error:', err);
@@ -21838,8 +21977,10 @@ async function renderAdminAnalyticsDashboard() {
     try { await syncFinishedOTsToBitacora(); } catch (e) {}
   }
 
-  let logs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]');
-  let orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+  let logs = JSON.parse(localStorage.getItem('TSMAI_maintenance_logs') || '[]')
+    .filter(l => !isLegacyPrePilotRecord(l));
+  let orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]')
+    .filter(o => !isLegacyPrePilotRecord(o));
 
   // Convertir órdenes terminadas/atendidas en formato homogéneo si no están en la bitácora
   orders.forEach(o => {
@@ -21906,18 +22047,7 @@ async function renderAdminAnalyticsDashboard() {
     logs = logs.filter(l => isLogTechMatch(l, selectedTech));
   }
 
-  // Si no hay datos filtrados en el rango, cargar mediciones reales base de la planta
-  if (logs.length === 0) {
-    logs = [
-      { id_bitacora: 'B-01', cve_tecnico: 'T-01', nombre_tecnico: 'Carlos Mendoza', descripcion_actividad: 'Mantenimiento Correctivo Bomba Cisterna', fecha_hora_inicio: new Date(now.getTime() - 120*60000).toISOString(), fecha_hora_fin: new Date(now.getTime() - 75*60000).toISOString(), area: 'AF' },
-      { id_bitacora: 'B-02', cve_tecnico: 'T-02', nombre_tecnico: 'Sofía Ruiz', descripcion_actividad: 'Mantenimiento Preventivo Lavadora PT-01', fecha_hora_inicio: new Date(now.getTime() - 200*60000).toISOString(), fecha_hora_fin: new Date(now.getTime() - 170*60000).toISOString(), area: 'CF' },
-      { id_bitacora: 'B-03', cve_tecnico: 'T-01', nombre_tecnico: 'Carlos Mendoza', descripcion_actividad: 'Ajuste e Inspección Detector de Metales', fecha_hora_inicio: new Date(now.getTime() - 300*60000).toISOString(), fecha_hora_fin: new Date(now.getTime() - 282*60000).toISOString(), area: 'CF' },
-      { id_bitacora: 'B-04', cve_tecnico: 'T-03', nombre_tecnico: 'Alejandro Torres', descripcion_actividad: 'Rutina Preventiva de Tablero Eléctrico', fecha_hora_inicio: new Date(now.getTime() - 400*60000).toISOString(), fecha_hora_fin: new Date(now.getTime() - 365*60000).toISOString(), area: 'PF' },
-      { id_bitacora: 'B-05', cve_tecnico: 'T-02', nombre_tecnico: 'Sofía Ruiz', descripcion_actividad: 'Diagnóstico de Falla Sensor de Presión', fecha_hora_inicio: new Date(now.getTime() - 500*60000).toISOString(), fecha_hora_fin: new Date(now.getTime() - 485*60000).toISOString(), area: 'AF' }
-    ];
-  }
-
-  // 3. Procesamiento y Cálculo de Métricas Reales
+  // 3. Procesamiento y Cálculo de Métricas Reales (Sin datos simulados si logs está vacío)
   let totalRealMinutes = 0;
   let totalTargetMinutes = 0;
 
@@ -21935,7 +22065,7 @@ async function renderAdminAnalyticsDashboard() {
     let end = new Date(log.fecha_hora_fin || Date.now());
     let durationMins = Math.round((end - start) / (1000 * 60));
     if (isNaN(durationMins) || durationMins <= 0 || durationMins > 600) {
-      durationMins = Math.floor(25 + Math.random() * 25);
+      durationMins = 30;
     }
 
     const actLower = (log.descripcion_actividad || log.actividad || log.observaciones || '').toLowerCase();
@@ -21959,11 +22089,12 @@ async function renderAdminAnalyticsDashboard() {
     techStats[tName].count += 1;
   });
 
+  const hasLogs = logs.length > 0;
   const totalLogsCount = logs.length || 1;
-  const avgReal = Math.round(totalRealMinutes / totalLogsCount);
-  const avgTarget = Math.round(totalTargetMinutes / totalLogsCount);
-  const globalEfficiency = totalRealMinutes > 0 ? Math.min(140, Math.round((totalTargetMinutes / totalRealMinutes) * 100)) : 100;
-  const totalHours = (totalRealMinutes / 60).toFixed(1);
+  const avgReal = hasLogs ? Math.round(totalRealMinutes / totalLogsCount) : 0;
+  const avgTarget = hasLogs ? Math.round(totalTargetMinutes / totalLogsCount) : 0;
+  const globalEfficiency = (hasLogs && totalRealMinutes > 0) ? Math.min(140, Math.round((totalTargetMinutes / totalRealMinutes) * 100)) : 0;
+  const totalHours = hasLogs ? (totalRealMinutes / 60).toFixed(1) : '0.0';
 
   // Actualizar indicadores KPI en pantalla
   const kpiRealEl = document.getElementById('kpi-analytics-avg-real');
@@ -21988,8 +22119,8 @@ async function renderAdminAnalyticsDashboard() {
     }
     
     const catLabels = Object.keys(categoryStats);
-    const realAvgs = catLabels.map(k => categoryStats[k].count ? Math.round(categoryStats[k].real / categoryStats[k].count) : categoryStats[k].target + 5);
-    const targetAvgs = catLabels.map(k => categoryStats[k].target);
+    const realAvgs = catLabels.map(k => categoryStats[k].count ? Math.round(categoryStats[k].real / categoryStats[k].count) : 0);
+    const targetAvgs = catLabels.map(k => hasLogs ? categoryStats[k].target : 0);
 
     chartAnalyticsObjVsRealInstance = new Chart(ctxObjVsReal, {
       type: 'bar',
@@ -22061,7 +22192,7 @@ async function renderAdminAnalyticsDashboard() {
           legend: { position: 'bottom' },
           tooltip: {
             callbacks: {
-              label: (ctx) => `${ctx.label}: ${ctx.raw} min (${Math.round((ctx.raw / (totalRealMinutes || 1)) * 100)}%)`
+              label: (ctx) => `${ctx.label}: ${ctx.raw} min (${totalRealMinutes > 0 ? Math.round((ctx.raw / totalRealMinutes) * 100) : 0}%)`
             }
           }
         }
@@ -22077,27 +22208,20 @@ async function renderAdminAnalyticsDashboard() {
     }
 
     let techNames = Object.keys(techStats);
-    if (techNames.length === 0) {
-      techNames = ['Carlos Mendoza', 'Sofía Ruiz', 'Alejandro Torres'];
-      techStats['Carlos Mendoza'] = { realMins: 45, targetMins: 50 };
-      techStats['Sofía Ruiz'] = { realMins: 30, targetMins: 35 };
-      techStats['Alejandro Torres'] = { realMins: 40, targetMins: 35 };
-    }
-
     const efficiencies = techNames.map(name => {
       const s = techStats[name];
-      return s.realMins > 0 ? Math.min(135, Math.round((s.targetMins / s.realMins) * 100)) : 95;
+      return s.realMins > 0 ? Math.min(135, Math.round((s.targetMins / s.realMins) * 100)) : 0;
     });
     const bgColors = efficiencies.map(e => e >= 95 ? 'rgba(22, 163, 74, 0.85)' : e >= 80 ? 'rgba(245, 158, 11, 0.85)' : 'rgba(220, 38, 38, 0.85)');
 
     chartAnalyticsEfficiencyTechInstance = new Chart(ctxEffTech, {
       type: 'bar',
       data: {
-        labels: techNames,
+        labels: techNames.length > 0 ? techNames : ['Sin bitácoras registradas'],
         datasets: [{
           label: '% Eficiencia de Tiempo',
-          data: efficiencies,
-          backgroundColor: bgColors,
+          data: efficiencies.length > 0 ? efficiencies : [0],
+          backgroundColor: bgColors.length > 0 ? bgColors : ['rgba(148, 163, 184, 0.5)'],
           borderRadius: 6
         }]
       },
@@ -22128,8 +22252,8 @@ async function renderAdminAnalyticsDashboard() {
     }
 
     const weeks = ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'];
-    const trendReal = [avgReal + 12, avgReal + 5, avgReal - 2, avgReal];
-    const trendTarget = [avgTarget, avgTarget, avgTarget, avgTarget];
+    const trendReal = hasLogs ? [avgReal, avgReal, avgReal, avgReal] : [0, 0, 0, 0];
+    const trendTarget = hasLogs ? [avgTarget, avgTarget, avgTarget, avgTarget] : [0, 0, 0, 0];
 
     chartAnalyticsTrendInstance = new Chart(ctxTrend, {
       type: 'line',

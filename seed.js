@@ -50,147 +50,9 @@ const DEFAULT_REFACCIONES_POR_MAQUINA = [
   { maquina_id: 'M-401', codigo_articulo: 'R-04', nombre_articulo: 'Aceite Sintético Mobil DTE (L)', precio_costo_unitario: 220, cantidad_estandar: 5 }
 ];
 
-const DEFAULT_REQUESTS = [
-  {
-    id: 'REQ-2026-0001',
-    applicant: 'Héctor Saldaña',
-    shift: 'Turno Mañana',
-    area: 'TF',
-    machine: 'M-301', // Tintorera de Jet Thies
-    type: 'MC',
-    description: 'La bomba de recirculación de colorante hace un ruido metálico excesivo y vibra demasiado. La temperatura está subiendo lento.',
-    machineStopped: 'No',
-    urgency: 'Alta',
-    status: 'Solicitud recibida',
-    date: '2026-06-03T08:30:00-06:00',
-    evidence: 'bomba_ruido.jpg'
-  },
-  {
-    id: 'REQ-2026-0002',
-    applicant: 'Julia Méndez',
-    shift: 'Turno Tarde',
-    area: 'PF',
-    machine: 'M-102', // Hiladora Rieter
-    type: 'MC',
-    description: 'Falla eléctrica general en la pantalla de control de la hiladora. No enciende y detiene el proceso.',
-    machineStopped: 'Sí',
-    urgency: 'Crítica',
-    status: 'Solicitud recibida',
-    date: '2026-06-03T19:15:00-06:00',
-    evidence: 'pantalla_hiladora.jpg'
-  },
-  {
-    id: 'REQ-2026-0003',
-    applicant: 'Roberto Gómez',
-    shift: 'Turno Nocturno',
-    area: 'CF',
-    machine: 'M-201', // Costuradora Juki
-    type: 'MP',
-    description: 'Mantenimiento preventivo correspondiente al ciclo de 500 horas. Ajuste de tensión y lubricación de poleas.',
-    machineStopped: 'No',
-    urgency: 'Baja',
-    status: 'Solicitud recibida',
-    date: '2026-06-03T20:45:00-06:00',
-    evidence: null
-  }
-];
+const DEFAULT_REQUESTS = [];
 
-const DEFAULT_ORDERS = [
-  {
-    id: 'MC-TF-2026-0001',
-    reqId: 'REQ-2026-0001',
-    applicant: 'Héctor Saldaña',
-    shift: 'Turno Mañana',
-    area: 'TF',
-    machine: 'M-301',
-    type: 'MC',
-    description: 'La bomba de recirculación de colorante hace un ruido metálico excesivo y vibra demasiado. La temperatura está subiendo lento.',
-    machineStopped: 'No',
-    urgency: 'Alta',
-    status: 'Asignada',
-    assignedTech: 'T-02', // Sofía Ruiz
-    date: '2026-06-03T08:30:00-06:00',
-    dueDate: '2026-06-04T12:00:00-06:00',
-    evidence: 'bomba_ruido.jpg',
-    historyLogs: [
-      { date: '2026-06-03T08:30:00-06:00', status: 'Solicitud recibida', user: 'Héctor Saldaña', comment: 'Registro inicial' },
-      { date: '2026-06-03T09:15:00-06:00', status: 'Asignada', user: 'Super Admin', comment: 'Asignada a Ing. Sofía Ruiz' }
-    ]
-  },
-  {
-    id: 'MC-PF-2026-0002',
-    reqId: 'REQ-2026-0002',
-    applicant: 'Julia Méndez',
-    shift: 'Turno Tarde',
-    area: 'PF',
-    machine: 'M-102',
-    type: 'MC',
-    description: 'Falla eléctrica general en la pantalla de control de la hiladora. No enciende y detiene el proceso.',
-    machineStopped: 'Sí',
-    urgency: 'Crítica',
-    status: 'En proceso',
-    assignedTech: 'T-01', // Carlos Mendoza
-    date: '2026-06-03T19:15:00-06:00',
-    dueDate: '2026-06-03T23:59:00-06:00',
-    evidence: 'pantalla_hiladora.jpg',
-    historyLogs: [
-      { date: '2026-06-03T19:15:00-06:00', status: 'Solicitud recibida', user: 'Julia Méndez', comment: 'Registro inicial' },
-      { date: '2026-06-03T19:30:00-06:00', status: 'Asignada', user: 'Super Admin', comment: 'Asignada a Ing. Carlos Mendoza' },
-      { date: '2026-06-03T19:45:00-06:00', status: 'En proceso', user: 'Ing. Carlos Mendoza', comment: 'Revisando cableado de alimentación y fusibles' }
-    ]
-  },
-  {
-    id: 'MP-CF-2026-0003',
-    reqId: 'REQ-PREV-01',
-    applicant: 'Super Admin',
-    shift: 'Turno Mañana',
-    area: 'CF',
-    machine: 'M-202', // Remalladora Brother
-    type: 'MP',
-    description: 'Limpieza interna de pelusa, lubricación de aguja y revisión de banda de transmisión.',
-    machineStopped: 'No',
-    urgency: 'Media',
-    status: 'En espera',
-    assignedTech: 'T-03', // Alejandro Gómez
-    date: '2026-06-02T10:00:00-06:00',
-    dueDate: '2026-06-05T18:00:00-06:00',
-    evidence: null,
-    historyLogs: [
-      { date: '2026-06-02T10:00:00-06:00', status: 'Asignada', user: 'Super Admin', comment: 'Generada por plan preventivo' },
-      { date: '2026-06-02T14:20:00-06:00', status: 'En espera', user: 'Tec. Alejandro Gómez', comment: 'Esperando que producción libere la máquina' }
-    ]
-  },
-  {
-    id: 'MC-AF-2026-0004',
-    reqId: 'REQ-PREV-02',
-    applicant: 'Ing. Planta',
-    shift: 'Turno Mañana',
-    area: 'AF',
-    machine: 'M-401',
-    type: 'MC',
-    description: 'Fuga de aceite en el cárter del compresor principal.',
-    machineStopped: 'No',
-    urgency: 'Crítica',
-    status: 'Cerrada',
-    assignedTech: 'T-02', // Sofía Ruiz
-    date: '2026-06-01T09:00:00-06:00',
-    dueDate: '2026-06-01T15:00:00-06:00',
-    evidence: 'fuga_compresor.jpg',
-    diagnosis: 'Empaque dañado por sobrecalentamiento térmico.',
-    activity: 'Se reemplazó el empaque del cárter y se cambió el filtro de aceite. Relleno con lubricante sintético.',
-    interventionType: ['Mecánica', 'Lubricación'],
-    usedParts: [{ partId: 'R-04', quantity: 4 }, { id: 'R-01', name: 'Otros repuestos menores', quantity: 1 }],
-    finalEvidence: 'compresor_reparado.jpg',
-    observations: 'Se sugiere monitorear temperatura de operación del compresor cada 4 horas.',
-    historyLogs: [
-      { date: '2026-06-01T09:00:00-06:00', status: 'Solicitud recibida', user: 'Ing. Planta', comment: 'Fuga reportada' },
-      { date: '2026-06-01T09:30:00-06:00', status: 'Asignada', user: 'Super Admin', comment: 'Asignado a Sofía Ruiz' },
-      { date: '2026-06-01T10:00:00-06:00', status: 'En proceso', user: 'Ing. Sofía Ruiz', comment: 'Desensamblando carcasa exterior' },
-      { date: '2026-06-01T13:45:00-06:00', status: 'Ejecutada', user: 'Ing. Sofía Ruiz', comment: 'Reparación completada, listo para validación' },
-      { date: '2026-06-01T14:15:00-06:00', status: 'Cerrada', user: 'Super Admin', comment: 'Calidad validada y cerrada' }
-    ]
-  }
-];
+const DEFAULT_ORDERS = [];
 
 const DEFAULT_DYNAMIC_FORMS = [];
 
@@ -233,6 +95,29 @@ const WHITEBOARD_STATIC_DATA = {
 
 // Initializer function
 function initLocalStorage() {
+  // Purga única de cachés operativas previas para iniciar el piloto limpio desde 0
+  if (localStorage.getItem('TSMAI_PILOT_CLEAN_V4') !== 'true') {
+    const operationalKeys = [
+      'TSMAI_requests',
+      'TSMAI_orders',
+      'TSMAI_subtasks',
+      'TSMAI_evidences',
+      'TSMAI_maintenance_logs',
+      'TSMAI_tech_logs',
+      'TSMAI_validations_history',
+      'TSMAI_movements',
+      'TSMAI_DEMO_requests',
+      'TSMAI_DEMO_orders',
+      'TSMAI_DEMO_evidences',
+      'TSMAI_DEMO_auditoria_cierre_ot'
+    ];
+    operationalKeys.forEach(k => localStorage.removeItem(k));
+    localStorage.setItem('TSMAI_requests', '[]');
+    localStorage.setItem('TSMAI_orders', '[]');
+    localStorage.setItem('TSMAI_maintenance_logs', '[]');
+    localStorage.setItem('TSMAI_PILOT_CLEAN_V4', 'true');
+  }
+
   if (!localStorage.getItem('TSMAI_technicians')) {
     localStorage.setItem('TSMAI_technicians', JSON.stringify(DEFAULT_TECHNICIANS));
   }
