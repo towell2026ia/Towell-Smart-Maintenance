@@ -1585,7 +1585,7 @@ function auditAndCleanDatabaseStorage() {
   }
 
   const obsoleteKeys = [
-    'TSMAI_old_orders', 'TSMAI_parts_old', 'TSMAI_requests_bak', 'TSMAI_refacciones_usadas', 'TSMAI_temp_db', 'TSMAI_legacy_tables', 'TSMAI_DEMO_calendar_details'
+    'TSMAI_old_orders', 'TSMAI_parts_old', 'TSMAI_requests_bak', 'TSMAI_refacciones_usadas', 'TSMAI_temp_db', 'TSMAI_legacy_tables', 'TSMAI_DEMO_calendar_details', 'TSMAI_calendar_details', 'TSMAI_calendars', 'TSMAI_cached_calendar'
   ];
   obsoleteKeys.forEach(k => localStorage.removeItem(k));
   window._cachedCalendarDetails = null;
@@ -8934,8 +8934,6 @@ function onAdminCalendarProcessChange(newProcess) {
 
 function mapOtTypeToMaintenanceType(otType) {
   const t = String(otType || '').toUpperCase().trim();
-  if (t === 'MP' || t.includes('PREVENTIV')) return 'PREVENTIVO';
-  if (t.includes('PREDICTIV')) return 'PREDICTIVO';
   if (t.includes('AUTONOM')) return 'AUTONOMO';
   return 'CORRECTIVO';
 }
@@ -8999,7 +8997,11 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
       ot_asociada: s.id_orden_generada || null
     }));
 
-    let combined = [...platformOtsList, ...filteredDetails];
+    // Excluir preventivos y predictivos del calendario (solo mostrar correctivos y OTs de plataforma)
+    let combined = [...platformOtsList, ...filteredDetails].filter(e => {
+      const t = (e.tipo_mantenimiento || '').toUpperCase();
+      return t !== 'PREVENTIVO' && t !== 'PREDICTIVO';
+    });
     if (maintenanceType && maintenanceType !== 'ALL') {
       combined = combined.filter(e => e.tipo_mantenimiento === maintenanceType);
     }
@@ -9125,8 +9127,11 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
         });
       });
 
-      // Unificación y orden cronológico
-      const combined = [...platformOtsList, ...detailsList];
+      // Unificación y orden cronológico (Excluir preventivos y predictivos por requerimiento explícito)
+      const combined = [...platformOtsList, ...detailsList].filter(e => {
+        const t = (e.tipo_mantenimiento || '').toUpperCase();
+        return t !== 'PREVENTIVO' && t !== 'PREDICTIVO';
+      });
       combined.sort((a, b) => {
         if (!a.fecha) return 1;
         if (!b.fecha) return -1;
@@ -9190,11 +9195,11 @@ async function renderAdminCalendar() {
     tableProcSelect.value = activeAdminCalendarProcess;
   }
 
-  // 2. Leer checkboxes de filtros
+  // 2. Leer checkboxes de filtros (Preventivos y predictivos apagados por defecto salvo chequeo explícito)
   const showCorrectivos = document.getElementById('filter-cal-correctivo')?.checked !== false;
-  const showPreventivos = document.getElementById('filter-cal-preventivo')?.checked !== false;
-  const showPredictivos = document.getElementById('filter-cal-predictivo')?.checked !== false;
-  const showAutonomos = document.getElementById('filter-cal-autonomo')?.checked !== false;
+  const showPreventivos = document.getElementById('filter-cal-preventivo')?.checked === true;
+  const showPredictivos = document.getElementById('filter-cal-predictivo')?.checked === true;
+  const showAutonomos = document.getElementById('filter-cal-autonomo')?.checked === true;
 
   // 3. Cargar eventos unificados del proceso seleccionado
   const rawEvents = await loadUnifiedCalendarByProcess(activeAdminCalendarProcess, null, null, 'ALL');
@@ -20141,11 +20146,11 @@ async function renderSolicitanteCalendar() {
     }
   }
 
-  // 2. Leer checkboxes de filtros
+  // 2. Leer checkboxes de filtros (Preventivos y predictivos apagados por defecto salvo chequeo explícito)
   const showCorrectivos = document.getElementById('filter-solic-cal-correctivo')?.checked !== false;
-  const showPreventivos = document.getElementById('filter-solic-cal-preventivo')?.checked !== false;
-  const showPredictivos = document.getElementById('filter-solic-cal-predictivo')?.checked !== false;
-  const showAutonomos = document.getElementById('filter-solic-cal-autonomo')?.checked !== false;
+  const showPreventivos = document.getElementById('filter-solic-cal-preventivo')?.checked === true;
+  const showPredictivos = document.getElementById('filter-solic-cal-predictivo')?.checked === true;
+  const showAutonomos = document.getElementById('filter-solic-cal-autonomo')?.checked === true;
 
   // 3. Cargar eventos unificados del proceso autorizado
   const allEventsForProc = await loadUnifiedCalendarByProcess(userProc, null, null, 'ALL');

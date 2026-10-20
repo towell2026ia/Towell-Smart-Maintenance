@@ -43,11 +43,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.6.13"></script>
+  <script src="config.js?v=3.6.14"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.6.13">
+  <link rel="stylesheet" href="style.css?v=3.6.14">
 </head>
 <body>
 
@@ -1131,11 +1131,11 @@
                   <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-critical); display: inline-block;"></span> Correctivos (OT)
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
-                  <input type="checkbox" id="filter-cal-preventivo" checked onchange="renderAdminCalendar()" style="accent-color: var(--color-preventive); cursor: pointer;">
+                  <input type="checkbox" id="filter-cal-preventivo" onchange="renderAdminCalendar()" style="accent-color: var(--color-preventive); cursor: pointer;">
                   <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-preventive); display: inline-block;"></span> Preventivos
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
-                  <input type="checkbox" id="filter-cal-predictivo" checked onchange="renderAdminCalendar()" style="accent-color: #f97316; cursor: pointer;">
+                  <input type="checkbox" id="filter-cal-predictivo" onchange="renderAdminCalendar()" style="accent-color: #f97316; cursor: pointer;">
                   <span style="width: 10px; height: 10px; border-radius: 50%; background: #f97316; display: inline-block;"></span> Predictivos (IA)
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
@@ -2791,11 +2791,11 @@
                   <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-critical); display: inline-block;"></span> Correctivos (OT)
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
-                  <input type="checkbox" id="filter-solic-cal-preventivo" checked onchange="renderSolicitanteCalendar()" style="accent-color: var(--color-preventive); cursor: pointer;">
+                  <input type="checkbox" id="filter-solic-cal-preventivo" onchange="renderSolicitanteCalendar()" style="accent-color: var(--color-preventive); cursor: pointer;">
                   <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-preventive); display: inline-block;"></span> Preventivos
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
-                  <input type="checkbox" id="filter-solic-cal-predictivo" checked onchange="renderSolicitanteCalendar()" style="accent-color: #f97316; cursor: pointer;">
+                  <input type="checkbox" id="filter-solic-cal-predictivo" onchange="renderSolicitanteCalendar()" style="accent-color: #f97316; cursor: pointer;">
                   <span style="width: 10px; height: 10px; border-radius: 50%; background: #f97316; display: inline-block;"></span> Predictivos (IA)
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
@@ -6026,16 +6026,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.6.13"></script>
-  <script src="agents-client.js?v=3.6.13"></script>
-  <script src="app.js?v=3.6.13"></script>
-  <script src="dashboard.js?v=3.6.13"></script>
+  <script src="seed.js?v=3.6.14"></script>
+  <script src="agents-client.js?v=3.6.14"></script>
+  <script src="app.js?v=3.6.14"></script>
+  <script src="dashboard.js?v=3.6.14"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.6.13')
+        navigator.serviceWorker.register('./sw.js?v=3.6.14')
           .then(reg => {
             reg.update();
             console.log('✅ ServiceWorker registrado:', reg.scope);
