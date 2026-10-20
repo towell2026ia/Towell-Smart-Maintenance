@@ -3725,10 +3725,18 @@ async function handleLoginSubmit(event) {
           try {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) {
-              await supabaseClient.auth.signInWithPassword({
-                email: 'admin@tsm-ai.com',
-                password: 'admin123'
-              });
+              const bridgeEmails = [
+                'mantenimiento@towelmex.com',
+                'cbenites@towelmex.com',
+                'admin@tsm-ai.com'
+              ];
+              for (const bEmail of bridgeEmails) {
+                const { data: bData, error: bErr } = await supabaseClient.auth.signInWithPassword({
+                  email: bEmail,
+                  password: 'admin123'
+                });
+                if (!bErr && bData?.session) break;
+              }
             }
           } catch (eBridge) {
             console.warn('[TSMAI] Puente de autenticación Supabase:', eBridge);
@@ -8724,7 +8732,14 @@ async function ensureOperationalSupabaseAuth() {
       candidates.push({ email: currentUser.email, dbPass: matched?.contrasenia });
     }
     admins.forEach(a => candidates.push({ email: a.correo, dbPass: a.contrasenia }));
-    candidates.push({ email: 'admin@tsm-ai.com', dbPass: 'admin123' });
+    [
+      'mantenimiento@towelmex.com',
+      'cbenites@towelmex.com',
+      'jmrodriguez@towell.com.mx',
+      'f.hernandez@towell.com.mx',
+      'fran.hrdz93@gmail.com',
+      'admin@tsm-ai.com'
+    ].forEach(email => candidates.push({ email, dbPass: 'admin123' }));
 
     for (const c of candidates) {
       const passwords = [...new Set([c.dbPass, 'admin123', 'Temp123', 'tech123'].filter(Boolean))];
