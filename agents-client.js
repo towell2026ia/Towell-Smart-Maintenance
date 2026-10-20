@@ -188,8 +188,11 @@
   window.TSMAIAgents = {
     dispatch: (eventCode, payload, corrId, options) => dispatchAgentEvent(eventCode, { data: payload, correlation_id: corrId, ...options }),
     dispatchEvent: dispatchAgentEvent,
+    dispatchAgentEvent: dispatchAgentEvent,
     getContext: getCurrentApplicationContext
   };
+  window.agentsClient = window.TSMAIAgents;
 
-  console.log(`${DEBUG_PREFIX} Módulo UI-AG001 Event Dispatcher v1.0 listo y enlazado.`);
+  console.log(`${DEBUG_PREFIX} Módulo UI-AG001 Event Dispatcher v1.1 listo y enlazado.`);
 })();
+

@@ -1078,10 +1078,35 @@
                 <h3 style="font-weight: 700; margin: 0; font-size: 1.4rem;">📅 Calendario de Mantenimiento Unificado</h3>
                 <p style="color: var(--text-muted); font-size: 0.9rem; margin: 4px 0 0;">Gestión visual, sugerencias predictivas, calidad y órdenes de trabajo activas.</p>
               </div>
-              <div style="display: flex; gap: 10px;">
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn-nav" id="btn-toggle-view-grid" onclick="switchCalendarViewMode('grid')" style="width: auto; padding: 8px 16px; background-color: var(--primary-color); color: white; border: 1px solid var(--primary-color); border-radius: var(--border-radius); cursor: pointer; font-weight: 600;">📅 Vista Calendario</button>
                 <button class="btn-nav" id="btn-toggle-view-table" onclick="switchCalendarViewMode('table')" style="width: auto; padding: 8px 16px; background-color: #f1f5f9; color: var(--text-color); border: 1px solid #cbd5e1; border-radius: var(--border-radius); cursor: pointer; font-weight: 600;">📋 Lista de Propuestas</button>
+                <button class="btn-nav" onclick="syncAllRealCalendarsFromDB()" style="width: auto; padding: 8px 16px; background-color: #059669; color: white; border: 1px solid #059669; border-radius: var(--border-radius); cursor: pointer; font-weight: 600;" title="Alimenta y sincroniza Preventivo, Predictivo y Autónomo desde las bases reales de Supabase">🔄 Alimentar de BD Real</button>
                 <button class="btn-nav btn-nav-primary" onclick="generateCalendarProposalModal()" style="width: auto; padding: 8px 16px;">⚡ Proponer Calendario</button>
+              </div>
+            </div>
+
+            <!-- Métricas Resumen del Proceso Seleccionado (Sincronizado Admin <-> Solicitante) -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+              <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; border-left: 4px solid #0284c7;">
+                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🛠️ Preventivos Anuales (<span id="admin-cal-kpi-proc-1">PF</span>)</div>
+                <div style="font-size: 1.35rem; font-weight: 700; color: #0f172a; margin-top: 2px;" id="admin-cal-stat-prev">0</div>
+                <div style="font-size: 0.72rem; color: #94a3b8;">Catálogo + Refacciones + Fallas</div>
+              </div>
+              <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; border-left: 4px solid #f97316;">
+                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🔮 Predictivos Semanales (<span id="admin-cal-kpi-proc-2">PF</span>)</div>
+                <div style="font-size: 1.35rem; font-weight: 700; color: #0f172a; margin-top: 2px;" id="admin-cal-stat-pred">0</div>
+                <div style="font-size: 0.72rem; color: #94a3b8;">Segundas por rollo (AG-003)</div>
+              </div>
+              <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; border-left: 4px solid #059669;">
+                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🤖 Autónomos Semanales (<span id="admin-cal-kpi-proc-3">PF</span>)</div>
+                <div style="font-size: 1.35rem; font-weight: 700; color: #0f172a; margin-top: 2px;" id="admin-cal-stat-auto">0</div>
+                <div style="font-size: 0.72rem; color: #94a3b8;">Fallas por máquina (AG-004)</div>
+              </div>
+              <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; border-left: 4px solid #6366f1;">
+                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600; text-transform: uppercase;">📅 Total Programadas (<span id="admin-cal-kpi-proc-4">PF</span>)</div>
+                <div style="font-size: 1.35rem; font-weight: 700; color: #0f172a; margin-top: 2px;" id="admin-cal-stat-total">0</div>
+                <div style="font-size: 0.72rem; color: #94a3b8;">Eventos activos en proceso</div>
               </div>
             </div>
 
@@ -1090,11 +1115,12 @@
               <!-- Selector de Proceso para Super Administrador (PRD-CAL001-R1 FASE 14) -->
               <div style="display: flex; align-items: center; gap: 8px;">
                 <label for="admin-cal-process-select" style="font-weight: 700; font-size: 0.85rem; color: #1e293b;">Proceso:</label>
-                <select id="admin-cal-process-select" class="form-control" onchange="onAdminCalendarProcessChange()" style="font-size: 0.85rem; font-weight: 700; height: 36px; padding: 4px 10px; border: 2px solid var(--primary-color); border-radius: 6px; background: white; cursor: pointer;">
+                <select id="admin-cal-process-select" class="form-control" onchange="onAdminCalendarProcessChange(this.value)" style="font-size: 0.85rem; font-weight: 700; height: 36px; padding: 4px 10px; border: 2px solid var(--primary-color); border-radius: 6px; background: white; cursor: pointer;">
                   <option value="PF" selected>PF — Producción / Tejido</option>
                   <option value="CF">CF — Confección / Costura</option>
                   <option value="TF">TF — Tintorería / Acabados</option>
                   <option value="AF">AF — Servicios Auxiliares / Planta</option>
+                  <option value="ALL">🌐 Todos los Procesos (PF, CF, TF, AF)</option>
                 </select>
               </div>
 
@@ -1151,13 +1177,20 @@
             <div id="calendar-view-table-mode" style="display: none; flex-direction: column; gap: 16px;">
               <!-- Pestañas de la tabla y Botones de Disparo AG-001 -->
               <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #cbd5e1; gap: 8px; padding-bottom: 4px; flex-wrap: wrap;">
-                <div style="display: flex; gap: 4px;">
+                <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
                   <button class="tab-btn active" id="tab-btn-preventivo-sub" onclick="switchCalendarTab('preventivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid var(--primary-color); background: none; font-weight: 600; cursor: pointer; color: var(--primary-color);">📆 Preventivo Anual</button>
                   <button class="tab-btn" id="tab-btn-predictivo-sub" onclick="switchCalendarTab('predictivo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🔬 Predictivo Semanal</button>
                   <button class="tab-btn" id="tab-btn-autonomo-sub" onclick="switchCalendarTab('autonomo')" style="padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted);">🛠️ Plan Autónomo — Próxima Semana</button>
                 </div>
-                <!-- Botones de Disparo de Agentes Vía AG-001 -->
-                <div style="display: flex; gap: 8px; align-items: center;">
+                <!-- Filtro por Proceso + Botones de Disparo de Agentes Vía AG-001 -->
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <select id="calendar-table-process-select" class="form-control" onchange="onAdminCalendarProcessChange(this.value)" style="font-size: 0.8rem; font-weight: 700; height: 32px; padding: 2px 8px; border: 1.5px solid var(--primary-color); border-radius: 6px; background: white; cursor: pointer; width: auto;">
+                    <option value="PF" selected>Proceso: PF (Tejido)</option>
+                    <option value="CF">Proceso: CF (Confección)</option>
+                    <option value="TF">Proceso: TF (Tintorería)</option>
+                    <option value="AF">Proceso: AF (Auxiliares)</option>
+                    <option value="ALL">🌐 Todos (PF, CF, TF, AF)</option>
+                  </select>
                   <button class="btn-table-action" onclick="triggerAgentPreventivo()" style="padding: 6px 12px; font-size: 0.8rem; background: #0284c7; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Dispara AG-002 vía AG-001">⚡ Generar AG-002</button>
                   <button class="btn-table-action" onclick="triggerAgentPredictivo()" style="padding: 6px 12px; font-size: 0.8rem; background: #ea580c; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Dispara AG-003 vía AG-001">⚡ Generar AG-003</button>
                   <button class="btn-table-action" onclick="triggerAgentAutonomo()" style="padding: 6px 12px; font-size: 0.8rem; background: #059669; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Dispara AG-004 vía AG-001">⚡ Generar AG-004</button>
@@ -2704,6 +2737,13 @@
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap;">
                   <h3 style="font-weight: 700; margin: 0; font-size: 1.4rem;">📅 Calendario de Mantenimiento por Área</h3>
                   <span id="solic-calendar-area-badge" class="badge" style="background:#0284c7; color:white; font-weight:700; font-size:0.85rem; padding:4px 10px; border-radius:6px;">ÁREA: PF</span>
+                  <select id="solic-cal-process-select" class="form-control" onchange="onSolicitanteCalendarProcessChange(this.value)" style="font-size: 0.82rem; font-weight: 700; height: 32px; padding: 2px 8px; border: 1.5px solid #0284c7; border-radius: 6px; background: white; cursor: pointer; width: auto;">
+                    <option value="PF">Proceso: PF — Tejido</option>
+                    <option value="CF">Proceso: CF — Confección</option>
+                    <option value="TF">Proceso: TF — Tintorería</option>
+                    <option value="AF">Proceso: AF — Auxiliares</option>
+                    <option value="ALL">🌐 Todos los Procesos</option>
+                  </select>
                   <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:600; font-size:0.78rem; padding:4px 8px; border-radius:6px;">🔒 Solo Lectura</span>
                 </div>
                 <p style="color: var(--text-muted); font-size: 0.9rem; margin: 4px 0 0;" id="solic-calendar-subtitle">Programación de maquinaria y actividades de mantenimiento de tu Área (Preventivo, Predictivo y Autónomo).</p>
@@ -5979,16 +6019,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.6.7"></script>
-  <script src="agents-client.js?v=3.6.7"></script>
-  <script src="app.js?v=3.6.7"></script>
-  <script src="dashboard.js?v=3.6.7"></script>
+  <script src="seed.js?v=3.6.8"></script>
+  <script src="agents-client.js?v=3.6.8"></script>
+  <script src="app.js?v=3.6.8"></script>
+  <script src="dashboard.js?v=3.6.8"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.6.7')
+        navigator.serviceWorker.register('./sw.js?v=3.6.8')
           .then(reg => {
             reg.update();
             console.log('✅ ServiceWorker registrado:', reg.scope);

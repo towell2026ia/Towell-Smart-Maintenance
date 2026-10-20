@@ -8658,20 +8658,128 @@ let currentCalendarYear = new Date().getFullYear();
 let currentCalendarMonth = new Date().getMonth();
 let currentCalendarDayNum = new Date().getDate();
 let currentCalendarScale = 'week'; // PRD-CAL001-R1: 'week' por defecto (Semana Actual)
-let activeAdminCalendarProcess = 'PF'; // PRD-CAL001-R1: Proceso seleccionado para Super Admin
+let activeAdminCalendarProcess = 'PF'; // PRD-CAL001-R1: Proceso seleccionado para Super Admin ('PF', 'CF', 'TF', 'AF', 'ALL')
+let _catalogProcessSynced = false;
+
+function resolveCanonicalMachineProcess(machId, dbMachine = null, obsRaw = null, fallbackText = '') {
+  // 1. Si observaciones JSON trae área/proceso explícito válido (y coherente con nomenclatura)
+  let obsArea = null;
+  if (obsRaw) {
+    try {
+      const obs = typeof obsRaw === 'object' ? obsRaw : JSON.parse(obsRaw);
+      const cand = String(obs.area || obs.proceso || '').toUpperCase().trim();
+      if (['PF', 'CF', 'TF', 'AF'].includes(cand)) {
+        obsArea = cand;
+      }
+    } catch (e) {}
+  }
+
+  const code = String(machId || dbMachine?.equipo_towell || '').toUpperCase().trim();
+  const clave = String(dbMachine?.clave || dbMachine?.nombre_maquina || dbMachine?.nombre || fallbackText || '').toUpperCase().trim();
+
+  // 2. Regla determinística por código y clave de máquina Towell
+  const byCode = typeof resolveAreaFromMachineCode === 'function'
+    ? resolveAreaFromMachineCode(code, clave)
+    : 'PF';
+
+  if (byCode && ['CF', 'TF', 'AF'].includes(byCode)) {
+    return byCode;
+  }
+  if (obsArea && ['PF', 'CF', 'TF', 'AF'].includes(obsArea)) {
+    return obsArea;
+  }
+  if (dbMachine) {
+    const dbDept = String(dbMachine.departamento_codigo || '').toUpperCase().trim();
+    const dbArea = String(dbMachine.area || '').toUpperCase().trim();
+    if (['CF', 'TF', 'AF'].includes(dbDept)) return dbDept;
+    if (['CF', 'TF', 'AF'].includes(dbArea)) return dbArea;
+    if (dbDept === 'PF' || dbArea === 'PF') return 'PF';
+  }
+  return byCode || 'PF';
+}
+
+async function ensureCatalogProcessSynchronization() {
+  if (_catalogProcessSynced || !supabaseClient || (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO')) return;
+  _catalogProcessSynced = true;
+  try {
+    const { data: machines } = await supabaseClient
+      .from('cat_maquinas')
+      .select('id_maquina, equipo_towell, clave, departamento_codigo, area');
+    if (machines && machines.length > 0) {
+      const updatesByProc = { PF: [], CF: [], TF: [], AF: [] };
+      machines.forEach(m => {
+        const canonical = resolveCanonicalMachineProcess(m.equipo_towell, m, null, m.clave || '');
+        if (m.departamento_codigo !== canonical || m.area !== canonical) {
+          if (m.id_maquina && updatesByProc[canonical]) {
+            updatesByProc[canonical].push(m.id_maquina);
+          }
+        }
+      });
+
+      for (const proc of ['PF', 'CF', 'TF', 'AF']) {
+        const ids = updatesByProc[proc];
+        if (ids.length > 0) {
+          await supabaseClient
+            .from('cat_maquinas')
+            .update({ departamento_codigo: proc, area: proc })
+            .in('id_maquina', ids);
+        }
+      }
+    }
+
+    // Verificar que los 3 calendarios (PREVENTIVO, PREDICTIVO, AUTONOMO) estén alimentados con las bases reales actuales
+    const { data: existingDetails } = await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .select('tipo_mantenimiento, observaciones');
+
+    const list = existingDetails || [];
+    const prevCount = list.filter(d => d.tipo_mantenimiento === 'PREVENTIVO').length;
+    const predCount = list.filter(d => d.tipo_mantenimiento === 'PREDICTIVO').length;
+    const autoItems = list.filter(d => d.tipo_mantenimiento === 'AUTONOMO');
+    const hasRealAuto = autoItems.some(d => String(d.observaciones || '').includes('fallas_por_maquina'));
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const week = getWeekNumber(now);
+
+    if (prevCount === 0 && typeof executeRealCalendarGeneration === 'function') {
+      await executeRealCalendarGeneration({ type: 'PREVENTIVO', year, month, week, silent: true });
+    }
+    if (predCount === 0 && typeof executeRealCalendarGeneration === 'function') {
+      await executeRealCalendarGeneration({ type: 'PREDICTIVO', year, month, week, silent: true });
+    }
+    if ((autoItems.length === 0 || !hasRealAuto) && typeof executeRealCalendarGeneration === 'function') {
+      await executeRealCalendarGeneration({ type: 'AUTONOMO', year, month, week, silent: true });
+    }
+  } catch (e) {
+    console.warn('[ensureCatalogProcessSynchronization] Aviso:', e);
+  }
+}
 
 function onAdminCalendarProcessChange(newProcess) {
-  const valid = ['PF', 'CF', 'TF', 'AF'];
-  activeAdminCalendarProcess = valid.includes(newProcess) ? newProcess : 'PF';
   const selectEl = document.getElementById('admin-cal-process-select');
+  const tableSelectEl = document.getElementById('calendar-table-process-select');
+  const rawCandidate = newProcess || selectEl?.value || tableSelectEl?.value || 'PF';
+  const cleanCandidate = String(rawCandidate).toUpperCase().trim();
+  const valid = ['PF', 'CF', 'TF', 'AF', 'ALL'];
+  activeAdminCalendarProcess = valid.includes(cleanCandidate) ? cleanCandidate : 'PF';
+
   if (selectEl && selectEl.value !== activeAdminCalendarProcess) {
     selectEl.value = activeAdminCalendarProcess;
   }
+  if (tableSelectEl && tableSelectEl.value !== activeAdminCalendarProcess) {
+    tableSelectEl.value = activeAdminCalendarProcess;
+  }
+
   renderAdminCalendar();
+  if (typeof renderAdminCalendars === 'function') {
+    renderAdminCalendars();
+  }
 }
 
 async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo = null, maintenanceType = 'ALL') {
-  const validProcesses = ['PF', 'CF', 'TF', 'AF'];
+  const validProcesses = ['PF', 'CF', 'TF', 'AF', 'ALL'];
   const proc = (processCode || 'PF').toUpperCase().trim();
   if (!validProcesses.includes(proc)) {
     console.warn('[loadUnifiedCalendarByProcess] Proceso no válido:', processCode);
@@ -8685,23 +8793,26 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
       .filter(o => o.type !== 'MP' && o.type !== 'PREVENTIVO' && o.type !== 'PREDICTIVO' && o.type !== 'AUTONOMO')
       .filter(o => {
         const oArea = typeof getAreaCodeForOrder === 'function' ? getAreaCodeForOrder(o) : (o.area || o.departamento || 'PF');
-        return oArea === proc;
+        return proc === 'ALL' || oArea === proc;
       })
-      .map(o => ({
-        id_evento: o.id || o.folio,
-        id_ref: o.id,
-        tipo_mantenimiento: 'CORRECTIVO',
-        proceso: proc,
-        maquina_id: o.machine || o.maquina_id || o.id,
-        fecha: (o.dueDate || o.date || '').split('T')[0],
-        actividad: o.description || 'Fallo correctivo reportado',
-        descripcion: o.description || 'Fallo correctivo reportado',
-        estatus: o.status || 'PENDIENTE',
-        prioridad: o.urgency || o.priority || 'MEDIA',
-        responsable: o.assignedTech || 'Por asignar',
-        origen: 'ORDEN_TRABAJO',
-        ot_asociada: o.id || o.folio
-      }));
+      .map(o => {
+        const oArea = typeof getAreaCodeForOrder === 'function' ? getAreaCodeForOrder(o) : (o.area || o.departamento || 'PF');
+        return {
+          id_evento: o.id || o.folio,
+          id_ref: o.id,
+          tipo_mantenimiento: 'CORRECTIVO',
+          proceso: oArea,
+          maquina_id: o.machine || o.maquina_id || o.id,
+          fecha: (o.dueDate || o.date || '').split('T')[0],
+          actividad: o.description || 'Fallo correctivo reportado',
+          descripcion: o.description || 'Fallo correctivo reportado',
+          estatus: o.status || 'PENDIENTE',
+          prioridad: o.urgency || o.priority || 'MEDIA',
+          responsable: o.assignedTech || 'Por asignar',
+          origen: 'ORDEN_TRABAJO',
+          ot_asociada: o.id || o.folio
+        };
+      });
 
     let demoDetails = [];
     if (typeof fetchCalendarDetailsFromDb === 'function') {
@@ -8709,27 +8820,16 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
         demoDetails = await fetchCalendarDetailsFromDb();
       } catch (e) {}
     }
-    const filteredDetails = (demoDetails || []).filter(item => {
-      let itemArea = null;
-      if (item.observaciones) {
-        try {
-          const obs = typeof item.observaciones === 'object' ? item.observaciones : JSON.parse(item.observaciones);
-          if (obs.area) itemArea = String(obs.area).toUpperCase().trim();
-        } catch (e) {}
-      }
-      if (!itemArea) {
-        itemArea = typeof resolveAreaFromMachineCode === 'function'
-          ? resolveAreaFromMachineCode(item.maquina_id || '', item.actividad_sugerida || '')
-          : 'PF';
-      }
-      return itemArea === proc;
-    }).map(s => ({
+    const filteredDetails = (demoDetails || []).map(item => {
+      const itemArea = resolveCanonicalMachineProcess(item.maquina_id, null, item.observaciones, item.actividad_sugerida);
+      return { ...item, _resolvedArea: itemArea };
+    }).filter(item => proc === 'ALL' || item._resolvedArea === proc).map(s => ({
       id_evento: s.id_detalle || s.id,
       id_ref: s.id_detalle,
       tipo_mantenimiento: s.tipo_mantenimiento || 'PREVENTIVO',
-      proceso: proc,
+      proceso: s._resolvedArea || 'PF',
       maquina_id: s.maquina_id,
-      fecha: s.fecha_programada,
+      fecha: s.fecha_programada ? String(s.fecha_programada).split('T')[0] : null,
       actividad: s.actividad_sugerida || 'Mantenimiento programado',
       descripcion: (s.actividad_sugerida || '').replace('Servicio preventivo: ', ''),
       estatus: s.estatus_detalle || s.status || 'PROGRAMADO',
@@ -8750,54 +8850,19 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
 
   // 2. ENTORNO PRODUCCIÓN / BASE DE DATOS REAL
   if (supabaseClient) {
-    // Intento 1: RPC obtener_calendario_unificado_proceso
-    try {
-      const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('obtener_calendario_unificado_proceso', {
-        p_proceso: proc,
-        p_fecha_desde: dateFrom || null,
-        p_fecha_hasta: dateTo || null,
-        p_tipo: maintenanceType || 'ALL'
-      });
-      if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
-        return rpcData.map(r => ({
-          id_evento: r.id_evento,
-          id_ref: r.id_ref || r.id_evento,
-          tipo_mantenimiento: r.tipo_mantenimiento || r.tipo_evento,
-          proceso: r.proceso,
-          maquina_id: r.maquina_id,
-          fecha: r.fecha ? String(r.fecha).split('T')[0] : null,
-          actividad: r.actividad || r.descripcion || 'Mantenimiento',
-          descripcion: r.descripcion || r.actividad || 'Mantenimiento',
-          estatus: r.estatus || r.estado || 'PROGRAMADO',
-          prioridad: r.prioridad || 'MEDIA',
-          responsable: r.responsable || 'Equipo Técnico',
-          origen: r.origen || 'CALENDARIO',
-          ot_asociada: r.ot_asociada || null
-        }));
-      }
-    } catch (e) {
-      console.warn('[loadUnifiedCalendarByProcess] Fallback a consulta estructurada:', e);
-    }
+    await ensureCatalogProcessSynchronization();
 
-    // Consulta estructurada directa (Misma lógica exacta que RPC y PRD-CAL001-R1)
+    // Consulta estructurada canónica alimentada de las bases reales (cat_maquinas, calendario_mantenimiento_detalle, ordenes_trabajo)
     try {
-      // Paso A: Mapeo canónico máquina -> proceso (cat_maquinas)
+      // Paso A: Mapeo canónico máquina -> proceso (cat_maquinas + reglas determinísticas de nomenclatura)
       const { data: machines } = await supabaseClient
         .from('cat_maquinas')
-        .select('equipo_towell, clave, departamento_codigo, area');
+        .select('id_maquina, equipo_towell, clave, departamento_codigo, area');
 
-      const machineProcessMap = new Map();
+      const machineObjMap = new Map();
       (machines || []).forEach(m => {
-        let p = null;
-        if (m.departamento_codigo && ['PF', 'CF', 'TF', 'AF'].includes(m.departamento_codigo)) {
-          p = m.departamento_codigo;
-        } else if (m.area && ['PF', 'CF', 'TF', 'AF'].includes(m.area)) {
-          p = m.area;
-        } else {
-          p = 'INCONSISTENCIA_DE_PROCESO';
-        }
-        if (m.equipo_towell) machineProcessMap.set(m.equipo_towell.trim().toUpperCase(), p);
-        if (m.clave) machineProcessMap.set(m.clave.trim().toUpperCase(), p);
+        if (m.equipo_towell) machineObjMap.set(m.equipo_towell.trim().toUpperCase(), m);
+        if (m.clave) machineObjMap.set(m.clave.trim().toUpperCase(), m);
       });
 
       // Paso B: Cargar OTs para desduplicación y enlace de folios
@@ -8823,10 +8888,11 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
           if (d.id_orden_generada) generatedOtIds.add(d.id_orden_generada);
 
           const machKey = (d.maquina_id || '').trim().toUpperCase();
-          const dProc = machineProcessMap.get(machKey) || 'INCONSISTENCIA_DE_PROCESO';
+          const dbMach = machineObjMap.get(machKey) || null;
+          const dProc = resolveCanonicalMachineProcess(machKey, dbMach, d.observaciones, d.actividad_sugerida || '');
 
-          // Aislamiento estricto por proceso
-          if (dProc !== proc) return;
+          // Aislamiento estricto por proceso (salvo vista 'ALL')
+          if (proc !== 'ALL' && dProc !== proc) return;
 
           const tipo = (d.tipo_mantenimiento || 'PREVENTIVO').toUpperCase().trim();
           if (maintenanceType && maintenanceType !== 'ALL' && tipo !== maintenanceType) return;
@@ -8841,7 +8907,7 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
             id_evento: d.id_detalle,
             id_ref: d.id_detalle,
             tipo_mantenimiento: tipo,
-            proceso: proc,
+            proceso: dProc,
             maquina_id: d.maquina_id,
             fecha: f,
             actividad: d.actividad_sugerida || 'Plan de mantenimiento programado',
@@ -8850,7 +8916,8 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
             prioridad: d.prioridad || 'MEDIA',
             responsable: d.responsable_sugerido || 'Equipo Técnico',
             origen: 'CALENDARIO_PLANTA',
-            ot_asociada: otFolio
+            ot_asociada: otFolio,
+            observaciones: d.observaciones || null
           });
         });
       }
@@ -8870,10 +8937,11 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
           let otProc = (ot.departamento || '').toUpperCase().trim();
           if (!['PF', 'CF', 'TF', 'AF'].includes(otProc)) {
             const machKey = (ot.maquina_id || '').trim().toUpperCase();
-            otProc = machineProcessMap.get(machKey) || 'INCONSISTENCIA_DE_PROCESO';
+            const dbMach = machineObjMap.get(machKey) || null;
+            otProc = resolveCanonicalMachineProcess(machKey, dbMach, null, ot.descripcion || '');
           }
 
-          if (otProc !== proc) return;
+          if (proc !== 'ALL' && otProc !== proc) return;
 
           const dateVal = ot.fecha_hora_inicio || ot.fecha_carga;
           const f = dateVal ? String(dateVal).split('T')[0] : null;
@@ -8884,7 +8952,7 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
             id_evento: ot.folio || ot.id_orden,
             id_ref: ot.id_orden,
             tipo_mantenimiento: 'CORRECTIVO',
-            proceso: proc,
+            proceso: otProc,
             maquina_id: ot.maquina_id || 'Planta General',
             fecha: f,
             actividad: ot.orden_trabajo || 'Mantenimiento Correctivo',
@@ -8953,10 +9021,14 @@ async function renderAdminCalendar() {
     }
   }
 
-  // PRD-CAL001-R1: Sincronizar selector de proceso de Super Admin
+  // PRD-CAL001-R1: Sincronizar selectores de proceso de Super Admin (Grid y Tabla)
   const procSelect = document.getElementById('admin-cal-process-select');
   if (procSelect && procSelect.value !== activeAdminCalendarProcess) {
     procSelect.value = activeAdminCalendarProcess;
+  }
+  const tableProcSelect = document.getElementById('calendar-table-process-select');
+  if (tableProcSelect && tableProcSelect.value !== activeAdminCalendarProcess) {
+    tableProcSelect.value = activeAdminCalendarProcess;
   }
 
   // 2. Leer checkboxes de filtros
@@ -8967,6 +9039,25 @@ async function renderAdminCalendar() {
 
   // 3. Cargar eventos unificados del proceso seleccionado
   const rawEvents = await loadUnifiedCalendarByProcess(activeAdminCalendarProcess, null, null, 'ALL');
+
+  // 3b. Actualizar KPIs de Proceso en Calendario Admin (Idéntico a Solicitante)
+  const prevCount = rawEvents.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREVENTIVO').length;
+  const predCount = rawEvents.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'PREDICTIVO').length;
+  const autoCount = rawEvents.filter(d => (d.tipo_mantenimiento || '').toUpperCase() === 'AUTONOMO').length;
+  const totalCount = rawEvents.length;
+
+  const statPrev = document.getElementById('admin-cal-stat-prev');
+  const statPred = document.getElementById('admin-cal-stat-pred');
+  const statAuto = document.getElementById('admin-cal-stat-auto');
+  const statTotal = document.getElementById('admin-cal-stat-total');
+  if (statPrev) statPrev.innerText = prevCount;
+  if (statPred) statPred.innerText = predCount;
+  if (statAuto) statAuto.innerText = autoCount;
+  if (statTotal) statTotal.innerText = totalCount;
+  for (let i = 1; i <= 4; i++) {
+    const lbl = document.getElementById(`admin-cal-kpi-proc-${i}`);
+    if (lbl) lbl.innerText = activeAdminCalendarProcess === 'ALL' ? 'TODOS' : activeAdminCalendarProcess;
+  }
 
   // 4. Filtrar por tipo seleccionado en checkboxes
   const filteredEvents = rawEvents.filter(e => {
@@ -8985,7 +9076,7 @@ async function renderAdminCalendar() {
     type: e.tipo_mantenimiento,
     title: e.tipo_mantenimiento === 'CORRECTIVO' 
       ? `${e.ot_asociada || e.id_evento}: ${e.descripcion || 'Fallo'}`
-      : `${e.tipo_mantenimiento}: ${e.maquina_id} - ${e.descripcion}`,
+      : `${e.tipo_mantenimiento} (${e.proceso || activeAdminCalendarProcess}): ${e.maquina_id} - ${e.descripcion}`,
     date: e.fecha,
     estado: e.estatus,
     origen: e.origen,
@@ -9004,8 +9095,9 @@ async function renderAdminCalendar() {
     for (let m = 0; m < 12; m++) {
       const monthEvents = allEvents.filter(e => {
         if (!e.date) return false;
-        const d = new Date(e.date);
-        return d.getFullYear() === currentCalendarYear && d.getMonth() === m;
+        const parts = String(e.date).split('T')[0].split('-');
+        if (parts.length < 2) return false;
+        return parseInt(parts[0], 10) === currentCalendarYear && (parseInt(parts[1], 10) - 1) === m;
       });
 
       const counts = { CORRECTIVO: 0, PREVENTIVO: 0, PREDICTIVO: 0, AUTONOMO: 0 };
@@ -17150,482 +17242,660 @@ function resolveAreaFromMachineCode(code, clave) {
   return 'PF'; // Default PF
 }
 
+async function executeRealCalendarGeneration({ type, year, month = null, week = null, silent = false }) {
+  if (!supabaseClient) {
+    if (!silent) showToast('⚠️ Sin conexión a la base de datos.', 'error');
+    return { success: false, count: 0 };
+  }
+
+  await ensureCatalogProcessSynchronization();
+
+  const now = new Date();
+  const targetYear = year || now.getFullYear();
+  const targetMonth = month !== null && !isNaN(month) ? month : now.getMonth();
+  const targetWeek = week !== null && !isNaN(week) ? week : getWeekNumber(now);
+
+  let startPeriod, endPeriod;
+  // Si la semana es la actual o no fue especificada, anclar a la fecha actual real para que la vista Semanal/Mensual muestre eventos vigentes
+  let targetWeekDate = (week && Math.abs(week - getWeekNumber(now)) > 1)
+    ? new Date(targetYear, 0, 1 + (week - 1) * 7)
+    : new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (type === 'PREVENTIVO') {
+    startPeriod = `${targetYear}-01-01`;
+    endPeriod = `${targetYear}-12-31`;
+  } else if (type === 'PREVENTIVO_SEMANAL') {
+    const dow = targetWeekDate.getDay();
+    const startD = new Date(targetWeekDate);
+    startD.setDate(targetWeekDate.getDate() - (dow === 0 ? 6 : dow - 1)); // Lunes
+    const endD = new Date(startD);
+    endD.setDate(startD.getDate() + 6); // Domingo
+    startPeriod = startD.toISOString().split('T')[0];
+    endPeriod = endD.toISOString().split('T')[0];
+  } else if (type === 'PREDICTIVO') {
+    // Ciclo Miércoles a Martes de la semana objetivo
+    const dow = targetWeekDate.getDay();
+    // Si hoy es Mié-Sab, tomamos el miércoles de esta semana; si es Dom-Mar, el miércoles inmediato anterior o actual
+    const diffToWed = dow >= 3 ? (3 - dow) : (3 - dow);
+    const cycleStart = new Date(targetWeekDate);
+    cycleStart.setDate(targetWeekDate.getDate() + diffToWed);
+    const cycleEnd = new Date(cycleStart);
+    cycleEnd.setDate(cycleStart.getDate() + 6);
+    startPeriod = cycleStart.toISOString().split('T')[0];
+    endPeriod = cycleEnd.toISOString().split('T')[0];
+  } else { // AUTONOMO: Lunes a Viernes de la semana objetivo
+    const dow = targetWeekDate.getDay();
+    const startD = new Date(targetWeekDate);
+    startD.setDate(targetWeekDate.getDate() - (dow === 0 ? 6 : dow - 1)); // Lunes de la semana actual/objetivo
+    const endD = new Date(startD);
+    endD.setDate(startD.getDate() + 4); // Viernes
+    startPeriod = startD.toISOString().split('T')[0];
+    endPeriod = endD.toISOString().split('T')[0];
+  }
+
+  const canonicalDbType = type === 'PREVENTIVO_SEMANAL' ? 'PREVENTIVO' : type;
+
+  // Limpiar propuestas no aprobadas previas del mismo tipo para evitar duplicados al regenerar
+  try {
+    await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .delete()
+      .eq('tipo_mantenimiento', canonicalDbType)
+      .eq('estatus_detalle', 'PROPUESTO')
+      .is('id_orden_generada', null);
+  } catch (cleanErr) {
+    console.warn('[executeRealCalendarGeneration] Aviso limpieza propuestas previas:', cleanErr);
+  }
+
+  const headerRecord = {
+    tipo_calendario: canonicalDbType,
+    anio: targetYear,
+    mes: targetMonth + 1,
+    semana: targetWeek,
+    fecha_inicio_periodo: startPeriod,
+    fecha_fin_periodo: endPeriod,
+    estatus_calendario: 'PROPUESTO',
+    generado_por: currentUser ? (currentUser.name || currentUser.nombre || 'Supervisor') : 'Motor Agéntico AG-001',
+    origen_generacion: 'IA Engine (Bases Reales)'
+  };
+
+  const { data: headerData, error: hErr } = await supabaseClient
+    .from('calendarios_mantenimiento')
+    .insert([headerRecord])
+    .select();
+
+  if (hErr) throw hErr;
+  const newCalId = headerData[0].id_calendario;
+
+  // Consultar TODAS las bases reales de Supabase
+  const [ordRes, machinesRes, techsRes, fallasCatRes, refMaqRes, catRefRes] = await Promise.all([
+    supabaseClient.from('ordenes_trabajo').select('id_orden, folio, fecha_carga, maquina_id, descripcion, estatus, prioridad, orden_trabajo, tiempo_atencion_min, fecha_hora_inicio, fecha_hora_fin'),
+    supabaseClient.from('cat_maquinas').select('*').eq('activo', true),
+    supabaseClient.from('cat_tecnicos').select('*').eq('activo', true),
+    supabaseClient.from('fallas_por_maquina').select('*'),
+    supabaseClient.from('refacciones_por_maquina').select('*'),
+    supabaseClient.from('cat_refacciones').select('*')
+  ]);
+
+  const activeMachines = machinesRes.data || [];
+  const activeTechs = techsRes.data || [];
+  const allOts = ordRes.data || [];
+  const allFallasCat = fallasCatRes.data || [];
+  const allRefMaq = refMaqRes.data || [];
+  const allCatRef = catRefRes.data || [];
+
+  // Mapear refacciones y costos reales por máquina (para AG-002 y AG-007)
+  const refCostMap = new Map();
+  allCatRef.forEach(r => {
+    const key = String(r.codigo_refaccion || r.id_refaccion || r.nombre_refaccion || '').toUpperCase().trim();
+    const cost = parseFloat(r.costo_unitario || r.precio_unitario || r.costo || 180);
+    if (key) refCostMap.set(key, isNaN(cost) ? 180 : cost);
+  });
+
+  const partsByMachine = {};
+  const partsCostByMachine = {};
+  allRefMaq.forEach(rm => {
+    const mKey = String(rm.equipo_towell || rm.maquina_id || rm.clave_maquina || '').toUpperCase().trim();
+    const rName = rm.refaccion || rm.nombre_refaccion || rm.codigo_refaccion || 'Kit Preventivo';
+    if (mKey) {
+      if (!partsByMachine[mKey]) partsByMachine[mKey] = [];
+      if (!partsByMachine[mKey].includes(rName)) partsByMachine[mKey].push(rName);
+      const unitCost = refCostMap.get(String(rName).toUpperCase().trim()) || parseFloat(rm.costo_estimado || 220);
+      partsCostByMachine[mKey] = (partsCostByMachine[mKey] || 0) + (isNaN(unitCost) ? 220 : unitCost);
+    }
+  });
+
+  // Mapear fallas típicas reales por máquina o familia de máquina desde `fallas_por_maquina`
+  const fallasByMachineKey = {};
+  allFallasCat.forEach(f => {
+    const mKey = String(f.equipo_towell || f.maquina_id || f.maquina || f.tipo_maquina || '').toUpperCase().trim();
+    const fDesc = f.falla || f.descripcion_falla || f.nombre_falla || f.modo_falla || '';
+    if (mKey && fDesc) {
+      if (!fallasByMachineKey[mKey]) fallasByMachineKey[mKey] = [];
+      if (!fallasByMachineKey[mKey].includes(fDesc)) fallasByMachineKey[mKey].push(fDesc);
+    }
+  });
+
+  function getRealFallasForMachine(machId, clave) {
+    const c = String(machId || '').toUpperCase().trim();
+    const k = String(clave || '').toUpperCase().trim();
+    if (fallasByMachineKey[c] && fallasByMachineKey[c].length > 0) return fallasByMachineKey[c];
+    if (fallasByMachineKey[k] && fallasByMachineKey[k].length > 0) return fallasByMachineKey[k];
+    for (const [key, list] of Object.entries(fallasByMachineKey)) {
+      if (key && (c.includes(key) || k.includes(key) || key.includes(k))) {
+        return list;
+      }
+    }
+    return [];
+  }
+
+  const detailsToInsert = [];
+  const dayWorkload = {};
+
+  allOts.forEach(o => {
+    const dateStr = (o.fecha_carga || '').split('T')[0];
+    if (dateStr) dayWorkload[dateStr] = (dayWorkload[dateStr] || 0) + 1;
+  });
+
+  function getBalancedDate(targetDate) {
+    let current = new Date(targetDate);
+    let offset = 0;
+    while (true) {
+      let candidate = new Date(current);
+      candidate.setDate(current.getDate() + offset);
+      let key = candidate.toISOString().split('T')[0];
+      if (candidate.getDay() !== 0 && (dayWorkload[key] || 0) < 4) {
+        dayWorkload[key] = (dayWorkload[key] || 0) + 1;
+        return key;
+      }
+      offset = offset >= 0 ? -offset - 1 : -offset;
+      if (Math.abs(offset) > 30) return targetDate.toISOString().split('T')[0];
+    }
+  }
+
+  if (type === 'PREVENTIVO' || type === 'PREVENTIVO_SEMANAL') {
+    // PREVENTIVO (AG-002 + AG-007: 100% de cat_maquinas en PF, CF, TF y AF alimentado con refacciones_por_maquina y fallas_por_maquina)
+    // Agrupar e intercalar por proceso (PF, CF, TF, AF) para que cada semana y mes tenga representación de los 4 procesos
+    const byProc = { PF: [], CF: [], TF: [], AF: [] };
+    activeMachines.forEach(m => {
+      const machId = m.equipo_towell || m.clave || m.id_maquina;
+      const p = resolveCanonicalMachineProcess(machId, m, null, m.clave || '');
+      if (!byProc[p]) byProc[p] = [];
+      byProc[p].push({ machine: m, areaCode: p });
+    });
+
+    const interleaved = [];
+    const maxLen = Math.max(byProc.PF.length, byProc.CF.length, byProc.TF.length, byProc.AF.length);
+    for (let i = 0; i < maxLen; i++) {
+      ['PF', 'CF', 'TF', 'AF'].forEach(p => {
+        if (byProc[p][i]) interleaved.push(byProc[p][i]);
+      });
+    }
+
+    const targetMachines = type === 'PREVENTIVO_SEMANAL'
+      ? interleaved.slice(0, Math.min(12, interleaved.length))
+      : interleaved;
+
+    const currentWeekMonday = new Date(now);
+    const dowNow = currentWeekMonday.getDay();
+    currentWeekMonday.setDate(now.getDate() - (dowNow === 0 ? 6 : dowNow - 1));
+
+    let machineIndex = 0;
+    for (const item of targetMachines) {
+      const machine = item.machine;
+      const areaCode = item.areaCode;
+      const machId = machine.equipo_towell || machine.clave || machine.id_maquina;
+      const machName = machine.clave || machine.nombre || machine.nombre_maquina || machId;
+      const mCost = partsCostByMachine[String(machId).toUpperCase().trim()] || 0;
+      const mParts = partsByMachine[String(machId).toUpperCase().trim()] || [];
+      const mFallas = getRealFallasForMachine(machId, machName);
+      const mCrit = (machine.criticidad || machine.prioridad_default || 'B').toUpperCase().trim();
+
+      let balancedDateStr;
+      if (type === 'PREVENTIVO_SEMANAL') {
+        const dayOffset = machineIndex % 6; // Lunes a Sábado
+        const d = new Date(startPeriod + 'T12:00:00');
+        d.setDate(d.getDate() + dayOffset);
+        balancedDateStr = d.toISOString().split('T')[0];
+      } else if (machineIndex < 8) {
+        // Primer lote (incluyendo PF, CF, TF, AF) programado en la semana actual para visibilidad inmediata en vista Semana/Mes
+        const dayOffset = machineIndex % 6; // Lunes a Sábado de la semana actual
+        const d = new Date(currentWeekMonday);
+        d.setDate(currentWeekMonday.getDate() + dayOffset);
+        balancedDateStr = d.toISOString().split('T')[0];
+      } else {
+        const targetM = (now.getMonth() + ((machineIndex - 8) % 12)) % 12;
+        const targetD = 2 + ((Math.floor(machineIndex / 4) * 3) % 25);
+        const projDate = new Date(targetYear, targetM, Math.min(28, targetD));
+        balancedDateStr = getBalancedDate(projDate);
+      }
+
+      let prio = 'MEDIA';
+      if (mCrit.includes('A') || mCrit.includes('CRIT') || mCost > 5000 || mFallas.length >= 5) prio = 'ALTA';
+      else if (mCrit.includes('C') || mCrit.includes('BAJ')) prio = 'BAJA';
+
+      const estimatedBudget = mCost > 0 ? Math.round(mCost) : (prio === 'ALTA' ? 450 : prio === 'MEDIA' ? 250 : 140);
+      const focusPart = mParts.length > 0 ? ` | Refacción: ${mParts.slice(0, 2).join(', ')}` : '';
+      const focusFalla = mFallas.length > 0 ? ` | Prevención: ${mFallas[0]}` : '';
+
+      detailsToInsert.push({
+        id_calendario: newCalId,
+        maquina_id: machId,
+        fecha_programada: balancedDateStr,
+        tipo_mantenimiento: 'PREVENTIVO',
+        prioridad: prio,
+        actividad_sugerida: `Preventivo Anual ${targetYear}: ${machId} - ${machName} (${areaCode})${focusPart}${focusFalla}`,
+        responsable_sugerido: activeTechs[machineIndex % Math.max(1, activeTechs.length)]?.nombre_tecnico || 'Técnico Especialista',
+        id_plan: null,
+        observaciones: JSON.stringify({
+          origen: type === 'PREVENTIVO_SEMANAL' ? 'AG-002_PREVENTIVO_SEMANAL' : 'AG-002_PREVENTIVO_ANUAL',
+          area: areaCode,
+          proceso: areaCode,
+          criticidad: mCrit,
+          semana_programada: getWeekNumber(new Date(balancedDateStr + 'T12:00:00')),
+          presupuesto_estimado_usd: estimatedBudget,
+          refacciones_sugeridas: mParts.slice(0, 5),
+          modos_falla_prevenidos: mFallas.slice(0, 5),
+          invariante_1_anual: type === 'PREVENTIVO',
+          cobertura: type === 'PREVENTIVO' ? '100% Catálogo Maestro (cat_maquinas)' : `Semana ${targetWeek} de ${targetYear}`
+        }),
+        estatus_detalle: 'PROPUESTO'
+      });
+
+      machineIndex++;
+    }
+  } else if (type === 'PREDICTIVO') {
+    // PREDICTIVO SEMANAL (PRD-AG003-R2: AG-003 por Segundas de Calidad desde segundas_por_rollo, Miércoles a Martes, Máx 4 Telares PF)
+    const pfMachines = activeMachines.filter(m => {
+      const machId = m.equipo_towell || m.clave || '';
+      const p = resolveCanonicalMachineProcess(machId, m, null, m.clave || '');
+      const code = String(machId).toUpperCase().trim();
+      const clave = String(m.clave || '').toUpperCase().trim();
+      return p === 'PF' && (code.includes('TEL') || clave.includes('TELAR') || code.includes('JACQ') || code.includes('LOOM'));
+    });
+
+    const { data: segundasData } = await supabaseClient
+      .from('segundas_por_rollo')
+      .select('*')
+      .order('id', { ascending: false })
+      .limit(3000);
+
+    const segundasRows = segundasData || [];
+    const machineDefectTotals = {};
+
+    // Helper para normalizar número de telar (ej. "201", "TEL-201", "TOW-TEL201-TEJI" -> "201")
+    const extractLoomNumber = (str) => {
+      const m = String(str || '').toUpperCase().match(/(\d{3})/);
+      return m ? m[1] : null;
+    };
+
+    segundasRows.forEach(s => {
+      const rawId = String(s.maquina_id || s.equipo_towell || s.telar || s.maquina || s.equipo || '').toUpperCase().trim();
+      if (!rawId) return;
+      const loomNum = extractLoomNumber(rawId);
+      const keysToRecord = [rawId];
+      if (loomNum) keysToRecord.push(`LOOM_${loomNum}`);
+
+      const defVal = parseFloat(s.cantidad_defecto ?? s.metros_segundas ?? s.segundas ?? s.defectos ?? 1);
+      const pzasVal = parseFloat(s.pzas_rollo ?? s.piezas_rollo ?? s.total_piezas ?? s.metros_rollo ?? 100);
+      const defName = s.defecto || s.tipo_defecto || s.causa || 'Defecto de tejido';
+
+      keysToRecord.forEach(k => {
+        if (!machineDefectTotals[k]) {
+          machineDefectTotals[k] = { totalDefects: 0, totalPzas: 0, rollsCount: 0, defects: [] };
+        }
+        machineDefectTotals[k].totalDefects += (isNaN(defVal) ? 1 : defVal);
+        machineDefectTotals[k].totalPzas += (isNaN(pzasVal) || pzasVal <= 0 ? 100 : pzasVal);
+        machineDefectTotals[k].rollsCount += 1;
+        if (defName && !machineDefectTotals[k].defects.includes(defName)) {
+          machineDefectTotals[k].defects.push(defName);
+        }
+      });
+    });
+
+    const rankedTelares = pfMachines.map(m => {
+      const mId = (m.equipo_towell || m.clave || '').toUpperCase().trim();
+      const loomNum = extractLoomNumber(mId);
+      const stats = machineDefectTotals[mId] || (loomNum ? machineDefectTotals[`LOOM_${loomNum}`] : null) || { totalDefects: 0, totalPzas: 0, rollsCount: 0, defects: [] };
+      const pct = stats.totalPzas > 0 ? Number(((stats.totalDefects / stats.totalPzas) * 100).toFixed(2)) : (stats.totalDefects > 0 ? 10.0 : 0.0);
+      return {
+        machine: m,
+        maquina_id: mId,
+        percentage: pct,
+        totalDefects: Math.round(stats.totalDefects * 100) / 100,
+        totalPzas: Math.round(stats.totalPzas * 100) / 100,
+        rollsCount: stats.rollsCount || 0,
+        defects: stats.defects
+      };
+    }).sort((a, b) => {
+      if (b.percentage !== a.percentage) return b.percentage - a.percentage;
+      if (b.totalDefects !== a.totalDefects) return b.totalDefects - a.totalDefects;
+      if (b.totalPzas !== a.totalPzas) return b.totalPzas - a.totalPzas;
+      return a.maquina_id.localeCompare(b.maquina_id);
+    });
+
+    const cycleStart = new Date(startPeriod + 'T12:00:00');
+    // Dispersión 4 fechas únicas: Miércoles (+0d), Viernes (+2d), Domingo (+4d), Martes (+6d)
+    const slotOffsets = [0, 2, 4, 6];
+    const slotDayNames = ['Miércoles', 'Viernes', 'Domingo', 'Martes'];
+    const topCandidates = rankedTelares.slice(0, 4);
+
+    topCandidates.forEach((cand, idx) => {
+      const slotDate = new Date(cycleStart);
+      slotDate.setDate(cycleStart.getDate() + (slotOffsets[idx] || (idx * 2)));
+      const dateStr = slotDate.toISOString().split('T')[0];
+      const dayName = slotDayNames[idx] || 'Día ' + (idx + 1);
+      const prio = idx === 0 ? 'CRÍTICA' : idx === 1 ? 'ALTA' : 'MEDIA';
+      const defectSummary = cand.defects.slice(0, 3).join(', ') || 'Segundas por Rollo';
+      const risk10 = Math.min(9.9, Math.max(4.5, Number((cand.percentage > 0 ? Math.min(9.8, 4.0 + cand.percentage / 3) : 6.5 - idx * 0.5).toFixed(1))));
+
+      detailsToInsert.push({
+        id_calendario: newCalId,
+        maquina_id: cand.maquina_id,
+        fecha_programada: dateStr,
+        tipo_mantenimiento: 'PREDICTIVO',
+        prioridad: prio,
+        actividad_sugerida: `Mantenimiento Predictivo por Segundas de Calidad (Sem ${targetWeek}): ${cand.maquina_id} (PF) — Defectos: ${defectSummary}`,
+        responsable_sugerido: activeTechs.find(t => (t.especialidad || '').toLowerCase().includes('predictivo'))?.nombre_tecnico || activeTechs[idx % Math.max(1, activeTechs.length)]?.nombre_tecnico || 'Especialista Predictivo (PF)',
+        score_riesgo: cand.percentage || risk10 * 10,
+        observaciones: JSON.stringify({
+          origen: 'AG-003_PREDICTIVO_SEMANAL',
+          area: 'PF',
+          proceso: 'PF',
+          fuente_datos: 'segundas_por_rollo',
+          semana_programada: targetWeek,
+          dia_semana: dayName,
+          ranking_prioridad: idx + 1,
+          porcentaje_segundas: cand.percentage,
+          total_segundas: cand.totalDefects,
+          total_piezas: cand.totalPzas,
+          riesgo_estimado: `${risk10}/10`,
+          tipo_revision: `Inspección Predictiva de Telar (${defectSummary})`,
+          especialidad: 'Mecánico de Telares / Calidad PF',
+          motivos: [
+            `Ranking #${idx + 1} en incidencia de segundas por rollo (${cand.percentage}% de segundas acumuladas).`,
+            `Defectos registrados en base real segundas_por_rollo: ${cand.totalDefects} defectos sobre ${cand.totalPzas} piezas (${cand.rollsCount} rollos evaluados).`,
+            `Modos de defecto dominantes: ${defectSummary}.`,
+            `Programado en ventana Miércoles–Martes (${dayName} ${dateStr}) sin colisión de fechas.`
+          ],
+          evidencia: `Base real Supabase: segundas_por_rollo (${segundasRows.length} registros auditados por AG-003).`,
+          regla_dispersion_4_fechas: true,
+          domingo_elegible: true
+        }),
+        estatus_detalle: 'PROPUESTO'
+      });
+    });
+  } else if (type === 'AUTONOMO') {
+    // AUTÓNOMO SEMANAL (PRD-AG004-R1: AG-004 alimentado de fallas_por_maquina + ordenes_trabajo + cat_maquinas en PF, CF, TF y AF)
+    // Invariantes: 0 segundas, máximo 15 activos por semana, Lunes a Viernes (Sábado = 0, Domingo = 0), temp °C obligatoria
+    const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+    const cycleStart = new Date(startPeriod + 'T12:00:00');
+    const operatingDates = [];
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(cycleStart);
+      d.setDate(cycleStart.getDate() + i);
+      operatingDates.push(d.toISOString().split('T')[0]);
+    }
+
+    const machineFailsCount = {};
+    allOts.forEach(o => {
+      const mId = String(o.maquina_id || '').toUpperCase().trim();
+      if (mId) machineFailsCount[mId] = (machineFailsCount[mId] || 0) + 2;
+    });
+
+    // Alimentar con `fallas_por_maquina` real para cada máquina activa de PF, CF, TF y AF
+    const allCandidates = activeMachines.map(m => {
+      const machId = (m.equipo_towell || m.clave || '').trim();
+      const machKey = machId.toUpperCase();
+      const area = resolveCanonicalMachineProcess(machId, m, null, m.clave || '');
+      const catFallas = getRealFallasForMachine(machId, m.clave || '');
+      const otFails = machineFailsCount[machKey] || 0;
+      const totalSignals = catFallas.length + otFails;
+      const failsCount = Math.max(1, totalSignals);
+      const hasRecurrence = failsCount >= 2;
+      const hasTrend = failsCount >= 3;
+      const rankingScore = (hasRecurrence ? 50 : 0) + (hasTrend ? 30 : 0) + Math.min(failsCount * 4, 25);
+      return {
+        machine: m,
+        machId,
+        area,
+        fails: failsCount,
+        catFallas,
+        hasRecurrence,
+        hasTrend,
+        rankingScore,
+        reason: hasRecurrence && hasTrend ? 'RECURRENCE_AND_TREND' : (hasRecurrence ? 'RECURRENCE' : 'CATALOG_FAILURE_PREVENTION')
+      };
+    }).sort((a, b) => {
+      if (b.rankingScore !== a.rankingScore) return b.rankingScore - a.rankingScore;
+      if (b.fails !== a.fails) return b.fails - a.fails;
+      return a.machId.localeCompare(b.machId);
+    });
+
+    // Seleccionar hasta 15 máquinas garantizando cobertura equilibrada en PF, CF, TF y AF (para que los 4 procesos tengan calendario autónomo activo)
+    const byProcAuto = { PF: [], CF: [], TF: [], AF: [] };
+    allCandidates.forEach(c => {
+      if (!byProcAuto[c.area]) byProcAuto[c.area] = [];
+      byProcAuto[c.area].push(c);
+    });
+
+    // Cuota balanceada: 6 PF, 3 CF, 3 TF, 3 AF = 15 máquinas (o rellenar con restantes si algún proceso tiene menos)
+    const quotas = { PF: 6, CF: 3, TF: 3, AF: 3 };
+    const selectedMachines = [];
+    const selectedIds = new Set();
+
+    ['PF', 'CF', 'TF', 'AF'].forEach(procKey => {
+      const list = byProcAuto[procKey] || [];
+      const limit = quotas[procKey] || 3;
+      for (let i = 0; i < Math.min(limit, list.length); i++) {
+        selectedMachines.push(list[i]);
+        selectedIds.add(list[i].machId);
+      }
+    });
+
+    for (const cand of allCandidates) {
+      if (selectedMachines.length >= 15) break;
+      if (!selectedIds.has(cand.machId)) {
+        selectedMachines.push(cand);
+        selectedIds.add(cand.machId);
+      }
+    }
+
+    selectedMachines.slice(0, 15).forEach((cand, idx) => {
+      const dayIdx = idx % 5;
+      const dateStr = operatingDates[dayIdx];
+      const assignedDay = dayNames[dayIdx];
+      const prio = cand.fails >= 5 ? 'ALTA' : (cand.area === 'PF' ? 'ALTA' : 'MEDIA');
+      const topFallaText = cand.catFallas.length > 0 ? ` [${cand.catFallas.slice(0, 2).join(' / ')}]` : '';
+
+      detailsToInsert.push({
+        id_calendario: newCalId,
+        maquina_id: cand.machId,
+        fecha_programada: dateStr,
+        tipo_mantenimiento: 'AUTONOMO',
+        prioridad: prio,
+        actividad_sugerida: `Rutina Autónoma Semanal (Sem ${targetWeek}): ${cand.machId} (${cand.area}) - Checklist 5 Bloques (Temp °C)${topFallaText}`,
+        responsable_sugerido: `Operador (${cand.area})`,
+        observaciones: JSON.stringify({
+          origen: 'AG-004_AUTONOMO_SEMANAL',
+          area: cand.area,
+          proceso: cand.area,
+          semana_programada: targetWeek,
+          ranking_position: idx + 1,
+          eligibility_reason: cand.reason,
+          motivo_elegibilidad: `${cand.reason} (${cand.fails} modos de falla en catálogo/historial)`,
+          failure_history_count: cand.fails,
+          fallas_recurrentes_detectadas: cand.fails,
+          fallas_principales: cand.catFallas.slice(0, 4),
+          fuente_datos: 'fallas_por_maquina + ordenes_trabajo',
+          segundas_usadas: 0,
+          dia_semana_asignado: assignedDay,
+          day_of_week: assignedDay,
+          temperatura_requerida_grados_c: true
+        }),
+        estatus_detalle: 'PROPUESTO'
+      });
+    });
+  }
+
+  if (detailsToInsert.length > 0) {
+    const { error: dErr } = await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .insert(detailsToInsert);
+
+    if (dErr) throw dErr;
+  }
+
+  // Invalidar caché local de calendarios para sincronización inmediata con vistas Solicitante y 360°
+  window._cachedCalendarDetails = null;
+  window._cachedCalendarDetailsTime = 0;
+
+  // Disparar evento oficial correspondiente hacia AG-001 (Capataz)
+  const eventType = (type === 'PREVENTIVO' || type === 'PREVENTIVO_SEMANAL') 
+    ? 'PREVENTIVO_GENERAR' 
+    : (type === 'PREDICTIVO' ? 'PREDICTIVO_GENERAR' : 'AUTONOMO_GENERAR');
+
+  if (typeof dispatchAgentEvent === 'function') {
+    try {
+      await dispatchAgentEvent(eventType, {
+        origin: 'CALENDAR_ENGINE_SYNC',
+        payload: {
+          tipo: type,
+          anio: targetYear,
+          mes: targetMonth + 1,
+          semana: targetWeek,
+          fecha_inicio_periodo: startPeriod,
+          fecha_fin_periodo: endPeriod,
+          total_propuestas_generadas: detailsToInsert.length
+        }
+      });
+    } catch (evtErr) {
+      console.warn('[executeRealCalendarGeneration] Event dispatch warn:', evtErr);
+    }
+  }
+
+  return { success: true, count: detailsToInsert.length, type: canonicalDbType };
+}
+
 async function handleGenerateCalendarProposal(event) {
-  event.preventDefault();
-  const type = document.getElementById('proposal-type').value;
-  const year = parseInt(document.getElementById('proposal-year').value);
+  if (event && typeof event.preventDefault === 'function') event.preventDefault();
+  const type = document.getElementById('proposal-type')?.value || 'PREVENTIVO';
+  const year = parseInt(document.getElementById('proposal-year')?.value || new Date().getFullYear(), 10);
   
   let month = null;
   let week = null;
 
-  if (type === 'PREVENTIVO') {
-    month = null;
-    week = null;
-  } else if (type === 'PREVENTIVO_SEMANAL') {
-    month = parseInt(document.getElementById('proposal-month').value);
-    week = parseInt(document.getElementById('proposal-week').value);
-  } else if (type === 'PREDICTIVO') {
-    month = parseInt(document.getElementById('proposal-month').value);
-    week = parseInt(document.getElementById('proposal-week').value);
-  } else if (type === 'AUTONOMO') {
-    month = parseInt(document.getElementById('proposal-month').value);
-    week = parseInt(document.getElementById('proposal-week').value);
+  if (type === 'PREVENTIVO_SEMANAL' || type === 'PREDICTIVO' || type === 'AUTONOMO') {
+    month = parseInt(document.getElementById('proposal-month')?.value || new Date().getMonth(), 10);
+    week = parseInt(document.getElementById('proposal-week')?.value || getWeekNumber(new Date()), 10);
   }
 
   closeModal('modal-generate-calendar-proposal');
-  showToast(`⚡ Generando propuesta de calendario (${type})...`);
-
-  if (!supabaseClient) {
-    showToast('⚠️ Sin conexión a la base de datos.', 'error');
-    return;
-  }
+  showToast(`⚡ Generando propuesta de calendario (${type}) desde bases reales...`);
 
   try {
-    let startPeriod, endPeriod;
-    let targetWeekDate = week ? new Date(year, 0, 1 + (week - 1) * 7) : new Date(year, month || 0, 1);
-
-    if (type === 'PREVENTIVO') {
-      startPeriod = `${year}-01-01`;
-      endPeriod = `${year}-12-31`;
-    } else if (type === 'PREVENTIVO_SEMANAL') {
-      const dow = targetWeekDate.getDay();
-      const startD = new Date(targetWeekDate);
-      startD.setDate(targetWeekDate.getDate() - (dow === 0 ? 6 : dow - 1)); // Lunes
-      const endD = new Date(startD);
-      endD.setDate(startD.getDate() + 6); // Domingo
-      startPeriod = startD.toISOString().split('T')[0];
-      endPeriod = endD.toISOString().split('T')[0];
-    } else if (type === 'PREDICTIVO') {
-      const dow = targetWeekDate.getUTCDay();
-      let daysUntilWednesday = (3 - dow + 7) % 7;
-      const cycleStart = new Date(targetWeekDate);
-      cycleStart.setUTCDate(targetWeekDate.getUTCDate() + daysUntilWednesday);
-      const cycleEnd = new Date(cycleStart);
-      cycleEnd.setUTCDate(cycleStart.getUTCDate() + 6);
-      startPeriod = cycleStart.toISOString().split('T')[0];
-      endPeriod = cycleEnd.toISOString().split('T')[0];
-    } else { // AUTONOMO
-      const dow = targetWeekDate.getUTCDay();
-      const daysToMonday = dow === 0 ? 1 : (8 - dow) % 7;
-      const startD = new Date(targetWeekDate);
-      startD.setUTCDate(targetWeekDate.getUTCDate() + daysToMonday);
-      const endD = new Date(startD);
-      endD.setUTCDate(startD.getUTCDate() + 4); // Lunes a Viernes
-      startPeriod = startD.toISOString().split('T')[0];
-      endPeriod = endD.toISOString().split('T')[0];
+    const res = await executeRealCalendarGeneration({ type, year, month, week, silent: false });
+    if (res && res.success) {
+      showToast(`✅ AG-001: Calendario (${type}) alimentado con ${res.count} actividades reales.`);
+      await renderAdminCalendar();
+      await renderAdminCalendars();
+      if (typeof renderSolicitanteCalendar === 'function') await renderSolicitanteCalendar();
+      if (typeof renderSolicitanteHomeUpcomingCalendar === 'function') await renderSolicitanteHomeUpcomingCalendar();
     }
-
-    const headerRecord = {
-      tipo_calendario: type === 'PREVENTIVO_SEMANAL' ? 'PREVENTIVO' : type,
-      anio: year,
-      mes: month,
-      semana: week,
-      fecha_inicio_periodo: startPeriod,
-      fecha_fin_periodo: endPeriod,
-      estatus_calendario: 'PROPUESTO',
-      generado_por: currentUser ? currentUser.name : 'Supervisor',
-      origen_generacion: 'IA Engine'
-    };
-
-    const { data: headerData, error: hErr } = await supabaseClient
-      .from('calendarios_mantenimiento')
-      .insert([headerRecord])
-      .select();
-
-    if (hErr) throw hErr;
-    const newCalId = headerData[0].id_calendario;
-
-    const [ordRes, machinesRes, techsRes, bitacoraRes] = await Promise.all([
-      supabaseClient.from('ordenes_trabajo').select('id_orden, folio, fecha_carga, maquina_id, descripcion, estatus, prioridad, orden_trabajo, tiempo_atencion_min, fecha_hora_inicio, fecha_hora_fin'),
-      supabaseClient.from('cat_maquinas').select('*').eq('activo', true),
-      supabaseClient.from('cat_tecnicos').select('*').eq('activo', true),
-      supabaseClient.from('bitacora_mantenimiento').select('*')
-    ]);
-
-    const activeMachines = machinesRes.data || [];
-    const activeTechs = techsRes.data || [];
-    const allOts = ordRes.data || [];
-    const allLogs = bitacoraRes.data || [];
-
-    const detailsToInsert = [];
-    const dayWorkload = {};
-
-    allOts.forEach(o => {
-      const dateStr = (o.fecha_carga || '').split('T')[0];
-      if (dateStr) dayWorkload[dateStr] = (dayWorkload[dateStr] || 0) + 1;
-    });
-
-    function getBalancedDate(targetDate) {
-      let current = new Date(targetDate);
-      let offset = 0;
-      while (true) {
-        let candidate = new Date(current);
-        candidate.setDate(current.getDate() + offset);
-        let key = candidate.toISOString().split('T')[0];
-        
-        if (candidate.getDay() !== 0 && (dayWorkload[key] || 0) < 3) {
-          dayWorkload[key] = (dayWorkload[key] || 0) + 1;
-          return key;
-        }
-
-        offset = offset >= 0 ? -offset - 1 : -offset;
-        if (Math.abs(offset) > 30) return targetDate.toISOString().split('T')[0];
-      }
-    }
-
-    if (type === 'PREVENTIVO' || type === 'PREVENTIVO_SEMANAL') {
-      // PREVENTIVO (AG-002 / 100% Máquinas de cat_maquinas o ventana semanal seleccionada)
-      // Integración Presupuestal AG-007: Pondera criticidad (A, B, C), fallas acumuladas y refacciones estimadas
-      const partsCostByMachine = {};
-      allLogs.forEach(l => {
-        if (l.maquina_id) {
-          const cost = parseFloat(l.costo_total_refacciones || l.costo || 0);
-          partsCostByMachine[l.maquina_id] = (partsCostByMachine[l.maquina_id] || 0) + (isNaN(cost) ? 0 : cost);
-        }
-      });
-
-      const totalActive = activeMachines.length;
-      let machineIndex = 0;
-
-      // Si es preventivo semanal, seleccionamos lote balanceado para la semana (máx 12 máquinas)
-      const targetMachines = type === 'PREVENTIVO_SEMANAL' ? activeMachines.slice(0, Math.min(12, activeMachines.length)) : activeMachines;
-
-      for (const machine of targetMachines) {
-        const machId = machine.equipo_towell || machine.clave || machine.id_maquina;
-        const machName = machine.nombre || machine.nombre_maquina || machId;
-        const areaCode = resolveAreaFromMachineCode(machId, machine.clave || machName);
-        const mCost = partsCostByMachine[machId] || 0;
-        const mCrit = (machine.criticidad || machine.prioridad_default || 'B').toUpperCase().trim();
-
-        let balancedDateStr;
-        if (type === 'PREVENTIVO_SEMANAL') {
-          const dayOffset = machineIndex % 6; // Lunes a Sábado
-          const d = new Date(startPeriod);
-          d.setDate(d.getDate() + dayOffset);
-          balancedDateStr = d.toISOString().split('T')[0];
-        } else {
-          const targetMonth = machineIndex % 12;
-          const targetDay = 1 + ((Math.floor(machineIndex / 12) * 2) % 24);
-          const projDate = new Date(year, targetMonth, Math.min(28, targetDay));
-          balancedDateStr = getBalancedDate(projDate);
-        }
-
-        let prio = 'MEDIA';
-        if (mCrit.includes('A') || mCrit.includes('CRIT') || mCost > 5000) prio = 'ALTA';
-        else if (mCrit.includes('C') || mCrit.includes('BAJ')) prio = 'BAJA';
-
-        const estimatedBudget = mCost > 0 ? mCost * 0.8 : (prio === 'ALTA' ? 450 : prio === 'MEDIA' ? 250 : 120);
-
-        detailsToInsert.push({
-          id_calendario: newCalId,
-          maquina_id: machId,
-          fecha_programada: balancedDateStr,
-          tipo_mantenimiento: 'PREVENTIVO',
-          prioridad: prio,
-          actividad_sugerida: `${type === 'PREVENTIVO_SEMANAL' ? `Preventivo Semanal (Sem ${week})` : `Preventivo Anual ${year}`}: ${machId} - ${machName} (${areaCode})`,
-          responsable_sugerido: activeTechs[machineIndex % Math.max(1, activeTechs.length)]?.nombre_tecnico || 'Técnico Especialista',
-          id_plan: null,
-          observaciones: JSON.stringify({
-            origen: type === 'PREVENTIVO_SEMANAL' ? 'AG-002_PREVENTIVO_SEMANAL' : 'AG-002_PREVENTIVO_ANUAL',
-            area: areaCode,
-            criticidad: mCrit,
-            semana_programada: week,
-            presupuesto_estimado_usd: estimatedBudget,
-            invariante_1_anual: type === 'PREVENTIVO',
-            cobertura: type === 'PREVENTIVO' ? '100% Catálogo Maestro' : `Semana ${week} de ${year}`
-          }),
-          estatus_detalle: 'PROPUESTO'
-        });
-
-        machineIndex++;
-      }
-    } else if (type === 'PREDICTIVO') {
-      // PREDICTIVO SEMANAL (PRD-AG003-R2: AG-003 por Segundas de Calidad, Miércoles a Martes, Máx 4 Telares, 4 Fechas Únicas)
-      // Invariantes: Activos PF exclusivamente, % segundas = (def / pzas) * 100, Miércoles a Martes, Domingo elegible, 0 colisiones mismo día
-      const pfMachines = activeMachines.filter(m => {
-        const area = (m.area || m.departamento_codigo || '').toUpperCase().trim();
-        const code = (m.equipo_towell || m.clave || '').toUpperCase().trim();
-        return (area === 'PF' || area === 'TEJIDO') && (code.includes('TEL') || code.includes('LOOM') || code.includes('JACQ') || code.includes('PICANOL') || code.includes('SMIT') || code.includes('DORNIER') || code.includes('ITEMA'));
-      });
-
-      const { data: segundasData } = await supabaseClient
-        .from('segundas_por_rollo')
-        .select('*')
-        .order('fecha', { ascending: false })
-        .limit(2500);
-
-      const segundasRows = segundasData || [];
-      const machineDefectTotals = {};
-
-      segundasRows.forEach(s => {
-        const mId = (s.maquina_id || s.equipo || '').toUpperCase().trim();
-        if (mId) {
-          if (!machineDefectTotals[mId]) {
-            machineDefectTotals[mId] = { totalDefects: 0, totalPzas: 0, defects: [] };
-          }
-          machineDefectTotals[mId].totalDefects += parseFloat(s.cantidad_defecto || 0);
-          machineDefectTotals[mId].totalPzas += parseFloat(s.pzas_rollo || 0);
-          if (s.defecto && !machineDefectTotals[mId].defects.includes(s.defecto)) {
-            machineDefectTotals[mId].defects.push(s.defecto);
-          }
-        }
-      });
-
-      const rankedTelares = pfMachines.map(m => {
-        const mId = (m.equipo_towell || m.clave || '').toUpperCase().trim();
-        const stats = machineDefectTotals[mId] || { totalDefects: 0, totalPzas: 0, defects: [] };
-        const pct = stats.totalPzas > 0 ? (stats.totalDefects / stats.totalPzas) * 100 : (stats.totalDefects > 0 ? 10.0 : 0.0);
-        return {
-          machine: m,
-          maquina_id: mId,
-          percentage: pct,
-          totalDefects: stats.totalDefects,
-          totalPzas: stats.totalPzas,
-          defects: stats.defects
-        };
-      }).sort((a, b) => {
-        if (b.percentage !== a.percentage) return b.percentage - a.percentage;
-        if (b.totalDefects !== a.totalDefects) return b.totalDefects - a.totalDefects;
-        if (b.totalPzas !== a.totalPzas) return b.totalPzas - a.totalPzas;
-        return a.maquina_id.localeCompare(b.maquina_id);
-      });
-
-      // Resolver ciclo semanal Miércoles a Martes a partir de startPeriod
-      const cycleStart = new Date(startPeriod);
-
-      // Dispersión 4 fechas únicas: Miércoles (+0d), Viernes (+2d), Domingo (+4d), Martes (+6d)
-      const slotOffsets = [0, 2, 4, 6];
-      const slotDayNames = ['Miércoles', 'Viernes', 'Domingo', 'Martes'];
-      const topCandidates = rankedTelares.slice(0, 4);
-
-      topCandidates.forEach((cand, idx) => {
-        const slotDate = new Date(cycleStart);
-        slotDate.setUTCDate(cycleStart.getUTCDate() + (slotOffsets[idx] || (idx * 2)));
-        const dateStr = slotDate.toISOString().split('T')[0];
-        const dayName = slotDayNames[idx] || 'Día ' + (idx + 1);
-        const prio = idx === 0 ? 'CRÍTICA' : idx === 1 ? 'ALTA' : 'MEDIA';
-        const defectSummary = cand.defects.slice(0, 2).join(', ') || 'Segundas por Rollo';
-
-        detailsToInsert.push({
-          id_calendario: newCalId,
-          maquina_id: cand.maquina_id,
-          fecha_programada: dateStr,
-          tipo_mantenimiento: 'PREDICTIVO',
-          prioridad: prio,
-          actividad_sugerida: `Mantenimiento Predictivo por Segundas de Calidad (Sem ${week || 'Activa'}): ${cand.maquina_id} (PF)`,
-          responsable_sugerido: activeTechs.find(t => (t.especialidad || '').toLowerCase().includes('predictivo'))?.nombre_tecnico || activeTechs[idx % Math.max(1, activeTechs.length)]?.nombre_tecnico || 'Especialista Predictivo (PF)',
-          score_riesgo: cand.percentage,
-          observaciones: JSON.stringify({
-            origen: 'AG-003_PREDICTIVO_SEMANAL',
-            area: 'PF',
-            fuente_datos: 'segundas_por_rollo',
-            semana_programada: week,
-            dia_semana: dayName,
-            ranking_prioridad: idx + 1,
-            porcentaje_segundas: cand.percentage,
-            total_segundas: cand.totalDefects,
-            total_piezas: cand.totalPzas,
-            regla_dispersion_4_fechas: true,
-            domingo_elegible: true
-          }),
-          estatus_detalle: 'PROPUESTO'
-        });
-      });
-    } else if (type === 'AUTONOMO') {
-      // AUTÓNOMO SEMANAL (PRD-AG004-R1: AG-004 Vía Recurrencias y Tendencias, Max 15 Máquinas, Lunes a Viernes)
-      // Invariantes: 0 segundas, máximo 15 activos por semana, Lunes a Viernes (Sábado = 0, Domingo = 0), temp °C obligatoria
-      const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-      const cycleStart = new Date(startPeriod);
-      
-      const operatingDates = [];
-      for (let i = 0; i < 5; i++) {
-        const d = new Date(cycleStart);
-        d.setUTCDate(cycleStart.getUTCDate() + i);
-        operatingDates.push(d.toISOString().split('T')[0]);
-      }
-
-      // 2. Evaluar historial de fallas y señales en máquinas activas
-      const machineFailsCount = {};
-      allOts.forEach(o => {
-        if (o.maquina_id) {
-          machineFailsCount[o.maquina_id] = (machineFailsCount[o.maquina_id] || 0) + 1;
-        }
-      });
-
-      // Filtrar sólo activos con historial real de fallas
-      const eligibleCandidates = activeMachines.filter(m => {
-        const machId = m.equipo_towell || m.clave;
-        return (machineFailsCount[machId] || 0) > 0;
-      }).map(m => {
-        const machId = m.equipo_towell || m.clave;
-        const fails = machineFailsCount[machId] || 0;
-        const area = resolveAreaFromMachineCode(machId, m.clave || '');
-        const hasRecurrence = fails >= 2;
-        const hasTrend = fails >= 3;
-        const rankingScore = (hasRecurrence ? 50 : 0) + (hasTrend ? 30 : 0) + Math.min(fails * 5, 20);
-        return {
-          machine: m,
-          machId,
-          area,
-          fails,
-          hasRecurrence,
-          hasTrend,
-          rankingScore,
-          reason: hasRecurrence && hasTrend ? 'RECURRENCE_AND_TREND' : (hasRecurrence ? 'RECURRENCE' : 'TREND')
-        };
-      }).sort((a, b) => {
-        if (b.rankingScore !== a.rankingScore) return b.rankingScore - a.rankingScore;
-        if (b.fails !== a.fails) return b.fails - a.fails;
-        return a.machId.localeCompare(b.machId);
-      });
-
-      // 3. Aplicar límite estricto de capacidad (Máximo 15 máquinas)
-      const selectedMachines = eligibleCandidates.slice(0, 15);
-
-      selectedMachines.forEach((cand, idx) => {
-        const dayIdx = idx % 5;
-        const dateStr = operatingDates[dayIdx];
-        const assignedDay = dayNames[dayIdx];
-        const prio = cand.fails >= 5 ? 'ALTA' : (cand.area === 'PF' ? 'ALTA' : 'MEDIA');
-
-        detailsToInsert.push({
-          id_calendario: newCalId,
-          maquina_id: cand.machId,
-          fecha_programada: dateStr,
-          tipo_mantenimiento: 'AUTONOMO',
-          prioridad: prio,
-          actividad_sugerida: `Rutina Autónoma Semanal (Sem ${week || 'Activa'}): ${cand.machId} (${cand.area}) - Checklist 5 Bloques (Temp °C)`,
-          responsable_sugerido: `Operador (${cand.area})`,
-          observaciones: JSON.stringify({
-            origen: 'AG-004_AUTONOMO_SEMANAL',
-            area: cand.area,
-            semana_programada: week,
-            ranking_position: idx + 1,
-            eligibility_reason: cand.reason,
-            failure_history_count: cand.fails,
-            fuente_datos: 'historico_fallas_recurrencias_tendencias',
-            segundas_usadas: 0,
-            dia_semana_asignado: assignedDay,
-            temperatura_requerida_grados_c: true
-          }),
-          estatus_detalle: 'PROPUESTO'
-        });
-      });
-    }
-
-    if (detailsToInsert.length > 0) {
-      const { error: dErr } = await supabaseClient
-        .from('calendario_mantenimiento_detalle')
-        .insert(detailsToInsert);
-
-      if (dErr) throw dErr;
-    }
-
-    // Disparar evento oficial correspondiente hacia AG-001 (Capataz)
-    const eventType = (type === 'PREVENTIVO' || type === 'PREVENTIVO_SEMANAL') 
-      ? 'PREVENTIVO_GENERAR' 
-      : (type === 'PREDICTIVO' ? 'PREDICTIVO_GENERAR' : 'AUTONOMO_GENERAR');
-
-    if (typeof dispatchAgentEvent === 'function') {
-      try {
-        await dispatchAgentEvent(eventType, {
-          origin: 'CALENDAR_PROPOSAL_MODAL',
-          payload: {
-            tipo: type,
-            anio: year,
-            mes: month,
-            semana: week,
-            fecha_inicio_periodo: startPeriod,
-            fecha_fin_periodo: endPeriod,
-            total_propuestas_generadas: detailsToInsert.length
-          }
-        });
-      } catch (evtErr) {
-        console.warn('[handleGenerateCalendarProposal] Event dispatch warn:', evtErr);
-      }
-    }
-
-    showToast(`✅ AG-001: Propuesta de calendario (${type}) generada con ${detailsToInsert.length} actividades.`);
-    switchCalendarViewMode('table');
-    if (type === 'PREVENTIVO' || type === 'PREVENTIVO_SEMANAL') switchCalendarTab('preventivo');
-    else if (type === 'PREDICTIVO') switchCalendarTab('predictivo');
-    else if (type === 'AUTONOMO') switchCalendarTab('autonomo');
   } catch (err) {
     console.error('[GenerateProposal] Error:', err);
     showToast('❌ Error al generar la propuesta: ' + err.message, 'error');
   }
 }
 
-// ── DISPARADORES DIRECTOS DESDE BOTONES HACIA AG-001 (CAPATAZ) ────────────────
-async function triggerAgentPreventivo() {
-  showToast('⚡ AG-001 -> AG-002: Generando Preventivo Anual (100% flota)...');
+async function syncAllRealCalendarsFromDB() {
+  showToast('🔄 Sincronizando Preventivo (AG-002), Predictivo (AG-003) y Autónomo (AG-004) con bases reales...');
   try {
-    if (typeof dispatchAgentEvent === 'function') {
-      const resp = await dispatchAgentEvent('PREVENTIVO_GENERAR', {
-        origin: 'QUICK_CALENDAR_BUTTON',
-        payload: {
-          maquina_id: 'ALL',
-          anio: new Date().getFullYear(),
-          year: new Date().getFullYear(),
-          tipo_mantenimiento: 'PREVENTIVO'
-        }
-      });
-      if (resp && resp.success) {
-        showToast('✅ AG-002: Plan Preventivo Anual generado exitosamente.');
-      }
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const week = getWeekNumber(now);
+
+    const prevRes = await executeRealCalendarGeneration({ type: 'PREVENTIVO', year, month, week, silent: true });
+    const predRes = await executeRealCalendarGeneration({ type: 'PREDICTIVO', year, month, week, silent: true });
+    const autoRes = await executeRealCalendarGeneration({ type: 'AUTONOMO', year, month, week, silent: true });
+
+    await renderAdminCalendar();
+    await renderAdminCalendars();
+    if (typeof renderSolicitanteCalendar === 'function') await renderSolicitanteCalendar();
+    if (typeof renderSolicitanteHomeUpcomingCalendar === 'function') await renderSolicitanteHomeUpcomingCalendar();
+
+    showToast(`✅ Calendarios sincronizados con BD real: ${prevRes.count} Preventivos, ${predRes.count} Predictivos y ${autoRes.count} Autónomos.`);
+  } catch (err) {
+    console.error('[syncAllRealCalendarsFromDB] Error:', err);
+    showToast('❌ Error al sincronizar calendarios: ' + err.message, 'error');
+  }
+}
+
+// ── DISPARADORES DIRECTOS DESDE BOTONES HACIA AG-001 (CAPATAZ) + BASES REALES ────────────────
+async function triggerAgentPreventivo() {
+  showToast('⚡ AG-001 -> AG-002: Generando Preventivo Anual (100% flota PF, CF, TF, AF)...');
+  try {
+    const now = new Date();
+    const res = await executeRealCalendarGeneration({
+      type: 'PREVENTIVO',
+      year: now.getFullYear(),
+      month: now.getMonth(),
+      week: getWeekNumber(now),
+      silent: true
+    });
+    if (res && res.success) {
+      showToast(`✅ AG-002: Plan Preventivo Anual generado (${res.count} equipos en PF, CF, TF, AF).`);
     }
   } catch (err) {
     console.warn('[triggerAgentPreventivo] Warning:', err);
   }
   await switchCalendarTab('preventivo');
+  await renderAdminCalendar();
   if (typeof renderAdminCalendars === 'function') await renderAdminCalendars();
 }
 
 async function triggerAgentPredictivo() {
   showToast('⚡ AG-001 -> AG-003: Evaluando Segundas por Rollo (Predictivo Semanal Mié–Mar)...');
   try {
-    if (typeof dispatchAgentEvent === 'function') {
-      const resp = await dispatchAgentEvent('PREDICTIVO_GENERAR', {
-        origin: 'QUICK_CALENDAR_BUTTON',
-        payload: {
-          maquina_id: 'ALL',
-          mes: new Date().getMonth() + 1,
-          upload_date: new Date().toISOString().split('T')[0],
-          tipo_mantenimiento: 'PREDICTIVO'
-        }
-      });
-      if (resp && resp.success) {
-        showToast('✅ AG-003: Plan Predictivo Semanal generado exitosamente.');
-      }
+    const now = new Date();
+    const res = await executeRealCalendarGeneration({
+      type: 'PREDICTIVO',
+      year: now.getFullYear(),
+      month: now.getMonth(),
+      week: getWeekNumber(now),
+      silent: true
+    });
+    if (res && res.success) {
+      showToast(`✅ AG-003: Plan Predictivo Semanal generado (${res.count} telares PF por segundas).`);
     }
   } catch (err) {
     console.warn('[triggerAgentPredictivo] Warning:', err);
   }
   await switchCalendarTab('predictivo');
+  await renderAdminCalendar();
   if (typeof renderAdminCalendars === 'function') await renderAdminCalendars();
 }
 
 async function triggerAgentAutonomo() {
-  showToast('⚡ AG-001 -> AG-004: Generando Plan Autónomo Semanal (Máx 15 activos Lun–Vie)...');
+  showToast('⚡ AG-001 -> AG-004: Generando Plan Autónomo Semanal (Máx 15 activos Lun–Vie en PF, CF, TF, AF)...');
   try {
-    if (typeof dispatchAgentEvent === 'function') {
-      const resp = await dispatchAgentEvent('AUTONOMO_GENERAR', {
-        origin: 'QUICK_CALENDAR_BUTTON',
-        payload: {
-          maquina_id: 'ALL',
-          semana: 'SEM-ACTUAL',
-          referenceDate: new Date().toISOString().split('T')[0],
-          tipo_mantenimiento: 'AUTONOMO'
-        }
-      });
-      if (resp && resp.success) {
-        showToast('✅ AG-004: Plan Autónomo Semanal generado exitosamente.');
-      }
+    const now = new Date();
+    const res = await executeRealCalendarGeneration({
+      type: 'AUTONOMO',
+      year: now.getFullYear(),
+      month: now.getMonth(),
+      week: getWeekNumber(now),
+      silent: true
+    });
+    if (res && res.success) {
+      showToast(`✅ AG-004: Plan Autónomo Semanal generado (${res.count} equipos Lun–Vie).`);
     }
   } catch (err) {
     console.warn('[triggerAgentAutonomo] Warning:', err);
   }
   await switchCalendarTab('autonomo');
+  await renderAdminCalendar();
   if (typeof renderAdminCalendars === 'function') await renderAdminCalendars();
 }
 
@@ -17768,11 +18038,21 @@ function setCalendarQuickFilter(filterType) {
   renderAdminCalendars();
 }
 
-// 4. Renderizar Tabla de Propuestas con Filtro de Fechas y Orden Temporal
+// 4. Renderizar Tabla de Propuestas con Filtro de Proceso, Fechas y Orden Temporal
 async function renderAdminCalendars() {
   const tbody = document.getElementById('table-calendar-tbody');
   const thead = document.getElementById('table-calendar-thead');
   if (!tbody || !thead) return;
+
+  // Sincronizar selectores de proceso (Grid y Tabla)
+  const procSelect = document.getElementById('admin-cal-process-select');
+  if (procSelect && procSelect.value !== activeAdminCalendarProcess) {
+    procSelect.value = activeAdminCalendarProcess;
+  }
+  const tableProcSelect = document.getElementById('calendar-table-process-select');
+  if (tableProcSelect && tableProcSelect.value !== activeAdminCalendarProcess) {
+    tableProcSelect.value = activeAdminCalendarProcess;
+  }
 
   tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted); padding:20px;">Cargando propuestas…</td></tr>`;
 
@@ -17788,7 +18068,7 @@ async function renderAdminCalendars() {
     if (dbType === 'AUTONOMO') {
       thead.innerHTML = `
         <tr>
-          <th>Máquina</th>
+          <th>Máquina (Proceso)</th>
           <th>Día Asignado (Lun–Vie)</th>
           <th>Checklist / Levantamiento</th>
           <th>Fecha Programada</th>
@@ -17800,7 +18080,7 @@ async function renderAdminCalendars() {
     } else {
       thead.innerHTML = `
         <tr>
-          <th>Máquina</th>
+          <th>Máquina (Proceso)</th>
           <th>Tipo</th>
           <th>Actividad sugerida</th>
           <th>Fecha Programada</th>
@@ -17820,7 +18100,16 @@ async function renderAdminCalendars() {
 
     if (error) throw error;
 
-    const allItems = rawDetails || [];
+    const allItemsRaw = (rawDetails || []).map(d => {
+      const itemProc = resolveCanonicalMachineProcess(d.maquina_id, null, d.observaciones, d.actividad_sugerida || '');
+      return { ...d, _resolvedProc: itemProc };
+    });
+
+    // Filtrar por Proceso activo ('PF', 'CF', 'TF', 'AF', o 'ALL') para coincidencia 100% con Vista Calendario
+    const procFilter = (activeAdminCalendarProcess || 'PF').toUpperCase().trim();
+    const allItems = procFilter === 'ALL'
+      ? allItemsRaw
+      : allItemsRaw.filter(d => d._resolvedProc === procFilter);
 
     // 3. Aplicar Filtros de Fecha, Búsqueda y Orden Temporal
     const fromDate = document.getElementById('calendar-filter-from-date')?.value || '';
@@ -17839,6 +18128,7 @@ async function renderAdminCalendars() {
     if (search) {
       details = details.filter(d => 
         (d.maquina_id || '').toLowerCase().includes(search) ||
+        (d._resolvedProc || '').toLowerCase().includes(search) ||
         (d.actividad_sugerida || '').toLowerCase().includes(search) ||
         (d.prioridad || '').toLowerCase().includes(search) ||
         (d.responsable_sugerido || '').toLowerCase().includes(search)
@@ -17857,12 +18147,16 @@ async function renderAdminCalendars() {
     if (summaryEl) {
       const orderText = sortOrder === 'ASC' ? 'del más cercano al más lejano en tiempo ⏳' : 'del más lejano al más cercano en tiempo ⌛';
       const typeLabel = dbType === 'AUTONOMO' ? ' (Máx 15 activos de Lunes a Viernes)' : '';
-      summaryEl.innerHTML = `<span>Mostrando <strong>${details.length}</strong> de <strong>${allItems.length}</strong> propuestas${typeLabel} (${orderText})</span>
+      const procBadgeText = procFilter === 'ALL' ? 'Todos los Procesos (PF, CF, TF, AF)' : `Proceso ${procFilter}`;
+      summaryEl.innerHTML = `<span>Mostrando <strong>${details.length}</strong> de <strong>${allItems.length}</strong> propuestas en <strong>${procBadgeText}</strong> (Total planta: ${allItemsRaw.length})${typeLabel} (${orderText})</span>
       ${(fromDate || toDate || search) ? `<span style="color:#0284c7; font-weight:700;">Filtro: ${fromDate ? 'Desde ' + formatCalendarDate(fromDate) : ''} ${toDate ? 'Hasta ' + formatCalendarDate(toDate) : ''} ${search ? 'Texto: "' + search + '"' : ''}</span>` : ''}`;
     }
 
     if (details.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted); padding:24px; font-style:italic;">No hay propuestas que coincidan con los filtros de fecha y búsqueda seleccionados.</td></tr>`;
+      const emptyHint = dbType === 'PREDICTIVO' && procFilter !== 'PF' && procFilter !== 'ALL'
+        ? `El Mantenimiento Predictivo por Segundas de Rollo (AG-003) aplica exclusivamente a telares del proceso <strong>PF (Tejido)</strong>. Cambia el selector a <strong>PF</strong> o <strong>Todos</strong> para visualizar las propuestas.`
+        : `No hay propuestas de ${dbType} para el proceso <strong>${procFilter}</strong> con los filtros actuales. Haz clic en <strong>"🔄 Alimentar de BD Real"</strong> o <strong>"⚡ Generar AG"</strong> para alimentar desde las bases reales.`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted); padding:24px; font-style:italic;">${emptyHint}</td></tr>`;
       return;
     }
 
@@ -17906,6 +18200,8 @@ async function renderAdminCalendars() {
         `;
       }
 
+      const procPill = `<span class="badge" style="background:#e2e8f0; color:#1e293b; font-size:0.7rem; margin-left:6px; font-weight:700;">${d._resolvedProc || 'PF'}</span>`;
+
       if (dbType === 'AUTONOMO') {
         let obs = {};
         try {
@@ -17913,12 +18209,13 @@ async function renderAdminCalendars() {
         } catch (e) {
           obs = {};
         }
-        const dayAssigned = obs.dia_semana_asignado || 'Laborable';
-        const signalLabel = obs.motivo_elegibilidad || (obs.fallas_recurrentes_detectadas ? `Recurrencias: ${obs.fallas_recurrentes_detectadas}` : 'Histórico de fallas');
+        const dayAssigned = obs.dia_semana_asignado || obs.day_of_week || 'Laborable';
+        const failCount = obs.fallas_recurrentes_detectadas ?? obs.failure_history_count ?? 1;
+        const signalLabel = obs.motivo_elegibilidad || obs.eligibility_reason || `Señales: ${failCount}`;
 
         html += `
           <tr>
-            <td><a href="javascript:void(0)" onclick="openMachine360Report('${d.maquina_id}', '${d.id_orden_generada || ''}')" style="color:#0284c7; font-weight:700; text-decoration:underline;">${d.maquina_id}</a></td>
+            <td><a href="javascript:void(0)" onclick="openMachine360Report('${d.maquina_id}', '${d.id_orden_generada || ''}')" style="color:#0284c7; font-weight:700; text-decoration:underline;">${d.maquina_id}</a>${procPill}</td>
             <td><span class="badge" style="background:#0284c7; color:white; font-size:0.75rem;">📅 ${dayAssigned}</span></td>
             <td>${d.actividad_sugerida || 'Levantamiento Autónomo'}</td>
             <td>${formatCalendarDate(d.fecha_programada)}</td>
@@ -17930,7 +18227,7 @@ async function renderAdminCalendars() {
       } else {
         html += `
           <tr>
-            <td><a href="javascript:void(0)" onclick="openMachine360Report('${d.maquina_id}', '${d.id_orden_generada || ''}')" style="color:#0284c7; font-weight:700; text-decoration:underline;">${d.maquina_id}</a></td>
+            <td><a href="javascript:void(0)" onclick="openMachine360Report('${d.maquina_id}', '${d.id_orden_generada || ''}')" style="color:#0284c7; font-weight:700; text-decoration:underline;">${d.maquina_id}</a>${procPill}</td>
             <td>${d.tipo_mantenimiento}</td>
             <td>${d.actividad_sugerida}</td>
             <td>${formatCalendarDate(d.fecha_programada)}</td>
@@ -18272,12 +18569,17 @@ async function approveProposalDetail(detailId) {
       .eq('nombre_tecnico', detailData.responsable_sugerido)
       .maybeSingle();
 
+    let newOT = null;
+    let generatedFolio = '';
+
     if (detailData.tipo_mantenimiento === 'PREVENTIVO') {
       // FLUJO 1: OT NORMAL
+      const procCode = resolveCanonicalMachineProcess(detailData.maquina_id, null, detailData.observaciones, detailData.actividad_sugerida || '');
       const orderRecord = {
         orden_trabajo: 'MP',
         origen: 'App',
         estatus: 'asignada',
+        departamento: procCode,
         fecha_inicio: detailData.fecha_programada,
         fecha_hora_inicio: `${detailData.fecha_programada}T08:00:00`,
         maquina_id: detailData.maquina_id,
@@ -18295,13 +18597,14 @@ async function approveProposalDetail(detailId) {
         .select();
 
       if (otErr) throw otErr;
-      const newOT = otData[0];
+      newOT = otData && otData[0] ? otData[0] : null;
+      generatedFolio = newOT?.folio || newOT?.id_orden || '';
 
       await supabaseClient
         .from('calendario_mantenimiento_detalle')
         .update({
           estatus_detalle: 'APROBADO',
-          id_orden_generada: newOT.id_orden
+          id_orden_generada: newOT ? newOT.id_orden : null
         })
         .eq('id_detalle', detailId);
 
@@ -18311,6 +18614,7 @@ async function approveProposalDetail(detailId) {
       const yearStr = new Date().getFullYear();
       const randomId = Math.floor(1000 + Math.random() * 9000);
       const folioLev = `${prefix}-${yearStr}-${randomId}`;
+      generatedFolio = folioLev;
 
       const levRecord = {
         id_detalle_calendario: detailId,
@@ -18325,7 +18629,7 @@ async function approveProposalDetail(detailId) {
         observaciones: detailData.observaciones
       };
 
-      const { data: levData, error: levErr } = await supabaseClient
+      const { error: levErr } = await supabaseClient
         .from('levantamientos_mantenimiento')
         .insert([levRecord])
         .select();
@@ -18340,8 +18644,8 @@ async function approveProposalDetail(detailId) {
         .eq('id_detalle', detailId);
     }
 
-    // 3. Obtener checklist asociado e insertarlo en respuestas
-    if (detailData.id_plan) {
+    // 3. Obtener checklist asociado e insertarlo en respuestas (solo si se generó una OT en ordenes_trabajo)
+    if (newOT && newOT.id_orden && detailData.id_plan) {
       const { data: planData } = await supabaseClient
         .from('planes_mantenimiento_preventivo')
         .select('codigo_servicio')
@@ -18365,11 +18669,11 @@ async function approveProposalDetail(detailId) {
           await supabaseClient.from('respuestas_checklist_orden').insert(responses);
         }
       }
-    } else if (detailData.tipo_mantenimiento === 'AUTONOMO') {
+    } else if (newOT && newOT.id_orden && detailData.tipo_mantenimiento === 'AUTONOMO') {
       let defectCode = detailData.fuente_principal;
       if (!defectCode && detailData.observaciones) {
         try {
-          const obs = JSON.parse(detailData.observaciones);
+          const obs = typeof detailData.observaciones === 'string' ? JSON.parse(detailData.observaciones) : detailData.observaciones;
           defectCode = obs.defecto_principal;
         } catch (e) {}
       }
@@ -18400,7 +18704,8 @@ async function approveProposalDetail(detailId) {
       }
     }
 
-    showToast(`✅ Propuesta aprobada. Generada la orden de trabajo folio ${newOT.folio || ''}.`);
+    window._cachedCalendarDetails = null;
+    showToast(`✅ Propuesta aprobada. Generado el folio ${generatedFolio || ''}.`);
     await syncDatabases();
     renderAdminCalendars();
     renderAdminCalendar();
@@ -18464,7 +18769,7 @@ async function showPredictiveRecommendation(detailId) {
     // Parsear observaciones JSON
     let obs = {};
     try {
-      obs = JSON.parse(d.observaciones);
+      obs = typeof d.observaciones === 'string' ? JSON.parse(d.observaciones) : d.observaciones;
     } catch (e) {
       console.warn('Fallo al parsear observaciones predictivas:', e);
       obs = { motivos: [d.observaciones] };
@@ -18473,7 +18778,7 @@ async function showPredictiveRecommendation(detailId) {
     // Restaurar títulos a versión "Análisis Predictivo IA"
     const headerTitle = document.querySelector('#modal-predictive-recommendation-details .modal-header h4 span');
     if (headerTitle) {
-      headerTitle.textContent = '🔬 Análisis Predictivo IA';
+      headerTitle.textContent = '🔬 Análisis Predictivo IA (AG-003 Segundas)';
     }
 
     const labelType = document.querySelector('#modal-predictive-recommendation-details div[style*="grid-template-columns"] div:nth-child(1) div:nth-child(1)');
@@ -18485,31 +18790,43 @@ async function showPredictiveRecommendation(detailId) {
     safeSetContent('pred-rec-machine', d.maquina_id);
     safeSetContent('pred-rec-priority', d.prioridad || 'MEDIA');
     
-    // Calcular porcentaje de barra de riesgo
-    const scoreStr = (obs.riesgo_estimado || '0').split('/')[0];
-    const scoreVal = parseFloat(scoreStr) || 0;
+    // Calcular porcentaje de barra de riesgo (soporta riesgo_estimado o porcentaje_segundas)
+    let scoreVal = 0;
+    if (obs.riesgo_estimado) {
+      scoreVal = parseFloat(String(obs.riesgo_estimado).split('/')[0]) || 0;
+    } else if (obs.porcentaje_segundas !== undefined) {
+      scoreVal = Math.min(9.9, Math.max(4.5, Number((4.0 + parseFloat(obs.porcentaje_segundas || 0) / 3).toFixed(1))));
+    } else if (d.score_riesgo) {
+      scoreVal = Math.min(9.9, Number((parseFloat(d.score_riesgo) / 10).toFixed(1)));
+    }
     const barPercent = Math.min(100, scoreVal * 10);
     
     safeSetContent('pred-rec-risk-label', `${scoreVal}/10`);
     const riskBar = document.getElementById('pred-rec-risk-bar');
     if (riskBar) {
       riskBar.style.width = `${barPercent}%`;
-      // Cambiar color basado en severidad
-      if (scoreVal >= 6.0) riskBar.style.background = '#f43f5e'; // Rojo
-      else if (scoreVal >= 4.0) riskBar.style.background = '#fbbf24'; // Amarillo
-      else riskBar.style.background = '#3b82f6'; // Azul
+      if (scoreVal >= 6.0) riskBar.style.background = '#f43f5e';
+      else if (scoreVal >= 4.0) riskBar.style.background = '#fbbf24';
+      else riskBar.style.background = '#3b82f6';
     }
 
-    safeSetContent('pred-rec-type', obs.tipo_revision || 'Inspección Predictiva General');
-    safeSetContent('pred-rec-specialty', obs.especialidad || 'Electromecánico');
+    safeSetContent('pred-rec-type', obs.tipo_revision || 'Inspección Predictiva por Segundas de Rollo');
+    safeSetContent('pred-rec-specialty', obs.especialidad || 'Mecánico de Telares / Calidad PF');
 
-    // Lista de motivos
+    // Lista de motivos (soporta array motivos o construye desde porcentaje_segundas/total_segundas)
     const motivosList = document.getElementById('pred-rec-motivos-list');
     if (motivosList) {
       motivosList.innerHTML = '';
-      const motivosArr = obs.motivos || [];
+      let motivosArr = Array.isArray(obs.motivos) ? obs.motivos : [];
+      if (motivosArr.length === 0 && (obs.porcentaje_segundas !== undefined || obs.total_segundas !== undefined)) {
+        motivosArr = [
+          `Prioridad #${obs.ranking_prioridad || 1} por incidencia de segundas de calidad (${Number(obs.porcentaje_segundas || 0).toFixed(2)}%).`,
+          `Acumulado en base segundas_por_rollo: ${obs.total_segundas || 0} defectos sobre ${obs.total_piezas || 0} piezas.`,
+          `Día asignado en ciclo Miércoles–Martes: ${obs.dia_semana || 'Programado'}.`
+        ];
+      }
       if (motivosArr.length === 0) {
-        motivosList.innerHTML = `<li>No hay motivos de alta prioridad detectados. Revisión sugerida rutinaria.</li>`;
+        motivosList.innerHTML = `<li>Revisión predictiva programada por AG-003 en base a segundas por rollo.</li>`;
       } else {
         motivosArr.forEach(m => {
           motivosList.innerHTML += `<li>${m}</li>`;
@@ -18517,7 +18834,7 @@ async function showPredictiveRecommendation(detailId) {
       }
     }
 
-    safeSetContent('pred-rec-evidence', obs.evidencia || 'Sin evidencias externas registradas.');
+    safeSetContent('pred-rec-evidence', obs.evidencia || `Fuente: ${obs.fuente_datos || 'segundas_por_rollo'} | Proceso: ${obs.area || 'PF'}`);
     safeSetContent('pred-rec-date', fmtDate(d.fecha_programada));
 
     // Botón Aprobación
@@ -18566,13 +18883,21 @@ async function showAutonomousTrendDetails(detailId) {
       obs = { fuente_datos: 'tendencias_y_recurrencias_fallas', dia_semana_asignado: 'Lunes' };
     }
 
+    const procCode = resolveCanonicalMachineProcess(d.maquina_id, null, obs, d.actividad_sugerida || '');
+    const dayAssigned = obs.dia_semana_asignado || obs.day_of_week || 'Laborable (Lun–Vie)';
+    const failCount = obs.fallas_recurrentes_detectadas ?? obs.failure_history_count ?? 1;
+    const mainFallas = Array.isArray(obs.fallas_principales) && obs.fallas_principales.length > 0
+      ? obs.fallas_principales.join(', ')
+      : (obs.motivo_elegibilidad || obs.eligibility_reason || 'Catálogo de fallas por máquina');
+
     alert(`📈 ANÁLISIS DE MANTENIMIENTO AUTÓNOMO (AG-004)\n` +
           `--------------------------------------------------\n` +
-          `Máquina: ${d.maquina_id}\n` +
+          `Máquina: ${d.maquina_id} (Proceso: ${procCode})\n` +
           `Prioridad: ${d.prioridad}\n` +
-          `Día Programado: ${obs.dia_semana_asignado || 'Laborable'}\n` +
-          `Fallas Recurrentes Previas: ${obs.fallas_recurrentes_detectadas ?? 0}\n` +
-          `Temperatura Requerida en °C: ${obs.temperatura_requerida_grados_c ? 'SÍ (Obligatoria)' : 'N/A'}\n` +
+          `Día Programado: ${dayAssigned}\n` +
+          `Señales / Modos de Falla: ${failCount}\n` +
+          `Fallas Prevenidas: ${mainFallas}\n` +
+          `Temperatura Requerida en °C: ${obs.temperatura_requerida_grados_c !== false ? 'SÍ (Obligatoria)' : 'N/A'}\n` +
           `Segundas por Rollo Usadas: ${obs.segundas_usadas ?? 0} (Invariante 0 Segundas Preservado)\n` +
           `--------------------------------------------------\n` +
           `Actividad: ${d.actividad_sugerida}`);
@@ -19249,6 +19574,40 @@ async function checkMachineUpcomingMaintenance(machineId) {
   }).slice(0, 3);
 }
 
+let activeSolicitanteCalendarProcess = null;
+
+function getDefaultSolicitanteProcess() {
+  if (!currentUser) return 'PF';
+  if (currentUser.procesos_autorizados && Array.isArray(currentUser.procesos_autorizados) && currentUser.procesos_autorizados.length > 0) {
+    const p0 = String(currentUser.procesos_autorizados[0] || '').toUpperCase().trim();
+    if (['PF', 'CF', 'TF', 'AF'].includes(p0)) return p0;
+  }
+  if (currentUser.area && ['PF', 'CF', 'TF', 'AF'].includes(currentUser.area.toUpperCase().trim())) {
+    return currentUser.area.toUpperCase().trim();
+  }
+  if (currentUser.departamento_codigo && ['PF', 'CF', 'TF', 'AF'].includes(currentUser.departamento_codigo.toUpperCase().trim())) {
+    return currentUser.departamento_codigo.toUpperCase().trim();
+  }
+  const email = (currentUser.email || currentUser.correo || '').toLowerCase().trim();
+  if (email.includes('ehernandez')) return 'PF';
+  if (email.includes('mportillo')) return 'TF';
+  if (email.includes('gmotte')) return 'CF';
+  if (email.includes('jcruz')) return 'AF';
+  return 'PF';
+}
+
+function onSolicitanteCalendarProcessChange(newProc) {
+  const selectEl = document.getElementById('solic-cal-process-select');
+  const raw = newProc || selectEl?.value || getDefaultSolicitanteProcess();
+  const clean = String(raw).toUpperCase().trim();
+  activeSolicitanteCalendarProcess = ['PF', 'CF', 'TF', 'AF', 'ALL'].includes(clean) ? clean : getDefaultSolicitanteProcess();
+  if (selectEl && selectEl.value !== activeSolicitanteCalendarProcess) {
+    selectEl.value = activeSolicitanteCalendarProcess;
+  }
+  renderSolicitanteCalendar();
+  renderSolicitanteHomeUpcomingCalendar();
+}
+
 // Renderizar el widget de próximos mantenimientos directamente en el Home del Solicitante
 async function renderSolicitanteHomeUpcomingCalendar() {
   const container = document.getElementById('solic-home-upcoming-list');
@@ -19256,27 +19615,12 @@ async function renderSolicitanteHomeUpcomingCalendar() {
   const homeBadge = document.getElementById('solic-home-cal-badge');
   if (!currentUser) return;
 
-  const userArea = (currentUser.area || 'PF').toUpperCase().trim();
-  if (homeBadge) homeBadge.innerText = `ÁREA: ${userArea}`;
+  const userArea = activeSolicitanteCalendarProcess || getDefaultSolicitanteProcess();
+  if (homeBadge) homeBadge.innerText = `PROCESO: ${userArea === 'ALL' ? 'TODOS' : userArea}`;
 
   try {
-    const allDetails = await fetchCalendarDetailsFromDb();
-    const areaDetails = allDetails.filter(item => {
-      const machId = item.maquina_id || '';
-      let itemArea = null;
-      if (item.observaciones) {
-        try {
-          const obs = typeof item.observaciones === 'object' ? item.observaciones : JSON.parse(item.observaciones);
-          if (obs.area) itemArea = String(obs.area).toUpperCase().trim();
-        } catch (e) {}
-      }
-      if (!itemArea || itemArea === 'NONE' || itemArea === 'UNKNOWN') {
-        itemArea = typeof resolveAreaFromMachineCode === 'function'
-          ? resolveAreaFromMachineCode(machId, item.actividad_sugerida || '')
-          : 'PF';
-      }
-      return itemArea === userArea;
-    });
+    const areaEvents = await loadUnifiedCalendarByProcess(userArea, null, null, 'ALL');
+    const areaDetails = areaEvents.filter(e => e.tipo_mantenimiento !== 'CORRECTIVO');
 
     if (countBadge) {
       countBadge.innerText = `${areaDetails.length} Programada${areaDetails.length === 1 ? '' : 's'}`;
@@ -19285,12 +19629,15 @@ async function renderSolicitanteHomeUpcomingCalendar() {
     if (!container) return;
 
     if (areaDetails.length === 0) {
-      container.innerHTML = `<p style="color:#64748b; padding:12px 0; grid-column:1/-1;">No hay intervenciones agendadas para el Área ${userArea}.</p>`;
+      container.innerHTML = `<p style="color:#64748b; padding:12px 0; grid-column:1/-1;">No hay intervenciones agendadas para el Proceso ${userArea}.</p>`;
       return;
     }
 
-    // Top upcoming 4
-    const upcoming = areaDetails.slice(0, 4);
+    // Top upcoming 4 (próximas desde hoy o primeras en calendario)
+    const todayStr = new Date().toISOString().split('T')[0];
+    const futureItems = areaDetails.filter(e => !e.fecha || e.fecha >= todayStr);
+    const upcoming = (futureItems.length > 0 ? futureItems : areaDetails).slice(0, 4);
+
     const typeBadge = (t) => {
       const clean = (t || '').toUpperCase();
       if (clean === 'PREVENTIVO' || clean === 'MP') return `<span class="badge" style="background:#0284c7; color:white; font-size:0.72rem;">🛠️ PREVENTIVO</span>`;
@@ -19300,14 +19647,15 @@ async function renderSolicitanteHomeUpcomingCalendar() {
     };
 
     container.innerHTML = upcoming.map(item => {
-      const dateDisplay = typeof formatCalendarDate === 'function' ? formatCalendarDate(item.fecha_programada) : (item.fecha_programada || '').split('T')[0];
+      const rawDate = item.fecha || item.fecha_programada;
+      const dateDisplay = typeof formatCalendarDate === 'function' ? formatCalendarDate(rawDate) : (rawDate || '').split('T')[0];
       return `<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; gap:6px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <strong style="color:#0f172a; font-size:0.9rem;">${item.maquina_id}</strong>
+          <strong style="color:#0f172a; font-size:0.9rem;">${item.maquina_id} <span style="font-size:0.72rem; color:#0284c7;">(${item.proceso || userArea})</span></strong>
           ${typeBadge(item.tipo_mantenimiento)}
         </div>
         <div style="font-size:0.8rem; color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-          ${item.actividad_sugerida || 'Mantenimiento General'}
+          ${item.actividad || item.actividad_sugerida || 'Mantenimiento General'}
         </div>
         <div style="font-size:0.75rem; color:#64748b; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:6px; margin-top:2px;">
           <span>📅 ${dateDisplay}</span>
@@ -19461,31 +19809,26 @@ async function renderSolicitanteCalendar() {
   const subtitleEl = document.getElementById('solic-calendar-subtitle');
   if (!currentUser) return;
 
-  // PRD-CAL001-R1: Obtener proceso autorizado del usuario
-  let userProc = 'AF';
-  if (currentUser.procesos_autorizados && Array.isArray(currentUser.procesos_autorizados) && currentUser.procesos_autorizados.length > 0) {
-    userProc = currentUser.procesos_autorizados[0];
-  } else if (currentUser.area && ['PF', 'CF', 'TF', 'AF'].includes(currentUser.area.toUpperCase().trim())) {
-    userProc = currentUser.area.toUpperCase().trim();
-  } else if (currentUser.departamento_codigo && ['PF', 'CF', 'TF', 'AF'].includes(currentUser.departamento_codigo.toUpperCase().trim())) {
-    userProc = currentUser.departamento_codigo.toUpperCase().trim();
-  } else {
-    const email = (currentUser.email || currentUser.correo || '').toLowerCase().trim();
-    if (email.includes('ehernandez')) userProc = 'PF';
-    else if (email.includes('mportillo')) userProc = 'TF';
-    else if (email.includes('gmotte')) userProc = 'CF';
-    else if (email.includes('jcruz')) userProc = 'AF';
+  // PRD-CAL001-R1: Obtener proceso seleccionado o autorizado del usuario
+  if (!activeSolicitanteCalendarProcess) {
+    activeSolicitanteCalendarProcess = getDefaultSolicitanteProcess();
+  }
+  const userProc = activeSolicitanteCalendarProcess;
+  const solicProcSelect = document.getElementById('solic-cal-process-select');
+  if (solicProcSelect && solicProcSelect.value !== userProc) {
+    solicProcSelect.value = userProc;
   }
 
   const areaNames = {
     PF: 'PF — Tejido / Urdido (Planta Fabricación)',
     CF: 'CF — Costura / Confección',
     TF: 'TF — Tintorería / Acabados',
-    AF: 'AF — Servicios Auxiliares / PT'
+    AF: 'AF — Servicios Auxiliares / PT',
+    ALL: 'Todos los Procesos (PF, CF, TF, AF)'
   };
 
-  if (areaBadgeEl) areaBadgeEl.innerText = `PROCESO: ${userProc}`;
-  if (subtitleEl) subtitleEl.innerText = `Programación de maquinaria y actividades de mantenimiento de tu Proceso: ${areaNames[userProc] || userProc} (Solo lectura).`;
+  if (areaBadgeEl) areaBadgeEl.innerText = `PROCESO: ${userProc === 'ALL' ? 'TODOS' : userProc}`;
+  if (subtitleEl) subtitleEl.innerText = `Programación de maquinaria y actividades de mantenimiento de Proceso: ${areaNames[userProc] || userProc} (Sincronizado con Calendario Maestro).`;
 
   const monthsNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
@@ -19550,7 +19893,7 @@ async function renderSolicitanteCalendar() {
     type: e.tipo_mantenimiento,
     title: e.tipo_mantenimiento === 'CORRECTIVO'
       ? `${e.ot_asociada || e.id_evento}: ${e.descripcion || 'Fallo'}`
-      : `${e.tipo_mantenimiento}: ${e.maquina_id} - ${e.descripcion}`,
+      : `${e.tipo_mantenimiento} (${e.proceso || userProc}): ${e.maquina_id} - ${e.descripcion}`,
     date: e.fecha,
     estado: e.estatus,
     origen: e.origen,
@@ -19572,8 +19915,9 @@ async function renderSolicitanteCalendar() {
       for (let m = 0; m < 12; m++) {
         const monthEvents = allEvents.filter(e => {
           if (!e.date) return false;
-          const d = new Date(e.date);
-          return d.getFullYear() === solicCalendarYear && d.getMonth() === m;
+          const parts = String(e.date).split('T')[0].split('-');
+          if (parts.length < 2) return false;
+          return parseInt(parts[0], 10) === solicCalendarYear && (parseInt(parts[1], 10) - 1) === m;
         });
 
         const counts = { CORRECTIVO: 0, PREVENTIVO: 0, PREDICTIVO: 0, AUTONOMO: 0 };
@@ -21369,92 +21713,10 @@ async function openAdmin360OTAuditModal(orderId, explicitMachineId) {
 // ==========================================================================
 
 async function checkAndDispatchScheduledPreventives() {
-  if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO') return;
-  if (!useLiveDatabase || !supabaseClient) return;
-  try {
-    const { data: details, error } = await supabaseClient
-      .from('calendario_mantenimiento_detalle')
-      .select('*, calendarios_mantenimiento(anio, mes, semana)');
-    
-    if (error || !details) return;
-
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth() + 1; // 1-12
-
-    const pendingPreventives = details.filter(item => {
-      if (item.estatus === 'DESPACHADA_A_SOLICITUD' || item.estatus === 'CONVERTIDA_A_OT') return false;
-      
-      const type = (item.tipo_mantenimiento || 'PREVENTIVO').toUpperCase();
-      
-      if (item.fecha_programada) {
-        const itemDate = new Date(item.fecha_programada);
-        const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const itemDateZero = new Date(itemDate.getFullYear(), itemDate.getMonth(), itemDate.getDate());
-        const diffDays = Math.round((itemDateZero - todayZero) / (1000 * 60 * 60 * 24));
-        
-        if (type === 'AUTONOMO') {
-          // Autónomo: Se publica 1 día de anterioridad (o el mismo día)
-          return diffDays <= 1 && diffDays >= 0;
-        } else {
-          // Preventivo y Predictivo: Se publican con 7 días (1 semana) de anterioridad
-          return diffDays <= 7 && diffDays >= 0;
-        }
-      }
-      return false;
-    });
-
-    if (pendingPreventives.length === 0) return;
-
-    const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
-    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-    const combinedList = [...requests, ...orders];
-
-    for (const item of pendingPreventives) {
-      const areaCode = getAreaCodeForOrder({
-        machine: item.maquina_id,
-        area: item.area || 'AF'
-      });
-
-      let nextNum = 1;
-      combinedList.forEach(o => {
-        if (!o || !o.id) return;
-        const clean = String(o.id).toUpperCase();
-        if (clean.startsWith(areaCode)) {
-          const num = parseInt(clean.replace(areaCode, ''), 10);
-          if (!isNaN(num) && num >= nextNum) nextNum = num + 1;
-        }
-      });
-      const newFolio = `${areaCode}${String(nextNum).padStart(5, '0')}`;
-      const descriptionText = `[PREVENTIVO CALENDARIO] ${item.actividad_sugerida || 'Servicio preventivo programado'} (Máquina: ${item.maquina_id})`;
-
-      const newReqPayload = {
-        folio: newFolio,
-        orden_trabajo: 'MP',
-        origen: 'Calendario Preventivo',
-        estatus: 'RECIBIDA',
-        fecha_inicio: item.fecha_programada || today.toISOString().split('T')[0],
-        fecha_hora_inicio: item.fecha_programada ? `${item.fecha_programada}T08:00:00` : today.toISOString(),
-        departamento: areaCode,
-        maquina_id: item.maquina_id,
-        falla: 'Preventivo',
-        descripcion: descriptionText,
-        nombre_solicitante: 'Generador de Calendarios AI',
-        prioridad: item.prioridad_sugerida || 'Media',
-        fecha_carga: today.toISOString()
-      };
-
-      const { error: insErr } = await supabaseClient.from('ordenes_trabajo').insert([newReqPayload]);
-      if (!insErr) {
-        await supabaseClient
-          .from('calendario_mantenimiento_detalle')
-          .update({ estatus: 'DESPACHADA_A_SOLICITUD' })
-          .eq('id_detalle', item.id_detalle);
-      }
-    }
-  } catch (e) {
-    console.warn('[Scheduler] Error en despacho de preventivos del calendario:', e);
-  }
+  // Despacho controlado: las propuestas de calendario ('PROPUESTO') se aprueban manualmente
+  // mediante '🛠️ Generar OT' (approveProposalDetail) o '⚡ Despachar Ahora' (dispatchCalendarEventNow)
+  // para evitar inyección automática no deseada en Solicitudes Nuevas.
+  return;
 }
 
 function openRecurringRequestModal() {
