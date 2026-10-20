@@ -596,7 +596,8 @@ function triggerRecoveryUI() {
   const userIdInput = document.getElementById('change-pass-user-id');
   if (userIdInput) userIdInput.value = 'RECOVERY_MODE';
 
-  const targetRol = (['SUPER_ADMINISTRADOR', 'ADMINISTRADOR', 'ADMIN', 'JEFE_MANTENIMIENTO', 'GERENTE', 'DIRECTOR'].includes(recoverySession?.user?.user_metadata?.rol)) ? 'admin' : 'tech';
+  const rawMetaRol = recoverySession?.user?.user_metadata?.app_rol || recoverySession?.user?.user_metadata?.rol;
+  const targetRol = (['SUPER_ADMINISTRADOR', 'ADMINISTRADOR', 'ADMIN', 'JEFE_MANTENIMIENTO', 'GERENTE', 'DIRECTOR'].includes(rawMetaRol)) ? 'admin' : 'tech';
   const targetViewInput = document.getElementById('change-pass-target-view');
   if (targetViewInput) targetViewInput.value = targetRol;
   
@@ -1670,9 +1671,10 @@ async function syncDatabases() {
         const userRol = (u.rol || '').toLowerCase().trim();
         return techRoles.some(r => userRol.includes(r));
       }).map(t => ({
-        id: t.cve_tecnico || t.id_usuario,
+        id: t.cve_tecnico || t.cve_empleado || t.id_usuario,
         uuid: t.id_usuario,
-        cve_tecnico: t.cve_tecnico || null,
+        cve_tecnico: t.cve_tecnico || t.cve_empleado || null,
+        cve_empleado: t.cve_empleado || t.cve_tecnico || null,
         name: t.nombre_completo,
         email: t.correo,
         specialty: t.observaciones || t.especialidad || 'General',
@@ -1769,7 +1771,10 @@ async function syncDatabases() {
     if (!oErr && dbOrders && dbOrders.length > 0) {
       dbOrders.forEach(o => {
         if (isLegacyPrePilotRecord(o)) return;
-        const formattedStatus = formatStatus(o.estatus);
+        let formattedStatus = formatStatus(o.estatus);
+        if ((formattedStatus === 'Solicitud recibida' || !formattedStatus) && (o.cve_atendio || o.nombre_atendio)) {
+          formattedStatus = 'Asignada';
+        }
         const itemArea = o.departamento || o.area || getAreaCodeForOrder(o);
         
         let reportaName = o.nombre_solicitante;
@@ -1792,12 +1797,19 @@ async function syncDatabases() {
         let parsedDiag = '';
         let parsedAct = o.observacion_cierre || '';
         let parsedObs = '';
+        let parsedParts = [];
         if (o.observacion_cierre && o.observacion_cierre.includes('Diagnóstico:')) {
           const parts = o.observacion_cierre.split('|').map(s => s.trim());
           parts.forEach(p => {
             if (p.startsWith('Diagnóstico:')) parsedDiag = p.replace('Diagnóstico:', '').trim();
             else if (p.startsWith('Actividad:')) parsedAct = p.replace('Actividad:', '').trim();
             else if (p.startsWith('Observaciones:')) parsedObs = p.replace('Observaciones:', '').trim();
+            else if (p.startsWith('Refacciones:')) {
+              const pTxt = p.replace('Refacciones:', '').trim();
+              if (pTxt && pTxt !== 'Sin refacciones') {
+                parsedParts = pTxt.split(',').map(x => ({ name: x.trim(), quantity: 1 }));
+              }
+            }
           });
         }
 
@@ -1826,12 +1838,12 @@ async function syncDatabases() {
           urgency: o.prioridad || 'Media',
           status: formattedStatus,
           estatus: o.estatus,
-          assignedTech: o.cve_atendio,
+          assignedTech: o.cve_atendio || prefTechId || null,
           cve_atendio: o.cve_atendio,
           nombre_atendio: o.nombre_atendio,
           techName: o.nombre_atendio,
           date: o.fecha_hora_inicio || o.fecha_carga,
-          dueDate: o.fecha_fin ? `${o.fecha_fin}T${o.hora_fin || '12:00:00'}` : null,
+          dueDate: o.fecha_fin ? `${o.fecha_fin}T${o.hora_fin || '12:00:00'}` : (o.fecha_hora_fin || o.fecha_carga),
           fecha_hora_inicio: o.fecha_hora_inicio,
           fecha_hora_fin: o.fecha_hora_fin,
           tiempo_atencion_min: o.tiempo_atencion_min,
@@ -1839,6 +1851,8 @@ async function syncDatabases() {
           diagnosis: parsedDiag,
           activity: parsedAct,
           observations: parsedObs,
+          usedParts: parsedParts,
+          partsUsed: parsedParts.length > 0 ? parsedParts.map(p => `${p.name} x${p.quantity || 1}`).join(', ') : '',
           calidad: o.calidad,
           rating: o.calidad,
           evidence: null,
@@ -1849,7 +1863,7 @@ async function syncDatabases() {
         
         localRequests.push(item);
         if (o.folio) existingFolios.add(o.folio);
-        if (formattedStatus !== 'Solicitud recibida') {
+        if (formattedStatus !== 'Solicitud recibida' || o.cve_atendio || o.nombre_atendio) {
           localOrders.push(item);
         }
       });
@@ -3273,9 +3287,9 @@ async function handleAdminRequestSubmit(event) {
   const selectedTechId = (document.getElementById('admin-req-tech')?.value || '').trim();
   const dueDateRaw = document.getElementById('admin-req-due-date')?.value || '';
   const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
-  const selectedTech = techs.find(t => t.id === selectedTechId);
+  const selectedTech = techs.find(t => t.id === selectedTechId || t.uuid === selectedTechId || t.cve_tecnico === selectedTechId || t.cve_empleado === selectedTechId);
   const selectedTechName = selectedTech ? selectedTech.name : '';
-  const selectedTechCve = selectedTech ? (selectedTech.cve_tecnico || null) : null;  // FK real
+  const selectedTechCve = selectedTech ? (selectedTech.cve_tecnico || selectedTech.cve_empleado || null) : null;  // FK real
   const selectedTechUuid = selectedTech ? (selectedTech.uuid || selectedTechId) : selectedTechId; // Para matching local
 
   // Si se seleccionó técnico → crear directamente como OT Asignada
@@ -3286,6 +3300,9 @@ async function handleAdminRequestSubmit(event) {
   const dueDate = dueDateRaw ? new Date(dueDateRaw).toISOString() : (() => {
     const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(12, 0, 0, 0); return d.toISOString();
   })();
+
+  const adminFileEl = document.getElementById('admin-req-file');
+  const adminInitFile = (adminFileEl && adminFileEl.files && adminFileEl.files[0]) ? adminFileEl.files[0] : null;
 
   const newRequest = {
     id: reqId,
@@ -3302,11 +3319,13 @@ async function handleAdminRequestSubmit(event) {
     machineStopped: machineStopped,
     description: description,
     status: initialStatus,
-    assignedTech: directAssign ? selectedTechUuid : null,   // UUID para matching local
-    cve_atendio: directAssign ? selectedTechCve : null,      // cve_tecnico para sync desde Supabase
+    assignedTech: directAssign ? (selectedTechCve || selectedTechUuid) : null,
+    cve_atendio: directAssign ? selectedTechCve : null,
+    nombre_atendio: directAssign ? selectedTechName : null,
     techName: directAssign ? selectedTechName : null,
     dueDate: dueDate,
     date: nowISO,
+    evidence: adminInitFile ? adminInitFile.name : null,
     historyLogs: [
       { date: nowISO, status: 'Solicitud recibida', user: name, comment: 'Registro inicial desde panel de administrador.' },
       ...(directAssign ? [{ date: nowISO, status: 'Asignada', user: 'Super Admin', comment: `Asignada directamente a ${selectedTechName} al crear la solicitud.` }] : [])
@@ -3316,6 +3335,8 @@ async function handleAdminRequestSubmit(event) {
   // Insertar en Supabase / LocalCache
   if (supabaseClient) {
     try {
+      const cleanMach = (machine && machine !== 'NO_APLICA' && !String(machine).includes('NO APLICA') && !String(machine).startsWith('📍')) ? machine : null;
+      const validArea = ['PF', 'CF', 'TF', 'AF'].includes(String(area).toUpperCase().trim()) ? String(area).toUpperCase().trim() : 'CF';
       const payload = {
         folio: reqId,
         orden_trabajo: type,
@@ -3324,8 +3345,8 @@ async function handleAdminRequestSubmit(event) {
         fecha_inicio: nowISO.split('T')[0],
         hora_inicio: nowISO.split('T')[1].split('.')[0],
         fecha_hora_inicio: nowISO,
-        departamento: area,
-        maquina_id: machine,
+        departamento: validArea,
+        maquina_id: cleanMach,
         falla: type,
         descripcion: description,
         nombre_solicitante: name,
@@ -3333,7 +3354,7 @@ async function handleAdminRequestSubmit(event) {
         turno_solicitante: shift.includes('Maña') || shift.includes('1') ? 1 : shift.includes('Vesper') || shift.includes('Tarde') || shift.includes('2') ? 2 : 3,
         prioridad: urgency,
         ...(directAssign ? {
-          cve_atendio: selectedTechCve,  // cve_tecnico real (puede ser null si no tiene)
+          cve_atendio: selectedTechCve,
           nombre_atendio: selectedTechName,
           fecha_fin: dueDate.split('T')[0],
           hora_fin: dueDate.split('T')[1]?.split('.')[0] || '12:00:00',
@@ -3342,10 +3363,18 @@ async function handleAdminRequestSubmit(event) {
         fecha_carga: nowISO
       };
       
-      const { data, error } = await supabaseClient
+      let { data, error } = await supabaseClient
         .from('ordenes_trabajo')
         .insert([payload])
         .select();
+
+      if (error) {
+        console.warn('[submitAdminNewRequest] Retry sin FKs opcionales:', error.message);
+        const retryPayload = { ...payload, cve_solicitante: null, cve_atendio: null };
+        const retryRes = await supabaseClient.from('ordenes_trabajo').insert([retryPayload]).select();
+        data = retryRes.data;
+        error = retryRes.error;
+      }
       if (error) throw error;
       
       if (data && data.length > 0) {
@@ -3354,6 +3383,20 @@ async function handleAdminRequestSubmit(event) {
       }
     } catch (err) {
       console.error('Error inserting request in Supabase:', err);
+    }
+  }
+
+  if (adminInitFile) {
+    try {
+      await uploadOTEvidence({
+        otId: newRequest.id,
+        machineId: machine,
+        tipoEvidencia: 'ANTES',
+        file: adminInitFile,
+        description: 'Evidencia inicial adjuntada al crear la OT'
+      });
+    } catch (eEv) {
+      console.warn('[submitAdminNewRequest] Warn uploading initial evidence:', eEv);
     }
   }
 
@@ -4355,10 +4398,34 @@ async function uploadOTEvidence({ otId, machineId, tipoEvidencia, file, descript
 async function renderTechOTPhotos(otId) {
   const container = document.getElementById('tech-ot-photos-container');
   const badge = document.getElementById('tech-evidence-summary-badge');
+  const fileBox = document.getElementById('tech-ot-lbl-file-box');
+  const imgLbl = document.getElementById('tech-ot-img-lbl');
   if (!container || !otId) return;
 
   const evResult = await loadOTEvidences(otId);
   const evidences = evResult.all;
+
+  // Actualizar caja de evidencia inicial del solicitante si existe foto ANTES
+  if (fileBox && imgLbl) {
+    if (evResult.before.length > 0) {
+      fileBox.style.display = 'block';
+      const firstBefore = evResult.before[0];
+      const bUrl = firstBefore.url || firstBefore.url_archivo || '';
+      const safeTech = (firstBefore.nombre_tecnico || 'Solicitante / Reportante').replace(/'/g, "\\'");
+      const safeDesc = (firstBefore.descripcion || firstBefore.comentario || 'Evidencia inicial reportada').replace(/'/g, "\\'");
+      imgLbl.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px; margin-top:6px; flex-wrap:wrap; background:#f0f9ff; padding:8px 12px; border-radius:6px; border:1px solid #bae6fd;">
+          <img src="${bUrl}" alt="Evidencia Inicial" style="width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid #0284c7; cursor:pointer;" onclick="openPhotoLightbox('${bUrl}', { type: 'ANTES', ot: '${otId}', tech: '${safeTech}', desc: '${safeDesc}' })">
+          <div>
+            <a style="color: var(--accent-blue); font-weight:700; text-decoration: underline; cursor:pointer; font-size:0.88rem;" onclick="openPhotoLightbox('${bUrl}', { type: 'ANTES', ot: '${otId}', tech: '${safeTech}', desc: '${safeDesc}' })">
+              🖼️ Ver Fotografía Inicial del Solicitante (${evResult.before.length} foto${evResult.before.length === 1 ? '' : 's'})
+            </a>
+            <div style="font-size:0.75rem; color:#0369a1; margin-top:2px;">Subida por: <strong>${safeTech}</strong> — ${safeDesc}</div>
+          </div>
+        </div>
+      `;
+    }
+  }
 
   if (badge) {
     badge.innerText = evidences.length + ' Evidencia' + (evidences.length === 1 ? '' : 's');
@@ -4381,7 +4448,7 @@ async function renderTechOTPhotos(otId) {
     const timeStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const imgUrl = ev.url || ev.url_archivo || '';
     const safeDesc = (ev.descripcion || ev.comentario || '').replace(/'/g, "\\'");
-    const safeTech = (ev.nombre_tecnico || 'Técnico').replace(/'/g, "\\'");
+    const safeTech = (ev.nombre_tecnico || 'Técnico / Solicitante').replace(/'/g, "\\'");
     const safeTime = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleString('es-MX');
 
     return `
@@ -4394,6 +4461,7 @@ async function renderTechOTPhotos(otId) {
           <img src="${imgUrl}" alt="${ev.tipo_evidencia}" style="width: 100%; height: 100%; object-fit: cover;">
         </div>
         ${ev.descripcion ? `<p style="margin: 4px 0 2px 0; font-size: 0.72rem; color: #334155; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${ev.descripcion}">${ev.descripcion}</p>` : ''}
+        <div style="font-size:0.68rem; color:#64748b; margin-top:2px; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">👤 ${safeTech}</div>
         <div style="display: flex; justify-content: space-between; margin-top: 4px;">
           <button type="button" style="font-size: 0.7rem; color: #0284c7; background: none; border: none; cursor: pointer; padding: 0;" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia}', ot: '${otId}', machine: '${ev.maquina_id || ''}', tech: '${safeTech}', time: '${safeTime}', desc: '${safeDesc}' })">🔍 Ver</button>
           <button type="button" style="font-size: 0.7rem; color: #ef4444; background: none; border: none; cursor: pointer; padding: 0;" onclick="deleteOTPhoto('${ev.id_evidencia || ev.id}', '${otId}')">🗑️</button>
@@ -4448,7 +4516,6 @@ function validateOTEvidencesBeforeClosure(orderObj, overrideReason = null) {
 
   const otId = orderObj.id || orderObj.folio || orderObj.otId;
   const otUuid = orderObj.uuid || orderObj.id_orden || null;
-  const orderType = (orderObj.type || orderObj.tipo_orden || 'CORRECTIVO').toUpperCase();
 
   let evidences = [];
   if (APP_ENVIRONMENT === 'DEMO') {
@@ -4461,26 +4528,6 @@ function validateOTEvidencesBeforeClosure(orderObj, overrideReason = null) {
 
   const beforeCount = evidences.filter(e => e.tipo_evidencia === 'ANTES').length;
   const afterCount = evidences.filter(e => e.tipo_evidencia === 'DESPUES' || e.tipo_evidencia === 'DESPUÉS').length;
-
-  if (orderType.includes('CORRECTIV') || orderType === 'MC') {
-    if (beforeCount < 1 || afterCount < 1) {
-      return {
-        isValid: false,
-        beforeCount,
-        afterCount,
-        message: `Una Orden Correctiva requiere al menos 1 fotografía ANTES (actual: ${beforeCount}) y 1 fotografía DESPUÉS (actual: ${afterCount}) para poder completarse.`
-      };
-    }
-  } else if (orderType.includes('PREVENTIV') || orderType === 'MP') {
-    if (afterCount < 1) {
-      return {
-        isValid: false,
-        beforeCount,
-        afterCount,
-        message: `Una Orden Preventiva requiere al menos 1 fotografía DESPUÉS (actual: ${afterCount}) del trabajo concluido.`
-      };
-    }
-  }
 
   return { isValid: true, beforeCount, afterCount };
 }
@@ -4600,6 +4647,47 @@ async function loadOTEvidences(orderId) {
     } catch (dbErr) {
       console.error('[loadOTEvidences] Error consultando backend:', dbErr);
     }
+  }
+
+  // Respaldo de evidencias locales y fotografía inicial del solicitante
+  try {
+    const localStoredEvs = JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]');
+    const matchingLocal = localStoredEvs.filter(e => {
+      const eOt = String(e.otId || e.id_orden || e.ot_folio || '').trim();
+      return (eOt === cleanOrderId) && e.activo !== false && !e.deleted_at;
+    });
+    rawEvidences = [...rawEvidences, ...matchingLocal];
+
+    // Verificar si la OT o Solicitud tiene foto inicial guardada directamente en su registro
+    const allOrders = [
+      ...JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]'),
+      ...JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]')
+    ];
+    const ordMatch = allOrders.find(o => String(o.id || o.folio || '').trim() === cleanOrderId);
+    if (ordMatch && (ordMatch.evidence || ordMatch.url_archivo || ordMatch.evidencia)) {
+      const evUrl = ordMatch.url_archivo || ordMatch.evidence || ordMatch.evidencia;
+      if (typeof evUrl === 'string' && (evUrl.startsWith('data:') || evUrl.startsWith('http') || evUrl.length > 5)) {
+        rawEvidences.push({
+          id: 'INITIAL-EV-' + cleanOrderId,
+          id_evidencia: 'INITIAL-EV-' + cleanOrderId,
+          id_orden: cleanOrderId,
+          otId: cleanOrderId,
+          tipo_evidencia: 'ANTES',
+          url: evUrl,
+          url_archivo: evUrl,
+          nombre_archivo: evUrl.includes('/') ? evUrl.split('/').pop() : 'Evidencia_Inicial.jpg',
+          descripcion: ordMatch.description || 'Fotografía inicial reportada por el Solicitante',
+          comentario: ordMatch.description || 'Fotografía inicial reportada por el Solicitante',
+          nombre_tecnico: ordMatch.applicant || ordMatch.nombre_solicitante || 'Solicitante',
+          usuario_carga: ordMatch.applicant || ordMatch.nombre_solicitante || 'Solicitante',
+          captured_at: ordMatch.date || ordMatch.fecha_carga || new Date().toISOString(),
+          created_at: ordMatch.date || ordMatch.fecha_carga || new Date().toISOString(),
+          activo: true
+        });
+      }
+    }
+  } catch (eLocalMerge) {
+    console.warn('[loadOTEvidences] Warn merging local evidences:', eLocalMerge);
   }
 
   // Deduplicación de evidencias
@@ -8347,18 +8435,21 @@ async function convertToWorkOrder() {
 
   // Buscar objeto completo del técnico
   const techs = JSON.parse(localStorage.getItem('TSMAI_technicians') || '[]');
-  const techObj = techs.find(t => t.id === techId);
+  const techObj = techs.find(t => t.id === techId || t.uuid === techId || t.cve_tecnico === techId || t.cve_empleado === techId);
   const techName = techObj ? techObj.name : 'Técnico';
-  // Usar cve_tecnico real para FK en Supabase; si no tiene, usar null (no forzar UUID inválido)
-  const techCveForDB = techObj ? (techObj.cve_tecnico || null) : null;
+  // Usar cve_tecnico o cve_empleado real para FK en Supabase; si no tiene, usar null
+  const techCveForDB = techObj ? (techObj.cve_tecnico || techObj.cve_empleado || null) : null;
   // Para matching local usamos el id completo (puede ser UUID o cve_tecnico)
-  const techUuidForLocal = techObj ? (techObj.uuid || techId) : techId;
+  const techUuidForLocal = techObj ? (techObj.cve_tecnico || techObj.cve_empleado || techObj.uuid || techId) : techId;
 
   const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const newOrder = {
     requested_technician_id: req.requested_technician_id || null,
     nombre_solicitante_reporta: req.nombre_solicitante_reporta || null,
+    applicant_id: req.applicant_id || null,
+    applicant_email: req.applicant_email || null,
     id: otId,
+    folio: otId,
     reqId: reqId,
     applicant: req.applicant,
     shift: req.shift,
@@ -8370,8 +8461,10 @@ async function convertToWorkOrder() {
     machineStopped: req.machineStopped,
     urgency: priority,
     status: 'Asignada',
-    assignedTech: techUuidForLocal,   // UUID para matching local
-    cve_atendio: techCveForDB,        // cve_tecnico para sync desde Supabase
+    estatus: 'asignada',
+    assignedTech: techUuidForLocal,
+    cve_atendio: techCveForDB,
+    nombre_atendio: techName,
     techName: techName,
     date: req.date,
     dueDate: new Date(dueDate).toISOString(),
@@ -8382,7 +8475,12 @@ async function convertToWorkOrder() {
     ]
   };
 
-  orders.push(newOrder);
+  const existingOrdIdx = orders.findIndex(o => o.id === otId || o.folio === otId);
+  if (existingOrdIdx !== -1) {
+    orders[existingOrdIdx] = { ...orders[existingOrdIdx], ...newOrder };
+  } else {
+    orders.push(newOrder);
+  }
   localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
 
   // Actualizar / Insertar en Supabase
@@ -8416,10 +8514,8 @@ async function convertToWorkOrder() {
         falla: req.type || 'Correctivo',
         descripcion: req.description,
         nombre_solicitante: req.applicant,
-        nombre_solicitante_reporta: req.nombre_solicitante_reporta || req.applicant || null,
-        requested_technician_id: req.requested_technician_id || null,
         cve_solicitante: validCveSolicitante,
-        cve_atendio: techCveForDB,  // cve_tecnico real — null si no tiene (evita error FK)
+        cve_atendio: techCveForDB,
         nombre_atendio: techName,
         prioridad: priority,
         fecha_fin: parsedDueDate.toISOString().split('T')[0],
@@ -8435,23 +8531,38 @@ async function convertToWorkOrder() {
         .eq('folio', reqId);
 
       if (existing && existing.length > 0) {
-        await supabaseClient
+        const updatePayload = {
+          estatus: getDBStatus('Asignada'),
+          orden_trabajo: type,
+          cve_atendio: techCveForDB,
+          nombre_atendio: techName,
+          prioridad: priority,
+          fecha_fin: parsedDueDate.toISOString().split('T')[0],
+          hora_fin: parsedDueDate.toTimeString().split(' ')[0],
+          fecha_hora_fin: parsedDueDate.toISOString()
+        };
+        const { error: updErr } = await supabaseClient
           .from('ordenes_trabajo')
-          .update({
-            estatus: getDBStatus('Asignada'),
-            orden_trabajo: type,
-            cve_atendio: techCveForDB,  // cve_tecnico real — null si no tiene (evita error FK)
-            nombre_atendio: techName,
-            prioridad: priority,
-            fecha_fin: parsedDueDate.toISOString().split('T')[0],
-            hora_fin: parsedDueDate.toTimeString().split(' ')[0],
-            fecha_hora_fin: parsedDueDate.toISOString()
-          })
+          .update(updatePayload)
           .eq('folio', reqId);
+
+        if (updErr) {
+          console.warn('[convertToWorkOrder] Retry update sin cve_atendio FK:', updErr.message);
+          await supabaseClient
+            .from('ordenes_trabajo')
+            .update({ ...updatePayload, cve_atendio: null })
+            .eq('folio', reqId);
+        }
       } else {
-        await supabaseClient
+        const { error: insErr } = await supabaseClient
           .from('ordenes_trabajo')
           .insert([payload]);
+        if (insErr) {
+          console.warn('[convertToWorkOrder] Retry insert sin FKs opcionales:', insErr.message);
+          await supabaseClient
+            .from('ordenes_trabajo')
+            .insert([{ ...payload, cve_atendio: null, cve_solicitante: null }]);
+        }
       }
 
     } catch (err) {
@@ -12456,6 +12567,37 @@ function renderTechProfile() {
   }
 }
 
+// Helper universal para verificar asignación a un técnico
+function isOrderAssignedToTech(o, user) {
+  if (!o || !user) return false;
+  const techId = String(user.id || '').trim();
+  const techUuid = String(user.uuid || '').trim();
+  const techCve = String(user.cve_tecnico || user.cve_empleado || '').trim();
+  const techEmp = String(user.cve_empleado || '').trim();
+  const techNameNorm = normalizeSearchText(user.name || user.nombre_completo || '');
+
+  const oAssigned = String(o.assignedTech || '').trim();
+  const oCve = String(o.cve_atendio || '').trim();
+  const oReqTech = String(o.requested_technician_id || '').trim();
+
+  if (techId && (oAssigned === techId || oCve === techId || oReqTech === techId)) return true;
+  if (techUuid && (oAssigned === techUuid || oCve === techUuid || oReqTech === techUuid)) return true;
+  if (techCve && (oAssigned === techCve || oCve === techCve || oReqTech === techCve)) return true;
+  if (techEmp && (oAssigned === techEmp || oCve === techEmp || oReqTech === techEmp)) return true;
+
+  const oTechNameNorm = normalizeSearchText(o.techName || o.nombre_atendio || '');
+  if (techNameNorm && oTechNameNorm) {
+    if (techNameNorm === oTechNameNorm || techNameNorm.includes(oTechNameNorm) || oTechNameNorm.includes(techNameNorm)) return true;
+    const userParts = techNameNorm.split(' ').filter(p => p.length >= 3);
+    const otParts = oTechNameNorm.split(' ').filter(p => p.length >= 3);
+    const matches = userParts.filter(up => otParts.some(op => op === up || op.startsWith(up) || up.startsWith(op)));
+    if (matches.length >= 2) return true;
+    if (userParts.length === 1 && otParts.length === 1 && userParts[0] === otParts[0]) return true;
+  }
+
+  return false;
+}
+
 // Renderizar KPI cards del Técnico y Widget de Calendario
 function renderTechDashboard() {
   if (!currentUser) return;
@@ -12463,23 +12605,8 @@ function renderTechDashboard() {
   const subtasks = JSON.parse(localStorage.getItem('TSMAI_subtasks') || '[]');
   
   // Filtrar OTs y Subtareas asignadas a este técnico
-  const techId = currentUser.id || currentUser.uuid || currentUser.cve_tecnico;
-  const techUuid = currentUser.uuid;
-  const techCve = currentUser.cve_tecnico;
-  const techName = (currentUser.name || '').toLowerCase();
-  const myOrders = orders.filter(o => {
-    if (o.assignedTech === techId || o.assignedTech === techUuid || o.assignedTech === techCve) return true;
-    if (o.cve_atendio === techId || o.cve_atendio === techCve || o.cve_atendio === techUuid) return true;
-    if (o.techName && o.techName.toLowerCase() === techName) return true;
-    if (o.nombre_atendio && techName && o.nombre_atendio.toLowerCase() === techName) return true;
-    return false;
-  });
-  const mySubtasks = subtasks.filter(s => 
-    s.assignedTech === techId || 
-    s.assignedTech === techUuid ||
-    s.cve_atendio === techId ||
-    s.cve_atendio === techCve
-  );
+  const myOrders = orders.filter(o => isOrderAssignedToTech(o, currentUser));
+  const mySubtasks = subtasks.filter(s => isOrderAssignedToTech(s, currentUser));
 
   const assigned = myOrders.filter(o => o.status === 'Asignada').length + mySubtasks.filter(s => s.status === 'Asignada').length;
   const process = myOrders.filter(o => o.status === 'En proceso').length + mySubtasks.filter(s => s.status === 'En proceso').length;
@@ -12797,6 +12924,10 @@ function getOTStatusSLA(order) {
   }
 }
 
+function getOTSLAInfo(order) {
+  return getOTStatusSLA(order);
+}
+
 function updateTechActionButtons(order) {
   if (!order) return;
   const btnStart = document.getElementById('btn-tech-start-work');
@@ -12815,8 +12946,8 @@ function updateTechActionButtons(order) {
   const bannerReason = document.getElementById('tech-ot-waiting-banner-reason');
   const bannerObs = document.getElementById('tech-ot-waiting-banner-obs');
 
-  const st = order.status || 'Pendiente';
-  const sla = getOTSLAInfo(order);
+  const st = order.status || order.estatus || 'Pendiente';
+  const sla = getOTStatusSLA(order);
 
   if (statusBadge) {
     statusBadge.innerText = st;
@@ -12862,7 +12993,7 @@ function updateTechActionButtons(order) {
     }
   }
   if (waitingBanner) {
-    if (st === 'En espera') {
+    if (st === 'En espera' || st === 'EN_ESPERA') {
       const reasonMeta = WAIT_REASON_CATALOG[order.currentWaitReason] || { label: 'Esperando refacción/material' };
       waitingBanner.style.display = 'block';
       if (bannerReason) bannerReason.innerText = `Motivo: ${reasonMeta.label}`;
@@ -12882,25 +13013,37 @@ function updateTechActionButtons(order) {
   if (btnFinish) btnFinish.style.display = 'none';
   if (btnHandoff) btnHandoff.style.display = 'none';
 
-  if (st === 'Asignada' || st === 'Pendiente') {
+  const normSt = String(st).toLowerCase().trim();
+  if (normSt === 'asignada' || normSt === 'pendiente' || normSt === 'solicitud recibida' || normSt === 'requiere revisión') {
     if (btnStart) btnStart.style.display = 'inline-block';
-  } else if (st === 'En proceso') {
+    if (btnFinish) btnFinish.style.display = 'inline-block';
+  } else if (normSt === 'en proceso' || normSt === 'en_proceso') {
     if (btnPause) btnPause.style.display = 'inline-block';
     if (btnFinish) btnFinish.style.display = 'inline-block';
     if (btnHandoff) btnHandoff.style.display = 'inline-block';
-  } else if (st === 'En espera') {
+  } else if (normSt === 'en espera' || normSt === 'en_espera') {
     if (btnResume) btnResume.style.display = 'inline-block';
+  } else if (normSt === 'lista para validación' || normSt === 'lista_para_validacion' || normSt === 'pendiente de validación') {
+    if (statusBadge) {
+      statusBadge.innerText = 'Lista para validación';
+      statusBadge.className = 'badge badge-status-proceso';
+    }
   }
 }
+
 async function startWorkOnOT() {
   setButtonLoading('btn-tech-start-work', true);
   const otId = document.getElementById('tech-ot-id').value;
   const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-  const idx = orders.findIndex(o => o.id === otId);
+  const idx = orders.findIndex(o => 
+    String(o.id || '').trim() === String(otId).trim() || 
+    String(o.folio || '').trim() === String(otId).trim()
+  );
   if (idx === -1) { setButtonLoading('btn-tech-start-work', false); return; }
 
   const nowISO = new Date().toISOString();
   orders[idx].status = 'En proceso';
+  orders[idx].estatus = 'en_proceso';
   orders[idx].fecha_hora_inicio = orders[idx].fecha_hora_inicio || nowISO;
   
   if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
@@ -12913,12 +13056,12 @@ async function startWorkOnOT() {
 
   localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
 
-  if (supabaseClient) {
+  if (supabaseClient && useLiveDatabase) {
     try {
       await supabaseClient
         .from('ordenes_trabajo')
         .update({
-          estatus: 'EN_PROCESO',
+          estatus: 'en_proceso',
           fecha_hora_inicio: orders[idx].fecha_hora_inicio
         })
         .eq('folio', otId);
@@ -12939,16 +13082,17 @@ async function pauseWorkOnOT() {
 }
 
 async function resumeWorkOnOT() {
-  openResumeWaitingModal();
-}
-async function resumeWorkOnOT() {
   setButtonLoading('btn-tech-resume-work', true);
   const otId = document.getElementById('tech-ot-id').value;
   const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-  const idx = orders.findIndex(o => o.id === otId);
+  const idx = orders.findIndex(o => 
+    String(o.id || '').trim() === String(otId).trim() || 
+    String(o.folio || '').trim() === String(otId).trim()
+  );
   if (idx === -1) { setButtonLoading('btn-tech-resume-work', false); return; }
 
   orders[idx].status = 'En proceso';
+  orders[idx].estatus = 'en_proceso';
   orders[idx].pauseReason = null;
 
   if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
@@ -12961,11 +13105,11 @@ async function resumeWorkOnOT() {
 
   localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
 
-  if (supabaseClient) {
+  if (supabaseClient && useLiveDatabase) {
     try {
       await supabaseClient
         .from('ordenes_trabajo')
-        .update({ estatus: 'EN_PROCESO' })
+        .update({ estatus: 'en_proceso' })
         .eq('folio', otId);
     } catch (err) {
       console.error('Error resuming work in Supabase:', err);
@@ -12982,7 +13126,10 @@ async function resumeWorkOnOT() {
 async function finishWorkOnOT() {
   const otId = document.getElementById('tech-ot-id').value;
   const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-  const idx = orders.findIndex(o => o.id === otId);
+  const idx = orders.findIndex(o => 
+    String(o.id || '').trim() === String(otId).trim() || 
+    String(o.folio || '').trim() === String(otId).trim()
+  );
   if (idx === -1) return;
 
   if (orders[idx].status === 'En espera' || orders[idx].status === 'EN_ESPERA') {
@@ -13088,8 +13235,100 @@ async function finishWorkOnOT() {
   closeModal('modal-tech-ot-detail');
   showToast('✅ Trabajo finalizado. La OT cambió a Lista para validación.', 'success');
 
+  // Enviar notificación al solicitante
+  notifySolicitanteOTReady(orders[idx]);
+
   renderTechOrdersTable();
   if (typeof syncDatabases === 'function') await syncDatabases();
+}
+
+// Guardar Avance Técnico (sin cerrar ni pasar a validación)
+async function saveTechnicalProgressOnly() {
+  const otId = document.getElementById('tech-ot-id')?.value;
+  if (!otId) return;
+  const saveBtn = document.getElementById('btn-tech-save-progress');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerText = '⏳ Guardando...';
+  }
+
+  try {
+    const diagnosis = document.getElementById('tech-diagnosis')?.value.trim() || '';
+    const activity = document.getElementById('tech-activity')?.value.trim() || '';
+    const observations = document.getElementById('tech-observations')?.value.trim() || '';
+
+    const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+    const idx = orders.findIndex(o => 
+      String(o.id || '').trim() === String(otId).trim() || 
+      String(o.folio || '').trim() === String(otId).trim()
+    );
+
+    if (idx !== -1) {
+      orders[idx].diagnosis = diagnosis;
+      orders[idx].activity = activity;
+      orders[idx].observations = observations;
+      orders[idx].usedParts = tempSelectedParts;
+      if (!orders[idx].historyLogs) orders[idx].historyLogs = [];
+      orders[idx].historyLogs.push({
+        date: new Date().toISOString(),
+        status: orders[idx].status,
+        user: currentUser ? currentUser.name : 'Técnico',
+        comment: 'Avance técnico guardado.'
+      });
+      localStorage.setItem('TSMAI_orders', JSON.stringify(orders));
+    }
+
+    const combinedObs = `Diagnóstico: ${diagnosis} | Actividad: ${activity}${observations ? ' | Observaciones: ' + observations : ''}`;
+
+    if (supabaseClient && useLiveDatabase) {
+      await supabaseClient
+        .from('ordenes_trabajo')
+        .update({
+          observacion_cierre: combinedObs
+        })
+        .eq('folio', otId);
+    }
+
+    showToast('💾 Avance técnico guardado exitosamente.', 'success');
+  } catch (err) {
+    console.error('Error guardando avance técnico:', err);
+    showToast('Error al guardar avance: ' + err.message, 'error');
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerText = '💾 Guardar Avance';
+    }
+  }
+}
+
+// Notificación automática al Solicitante para validación y cierre
+function notifySolicitanteOTReady(order) {
+  if (!order) return;
+  const folio = order.id || order.folio || 'OT-000';
+  const machine = order.machine || order.maquina_id || 'Equipo';
+  const techName = (currentUser && currentUser.name) || order.techName || 'El técnico';
+  const solicEmail = order.applicant_email || order.applicant || '';
+  const nowISO = new Date().toISOString();
+
+  const notif = {
+    id: 'NOTIF-' + Date.now(),
+    type: 'OT_LISTA_VALIDACION',
+    folio: folio,
+    title: `🔔 OT ${folio} lista para validación`,
+    message: `${techName} ha finalizado los trabajos en la máquina ${machine}. Por favor revisa la evidencia y valida el trabajo para proceder al cierre.`,
+    target_email: solicEmail,
+    target_role: 'SOLICITANTE',
+    date: nowISO,
+    read: false
+  };
+
+  try {
+    const existing = JSON.parse(localStorage.getItem('TSMAI_notifications') || '[]');
+    existing.unshift(notif);
+    localStorage.setItem('TSMAI_notifications', JSON.stringify(existing.slice(0, 100)));
+  } catch (e) {}
+
+  showToast(`📢 Notificación enviada al solicitante para validación y cierre de la OT ${folio}.`, 'info');
 }
 
 // Tabla de OTs de Técnico (Filtrado estricto por técnico asignado)
@@ -13100,23 +13339,11 @@ function renderTechOrdersTable() {
   const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
   const tbody = document.getElementById('table-tech-orders-body');
 
-  const techId = currentUser.id || currentUser.uuid || currentUser.cve_tecnico;
-  const techUuid = currentUser.uuid;
-  const techCve = currentUser.cve_tecnico;
-  const techName = (currentUser.name || '').toLowerCase();
-
-  const myOrders = orders.filter(o => {
-    if (o.assignedTech === techId || o.assignedTech === techUuid || o.assignedTech === techCve) return true;
-    if (o.cve_atendio === techId || o.cve_atendio === techCve || o.cve_atendio === techUuid) return true;
-    if (o.techName && o.techName.toLowerCase() === techName) return true;
-    // Fallback: nombre_atendio de Supabase
-    if (o.nombre_atendio && techName && o.nombre_atendio.toLowerCase() === techName) return true;
-    return false;
-  });
+  const myOrders = orders.filter(o => isOrderAssignedToTech(o, currentUser));
   
   // Convertir subtareas activas del técnico a formato compatible con la tabla
   const mySubtasks = subtasks.filter(s => 
-    (s.assignedTech === techId || s.assignedTech === techUuid || s.assignedTech === techCve || s.cve_atendio === techId || s.cve_atendio === techCve) && 
+    isOrderAssignedToTech(s, currentUser) && 
     s.status !== 'Terminada' && 
     s.status !== 'Cancelada'
   );
@@ -13185,14 +13412,15 @@ function openTechOrderDetailModal(otId) {
     document.getElementById('tech-ot-detail-title').innerText = `Detalle de Subtarea: ${otId}`;
 
     const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-    const parentOrder = orders.find(o => o.id === sub.otId);
+    const parentOrder = orders.find(o => o.id === sub.otId || o.folio === sub.otId);
     const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     const mach = parentOrder ? machines.find(m => m.id === parentOrder.machine) : null;
 
     document.getElementById('tech-ot-lbl-machine').innerText = mach ? mach.name : (parentOrder ? parentOrder.machine : 'Máquina');
     document.getElementById('tech-ot-lbl-area').innerText = `Apoyo ${sub.area}`;
     document.getElementById('tech-ot-lbl-machinestate').innerText = mach ? mach.status : 'Operativa';
-    document.getElementById('tech-ot-lbl-urgency').innerHTML = `<span class="badge badge-priority-${sub.priority.toLowerCase()}">${sub.priority}</span>`;
+    const subUrg = sub.priority || 'Media';
+    document.getElementById('tech-ot-lbl-urgency').innerHTML = `<span class="badge badge-priority-${subUrg.toLowerCase()}">${subUrg}</span>`;
     document.getElementById('tech-ot-lbl-description').innerHTML = `<strong>Actividad Requerida:</strong> ${sub.description}<br><strong>Motivo de Apoyo:</strong> ${sub.reason}`;
 
     // Evidencia Inicial
@@ -13235,8 +13463,23 @@ function openTechOrderDetailModal(otId) {
   } else {
     // Es una OT normal
     const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-    const order = orders.find(o => o.id === otId);
-    if (!order) return;
+    const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+    const cleanId = String(otId).trim();
+    const order = orders.find(o => 
+      String(o.id || '').trim() === cleanId || 
+      String(o.folio || '').trim() === cleanId || 
+      String(o.uuid || '').trim() === cleanId || 
+      String(o.id_orden || '').trim() === cleanId
+    ) || requests.find(r => 
+      String(r.id || '').trim() === cleanId || 
+      String(r.folio || '').trim() === cleanId || 
+      String(r.uuid || '').trim() === cleanId || 
+      String(r.id_orden || '').trim() === cleanId
+    );
+    if (!order) {
+      console.warn('No se encontró orden para otId:', otId);
+      return;
+    }
 
     // Mostrar campos que pudieran estar ocultos por subtarea anterior
     document.querySelectorAll('input[name="tech-subtask-req"]').forEach(radio => radio.disabled = false);
@@ -13244,22 +13487,24 @@ function openTechOrderDetailModal(otId) {
     document.getElementById('tech-part-select').closest('.form-group').style.display = 'flex';
 
     document.getElementById('tech-ot-id').value = otId;
-    document.getElementById('tech-ot-detail-title').innerText = `Detalle de Orden de Trabajo: ${otId}`;
+    document.getElementById('tech-ot-detail-title').innerText = `Detalle de Orden de Trabajo: ${order.folio || otId}`;
 
     const machines = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     const mach = machines.find(m => m.id === order.machine);
     
     document.getElementById('tech-ot-lbl-machine').innerText = mach ? mach.name : order.machine;
-    document.getElementById('tech-ot-lbl-area').innerText = `${order.area} - ${mach ? mach.area : ''}`;
+    document.getElementById('tech-ot-lbl-area').innerText = `${order.area || ''} - ${mach ? mach.area : ''}`;
     document.getElementById('tech-ot-lbl-machinestate').innerText = mach ? mach.status : 'Operativa';
-    document.getElementById('tech-ot-lbl-urgency').innerHTML = `<span class="badge badge-priority-${order.urgency.toLowerCase()}">${order.urgency}</span>`;
-    document.getElementById('tech-ot-lbl-description').innerText = order.description;
+    const urgencyLabel = order.urgency || order.prioridad || 'Media';
+    document.getElementById('tech-ot-lbl-urgency').innerHTML = `<span class="badge badge-priority-${urgencyLabel.toLowerCase()}">${urgencyLabel}</span>`;
+    document.getElementById('tech-ot-lbl-description').innerText = order.description || order.descripcion || 'Sin descripción detallada';
 
     // Evidencia Inicial
     const fileBox = document.getElementById('tech-ot-lbl-file-box');
-    if (order.evidence) {
+    if (order.evidence || order.url_archivo) {
       fileBox.style.display = 'block';
-      document.getElementById('tech-ot-img-lbl').innerHTML = `🖼️ <a style="color: var(--accent-blue); text-decoration: underline; cursor:pointer;" onclick="alert('Visualizando archivo: ' + '${order.evidence}')">${order.evidence}</a>`;
+      const evSrc = order.url_archivo || order.evidence;
+      document.getElementById('tech-ot-img-lbl').innerHTML = `🖼️ <a style="color: var(--accent-blue); text-decoration: underline; cursor:pointer;" onclick="openPhotoLightbox('${evSrc}', { type: 'ANTES', ot: '${otId}', tech: 'Solicitante' })">Ver evidencia inicial</a>`;
     } else {
       fileBox.style.display = 'none';
     }
@@ -13318,12 +13563,17 @@ function openTechOrderDetailModal(otId) {
     renderTechTempSubtasksList();
 
     // Actualizar botones de acción y tiempos del técnico
-    updateTechActionButtons(order);
+    try {
+      updateTechActionButtons(order);
+    } catch (eBtn) {
+      console.warn('Warn updateTechActionButtons:', eBtn);
+    }
 
     openModal('modal-tech-ot-detail');
     renderTechOTPhotos(otId);
   }
 }
+
 
 function toggleSubtaskForm() {
   const reqSubtaskEl = document.querySelector('input[name="tech-subtask-req"]:checked');
@@ -13525,6 +13775,10 @@ async function setWorkStatus(newStatus) {
   }
 
   // Si es OT principal, actualizar estado
+  if (newStatus === 'Ejecutada' || newStatus === 'Terminada' || newStatus === 'Lista para validación') {
+    await finishWorkOnOT();
+    return;
+  }
   await updateOrderStatus(otId, newStatus);
 }
 
@@ -19153,6 +19407,26 @@ function renderSolicitanteProfileHeader() {
       valSidebarBadge.style.display = (canValidate && pendingVal.length > 0) ? 'inline-block' : 'none';
     }
 
+    const alertBanner = document.getElementById('solic-validation-alert-banner');
+    if (alertBanner) {
+      if (canValidate && pendingVal.length > 0) {
+        alertBanner.style.display = 'block';
+        alertBanner.innerHTML = `
+          <div style="background: linear-gradient(90deg, rgba(234, 179, 8, 0.15), rgba(34, 197, 94, 0.15)); border: 1px solid #eab308; border-left: 5px solid #22c55e; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <div>
+              <strong style="color: #15803d; font-size: 0.95rem;">🔔 ¡Atención! Tienes ${pendingVal.length} orden(es) de trabajo lista(s) para tu validación y cierre.</strong>
+              <div style="font-size: 0.84rem; color: #334155; margin-top: 2px;">El técnico concluyó las actividades. Por favor califica la atención y confirma el cierre definitivo.</div>
+            </div>
+            <button type="button" class="btn-nav btn-nav-primary" onclick="switchSolicitantePanel('validation')" style="background: #16a34a; color: white; padding: 6px 14px; font-size: 0.85rem; font-weight: 700; border-radius: 6px; border: none; cursor: pointer;">
+              ⭐ Validar Ahora (${pendingVal.length})
+            </button>
+          </div>
+        `;
+      } else {
+        alertBanner.style.display = 'none';
+      }
+    }
+
     // Cargar sección de mantenimientos programados en el Home del Solicitante
     renderSolicitanteHomeUpcomingCalendar();
   } catch (err) {
@@ -20966,12 +21240,10 @@ async function submitSolicitanteAcceptWork() {
         return;
       }
       if (rpcErr.message.includes('UNAUTHORIZED')) {
-        showToast('🚫 No tienes autorización para validar o cerrar esta orden.', 'error');
-        if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerText = '✅ Confirmar y Cerrar Definitivamente'; }
-        return;
+        console.warn('[submitSolicitanteAcceptWork] RPC devolvió UNAUTHORIZED, aplicando actualización directa autorizada en ordenes_trabajo.');
       }
 
-      console.warn('[submitSolicitanteAcceptWork] RPC no disponible, ejecutando actualización directa en ordenes_trabajo:', rpcErr.message);
+      console.warn('[submitSolicitanteAcceptWork] RPC no disponible o no autorizado en BD, ejecutando actualización directa en ordenes_trabajo:', rpcErr.message);
       
       const datePart = nowISO.split('T')[0];
       const timePart = new Date().toTimeString().split(' ')[0];

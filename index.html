@@ -43,11 +43,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.6.11"></script>
+  <script src="config.js?v=3.6.12"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.6.11">
+  <link rel="stylesheet" href="style.css?v=3.6.12">
 </head>
 <body>
 
@@ -2444,6 +2444,9 @@
         <!-- ===== PANEL HOME: Grid 2x2 de Cuadrantes ===== -->
         <div id="panel-solic-home" class="solic-panel-content">
 
+          <!-- Banner Alerta de Validación de OTs pendientes para el Solicitante -->
+          <div id="solic-validation-alert-banner" style="display: none; margin-bottom: 20px;"></div>
+
           <!-- Cabecera de bienvenida -->
           <div class="solic-home-header">
             <div>
@@ -4148,9 +4151,13 @@
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn-action-secondary" onclick="closeModal('modal-tech-ot-detail')">Cerrar</button>
-        <button type="button" id="btn-tech-save-log" class="btn-action-primary" onclick="saveTechnicalLog()">💾 Guardar Bitácora</button>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <button type="button" class="btn-action-secondary" onclick="closeModal('modal-tech-ot-detail')">Cerrar</button>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" id="btn-tech-save-progress" class="btn-action-secondary" onclick="saveTechnicalProgressOnly()" style="background: rgba(6, 182, 212, 0.15); border: 1px solid var(--accent-blue); color: var(--accent-blue); font-weight: 600;">💾 Guardar Avance</button>
+          <button type="button" id="btn-tech-save-log" class="btn-action-primary" onclick="saveTechnicalLog()">📝 Guardar Bitácora</button>
+          <button type="button" id="btn-tech-finish-footer" class="btn-action-primary" onclick="finishWorkOnOT()" style="background: #8b5cf6; border-color: #8b5cf6; color: white; font-weight: 700;">🏁 Finalizar Trabajo</button>
+        </div>
       </div>
     </div>
   </div>
@@ -6019,16 +6026,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.6.11"></script>
-  <script src="agents-client.js?v=3.6.11"></script>
-  <script src="app.js?v=3.6.11"></script>
-  <script src="dashboard.js?v=3.6.11"></script>
+  <script src="seed.js?v=3.6.12"></script>
+  <script src="agents-client.js?v=3.6.12"></script>
+  <script src="app.js?v=3.6.12"></script>
+  <script src="dashboard.js?v=3.6.12"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.6.11')
+        navigator.serviceWorker.register('./sw.js?v=3.6.12')
           .then(reg => {
             reg.update();
             console.log('✅ ServiceWorker registrado:', reg.scope);
