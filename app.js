@@ -1585,9 +1585,11 @@ function auditAndCleanDatabaseStorage() {
   }
 
   const obsoleteKeys = [
-    'TSMAI_old_orders', 'TSMAI_parts_old', 'TSMAI_requests_bak', 'TSMAI_refacciones_usadas', 'TSMAI_temp_db', 'TSMAI_legacy_tables'
+    'TSMAI_old_orders', 'TSMAI_parts_old', 'TSMAI_requests_bak', 'TSMAI_refacciones_usadas', 'TSMAI_temp_db', 'TSMAI_legacy_tables', 'TSMAI_DEMO_calendar_details'
   ];
   obsoleteKeys.forEach(k => localStorage.removeItem(k));
+  window._cachedCalendarDetails = null;
+  window._cachedCalendarDetailsTime = 0;
 
   // Deduplicar y filtrar estrictamente cualquier registro previo al inicio del piloto
   ['TSMAI_requests', 'TSMAI_orders', 'TSMAI_maintenance_logs'].forEach(key => {
@@ -8904,32 +8906,6 @@ async function ensureCatalogProcessSynchronization() {
         }
       }
     }
-
-    // Verificar que los 3 calendarios (PREVENTIVO, PREDICTIVO, AUTONOMO) estén alimentados con las bases reales actuales
-    const { data: existingDetails } = await supabaseClient
-      .from('calendario_mantenimiento_detalle')
-      .select('tipo_mantenimiento, observaciones');
-
-    const list = existingDetails || [];
-    const prevCount = list.filter(d => d.tipo_mantenimiento === 'PREVENTIVO').length;
-    const predCount = list.filter(d => d.tipo_mantenimiento === 'PREDICTIVO').length;
-    const autoItems = list.filter(d => d.tipo_mantenimiento === 'AUTONOMO');
-    const hasRealAuto = autoItems.some(d => String(d.observaciones || '').includes('fallas_por_maquina'));
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const week = getWeekNumber(now);
-
-    if (prevCount === 0 && typeof executeRealCalendarGeneration === 'function') {
-      await executeRealCalendarGeneration({ type: 'PREVENTIVO', year, month, week, silent: true });
-    }
-    if (predCount === 0 && typeof executeRealCalendarGeneration === 'function') {
-      await executeRealCalendarGeneration({ type: 'PREDICTIVO', year, month, week, silent: true });
-    }
-    if ((autoItems.length === 0 || !hasRealAuto) && typeof executeRealCalendarGeneration === 'function') {
-      await executeRealCalendarGeneration({ type: 'AUTONOMO', year, month, week, silent: true });
-    }
   } catch (e) {
     console.warn('[ensureCatalogProcessSynchronization] Aviso:', e);
   }
@@ -8956,6 +8932,14 @@ function onAdminCalendarProcessChange(newProcess) {
   }
 }
 
+function mapOtTypeToMaintenanceType(otType) {
+  const t = String(otType || '').toUpperCase().trim();
+  if (t === 'MP' || t.includes('PREVENTIV')) return 'PREVENTIVO';
+  if (t.includes('PREDICTIV')) return 'PREDICTIVO';
+  if (t.includes('AUTONOM')) return 'AUTONOMO';
+  return 'CORRECTIVO';
+}
+
 async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo = null, maintenanceType = 'ALL') {
   const validProcesses = ['PF', 'CF', 'TF', 'AF', 'ALL'];
   const proc = (processCode || 'PF').toUpperCase().trim();
@@ -8967,30 +8951,28 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
   // 1. MODO DEMO: Preservar 100% de aislamiento y compatibilidad
   if (typeof APP_ENVIRONMENT !== 'undefined' && APP_ENVIRONMENT === 'DEMO') {
     const allLocalOrders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-    const correctives = allLocalOrders
-      .filter(o => o.type !== 'MP' && o.type !== 'PREVENTIVO' && o.type !== 'PREDICTIVO' && o.type !== 'AUTONOMO')
-      .filter(o => {
-        const oArea = typeof getAreaCodeForOrder === 'function' ? getAreaCodeForOrder(o) : (o.area || o.departamento || 'PF');
-        return proc === 'ALL' || oArea === proc;
-      })
+    const platformOtsList = allLocalOrders
       .map(o => {
         const oArea = typeof getAreaCodeForOrder === 'function' ? getAreaCodeForOrder(o) : (o.area || o.departamento || 'PF');
+        const rawType = o.type || o.tipo || o.orden_trabajo;
+        const mappedType = mapOtTypeToMaintenanceType(rawType);
         return {
           id_evento: o.id || o.folio,
           id_ref: o.id,
-          tipo_mantenimiento: 'CORRECTIVO',
+          tipo_mantenimiento: mappedType,
           proceso: oArea,
           maquina_id: o.machine || o.maquina_id || o.id,
           fecha: (o.dueDate || o.date || '').split('T')[0],
-          actividad: o.description || 'Fallo correctivo reportado',
-          descripcion: o.description || 'Fallo correctivo reportado',
-          estatus: o.status || 'PENDIENTE',
+          actividad: o.description || ('Mantenimiento ' + mappedType),
+          descripcion: o.description || ('Mantenimiento ' + mappedType),
+          estatus: (o.status || 'PENDIENTE').toUpperCase(),
           prioridad: o.urgency || o.priority || 'MEDIA',
           responsable: o.assignedTech || 'Por asignar',
           origen: 'ORDEN_TRABAJO',
           ot_asociada: o.id || o.folio
         };
-      });
+      })
+      .filter(o => proc === 'ALL' || o.proceso === proc);
 
     let demoDetails = [];
     if (typeof fetchCalendarDetailsFromDb === 'function') {
@@ -9017,7 +8999,7 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
       ot_asociada: s.id_orden_generada || null
     }));
 
-    let combined = [...correctives, ...filteredDetails];
+    let combined = [...platformOtsList, ...filteredDetails];
     if (maintenanceType && maintenanceType !== 'ALL') {
       combined = combined.filter(e => e.tipo_mantenimiento === maintenanceType);
     }
@@ -9100,52 +9082,51 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
         });
       }
 
-      // Paso D: Mantenimientos Correctivos (Rama A - ordenes_trabajo)
-      const correctivesList = [];
-      if (!maintenanceType || maintenanceType === 'ALL' || maintenanceType === 'CORRECTIVO') {
-        (rawOts || []).forEach(ot => {
-          // Excluir MP y mantenimientos no correctivos
-          const otType = (ot.orden_trabajo || '').toUpperCase().trim();
-          if (['MP', 'PREVENTIVO', 'PREDICTIVO', 'AUTONOMO'].includes(otType)) return;
+      // Paso D: Órdenes de Trabajo Reales de la Plataforma (ordenes_trabajo)
+      const platformOtsList = [];
+      (rawOts || []).forEach(ot => {
+        // Desduplicación: excluir si ya fue generada desde detalle de calendario
+        if (generatedOtIds.has(ot.id_orden)) return;
 
-          // Desduplicación: excluir si ya fue generada desde detalle de calendario
-          if (generatedOtIds.has(ot.id_orden)) return;
+        const rawType = (ot.orden_trabajo || '').toUpperCase().trim();
+        const mappedType = mapOtTypeToMaintenanceType(rawType);
 
-          // Resolución estricta de proceso
-          let otProc = (ot.departamento || '').toUpperCase().trim();
-          if (!['PF', 'CF', 'TF', 'AF'].includes(otProc)) {
-            const machKey = (ot.maquina_id || '').trim().toUpperCase();
-            const dbMach = machineObjMap.get(machKey) || null;
-            otProc = resolveCanonicalMachineProcess(machKey, dbMach, null, ot.descripcion || '');
-          }
+        if (maintenanceType && maintenanceType !== 'ALL' && mappedType !== maintenanceType) return;
 
-          if (proc !== 'ALL' && otProc !== proc) return;
+        // Resolución estricta de proceso
+        let otProc = (ot.departamento || '').toUpperCase().trim();
+        if (!['PF', 'CF', 'TF', 'AF'].includes(otProc)) {
+          const machKey = (ot.maquina_id || '').trim().toUpperCase();
+          const dbMach = machineObjMap.get(machKey) || null;
+          otProc = resolveCanonicalMachineProcess(machKey, dbMach, null, ot.descripcion || '');
+        }
 
-          const dateVal = ot.fecha_hora_inicio || ot.fecha_carga;
-          const f = dateVal ? String(dateVal).split('T')[0] : null;
-          if (dateFrom && f && f < dateFrom) return;
-          if (dateTo && f && f > dateTo) return;
+        if (proc !== 'ALL' && otProc !== proc) return;
 
-          correctivesList.push({
-            id_evento: ot.folio || ot.id_orden,
-            id_ref: ot.id_orden,
-            tipo_mantenimiento: 'CORRECTIVO',
-            proceso: otProc,
-            maquina_id: ot.maquina_id || 'Planta General',
-            fecha: f,
-            actividad: ot.orden_trabajo || 'Mantenimiento Correctivo',
-            descripcion: ot.descripcion || ot.orden_trabajo || 'Fallo reportado',
-            estatus: ot.estatus || 'PENDIENTE',
-            prioridad: ot.prioridad || 'MEDIA',
-            responsable: ot.nombre_atendio || ot.cve_atendio || 'Por asignar',
-            origen: 'ORDEN_TRABAJO',
-            ot_asociada: ot.folio || ot.id_orden
-          });
+        const dateVal = ot.fecha_hora_inicio || ot.fecha_carga;
+        const f = dateVal ? String(dateVal).split('T')[0] : null;
+        if (dateFrom && f && f < dateFrom) return;
+        if (dateTo && f && f > dateTo) return;
+
+        platformOtsList.push({
+          id_evento: ot.folio || ot.id_orden,
+          id_ref: ot.id_orden,
+          tipo_mantenimiento: mappedType,
+          proceso: otProc,
+          maquina_id: ot.maquina_id || 'Planta General',
+          fecha: f,
+          actividad: ot.orden_trabajo || (mappedType === 'CORRECTIVO' ? 'Mantenimiento Correctivo' : 'Mantenimiento ' + mappedType),
+          descripcion: ot.descripcion || ot.orden_trabajo || 'Orden de trabajo de plataforma',
+          estatus: (ot.estatus || 'PENDIENTE').toUpperCase(),
+          prioridad: ot.prioridad || 'MEDIA',
+          responsable: ot.nombre_atendio || ot.cve_atendio || 'Por asignar',
+          origen: 'ORDEN_TRABAJO',
+          ot_asociada: ot.folio || ot.id_orden
         });
-      }
+      });
 
       // Unificación y orden cronológico
-      const combined = [...correctivesList, ...detailsList];
+      const combined = [...platformOtsList, ...detailsList];
       combined.sort((a, b) => {
         if (!a.fecha) return 1;
         if (!b.fecha) return -1;
@@ -19846,69 +19827,7 @@ async function fetchCalendarDetailsFromDb() {
   }
   
   if (APP_ENVIRONMENT === 'DEMO') {
-    const now = new Date();
-    const demoCalendarDetails = [
-      {
-        id_detalle: 'DEMO-CAL-001',
-        maquina_id: 'DEMO-MAQ-001',
-        tipo_mantenimiento: 'PREVENTIVO',
-        actividad_sugerida: 'Mantenimiento Preventivo Bimestral — Revisión de peines y lubricación',
-        fecha_programada: new Date(Date.now() + 86400000 * 3).toISOString(),
-        prioridad: 'Alta',
-        observaciones: JSON.stringify({ area: 'PF' }),
-        calendarios_mantenimiento: { anio: now.getFullYear(), mes: now.getMonth() + 1, semana: 35, tipo_calendario: 'PREVENTIVO' }
-      },
-      {
-        id_detalle: 'DEMO-CAL-002',
-        maquina_id: 'DEMO-MAQ-002',
-        tipo_mantenimiento: 'PREDICTIVO',
-        actividad_sugerida: 'Análisis de vibraciones en rodamiento de cabezal',
-        fecha_programada: new Date(Date.now() + 86400000 * 7).toISOString(),
-        prioridad: 'Media',
-        observaciones: JSON.stringify({ area: 'PF' }),
-        calendarios_mantenimiento: { anio: now.getFullYear(), mes: now.getMonth() + 1, semana: 36, tipo_calendario: 'PREDICTIVO' }
-      },
-      {
-        id_detalle: 'DEMO-CAL-003',
-        maquina_id: 'DEMO-MAQ-003',
-        tipo_mantenimiento: 'AUTONOMO',
-        actividad_sugerida: 'Inspección de guías y tensión de hilos',
-        fecha_programada: new Date(Date.now() + 86400000 * 10).toISOString(),
-        prioridad: 'Baja',
-        observaciones: JSON.stringify({ area: 'PF' }),
-        calendarios_mantenimiento: { anio: now.getFullYear(), mes: now.getMonth() + 1, semana: 36, tipo_calendario: 'AUTONOMO' }
-      },
-      {
-        id_detalle: 'DEMO-CAL-004',
-        maquina_id: 'DEMO-MAQ-004',
-        tipo_mantenimiento: 'PREVENTIVO',
-        actividad_sugerida: 'Limpieza de filtros y verificación de toberas de secado',
-        fecha_programada: new Date(Date.now() + 86400000 * 4).toISOString(),
-        prioridad: 'Alta',
-        observaciones: JSON.stringify({ area: 'TF' }),
-        calendarios_mantenimiento: { anio: now.getFullYear(), mes: now.getMonth() + 1, semana: 35, tipo_calendario: 'PREVENTIVO' }
-      },
-      {
-        id_detalle: 'DEMO-CAL-005',
-        maquina_id: 'DEMO-MAQ-005',
-        tipo_mantenimiento: 'AUTONOMO',
-        actividad_sugerida: 'Afilado de cuchillas y limpieza de mesa de corte',
-        fecha_programada: new Date(Date.now() + 86400000 * 6).toISOString(),
-        prioridad: 'Media',
-        observaciones: JSON.stringify({ area: 'CF' }),
-        calendarios_mantenimiento: { anio: now.getFullYear(), mes: now.getMonth() + 1, semana: 35, tipo_calendario: 'AUTONOMO' }
-      },
-      {
-        id_detalle: 'DEMO-CAL-006',
-        maquina_id: 'DEMO-MAQ-006',
-        tipo_mantenimiento: 'PREVENTIVO',
-        actividad_sugerida: 'Cambio de filtro de aire y purga de condensados',
-        fecha_programada: new Date(Date.now() + 86400000 * 12).toISOString(),
-        prioridad: 'Media',
-        observaciones: JSON.stringify({ area: 'AF' }),
-        calendarios_mantenimiento: { anio: now.getFullYear(), mes: now.getMonth() + 1, semana: 36, tipo_calendario: 'PREVENTIVO' }
-      }
-    ];
+    const demoCalendarDetails = JSON.parse(localStorage.getItem('TSMAI_DEMO_calendar_details') || '[]');
     window._cachedCalendarDetails = demoCalendarDetails;
     window._cachedCalendarDetailsTime = Date.now();
     return demoCalendarDetails;
