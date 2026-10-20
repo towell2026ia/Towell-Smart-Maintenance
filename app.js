@@ -1218,17 +1218,22 @@ async function dbGetMachines() {
         .from('cat_maquinas')
         .select('*');
       if (error) throw error;
-      return (data || []).map(m => ({
-        id: m.equipo_towell,
-        name: m.equipo_towell,
-        area: m.departamento_codigo || m.area || 'AF',
-        departamento_codigo: m.departamento_codigo || m.area || 'AF',
-        clave: m.clave,
-        proceso: m.proceso,
-        tipo_equipo: m.tipo_equipo,
-        activo: m.activo,
-        status: m.activo ? 'Operativa' : 'Parada'
-      }));
+      return (data || []).map(m => {
+        const resolvedArea = typeof resolveCanonicalMachineProcess === 'function'
+          ? resolveCanonicalMachineProcess(m.equipo_towell, m, null, m.clave || '')
+          : (m.departamento_codigo || m.area || 'PF');
+        return {
+          id: m.equipo_towell,
+          name: m.equipo_towell,
+          area: resolvedArea,
+          departamento_codigo: resolvedArea,
+          clave: m.clave,
+          proceso: m.proceso,
+          tipo_equipo: m.tipo_equipo,
+          activo: m.activo !== false,
+          status: m.activo === false ? 'Parada' : 'Operativa'
+        };
+      });
     } catch (err) {
       console.error('Error fetching machines from Supabase:', err);
     }
@@ -1694,7 +1699,7 @@ async function syncDatabases() {
       const to = from + pageSize - 1;
       const { data, error } = await supabaseClient
         .from('cat_refacciones')
-        .select('codigo_articulo, nombre_articulo, familia, unidad_medida, stock_actual, stock_minimo, costo_unitario, activo, maquina_id, cantidad_estandar')
+        .select('*')
         .range(from, to);
 
       if (error || !data || data.length === 0) {
@@ -7405,7 +7410,7 @@ async function fetchOrBuildCanonicalPreventiveBudget() {
 
     let partsList = JSON.parse(localStorage.getItem('TSMAI_parts') || '[]');
     if (typeof supabaseClient !== 'undefined' && supabaseClient?.from) {
-      const { data: dbParts } = await supabaseClient.from('cat_refacciones').select('codigo_articulo, nombre_articulo, costo_unitario, maquina_id, cantidad_estandar');
+      const { data: dbParts } = await supabaseClient.from('cat_refacciones').select('*');
       if (dbParts && dbParts.length > 0) partsList = dbParts;
     }
     partsList.forEach(p => {
@@ -7428,7 +7433,7 @@ async function fetchOrBuildCanonicalPreventiveBudget() {
     const areaByMachine = new Map();
     let macList = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
     if (typeof supabaseClient !== 'undefined' && supabaseClient?.from) {
-      const { data: dbMacs } = await supabaseClient.from('cat_maquinas').select('id_maquina, equipo_towell, clave, area, departamento_codigo');
+      const { data: dbMacs } = await supabaseClient.from('cat_maquinas').select('*');
       if (dbMacs && dbMacs.length > 0) macList = dbMacs;
     }
     macList.forEach(m => {
@@ -8704,25 +8709,32 @@ async function ensureCatalogProcessSynchronization() {
   try {
     const { data: machines } = await supabaseClient
       .from('cat_maquinas')
-      .select('id_maquina, equipo_towell, clave, departamento_codigo, area');
+      .select('*');
     if (machines && machines.length > 0) {
-      const updatesByProc = { PF: [], CF: [], TF: [], AF: [] };
-      machines.forEach(m => {
-        const canonical = resolveCanonicalMachineProcess(m.equipo_towell, m, null, m.clave || '');
-        if (m.departamento_codigo !== canonical || m.area !== canonical) {
-          if (m.id_maquina && updatesByProc[canonical]) {
+      const sampleMach = machines[0] || {};
+      const hasDeptCol = 'departamento_codigo' in sampleMach;
+      const hasAreaCol = 'area' in sampleMach;
+      if (hasDeptCol || hasAreaCol) {
+        const updatesByProc = { PF: [], CF: [], TF: [], AF: [] };
+        machines.forEach(m => {
+          const canonical = resolveCanonicalMachineProcess(m.equipo_towell, m, null, m.clave || '');
+          const needsUpdate = (hasDeptCol && m.departamento_codigo !== canonical) || (hasAreaCol && m.area !== canonical);
+          if (needsUpdate && m.id_maquina && updatesByProc[canonical]) {
             updatesByProc[canonical].push(m.id_maquina);
           }
-        }
-      });
+        });
 
-      for (const proc of ['PF', 'CF', 'TF', 'AF']) {
-        const ids = updatesByProc[proc];
-        if (ids.length > 0) {
-          await supabaseClient
-            .from('cat_maquinas')
-            .update({ departamento_codigo: proc, area: proc })
-            .in('id_maquina', ids);
+        for (const proc of ['PF', 'CF', 'TF', 'AF']) {
+          const ids = updatesByProc[proc];
+          if (ids.length > 0) {
+            const payload = {};
+            if (hasDeptCol) payload.departamento_codigo = proc;
+            if (hasAreaCol) payload.area = proc;
+            await supabaseClient
+              .from('cat_maquinas')
+              .update(payload)
+              .in('id_maquina', ids);
+          }
         }
       }
     }
@@ -8857,7 +8869,7 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
       // Paso A: Mapeo canónico máquina -> proceso (cat_maquinas + reglas determinísticas de nomenclatura)
       const { data: machines } = await supabaseClient
         .from('cat_maquinas')
-        .select('id_maquina, equipo_towell, clave, departamento_codigo, area');
+        .select('*');
 
       const machineObjMap = new Map();
       (machines || []).forEach(m => {
@@ -9614,13 +9626,15 @@ async function renderAdminMachinesTable() {
     try {
       const { data, error } = await supabaseClient
         .from('cat_maquinas')
-        .select('equipo_towell, clave, ax, criticidad, activo, departamento_codigo')
+        .select('*')
         .order('equipo_towell');
       if (!error && data && data.length > 0) {
         const existingLocal = JSON.parse(localStorage.getItem(getAppStorageKey('machines')) || '[]');
         machines = data.map(m => {
           const local = existingLocal.find(l => l.id === m.equipo_towell) || {};
-          const area = resolveMachineArea(m.equipo_towell, m.departamento_codigo);
+          const area = typeof resolveCanonicalMachineProcess === 'function'
+            ? resolveCanonicalMachineProcess(m.equipo_towell, m, null, m.clave || '')
+            : resolveMachineArea(m.equipo_towell, m.departamento_codigo);
           return {
             id: m.equipo_towell,
             name: m.clave || m.equipo_towell,
@@ -9629,7 +9643,7 @@ async function renderAdminMachinesTable() {
             mttr: local.mttr || 2.5,
             failures: local.failures || 0,
             cost: local.cost || 0,
-            status: m.activo ? 'Operativa' : 'En Paro',
+            status: m.activo === false ? 'En Paro' : 'Operativa',
             criticidad: m.criticidad || 'Baja'
           };
         });
@@ -14448,7 +14462,7 @@ async function openNewBitacoraLogModal() {
       showToast('Obteniendo datos actualizados...');
       const [ordRes, machRes] = await Promise.all([
         supabaseClient.from('ordenes_trabajo').select('folio, id_orden, cve_atendio, estatus, descripcion, departamento, maquina_id'),
-        supabaseClient.from('cat_maquinas').select('equipo_towell, departamento_codigo')
+        supabaseClient.from('cat_maquinas').select('*')
       ]);
       if (!ordRes.error && ordRes.data) {
         orders = ordRes.data.map(o => ({
@@ -14459,7 +14473,13 @@ async function openNewBitacoraLogModal() {
         }));
       }
       if (!machRes.error && machRes.data) {
-        machines = machRes.data.map(m => ({ id: m.equipo_towell, name: m.equipo_towell, area: m.departamento_codigo }));
+        machines = machRes.data.map(m => ({
+          id: m.equipo_towell,
+          name: m.equipo_towell,
+          area: typeof resolveCanonicalMachineProcess === 'function'
+            ? resolveCanonicalMachineProcess(m.equipo_towell, m, null, m.clave || '')
+            : (m.departamento_codigo || m.area || 'PF')
+        }));
       }
     } catch (err) {
       console.warn('Supabase load failed, using localStorage:', err);
@@ -17295,17 +17315,28 @@ async function executeRealCalendarGeneration({ type, year, month = null, week = 
 
   const canonicalDbType = type === 'PREVENTIVO_SEMANAL' ? 'PREVENTIVO' : type;
 
-  // Limpiar propuestas no aprobadas previas del mismo tipo para evitar duplicados al regenerar
+  // Limpiar propuestas no vinculadas a OT previas del mismo tipo para evitar duplicados o colisión de unique constraint
   try {
     await supabaseClient
       .from('calendario_mantenimiento_detalle')
       .delete()
       .eq('tipo_mantenimiento', canonicalDbType)
-      .eq('estatus_detalle', 'PROPUESTO')
       .is('id_orden_generada', null);
   } catch (cleanErr) {
     console.warn('[executeRealCalendarGeneration] Aviso limpieza propuestas previas:', cleanErr);
   }
+
+  // Verificar si queda algún registro con OT generada para no colisionar con uq_preventivo_maquina_anio
+  const existingMachKeys = new Set();
+  try {
+    const { data: remDetails } = await supabaseClient
+      .from('calendario_mantenimiento_detalle')
+      .select('maquina_id, tipo_mantenimiento')
+      .eq('tipo_mantenimiento', canonicalDbType);
+    (remDetails || []).forEach(d => {
+      if (d.maquina_id) existingMachKeys.add(String(d.maquina_id).toUpperCase().trim());
+    });
+  } catch (e) {}
 
   const headerRecord = {
     tipo_calendario: canonicalDbType,
@@ -17327,49 +17358,64 @@ async function executeRealCalendarGeneration({ type, year, month = null, week = 
   if (hErr) throw hErr;
   const newCalId = headerData[0].id_calendario;
 
-  // Consultar TODAS las bases reales de Supabase
-  const [ordRes, machinesRes, techsRes, fallasCatRes, refMaqRes, catRefRes] = await Promise.all([
+  // Consultar TODAS las bases reales de Supabase (sin filtrar cat_maquinas por columna inexistente 'activo')
+  const [ordRes, machinesRes, techsRes, fallasCatRes, refMaqRes, catRefRes, critCatRes] = await Promise.all([
     supabaseClient.from('ordenes_trabajo').select('id_orden, folio, fecha_carga, maquina_id, descripcion, estatus, prioridad, orden_trabajo, tiempo_atencion_min, fecha_hora_inicio, fecha_hora_fin'),
-    supabaseClient.from('cat_maquinas').select('*').eq('activo', true),
-    supabaseClient.from('cat_tecnicos').select('*').eq('activo', true),
+    supabaseClient.from('cat_maquinas').select('*'),
+    supabaseClient.from('cat_tecnicos').select('*'),
     supabaseClient.from('fallas_por_maquina').select('*'),
     supabaseClient.from('refacciones_por_maquina').select('*'),
-    supabaseClient.from('cat_refacciones').select('*')
+    supabaseClient.from('cat_refacciones').select('*'),
+    supabaseClient.from('cat_criticidad_maquina').select('*')
   ]);
 
-  const activeMachines = machinesRes.data || [];
-  const activeTechs = techsRes.data || [];
+  const activeMachines = (machinesRes.data || []).filter(m => m && m.activo !== false);
+  const activeTechs = (techsRes.data || []).filter(t => t && t.activo !== false);
   const allOts = ordRes.data || [];
   const allFallasCat = fallasCatRes.data || [];
   const allRefMaq = refMaqRes.data || [];
   const allCatRef = catRefRes.data || [];
+  const allCritCat = critCatRes?.data || [];
+
+  const critMap = new Map();
+  allCritCat.forEach(c => {
+    if (c.maquina_id && c.nivel_criticidad) {
+      critMap.set(String(c.maquina_id).toUpperCase().trim(), String(c.nivel_criticidad).toUpperCase().trim());
+    }
+  });
 
   // Mapear refacciones y costos reales por máquina (para AG-002 y AG-007)
   const refCostMap = new Map();
   allCatRef.forEach(r => {
-    const key = String(r.codigo_refaccion || r.id_refaccion || r.nombre_refaccion || '').toUpperCase().trim();
+    const codeKey = String(r.codigo_articulo || r.codigo_refaccion || r.id_refaccion || '').toUpperCase().trim();
+    const nameKey = String(r.nombre_articulo || r.nombre_refaccion || '').toUpperCase().trim();
     const cost = parseFloat(r.costo_unitario || r.precio_unitario || r.costo || 180);
-    if (key) refCostMap.set(key, isNaN(cost) ? 180 : cost);
+    const validCost = isNaN(cost) || cost <= 0 ? 180 : cost;
+    if (codeKey) refCostMap.set(codeKey, validCost);
+    if (nameKey) refCostMap.set(nameKey, validCost);
   });
 
   const partsByMachine = {};
   const partsCostByMachine = {};
   allRefMaq.forEach(rm => {
-    const mKey = String(rm.equipo_towell || rm.maquina_id || rm.clave_maquina || '').toUpperCase().trim();
-    const rName = rm.refaccion || rm.nombre_refaccion || rm.codigo_refaccion || 'Kit Preventivo';
+    const mKey = String(rm.maquina_id || rm.equipo_towell || rm.destino || rm.clave_maquina || '').toUpperCase().trim();
+    const rName = rm.nombre_articulo || rm.codigo_articulo || rm.refaccion || rm.nombre_refaccion || rm.codigo_refaccion || 'Kit Preventivo';
+    const rCode = String(rm.codigo_articulo || rm.codigo_refaccion || rName).toUpperCase().trim();
     if (mKey) {
       if (!partsByMachine[mKey]) partsByMachine[mKey] = [];
       if (!partsByMachine[mKey].includes(rName)) partsByMachine[mKey].push(rName);
-      const unitCost = refCostMap.get(String(rName).toUpperCase().trim()) || parseFloat(rm.costo_estimado || 220);
-      partsCostByMachine[mKey] = (partsCostByMachine[mKey] || 0) + (isNaN(unitCost) ? 220 : unitCost);
+      const qty = parseFloat(rm.cantidad_estandar || 1) || 1;
+      const unitCost = parseFloat(rm.importe_costo_calculado || rm.importe_costo_origen || 0)
+        || ((refCostMap.get(rCode) || parseFloat(rm.precio_costo_unitario || rm.costo_estimado || 220)) * qty);
+      partsCostByMachine[mKey] = (partsCostByMachine[mKey] || 0) + (isNaN(unitCost) || unitCost <= 0 ? 220 : unitCost);
     }
   });
 
   // Mapear fallas típicas reales por máquina o familia de máquina desde `fallas_por_maquina`
   const fallasByMachineKey = {};
   allFallasCat.forEach(f => {
-    const mKey = String(f.equipo_towell || f.maquina_id || f.maquina || f.tipo_maquina || '').toUpperCase().trim();
-    const fDesc = f.falla || f.descripcion_falla || f.nombre_falla || f.modo_falla || '';
+    const mKey = String(f.maquina_id || f.equipo_towell || f.maquina || f.tipo_maquina || f.area || '').toUpperCase().trim();
+    const fDesc = f.descripcion_falla || f.falla || f.nombre_falla || f.modo_falla || f.categoria_falla || '';
     if (mKey && fDesc) {
       if (!fallasByMachineKey[mKey]) fallasByMachineKey[mKey] = [];
       if (!fallasByMachineKey[mKey].includes(fDesc)) fallasByMachineKey[mKey].push(fDesc);
@@ -17415,10 +17461,10 @@ async function executeRealCalendarGeneration({ type, year, month = null, week = 
 
   if (type === 'PREVENTIVO' || type === 'PREVENTIVO_SEMANAL') {
     // PREVENTIVO (AG-002 + AG-007: 100% de cat_maquinas en PF, CF, TF y AF alimentado con refacciones_por_maquina y fallas_por_maquina)
-    // Agrupar e intercalar por proceso (PF, CF, TF, AF) para que cada semana y mes tenga representación de los 4 procesos
     const byProc = { PF: [], CF: [], TF: [], AF: [] };
     activeMachines.forEach(m => {
       const machId = m.equipo_towell || m.clave || m.id_maquina;
+      if (existingMachKeys.has(String(machId).toUpperCase().trim())) return;
       const p = resolveCanonicalMachineProcess(machId, m, null, m.clave || '');
       if (!byProc[p]) byProc[p] = [];
       byProc[p].push({ machine: m, areaCode: p });
@@ -17436,20 +17482,21 @@ async function executeRealCalendarGeneration({ type, year, month = null, week = 
       ? interleaved.slice(0, Math.min(12, interleaved.length))
       : interleaved;
 
-    const currentWeekMonday = new Date(now);
+    const currentWeekMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
     const dowNow = currentWeekMonday.getDay();
-    currentWeekMonday.setDate(now.getDate() - (dowNow === 0 ? 6 : dowNow - 1));
+    currentWeekMonday.setDate(currentWeekMonday.getDate() - (dowNow === 0 ? 6 : dowNow - 1));
 
     let machineIndex = 0;
     for (const item of targetMachines) {
       const machine = item.machine;
       const areaCode = item.areaCode;
       const machId = machine.equipo_towell || machine.clave || machine.id_maquina;
+      const normMach = String(machId).toUpperCase().trim();
       const machName = machine.clave || machine.nombre || machine.nombre_maquina || machId;
-      const mCost = partsCostByMachine[String(machId).toUpperCase().trim()] || 0;
-      const mParts = partsByMachine[String(machId).toUpperCase().trim()] || [];
+      const mCost = partsCostByMachine[normMach] || 0;
+      const mParts = partsByMachine[normMach] || [];
       const mFallas = getRealFallasForMachine(machId, machName);
-      const mCrit = (machine.criticidad || machine.prioridad_default || 'B').toUpperCase().trim();
+      const mCrit = critMap.get(normMach) || String(machine.criticidad || machine.prioridad_default || 'B').toUpperCase().trim();
 
       let balancedDateStr;
       if (type === 'PREVENTIVO_SEMANAL') {
@@ -17458,7 +17505,6 @@ async function executeRealCalendarGeneration({ type, year, month = null, week = 
         d.setDate(d.getDate() + dayOffset);
         balancedDateStr = d.toISOString().split('T')[0];
       } else if (machineIndex < 8) {
-        // Primer lote (incluyendo PF, CF, TF, AF) programado en la semana actual para visibilidad inmediata en vista Semana/Mes
         const dayOffset = machineIndex % 6; // Lunes a Sábado de la semana actual
         const d = new Date(currentWeekMonday);
         d.setDate(currentWeekMonday.getDate() + dayOffset);
@@ -17466,7 +17512,7 @@ async function executeRealCalendarGeneration({ type, year, month = null, week = 
       } else {
         const targetM = (now.getMonth() + ((machineIndex - 8) % 12)) % 12;
         const targetD = 2 + ((Math.floor(machineIndex / 4) * 3) % 25);
-        const projDate = new Date(targetYear, targetM, Math.min(28, targetD));
+        const projDate = new Date(targetYear, targetM, Math.min(28, targetD), 12, 0, 0);
         balancedDateStr = getBalancedDate(projDate);
       }
 
@@ -17508,6 +17554,7 @@ async function executeRealCalendarGeneration({ type, year, month = null, week = 
     // PREDICTIVO SEMANAL (PRD-AG003-R2: AG-003 por Segundas de Calidad desde segundas_por_rollo, Miércoles a Martes, Máx 4 Telares PF)
     const pfMachines = activeMachines.filter(m => {
       const machId = m.equipo_towell || m.clave || '';
+      if (existingMachKeys.has(String(machId).toUpperCase().trim())) return false;
       const p = resolveCanonicalMachineProcess(machId, m, null, m.clave || '');
       const code = String(machId).toUpperCase().trim();
       const clave = String(m.clave || '').toUpperCase().trim();
@@ -17517,13 +17564,11 @@ async function executeRealCalendarGeneration({ type, year, month = null, week = 
     const { data: segundasData } = await supabaseClient
       .from('segundas_por_rollo')
       .select('*')
-      .order('id', { ascending: false })
       .limit(3000);
 
     const segundasRows = segundasData || [];
     const machineDefectTotals = {};
 
-    // Helper para normalizar número de telar (ej. "201", "TEL-201", "TOW-TEL201-TEJI" -> "201")
     const extractLoomNumber = (str) => {
       const m = String(str || '').toUpperCase().match(/(\d{3})/);
       return m ? m[1] : null;
@@ -17575,7 +17620,6 @@ async function executeRealCalendarGeneration({ type, year, month = null, week = 
     });
 
     const cycleStart = new Date(startPeriod + 'T12:00:00');
-    // Dispersión 4 fechas únicas: Miércoles (+0d), Viernes (+2d), Domingo (+4d), Martes (+6d)
     const slotOffsets = [0, 2, 4, 6];
     const slotDayNames = ['Miércoles', 'Viernes', 'Domingo', 'Martes'];
     const topCandidates = rankedTelares.slice(0, 4);
@@ -17627,7 +17671,6 @@ async function executeRealCalendarGeneration({ type, year, month = null, week = 
     });
   } else if (type === 'AUTONOMO') {
     // AUTÓNOMO SEMANAL (PRD-AG004-R1: AG-004 alimentado de fallas_por_maquina + ordenes_trabajo + cat_maquinas en PF, CF, TF y AF)
-    // Invariantes: 0 segundas, máximo 15 activos por semana, Lunes a Viernes (Sábado = 0, Domingo = 0), temp °C obligatoria
     const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
     const cycleStart = new Date(startPeriod + 'T12:00:00');
     const operatingDates = [];
@@ -17643,43 +17686,42 @@ async function executeRealCalendarGeneration({ type, year, month = null, week = 
       if (mId) machineFailsCount[mId] = (machineFailsCount[mId] || 0) + 2;
     });
 
-    // Alimentar con `fallas_por_maquina` real para cada máquina activa de PF, CF, TF y AF
-    const allCandidates = activeMachines.map(m => {
-      const machId = (m.equipo_towell || m.clave || '').trim();
-      const machKey = machId.toUpperCase();
-      const area = resolveCanonicalMachineProcess(machId, m, null, m.clave || '');
-      const catFallas = getRealFallasForMachine(machId, m.clave || '');
-      const otFails = machineFailsCount[machKey] || 0;
-      const totalSignals = catFallas.length + otFails;
-      const failsCount = Math.max(1, totalSignals);
-      const hasRecurrence = failsCount >= 2;
-      const hasTrend = failsCount >= 3;
-      const rankingScore = (hasRecurrence ? 50 : 0) + (hasTrend ? 30 : 0) + Math.min(failsCount * 4, 25);
-      return {
-        machine: m,
-        machId,
-        area,
-        fails: failsCount,
-        catFallas,
-        hasRecurrence,
-        hasTrend,
-        rankingScore,
-        reason: hasRecurrence && hasTrend ? 'RECURRENCE_AND_TREND' : (hasRecurrence ? 'RECURRENCE' : 'CATALOG_FAILURE_PREVENTION')
-      };
-    }).sort((a, b) => {
-      if (b.rankingScore !== a.rankingScore) return b.rankingScore - a.rankingScore;
-      if (b.fails !== a.fails) return b.fails - a.fails;
-      return a.machId.localeCompare(b.machId);
-    });
+    const allCandidates = activeMachines
+      .filter(m => !existingMachKeys.has(String(m.equipo_towell || m.clave || '').toUpperCase().trim()))
+      .map(m => {
+        const machId = (m.equipo_towell || m.clave || '').trim();
+        const machKey = machId.toUpperCase();
+        const area = resolveCanonicalMachineProcess(machId, m, null, m.clave || '');
+        const catFallas = getRealFallasForMachine(machId, m.clave || '');
+        const otFails = machineFailsCount[machKey] || 0;
+        const totalSignals = catFallas.length + otFails;
+        const failsCount = Math.max(1, totalSignals);
+        const hasRecurrence = failsCount >= 2;
+        const hasTrend = failsCount >= 3;
+        const rankingScore = (hasRecurrence ? 50 : 0) + (hasTrend ? 30 : 0) + Math.min(failsCount * 4, 25);
+        return {
+          machine: m,
+          machId,
+          area,
+          fails: failsCount,
+          catFallas,
+          hasRecurrence,
+          hasTrend,
+          rankingScore,
+          reason: hasRecurrence && hasTrend ? 'RECURRENCE_AND_TREND' : (hasRecurrence ? 'RECURRENCE' : 'CATALOG_FAILURE_PREVENTION')
+        };
+      }).sort((a, b) => {
+        if (b.rankingScore !== a.rankingScore) return b.rankingScore - a.rankingScore;
+        if (b.fails !== a.fails) return b.fails - a.fails;
+        return a.machId.localeCompare(b.machId);
+      });
 
-    // Seleccionar hasta 15 máquinas garantizando cobertura equilibrada en PF, CF, TF y AF (para que los 4 procesos tengan calendario autónomo activo)
     const byProcAuto = { PF: [], CF: [], TF: [], AF: [] };
     allCandidates.forEach(c => {
       if (!byProcAuto[c.area]) byProcAuto[c.area] = [];
       byProcAuto[c.area].push(c);
     });
 
-    // Cuota balanceada: 6 PF, 3 CF, 3 TF, 3 AF = 15 máquinas (o rellenar con restantes si algún proceso tiene menos)
     const quotas = { PF: 6, CF: 3, TF: 3, AF: 3 };
     const selectedMachines = [];
     const selectedIds = new Set();
@@ -18456,14 +18498,14 @@ async function handleSaveProposalDate(event) {
       } catch (e) {}
 
       // Resolver proceso
-      let procesoMaq = 'PF';
+      let procesoMaq = resolveCanonicalMachineProcess(curDet.maquina_id, null, curDet.observaciones, curDet.actividad_sugerida || '');
       const { data: maqData } = await supabaseClient
         .from('cat_maquinas')
-        .select('departamento_codigo, area')
+        .select('*')
         .eq('equipo_towell', curDet.maquina_id)
         .maybeSingle();
       if (maqData) {
-        procesoMaq = maqData.departamento_codigo || maqData.area || 'PF';
+        procesoMaq = resolveCanonicalMachineProcess(curDet.maquina_id, maqData, curDet.observaciones, curDet.actividad_sugerida || '');
       }
 
       // Preparar observaciones actualizadas
@@ -21430,12 +21472,12 @@ async function openAdmin360OTAuditModal(orderId, explicitMachineId) {
   }
 
   const targetMachCode = explicitMachineId || (order ? (order.machine || order.maquina_id) : orderId);
-  let resolvedArea = 'PF';
+  let resolvedArea = resolveCanonicalMachineProcess(targetMachCode, null, null, '');
   if (supabaseClient) {
     try {
-      const { data: mData } = await supabaseClient.from('cat_maquinas').select('equipo_towell, departamento_codigo, area').eq('equipo_towell', targetMachCode).limit(1);
+      const { data: mData } = await supabaseClient.from('cat_maquinas').select('*').eq('equipo_towell', targetMachCode).limit(1);
       if (mData && mData.length > 0) {
-        resolvedArea = mData[0].departamento_codigo || mData[0].area || 'PF';
+        resolvedArea = resolveCanonicalMachineProcess(targetMachCode, mData[0], null, mData[0].clave || '');
       }
     } catch (e) {}
   }
@@ -21934,12 +21976,12 @@ async function viewCalendarDetail(idRef, viewName) {
     try {
       const { data } = await supabaseClient
         .from('calendario_mantenimiento_detalle')
-        .select('*, cat_maquinas:maquina_id(departamento_codigo, area), ordenes_trabajo:id_orden_generada(folio)')
+        .select('*, ordenes_trabajo:id_orden_generada(folio)')
         .eq('id_detalle', idRef)
         .maybeSingle();
       if (data) {
         detail = data;
-        const machProc = data.cat_maquinas?.departamento_codigo || data.cat_maquinas?.area || 'PF';
+        const machProc = resolveCanonicalMachineProcess(data.maquina_id, null, data.observaciones, data.actividad_sugerida || '');
         detail.proceso = machProc;
         detail.ot_asociada = data.ordenes_trabajo?.folio || null;
       }
