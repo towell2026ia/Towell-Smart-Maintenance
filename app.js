@@ -3050,16 +3050,34 @@ function triggerFileInput(inputId) {
   document.getElementById(inputId).click();
 }
 
-// Mostrar preview de archivo seleccionado
+// Mostrar preview de archivo seleccionado con opción de eliminar/quitar
 function handleFileSelected(input, previewId) {
   const preview = document.getElementById(previewId);
+  if (!preview) return;
   if (input.files && input.files[0]) {
-    preview.innerText = `📄 ${input.files[0].name}`;
+    preview.innerHTML = `
+      <span style="display:inline-flex; align-items:center; gap:6px;">
+        📄 ${input.files[0].name}
+        <button type="button" style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 0.85rem; font-weight: bold; margin-left: 6px;" onclick="event.stopPropagation(); clearFileInput('${input.id}', '${previewId}')" title="Quitar este archivo">❌ Quitar</button>
+      </span>
+    `;
     preview.style.display = 'block';
   } else {
+    preview.innerHTML = '';
     preview.style.display = 'none';
   }
 }
+
+function clearFileInput(inputId, previewId) {
+  const input = document.getElementById(inputId);
+  if (input) input.value = '';
+  const preview = document.getElementById(previewId);
+  if (preview) {
+    preview.innerHTML = '';
+    preview.style.display = 'none';
+  }
+}
+
 
 // Envío de Nueva Solicitud Pública
 async function handleRequestSubmit(event) {
@@ -4502,19 +4520,26 @@ async function renderTechOTPhotos(otId) {
       fileBox.style.display = 'block';
       const firstBefore = evResult.before[0];
       const bUrl = firstBefore.url || firstBefore.url_archivo || '';
+      const bEvId = firstBefore.id_evidencia || firstBefore.id || ('INITIAL-EV-' + otId);
       const safeTech = (firstBefore.nombre_tecnico || 'Solicitante / Reportante').replace(/'/g, "\\'");
       const safeDesc = (firstBefore.descripcion || firstBefore.comentario || 'Evidencia inicial reportada').replace(/'/g, "\\'");
       imgLbl.innerHTML = `
-        <div style="display:flex; align-items:center; gap:10px; margin-top:6px; flex-wrap:wrap; background:#f0f9ff; padding:8px 12px; border-radius:6px; border:1px solid #bae6fd;">
-          <img src="${bUrl}" alt="Evidencia Inicial" style="width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid #0284c7; cursor:pointer;" onclick="openPhotoLightbox('${bUrl}', { type: 'ANTES', ot: '${otId}', tech: '${safeTech}', desc: '${safeDesc}' })">
-          <div>
-            <a style="color: var(--accent-blue); font-weight:700; text-decoration: underline; cursor:pointer; font-size:0.88rem;" onclick="openPhotoLightbox('${bUrl}', { type: 'ANTES', ot: '${otId}', tech: '${safeTech}', desc: '${safeDesc}' })">
-              🖼️ Ver Fotografía Inicial del Solicitante (${evResult.before.length} foto${evResult.before.length === 1 ? '' : 's'})
-            </a>
-            <div style="font-size:0.75rem; color:#0369a1; margin-top:2px;">Subida por: <strong>${safeTech}</strong> — ${safeDesc}</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; flex-wrap:wrap; background:#f0f9ff; padding:8px 12px; border-radius:6px; border:1px solid #bae6fd;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <img src="${bUrl}" alt="Evidencia Inicial" style="width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid #0284c7; cursor:pointer;" onclick="openPhotoLightbox('${bUrl}', { type: 'ANTES', ot: '${otId}', tech: '${safeTech}', desc: '${safeDesc}', evidenceId: '${bEvId}' })">
+            <div>
+              <a style="color: var(--accent-blue); font-weight:700; text-decoration: underline; cursor:pointer; font-size:0.88rem;" onclick="openPhotoLightbox('${bUrl}', { type: 'ANTES', ot: '${otId}', tech: '${safeTech}', desc: '${safeDesc}', evidenceId: '${bEvId}' })">
+                🖼️ Ver Fotografía Inicial del Solicitante (${evResult.before.length} foto${evResult.before.length === 1 ? '' : 's'})
+              </a>
+              <div style="font-size:0.75rem; color:#0369a1; margin-top:2px;">Subida por: <strong>${safeTech}</strong> — ${safeDesc}</div>
+            </div>
           </div>
+          <button type="button" class="btn-action-danger" style="font-size:0.75rem; padding:4px 8px; border-radius:4px; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; cursor:pointer;" onclick="deleteOTPhoto('${bEvId}', '${otId}', '${bUrl}')" title="Eliminar evidencia fotográfica inicial">🗑️ Eliminar</button>
         </div>
       `;
+    } else {
+      fileBox.style.display = 'none';
+      imgLbl.innerHTML = '';
     }
   }
 
@@ -4541,6 +4566,7 @@ async function renderTechOTPhotos(otId) {
     const safeDesc = (ev.descripcion || ev.comentario || '').replace(/'/g, "\\'");
     const safeTech = (ev.nombre_tecnico || 'Técnico / Solicitante').replace(/'/g, "\\'");
     const safeTime = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleString('es-MX');
+    const evId = ev.id_evidencia || ev.id;
 
     return `
       <div style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; text-align: center; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
@@ -4548,14 +4574,14 @@ async function renderTechOTPhotos(otId) {
           ${categoryBadges[ev.tipo_evidencia] || '<span class="badge badge-priority-media">FOTO</span>'}
           <span style="font-size: 0.68rem; color: #64748b;">${timeStr}</span>
         </div>
-        <div style="height: 85px; background: #0f172a; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia}', ot: '${otId}', machine: '${ev.maquina_id || ''}', tech: '${safeTech}', time: '${safeTime}', desc: '${safeDesc}' })">
+        <div style="height: 85px; background: #0f172a; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia}', ot: '${otId}', machine: '${ev.maquina_id || ''}', tech: '${safeTech}', time: '${safeTime}', desc: '${safeDesc}', evidenceId: '${evId}' })">
           <img src="${imgUrl}" alt="${ev.tipo_evidencia}" style="width: 100%; height: 100%; object-fit: cover;">
         </div>
         ${ev.descripcion ? `<p style="margin: 4px 0 2px 0; font-size: 0.72rem; color: #334155; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${ev.descripcion}">${ev.descripcion}</p>` : ''}
         <div style="font-size:0.68rem; color:#64748b; margin-top:2px; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">👤 ${safeTech}</div>
         <div style="display: flex; justify-content: space-between; margin-top: 4px;">
-          <button type="button" style="font-size: 0.7rem; color: #0284c7; background: none; border: none; cursor: pointer; padding: 0;" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia}', ot: '${otId}', machine: '${ev.maquina_id || ''}', tech: '${safeTech}', time: '${safeTime}', desc: '${safeDesc}' })">🔍 Ver</button>
-          <button type="button" style="font-size: 0.7rem; color: #ef4444; background: none; border: none; cursor: pointer; padding: 0;" onclick="deleteOTPhoto('${ev.id_evidencia || ev.id}', '${otId}')">🗑️</button>
+          <button type="button" style="font-size: 0.7rem; color: #0284c7; background: none; border: none; cursor: pointer; padding: 0;" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia}', ot: '${otId}', machine: '${ev.maquina_id || ''}', tech: '${safeTech}', time: '${safeTime}', desc: '${safeDesc}', evidenceId: '${evId}' })">🔍 Ver</button>
+          <button type="button" style="font-size: 0.7rem; color: #ef4444; background: none; border: none; cursor: pointer; padding: 0;" onclick="deleteOTPhoto('${evId}', '${otId}', '${imgUrl}')">🗑️</button>
         </div>
       </div>
     `;
@@ -4568,29 +4594,46 @@ async function deleteOTPhoto(evidenceId, otId, photoUrl = null, refreshCallback 
     photoUrl = null;
   }
 
-  if (!confirm('¿Deseas eliminar esta evidencia fotográfica de manera definitiva?')) return false;
+  if (!confirm('¿Deseas eliminar permanentemente esta evidencia fotográfica?')) return false;
 
-  const cleanEvId = evidenceId ? String(evidenceId).trim() : null;
-  const cleanOtId = otId ? String(otId).trim() : null;
+  let cleanEvId = evidenceId ? String(evidenceId).trim() : null;
+  let cleanOtId = otId ? String(otId).trim() : null;
 
-  // Determinar targetUrl para matching exhaustivo
-  let targetUrl = photoUrl;
-  if (!targetUrl) {
+  // Si no tenemos cleanOtId pero tenemos cleanEvId, intentar deducirlo de caché
+  if (!cleanOtId && cleanEvId) {
     const allStoredEvs = [
       ...JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]'),
       ...JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]')
     ];
-    const match = allStoredEvs.find(e => (cleanEvId && (String(e.id_evidencia) === cleanEvId || String(e.id) === cleanEvId)));
+    const match = allStoredEvs.find(e => (String(e.id_evidencia) === cleanEvId || String(e.id) === cleanEvId));
+    if (match) cleanOtId = match.otId || match.ot_folio || match.id_orden || null;
+  }
+
+  // Determinar targetUrl para matching exhaustivo
+  let targetUrl = photoUrl;
+  if (!targetUrl && cleanEvId) {
+    const allStoredEvs = [
+      ...JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]'),
+      ...JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]')
+    ];
+    const match = allStoredEvs.find(e => (String(e.id_evidencia) === cleanEvId || String(e.id) === cleanEvId));
     if (match) targetUrl = match.url || match.url_archivo;
   }
+
+  const isInitialEv = Boolean(cleanEvId && (cleanEvId.includes('INIT') || cleanEvId.includes('INITIAL') || cleanEvId.includes('ANTES')));
+  const isFinalEv = Boolean(cleanEvId && (cleanEvId.includes('FINAL') || cleanEvId.includes('DESPUES') || cleanEvId.includes('DESPUÉS')));
 
   // 1. SINCRONIZACIÓN CON BACKEND SUPABASE (PRODUCCIÓN)
   if (APP_ENVIRONMENT !== 'DEMO' && typeof SUPABASE_URL !== 'undefined') {
     const serviceKey = typeof SUPABASE_SERVICE_ROLE_KEY !== 'undefined' ? SUPABASE_SERVICE_ROLE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZnBzYXZrZWZocnhmYnRxemVjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjE0MzU5NywiZXhwIjoyMDk3NzE5NTk3fQ.o7GCLoa5YoDFWOxfvPayokuJhVYQvd2s5YtEq8DAs2U';
 
     try {
-      // Intento por id_evidencia con Service Role (bypassa RLS)
-      if (cleanEvId && !cleanEvId.startsWith('INITIAL-') && !cleanEvId.startsWith('FINAL-')) {
+      // A. Intento por id_evidencia numérico directo
+      if (cleanEvId && !isInitialEv && !isFinalEv && /^\d+$/.test(cleanEvId)) {
+        await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?id_evidencia=eq.${encodeURIComponent(cleanEvId)}`, {
+          method: 'DELETE',
+          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+        });
         await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?id_evidencia=eq.${encodeURIComponent(cleanEvId)}`, {
           method: 'PATCH',
           headers: {
@@ -4602,8 +4645,12 @@ async function deleteOTPhoto(evidenceId, otId, photoUrl = null, refreshCallback 
         });
       }
 
-      // Intento por URL si está disponible
+      // B. Intento por url_archivo si está disponible
       if (targetUrl) {
+        await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?url_archivo=eq.${encodeURIComponent(targetUrl)}`, {
+          method: 'DELETE',
+          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+        });
         await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?url_archivo=eq.${encodeURIComponent(targetUrl)}`, {
           method: 'PATCH',
           headers: {
@@ -4614,20 +4661,58 @@ async function deleteOTPhoto(evidenceId, otId, photoUrl = null, refreshCallback 
           body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
         });
       }
+
+      // C. Desactivar / Eliminar evidencias por OT
+      if (cleanOtId) {
+        let otUuid = null;
+        try { otUuid = await resolveOrderUUID(cleanOtId); } catch(e) {}
+
+        if (isInitialEv) {
+          await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?tipo_evidencia=eq.ANTES&observaciones=ilike.*${encodeURIComponent(cleanOtId)}*`, {
+            method: 'PATCH',
+            headers: {
+              'apikey': serviceKey,
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
+          });
+          if (otUuid) {
+            await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?tipo_evidencia=eq.ANTES&id_orden=eq.${otUuid}`, {
+              method: 'PATCH',
+              headers: {
+                'apikey': serviceKey,
+                'Authorization': `Bearer ${serviceKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
+            });
+          }
+        } else if (isFinalEv) {
+          await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?tipo_evidencia=in.(DESPUES,DESPUÉS)&observaciones=ilike.*${encodeURIComponent(cleanOtId)}*`, {
+            method: 'PATCH',
+            headers: {
+              'apikey': serviceKey,
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
+          });
+          if (otUuid) {
+            await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?tipo_evidencia=in.(DESPUES,DESPUÉS)&id_orden=eq.${otUuid}`, {
+              method: 'PATCH',
+              headers: {
+                'apikey': serviceKey,
+                'Authorization': `Bearer ${serviceKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
+            });
+          }
+        }
+      }
     } catch (eRest) {
       console.warn('[deleteOTPhoto] Aviso en fetch REST a Supabase:', eRest);
-    }
-
-    // Fallback secundario vía supabaseClient si está disponible
-    if (supabaseClient && cleanEvId && !cleanEvId.startsWith('INITIAL-') && !cleanEvId.startsWith('FINAL-')) {
-      try {
-        await supabaseClient
-          .from('evidencias_orden')
-          .update({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
-          .eq('id_evidencia', cleanEvId);
-      } catch (eCli) {
-        console.warn('[deleteOTPhoto] Aviso en supabaseClient:', eCli);
-      }
     }
   }
 
@@ -4638,6 +4723,10 @@ async function deleteOTPhoto(evidenceId, otId, photoUrl = null, refreshCallback 
       evList = evList.filter(e => {
         if (cleanEvId && (String(e.id_evidencia) === cleanEvId || String(e.id) === cleanEvId)) return false;
         if (targetUrl && (e.url === targetUrl || e.url_archivo === targetUrl)) return false;
+        if (cleanOtId && String(e.otId || e.ot_folio || e.id_orden) === cleanOtId) {
+          if (isInitialEv && (e.tipo_evidencia === 'ANTES' || e.tipo_evidencia === 'INICIAL')) return false;
+          if (isFinalEv && (e.tipo_evidencia === 'DESPUES' || e.tipo_evidencia === 'DESPUÉS' || e.tipo_evidencia === 'FINAL')) return false;
+        }
         return true;
       });
       localStorage.setItem(storageKey, JSON.stringify(evList));
@@ -4650,6 +4739,8 @@ async function deleteOTPhoto(evidenceId, otId, photoUrl = null, refreshCallback 
       let items = JSON.parse(localStorage.getItem(storageKey) || '[]');
       let modified = false;
       items = items.map(item => {
+        const itemMatchesOt = cleanOtId && (String(item.id || item.folio || item.otId || item.uuid || '').trim() === cleanOtId);
+
         let changed = false;
         // Limpiar en array evidences
         if (Array.isArray(item.evidences)) {
@@ -4657,6 +4748,8 @@ async function deleteOTPhoto(evidenceId, otId, photoUrl = null, refreshCallback 
           item.evidences = item.evidences.filter(e => {
             if (cleanEvId && (String(e.id_evidencia) === cleanEvId || String(e.id) === cleanEvId)) return false;
             if (targetUrl && (e.url === targetUrl || e.url_archivo === targetUrl)) return false;
+            if (itemMatchesOt && isInitialEv && (e.tipo_evidencia === 'ANTES' || e.tipo_evidencia === 'INICIAL')) return false;
+            if (itemMatchesOt && isFinalEv && (e.tipo_evidencia === 'DESPUES' || e.tipo_evidencia === 'DESPUÉS' || e.tipo_evidencia === 'FINAL')) return false;
             return true;
           });
           if (item.evidences.length !== origLen) changed = true;
@@ -4667,27 +4760,38 @@ async function deleteOTPhoto(evidenceId, otId, photoUrl = null, refreshCallback 
           item.evidenceList = item.evidenceList.filter(e => {
             if (cleanEvId && (String(e.id_evidencia) === cleanEvId || String(e.id) === cleanEvId)) return false;
             if (targetUrl && (e.url === targetUrl || e.url_archivo === targetUrl)) return false;
+            if (itemMatchesOt && isInitialEv && (e.tipo_evidencia === 'ANTES' || e.tipo_evidencia === 'INICIAL')) return false;
+            if (itemMatchesOt && isFinalEv && (e.tipo_evidencia === 'DESPUES' || e.tipo_evidencia === 'DESPUÉS' || e.tipo_evidencia === 'FINAL')) return false;
             return true;
           });
           if (item.evidenceList.length !== origLen) changed = true;
         }
-        // Limpiar atributos directos de evidencia si coinciden con targetUrl o cleanEvId
-        if (item.evidence && (item.evidence === targetUrl || (cleanEvId && item.evidence === cleanEvId))) {
-          item.evidence = null;
-          changed = true;
+
+        // Si es la orden/solicitud específica a la que se le elimina la evidencia
+        if (itemMatchesOt) {
+          if (isInitialEv || (targetUrl && (item.evidence === targetUrl || item.evidencia === targetUrl || item.url_archivo === targetUrl)) || (cleanEvId && (item.evidence === cleanEvId || item.evidencia === cleanEvId)) || (Array.isArray(item.evidences) && item.evidences.length === 0)) {
+            item.evidence = null;
+            item.evidencia = null;
+            item.url_archivo = null;
+            changed = true;
+          }
+          if (isFinalEv || (targetUrl && (item.finalEvidence === targetUrl || item.evidencia_final === targetUrl)) || (cleanEvId && item.finalEvidence === cleanEvId)) {
+            item.finalEvidence = null;
+            item.evidencia_final = null;
+            changed = true;
+          }
+        } else {
+          // Búsqueda global por URL o ID
+          if (item.evidence && (item.evidence === targetUrl || (cleanEvId && item.evidence === cleanEvId))) {
+            item.evidence = null;
+            changed = true;
+          }
+          if (item.finalEvidence && (item.finalEvidence === targetUrl || (cleanEvId && item.finalEvidence === cleanEvId))) {
+            item.finalEvidence = null;
+            changed = true;
+          }
         }
-        if (item.finalEvidence && (item.finalEvidence === targetUrl || (cleanEvId && item.finalEvidence === cleanEvId))) {
-          item.finalEvidence = null;
-          changed = true;
-        }
-        if (item.url_archivo && (item.url_archivo === targetUrl || (cleanEvId && item.url_archivo === cleanEvId))) {
-          item.url_archivo = null;
-          changed = true;
-        }
-        if (item.evidencia && (item.evidencia === targetUrl || (cleanEvId && item.evidencia === cleanEvId))) {
-          item.evidencia = null;
-          changed = true;
-        }
+
         if (changed) modified = true;
         return item;
       });
@@ -4717,9 +4821,13 @@ async function deleteOTPhoto(evidenceId, otId, photoUrl = null, refreshCallback 
     if (solicModal && (solicModal.classList.contains('active') || solicModal.style.display !== 'none')) {
       try { openSolicitanteValidationDetail(cleanOtId); } catch (eR) {}
     }
-    const appRevModal = document.getElementById('modal-applicant-review');
+    const appRevModal = document.getElementById('modal-applicant-review') || document.getElementById('modal-applicant-review-ot');
     if (appRevModal && (appRevModal.classList.contains('active') || appRevModal.style.display !== 'none')) {
       try { openApplicantReviewModal(cleanOtId); } catch (eR) {}
+    }
+    const adminRevModal = document.getElementById('modal-admin-review');
+    if (adminRevModal && (adminRevModal.classList.contains('active') || adminRevModal.style.display !== 'none')) {
+      try { openReviewModal(cleanOtId); } catch (eR) {}
     }
     const ot360Modal = document.getElementById('modal-ot-360-audit');
     if (ot360Modal && (ot360Modal.classList.contains('active') || ot360Modal.style.display !== 'none')) {
@@ -4936,7 +5044,7 @@ async function loadOTEvidences(orderId) {
       }
       if (ordMatch.evidence || ordMatch.url_archivo || ordMatch.evidencia) {
         const evUrl = ordMatch.url_archivo || ordMatch.evidence || ordMatch.evidencia;
-        if (typeof evUrl === 'string' && (evUrl.startsWith('data:') || evUrl.startsWith('http') || evUrl.length > 5)) {
+        if (typeof evUrl === 'string' && (evUrl.startsWith('data:') || evUrl.startsWith('http://') || evUrl.startsWith('https://'))) {
           if (!rawEvidences.some(x => x.tipo_evidencia === 'ANTES' && (x.url === evUrl || x.url_archivo === evUrl))) {
             rawEvidences.unshift({
               id: 'INITIAL-EV-' + cleanOrderId,
@@ -4958,8 +5066,8 @@ async function loadOTEvidences(orderId) {
           }
         }
       }
-      if (ordMatch.finalEvidence && typeof ordMatch.finalEvidence === 'string' && ordMatch.finalEvidence.length > 5) {
-        if (!rawEvidences.some(x => x.tipo_evidencia === 'DESPUES' && (x.url === ordMatch.finalEvidence || x.url_archivo === ordMatch.finalEvidence))) {
+      if (ordMatch.finalEvidence && typeof ordMatch.finalEvidence === 'string' && (ordMatch.finalEvidence.startsWith('data:') || ordMatch.finalEvidence.startsWith('http://') || ordMatch.finalEvidence.startsWith('https://'))) {
+        if (!rawEvidences.some(x => (x.tipo_evidencia === 'DESPUES' || x.tipo_evidencia === 'DESPUÉS') && (x.url === ordMatch.finalEvidence || x.url_archivo === ordMatch.finalEvidence))) {
           rawEvidences.push({
             id: 'FINAL-EV-' + cleanOrderId,
             id_evidencia: 'FINAL-EV-' + cleanOrderId,
@@ -8597,13 +8705,89 @@ function renderAdminRequestsTable() {
         <td><span class="badge badge-priority-${urgencyVal.toLowerCase()}">${urgencyVal}</span></td>
         <td><span class="badge badge-status-recibida">RECIBIDA</span></td>
         <td>
-          <button class="btn-table-action" onclick="openReviewModal('${r.id}')">Revisar / Convertir en OT</button>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button class="btn-table-action" onclick="openReviewModal('${r.id}')">Revisar / Convertir en OT</button>
+            <button class="btn-action-danger" style="padding:4px 8px; font-size:0.8rem; border-radius:4px; border:1px solid #fca5a5; background:#fee2e2; color:#dc2626; cursor:pointer;" onclick="adminDeleteRequest('${r.id}')" title="Eliminar Solicitud de Prueba">🗑️</button>
+          </div>
         </td>
       </tr>
     `;
   });
   tbody.innerHTML = html;
 }
+
+// Eliminación de Solicitudes de prueba por el Administrador
+async function adminDeleteRequest(reqId) {
+  if (!reqId) return;
+  const cleanId = String(reqId).trim();
+
+  // Validar rol de administrador
+  const role = currentUser ? (currentUser.role || '').toLowerCase() : '';
+  if (role !== 'admin' && role !== 'superadmin' && !isSuperAdmin(currentUser)) {
+    alert('⚠️ Solo los administradores pueden eliminar solicitudes de prueba.');
+    return;
+  }
+
+  const ok = confirm(`¿Deseas eliminar permanentemente la Solicitud "${cleanId}"?\n\nEsta acción borrará el registro de prueba y sus evidencias asociadas sin afectar métricas ni KPIs.`);
+  if (!ok) return;
+
+  // 1. LocalStorage solicitudes
+  ['TSMAI_requests', 'TSMAI_DEMO_requests'].forEach(key => {
+    try {
+      const items = JSON.parse(localStorage.getItem(key) || '[]');
+      const filtered = items.filter(r => String(r.id || r.folio || '').trim() !== cleanId);
+      localStorage.setItem(key, JSON.stringify(filtered));
+    } catch (e) {}
+  });
+
+  // 2. LocalStorage evidencias
+  ['TSMAI_evidences', 'TSMAI_DEMO_evidences'].forEach(key => {
+    try {
+      const evs = JSON.parse(localStorage.getItem(key) || '[]');
+      const filtered = evs.filter(e => String(e.otId || e.ot_folio || e.id_orden || '').trim() !== cleanId);
+      localStorage.setItem(key, JSON.stringify(filtered));
+    } catch (e) {}
+  });
+
+  // 3. Supabase sincronización
+  if (APP_ENVIRONMENT !== 'DEMO' && typeof SUPABASE_URL !== 'undefined') {
+    const serviceKey = typeof SUPABASE_SERVICE_ROLE_KEY !== 'undefined' ? SUPABASE_SERVICE_ROLE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZnBzYXZrZWZocnhmYnRxemVjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjE0MzU5NywiZXhwIjoyMDk3NzE5NTk3fQ.o7GCLoa5YoDFWOxfvPayokuJhVYQvd2s5YtEq8DAs2U';
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?observaciones=ilike.*${encodeURIComponent(cleanId)}*`, {
+        method: 'DELETE',
+        headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+      });
+      await fetch(`${SUPABASE_URL}/rest/v1/ordenes_trabajo?folio=eq.${encodeURIComponent(cleanId)}`, {
+        method: 'DELETE',
+        headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+      });
+    } catch (errDb) {
+      console.warn('[adminDeleteRequest] Error en backend Supabase:', errDb);
+    }
+  }
+
+  // 4. Cerrar modal de revisión si estaba abierto con esta solicitud
+  try { closeModal('modal-admin-review'); } catch (e) {}
+
+  // 5. Refrescar vistas
+  try { renderAdminRequestsTable(); } catch (e) {}
+  try { updateAdminKPIs(); } catch (e) {}
+  try { renderAdminDashboard(); } catch (e) {}
+  try { renderSolicitanteTracking(); } catch (e) {}
+  try { renderSolicitanteDashboard(); } catch (e) {}
+
+  showToast(`🗑️ Solicitud ${cleanId} eliminada correctamente.`, 'info');
+}
+
+function adminDeleteCurrentReviewRequest() {
+  const reqId = document.getElementById('review-req-id')?.value;
+  if (!reqId) {
+    alert('No se pudo identificar la solicitud a eliminar.');
+    return;
+  }
+  adminDeleteRequest(reqId);
+}
+
 
 // --- MODAL DE REVISIÓN (ADMIN) ---
 // --- MATRIZ DE PRIORIZACIÓN DE ÓRDENES (CRITICIDAD + URGENCIA + RIESGO) ---
@@ -9102,9 +9286,10 @@ function renderAdminOrdersTable(filteredOrders) {
         <td><strong>${progress}%</strong></td>
         <td>${formattedDueDate}</td>
         <td>
-          <div style="display:flex; gap:4px; flex-wrap:wrap;">
+          <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
             <button class="btn-action-primary" style="padding:4px 8px; font-size:0.78rem; background:#0f172a; border-color:#0f172a;" onclick="openAdmin360OTAuditModal('${o.id || o.uuid}')">🔍 Auditoría 360°</button>
             <button class="btn-table-action" style="padding:4px 8px; font-size:0.78rem;" onclick="viewOrderHistoryLogs('${o.id || o.uuid}')">Logs</button>
+            <button class="btn-action-danger" style="padding:4px 8px; font-size:0.78rem; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:4px; cursor:pointer;" onclick="adminDeleteOrder('${o.id || o.uuid}')" title="Eliminar OT de Prueba">🗑️</button>
           </div>
         </td>
       </tr>
@@ -9112,6 +9297,149 @@ function renderAdminOrdersTable(filteredOrders) {
   });
   if (tbody) tbody.innerHTML = html;
 }
+
+// Eliminación de Órdenes de Trabajo de prueba por el Administrador
+async function adminDeleteOrder(orderId) {
+  if (!orderId) return;
+  const cleanId = String(orderId).trim();
+
+  // Validar rol de administrador
+  const role = currentUser ? (currentUser.role || '').toLowerCase() : '';
+  if (role !== 'admin' && role !== 'superadmin' && !isSuperAdmin(currentUser)) {
+    alert('⚠️ Solo los administradores pueden eliminar órdenes de trabajo de prueba.');
+    return;
+  }
+
+  const ok = confirm(`¿Deseas eliminar permanentemente la Orden de Trabajo "${cleanId}"?\n\nEsta acción borrará la OT, subtareas, bitácora y evidencias asociadas sin afectar indicadores ni KPIs.`);
+  if (!ok) return;
+
+  // 1. Eliminar de LocalStorage (TSMAI_orders / TSMAI_DEMO_orders)
+  ['TSMAI_orders', 'TSMAI_DEMO_orders'].forEach(key => {
+    try {
+      const items = JSON.parse(localStorage.getItem(key) || '[]');
+      const filtered = items.filter(o => String(o.id || o.folio || o.uuid || '').trim() !== cleanId);
+      localStorage.setItem(key, JSON.stringify(filtered));
+    } catch (e) {}
+  });
+
+  // 2. Limpiar relación en Solicitudes
+  ['TSMAI_requests', 'TSMAI_DEMO_requests'].forEach(key => {
+    try {
+      const reqs = JSON.parse(localStorage.getItem(key) || '[]');
+      let mod = false;
+      const updated = reqs.map(r => {
+        if (r.convertedToOT === cleanId || r.otId === cleanId) {
+          r.convertedToOT = null;
+          r.otId = null;
+          mod = true;
+        }
+        return r;
+      });
+      if (mod) localStorage.setItem(key, JSON.stringify(updated));
+    } catch (e) {}
+  });
+
+  // 3. Limpiar evidencias asociadas en LocalStorage
+  ['TSMAI_evidences', 'TSMAI_DEMO_evidences'].forEach(key => {
+    try {
+      const evs = JSON.parse(localStorage.getItem(key) || '[]');
+      const filtered = evs.filter(e => String(e.otId || e.ot_folio || e.id_orden || '').trim() !== cleanId);
+      localStorage.setItem(key, JSON.stringify(filtered));
+    } catch (e) {}
+  });
+
+  // 4. Limpiar subtareas locales si existen
+  try {
+    const subKey = getAppStorageKey('subtasks') || 'TSMAI_subtasks';
+    const allSubs = JSON.parse(localStorage.getItem(subKey) || '[]');
+    const filteredSubs = allSubs.filter(s => String(s.otId || s.folio_ot || '').trim() !== cleanId);
+    localStorage.setItem(subKey, JSON.stringify(filteredSubs));
+  } catch (e) {}
+
+  // 5. Sincronización en Supabase (si aplica)
+  if (APP_ENVIRONMENT !== 'DEMO' && typeof SUPABASE_URL !== 'undefined') {
+    const serviceKey = typeof SUPABASE_SERVICE_ROLE_KEY !== 'undefined' ? SUPABASE_SERVICE_ROLE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZnBzYXZrZWZocnhmYnRxemVjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjE0MzU5NywiZXhwIjoyMDk3NzE5NTk3fQ.o7GCLoa5YoDFWOxfvPayokuJhVYQvd2s5YtEq8DAs2U';
+    try {
+      let otUuid = null;
+      try { otUuid = await resolveOrderUUID(cleanId); } catch(e) {}
+
+      // A. Evidencias
+      await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?observaciones=ilike.*${encodeURIComponent(cleanId)}*`, {
+        method: 'DELETE',
+        headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+      });
+      if (otUuid) {
+        await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?id_orden=eq.${otUuid}`, {
+          method: 'DELETE',
+          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+        });
+      }
+
+      // B. Subtareas y bitácora de subtareas
+      if (otUuid) {
+        await fetch(`${SUPABASE_URL}/rest/v1/subtareas_orden_trabajo?id_orden=eq.${otUuid}`, {
+          method: 'DELETE',
+          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+        });
+        await fetch(`${SUPABASE_URL}/rest/v1/bitacora_subtareas?id_orden=eq.${otUuid}`, {
+          method: 'DELETE',
+          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+        });
+      }
+
+      // C. Bitácora de mantenimiento
+      if (otUuid) {
+        await fetch(`${SUPABASE_URL}/rest/v1/bitacora_mantenimiento?id_orden=eq.${otUuid}`, {
+          method: 'DELETE',
+          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+        });
+      }
+
+      // D. Cierres y costos
+      if (otUuid) {
+        await fetch(`${SUPABASE_URL}/rest/v1/cierres_orden_trabajo?id_orden=eq.${otUuid}`, {
+          method: 'DELETE',
+          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+        });
+        await fetch(`${SUPABASE_URL}/rest/v1/costos_orden_trabajo?id_orden=eq.${otUuid}`, {
+          method: 'DELETE',
+          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+        });
+      }
+
+      // E. Fila principal en ordenes_trabajo
+      const filterOt = otUuid ? `or=(folio.eq.${encodeURIComponent(cleanId)},id_orden.eq.${otUuid})` : `folio.eq.${encodeURIComponent(cleanId)}`;
+      await fetch(`${SUPABASE_URL}/rest/v1/ordenes_trabajo?${filterOt}`, {
+        method: 'DELETE',
+        headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+      });
+    } catch (errDb) {
+      console.warn('[adminDeleteOrder] Error en backend Supabase:', errDb);
+    }
+  }
+
+  // 6. Cerrar modal de auditoría 360° si estaba abierto con esta orden
+  try { closeModal('modal-ot-360-audit'); } catch (e) {}
+
+  // 7. Refrescar tablas, KPIs y calendarios
+  try { renderAdminOrdersTable(); } catch (e) {}
+  try { updateAdminKPIs(); } catch (e) {}
+  try { renderAdminDashboard(); } catch (e) {}
+  try { renderAdminCalendar(); } catch (e) {}
+  try { renderSolicitanteCalendar(); } catch (e) {}
+
+  showToast(`🗑️ Orden de Trabajo ${cleanId} eliminada correctamente.`, 'info');
+}
+
+function adminDeleteCurrent360Order() {
+  const orderId = window._current360OrderId || document.getElementById('ot360-info-folio')?.innerText;
+  if (!orderId || orderId === '-') {
+    alert('No se pudo identificar la orden de trabajo actual.');
+    return;
+  }
+  adminDeleteOrder(orderId);
+}
+
 
 // Aplicar filtros combinados
 function applyOTFilters() {
@@ -9407,10 +9735,37 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
       // Paso B: Cargar OTs para desduplicación y enlace de folios
       const { data: rawOts } = await supabaseClient
         .from('ordenes_trabajo')
-        .select('id_orden, folio, departamento, maquina_id, fecha_hora_inicio, fecha_carga, orden_trabajo, descripcion, estatus, prioridad, cve_atendio, nombre_atendio');
+        .select('id_orden, folio, departamento, maquina_id, fecha_hora_inicio, fecha_carga, fecha_hora_fin, fecha_fin, orden_trabajo, descripcion, estatus, prioridad, cve_atendio, nombre_atendio, observacion_cierre');
+
+      // Combinar con órdenes locales para garantizar reflejo inmediato de OTs realizadas y guardadas
+      const localOrders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
+      const allOts = [...(rawOts || [])];
+
+      localOrders.forEach(lo => {
+        const loFolio = lo.id || lo.folio;
+        if (!allOts.some(o => o.folio === loFolio || (lo.uuid && o.id_orden === lo.uuid))) {
+          allOts.push({
+            id_orden: lo.uuid || lo.id,
+            folio: loFolio,
+            departamento: lo.area || lo.departamento,
+            maquina_id: lo.machine || lo.maquina_id,
+            fecha_hora_inicio: lo.date || lo.fecha_hora_inicio,
+            fecha_carga: lo.date || lo.fecha_carga,
+            fecha_hora_fin: lo.closeDate || lo.fecha_hora_fin,
+            fecha_fin: (lo.closeDate || lo.fecha_fin || '').split('T')[0],
+            orden_trabajo: lo.type || lo.orden_trabajo || 'MC',
+            descripcion: lo.description || lo.descripcion,
+            estatus: lo.status || lo.estatus,
+            prioridad: lo.urgency || lo.prioridad,
+            cve_atendio: lo.assignedTech,
+            nombre_atendio: lo.techName,
+            observacion_cierre: lo.observacion_cierre || lo.solution
+          });
+        }
+      });
 
       const otFolioMap = new Map();
-      (rawOts || []).forEach(ot => {
+      allOts.forEach(ot => {
         if (ot.id_orden && ot.folio) otFolioMap.set(ot.id_orden, ot.folio);
       });
 
@@ -9446,6 +9801,7 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
             id_evento: d.id_detalle,
             id_ref: d.id_detalle,
             tipo_mantenimiento: tipo,
+            isRealizada: false,
             proceso: dProc,
             maquina_id: d.maquina_id,
             fecha: f,
@@ -9463,7 +9819,7 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
 
       // Paso D: Órdenes de Trabajo Reales de la Plataforma (ordenes_trabajo)
       const platformOtsList = [];
-      (rawOts || []).forEach(ot => {
+      allOts.forEach(ot => {
         // Desduplicación: excluir si ya fue generada desde detalle de calendario
         if (generatedOtIds.has(ot.id_orden)) return;
 
@@ -9482,21 +9838,32 @@ async function loadUnifiedCalendarByProcess(processCode, dateFrom = null, dateTo
 
         if (proc !== 'ALL' && otProc !== proc) return;
 
-        const dateVal = ot.fecha_hora_inicio || ot.fecha_carga;
+        const statusUpper = String(ot.estatus || ot.status || 'PENDIENTE').toUpperCase().trim();
+        const isRealizada = ['TERMINADA', 'REALIZADA', 'CERRADA', 'RESUELTA', 'VALIDADA', 'COMPLETADA', 'TERMINADO'].includes(statusUpper) || ['cerrada', 'terminada', 'validada', 'resuelta'].includes(String(ot.estatus || ot.status || '').toLowerCase());
+
+        // Fecha a reflejar en calendario: si está realizada usar fecha de fin/cierre; si no, fecha programada/inicio
+        let dateVal = ot.fecha_hora_inicio || ot.fecha_carga;
+        if (isRealizada && (ot.fecha_hora_fin || ot.fecha_fin || ot.closeDate)) {
+          dateVal = ot.fecha_hora_fin || ot.closeDate || ot.fecha_fin;
+        } else if (!dateVal && (ot.dueDate || ot.date)) {
+          dateVal = ot.dueDate || ot.date;
+        }
+
         const f = dateVal ? String(dateVal).split('T')[0] : null;
         if (dateFrom && f && f < dateFrom) return;
         if (dateTo && f && f > dateTo) return;
 
         platformOtsList.push({
           id_evento: ot.folio || ot.id_orden,
-          id_ref: ot.id_orden,
+          id_ref: ot.id_orden || ot.folio,
           tipo_mantenimiento: mappedType,
+          isRealizada: Boolean(isRealizada),
           proceso: otProc,
           maquina_id: ot.maquina_id || 'Planta General',
           fecha: f,
-          actividad: ot.orden_trabajo || (mappedType === 'CORRECTIVO' ? 'Mantenimiento Correctivo' : 'Mantenimiento ' + mappedType),
+          actividad: isRealizada ? `✅ OT Realizada: ${ot.folio || ot.id_orden}` : (ot.orden_trabajo || (mappedType === 'CORRECTIVO' ? 'Mantenimiento Correctivo' : 'Mantenimiento ' + mappedType)),
           descripcion: ot.descripcion || ot.orden_trabajo || 'Orden de trabajo de plataforma',
-          estatus: (ot.estatus || 'PENDIENTE').toUpperCase(),
+          estatus: statusUpper || 'PENDIENTE',
           prioridad: ot.prioridad || 'MEDIA',
           responsable: ot.nombre_atendio || ot.cve_atendio || 'Por asignar',
           origen: 'ORDEN_TRABAJO',
@@ -9615,8 +9982,9 @@ async function renderAdminCalendar() {
     id_ref: e.id_ref || e.id_evento,
     folio: e.ot_asociada || e.id_evento,
     type: e.tipo_mantenimiento,
+    isRealizada: Boolean(e.isRealizada),
     title: e.tipo_mantenimiento === 'CORRECTIVO' 
-      ? `${e.ot_asociada || e.id_evento}: ${e.descripcion || 'Fallo'}`
+      ? `${e.isRealizada ? '✅ REALIZADA: ' : ''}${e.ot_asociada || e.id_evento}: ${e.maquina_id} - ${e.descripcion || 'Fallo'}`
       : `${e.tipo_mantenimiento} (${e.proceso || activeAdminCalendarProcess}): ${e.maquina_id} - ${e.descripcion}`,
     date: e.fecha,
     estado: e.estatus,
@@ -9705,9 +10073,19 @@ async function renderAdminCalendar() {
       dailyEvents.forEach(e => {
         let cls = 'preventivo';
         let clickHandler = '';
+        let labelText = e.id;
+        let customStyle = '';
+
         if (e.type === 'CORRECTIVO') {
-          cls = 'correctivo';
-          clickHandler = `onclick="viewOrderHistoryLogs('${e.id}')"`;
+          if (e.isRealizada) {
+            cls = 'correctivo-realizada';
+            labelText = `✅ ${e.folio || e.id}`;
+            customStyle = 'background:#16a34a !important; color:white !important; font-weight:700; border:1px solid #15803d; border-radius:4px; padding:1px 4px;';
+          } else {
+            cls = 'correctivo';
+            labelText = `🔴 ${e.folio || e.id}`;
+          }
+          clickHandler = `onclick="openAdmin360OTAuditModal('${e.folio || e.id_ref || e.ot_asociada || e.id}')"`;
         } else {
           if (e.type === 'PREDICTIVO') cls = 'predictivo';
           if (e.type === 'AUTONOMO') cls = 'autonomo';
@@ -9719,7 +10097,7 @@ async function renderAdminCalendar() {
           clickHandler = `onclick="viewCalendarDetail('${e.id_ref}', '${viewName}')"`;
         }
 
-        html += `<span class="calendar-event ${cls}" style="cursor: pointer;" ${clickHandler} title="${e.title}">${e.id}</span>`;
+        html += `<span class="calendar-event ${cls}" style="cursor: pointer; ${customStyle}" ${clickHandler} title="${e.title}">${labelText}</span>`;
       });
 
       html += `
@@ -9769,9 +10147,19 @@ async function renderAdminCalendar() {
       dailyEvents.forEach(e => {
         let cls = 'preventivo';
         let clickHandler = '';
+        let labelText = e.id;
+        let customStyle = '';
+
         if (e.type === 'CORRECTIVO') {
-          cls = 'correctivo';
-          clickHandler = `onclick="viewOrderHistoryLogs('${e.id}')"`;
+          if (e.isRealizada) {
+            cls = 'correctivo-realizada';
+            labelText = `✅ Realizada [${e.folio || e.id}] ${e.id}`;
+            customStyle = 'background:#16a34a !important; color:white !important; border:1px solid #15803d;';
+          } else {
+            cls = 'correctivo';
+            labelText = `🔴 [${e.folio || e.id}] ${e.id}`;
+          }
+          clickHandler = `onclick="openAdmin360OTAuditModal('${e.folio || e.id_ref || e.ot_asociada || e.id}')"`;
         } else {
           if (e.type === 'PREDICTIVO') cls = 'predictivo';
           if (e.type === 'AUTONOMO') cls = 'autonomo';
@@ -9784,8 +10172,8 @@ async function renderAdminCalendar() {
         }
         
         html += `
-          <div class="calendar-event ${cls}" ${clickHandler} style="padding: 4px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; white-space: normal;" title="${e.title}">
-            <strong>${e.id}</strong><br/>
+          <div class="calendar-event ${cls}" ${clickHandler} style="padding: 4px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; white-space: normal; ${customStyle}" title="${e.title}">
+            <strong>${labelText}</strong><br/>
             <span style="font-size: 0.6rem; opacity: 0.85;">${e.title.split(' - ')[1] || e.title}</span>
           </div>
         `;
@@ -20647,8 +21035,9 @@ async function renderSolicitanteCalendar() {
     id_ref: e.id_ref || e.id_evento,
     folio: e.ot_asociada || e.id_evento,
     type: e.tipo_mantenimiento,
+    isRealizada: Boolean(e.isRealizada),
     title: e.tipo_mantenimiento === 'CORRECTIVO'
-      ? `${e.ot_asociada || e.id_evento}: ${e.descripcion || 'Fallo'}`
+      ? `${e.isRealizada ? '✅ REALIZADA: ' : ''}${e.ot_asociada || e.id_evento}: ${e.maquina_id} - ${e.descripcion || 'Fallo'}`
       : `${e.tipo_mantenimiento} (${e.proceso || userProc}): ${e.maquina_id} - ${e.descripcion}`,
     date: e.fecha,
     estado: e.estatus,
@@ -20740,16 +21129,26 @@ async function renderSolicitanteCalendar() {
         dailyEvents.forEach(e => {
           let cls = 'preventivo';
           let clickHandler = '';
+          let labelText = e.id;
+          let customStyle = '';
+
           if (e.type === 'CORRECTIVO') {
-            cls = 'correctivo';
-            clickHandler = `onclick="viewOrderHistoryLogs('${e.id}')"`;
+            if (e.isRealizada) {
+              cls = 'correctivo-realizada';
+              labelText = `✅ ${e.folio || e.id}`;
+              customStyle = 'background:#16a34a !important; color:white !important; font-weight:700; border:1px solid #15803d; border-radius:4px; padding:1px 4px;';
+            } else {
+              cls = 'correctivo';
+              labelText = `🔴 ${e.folio || e.id}`;
+            }
+            clickHandler = `onclick="openSolicitanteValidationDetail('${e.folio || e.id_ref || e.ot_asociada || e.id}')"`;
           } else {
             if (e.type === 'PREDICTIVO') cls = 'predictivo';
             if (e.type === 'AUTONOMO') cls = 'autonomo';
             clickHandler = `onclick="viewCalendarDetail('${e.id_ref}')"`;
           }
 
-          html += `<span class="calendar-event ${cls}" style="cursor: pointer;" ${clickHandler} title="${e.title}"><strong>${e.id}</strong></span>`;
+          html += `<span class="calendar-event ${cls}" style="cursor: pointer; ${customStyle}" ${clickHandler} title="${e.title}"><strong>${labelText}</strong></span>`;
         });
 
         html += `
@@ -20798,9 +21197,19 @@ async function renderSolicitanteCalendar() {
         dailyEvents.forEach(e => {
           let cls = 'preventivo';
           let clickHandler = '';
+          let labelText = e.id;
+          let customStyle = '';
+
           if (e.type === 'CORRECTIVO') {
-            cls = 'correctivo';
-            clickHandler = `onclick="viewOrderHistoryLogs('${e.id}')"`;
+            if (e.isRealizada) {
+              cls = 'correctivo-realizada';
+              labelText = `✅ Realizada [${e.folio || e.id}] ${e.id}`;
+              customStyle = 'background:#16a34a !important; color:white !important; border:1px solid #15803d;';
+            } else {
+              cls = 'correctivo';
+              labelText = `🔴 [${e.folio || e.id}] ${e.id}`;
+            }
+            clickHandler = `onclick="openSolicitanteValidationDetail('${e.folio || e.id_ref || e.ot_asociada || e.id}')"`;
           } else {
             if (e.type === 'PREDICTIVO') cls = 'predictivo';
             if (e.type === 'AUTONOMO') cls = 'autonomo';
@@ -20808,8 +21217,8 @@ async function renderSolicitanteCalendar() {
           }
           
           html += `
-            <div class="calendar-event ${cls}" ${clickHandler} style="padding: 4px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: normal;" title="${e.title}">
-              <strong>${e.id}</strong><br/>
+            <div class="calendar-event ${cls}" ${clickHandler} style="padding: 4px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: normal; ${customStyle}" title="${e.title}">
+              <strong>${labelText}</strong><br/>
               <span style="font-size: 0.65rem; opacity: 0.9;">${(e.title.split(' - ')[1] || e.title)}</span>
             </div>
           `;
@@ -22185,12 +22594,20 @@ async function openAdmin360OTAuditModal(orderId, explicitMachineId) {
 
   if (!order && supabaseClient) {
     try {
-      const { data } = await supabaseClient.from('ordenes_trabajo').select('*').eq('id', orderId).single();
-      if (data) order = data;
+      let query = supabaseClient.from('ordenes_trabajo').select('*');
+      if (/^\d+$/.test(String(orderId).trim())) {
+        query = query.or(`folio.eq.${orderId},id_orden.eq.${orderId}`);
+      } else {
+        query = query.eq('folio', orderId);
+      }
+      const { data } = await query.limit(1);
+      if (data && data.length > 0) order = data[0];
     } catch (e) {
       // Ignorar si orderId es clave de máquina
     }
   }
+
+  window._current360OrderId = order ? (order.folio || order.id || order.id_orden || orderId) : orderId;
 
   const targetMachCode = explicitMachineId || (order ? (order.machine || order.maquina_id) : orderId);
   let resolvedArea = resolveCanonicalMachineProcess(targetMachCode, null, null, '');

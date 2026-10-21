@@ -43,11 +43,19 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.6.16"></script>
+  <script src="config.js?v=3.6.17"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.6.16">
+  <link rel="stylesheet" href="style.css?v=3.6.17">
+  <style>
+    .calendar-event.correctivo-realizada {
+      background: #16a34a !important;
+      color: white !important;
+      border: 1px solid #15803d !important;
+      font-weight: 700 !important;
+    }
+  </style>
 </head>
 <body>
 
@@ -3513,7 +3521,10 @@
       <!-- Pie del Modal -->
       <div class="modal-footer" style="background: #f1f5f9; padding: 16px 24px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
         <span style="font-size: 0.82rem; color: #64748b;">🔒 Vista de Auditoría 360° para Súper Administrador.</span>
-        <button type="button" class="btn-action-primary" onclick="closeModal('modal-ot-360-audit')">Cerrar Auditoría</button>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button type="button" class="btn-action-secondary" style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5; font-weight:600;" onclick="adminDeleteCurrent360Order()" title="Eliminar definitivamente esta OT de prueba y sus evidencias">🗑️ Eliminar OT de Prueba</button>
+          <button type="button" class="btn-action-primary" onclick="closeModal('modal-ot-360-audit')">Cerrar Auditoría</button>
+        </div>
       </div>
 
     </div>
@@ -3765,10 +3776,13 @@
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn-tech-status btn-tech-hold" onclick="requestMoreInfoFromApplicant()" style="width: auto;">Solicitar Más Información</button>
-        <button class="btn-tech-status btn-tech-start" onclick="convertToWorkOrder()" style="width: auto;">Convertir en OT Oficial</button>
-        <button class="btn-logout" onclick="cancelRequest()" style="width: auto;">Cancelar / Rechazar</button>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <button type="button" class="btn-logout" onclick="adminDeleteCurrentReviewRequest()" style="width: auto; background: #fee2e2; color: #b91c1c; border-color: #fca5a5; font-weight: 600;" title="Eliminar definitivamente esta solicitud de prueba y sus evidencias">🗑️ Eliminar Solicitud de Prueba</button>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn-tech-status btn-tech-hold" onclick="requestMoreInfoFromApplicant()" style="width: auto;">Solicitar Más Información</button>
+          <button class="btn-tech-status btn-tech-start" onclick="convertToWorkOrder()" style="width: auto;">Convertir en OT Oficial</button>
+          <button class="btn-logout" onclick="cancelRequest()" style="width: auto;">Cancelar / Rechazar</button>
+        </div>
       </div>
     </div>
   </div>
@@ -6034,16 +6048,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.6.16"></script>
-  <script src="agents-client.js?v=3.6.16"></script>
-  <script src="app.js?v=3.6.16"></script>
-  <script src="dashboard.js?v=3.6.16"></script>
+  <script src="seed.js?v=3.6.17"></script>
+  <script src="agents-client.js?v=3.6.17"></script>
+  <script src="app.js?v=3.6.17"></script>
+  <script src="dashboard.js?v=3.6.17"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.6.16')
+        navigator.serviceWorker.register('./sw.js?v=3.6.17')
           .then(reg => {
             reg.update();
             console.log('✅ ServiceWorker registrado:', reg.scope);
