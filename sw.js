@@ -2,20 +2,20 @@
    Towell Smart Maintenance AI (TSM-AI) - Service Worker (PWA)
    ========================================================================== */
 
-const CACHE_NAME = 'tsmai-pwa-v3.6.14';
+const CACHE_NAME = 'tsmai-pwa-v3.6.15';
 const ASSETS_TO_CACHE = [
   './',
-  './index.html?v=3.6.14',
+  './index.html?v=3.6.15',
   './favicon.ico',
   './favicon.png',
   './apple-touch-icon.png',
-  './style.css?v=3.6.14',
-  './config.js?v=3.6.14',
-  './agents-client.js?v=3.6.14',
-  './seed.js?v=3.6.14',
-  './app.js?v=3.6.14',
-  './dashboard.js?v=3.6.14',
-  './manifest.json?v=3.6.14',
+  './style.css?v=3.6.15',
+  './config.js?v=3.6.15',
+  './agents-client.js?v=3.6.15',
+  './seed.js?v=3.6.15',
+  './app.js?v=3.6.15',
+  './dashboard.js?v=3.6.15',
+  './manifest.json?v=3.6.15',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',

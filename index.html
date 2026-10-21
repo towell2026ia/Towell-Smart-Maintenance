@@ -43,11 +43,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.6.14"></script>
+  <script src="config.js?v=3.6.15"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.6.14">
+  <link rel="stylesheet" href="style.css?v=3.6.15">
 </head>
 <body>
 
@@ -3878,13 +3878,6 @@
             </div>
             <div id="tech-ot-lbl-timer" style="font-size: 0.82rem; color: var(--accent-blue); margin-top: 6px; font-weight: 500;">⏱️ Inicio: Sin registrar | Duración: 0 min</div>
           </div>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="tech-action-buttons">
-            <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-start-work" onclick="startWorkOnOT()" style="background: var(--accent-green); color: white; padding: 8px 16px;">🚀 Iniciar Trabajo</button>
-            <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-pause-work" onclick="pauseWorkOnOT()" style="display: none; background: var(--color-warning); color: white; padding: 8px 16px;">⏸️ En Espera</button>
-            <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-resume-work" onclick="resumeWorkOnOT()" style="display: none; background: var(--accent-blue); color: white; padding: 8px 16px;">▶️ Reanudar Trabajo</button>
-            <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-finish-work" onclick="finishWorkOnOT()" style="display: none; background: #8b5cf6; color: white; padding: 8px 16px;">✅ Finalizar Trabajo</button>
-            <button type="button" class="btn-nav btn-nav-primary" id="btn-tech-handoff-work" onclick="openHandoffModal()" style="display: none; background: #475569; color: white; padding: 8px 16px;">🔄 Transferir OT</button>
-          </div>
         </div>
 
         <!-- Alerta visual cuando la OT está en espera -->
@@ -3936,13 +3929,15 @@
           </div>
         </div>
 
-        <h4 style="font-weight: 700; color: var(--accent-blue); font-size: 1rem; border-left: 3px solid var(--accent-blue); padding-left: 8px; margin-top: 10px;">Acciones Operativas en Sitio</h4>
+        <h4 style="font-weight: 700; color: var(--accent-blue); font-size: 1rem; border-left: 3px solid var(--accent-blue); padding-left: 8px; margin-top: 15px; margin-bottom: 10px;">Acciones Operativas en Sitio</h4>
         
         <!-- Botones de Cambio de Estado en Sitio -->
-        <div class="tech-action-bar">
-          <button class="btn-tech-status btn-tech-start" onclick="setWorkStatus('En proceso')">⚙️ Iniciar Trabajo</button>
-          <button class="btn-tech-status btn-tech-hold" onclick="setWorkStatus('En espera')">⏳ Poner en Espera</button>
-          <button class="btn-tech-status btn-tech-finish" onclick="setWorkStatus('Ejecutada')">✓ Finalizar Trabajo</button>
+        <div class="tech-action-bar" id="tech-action-buttons" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+          <button type="button" class="btn-tech-status btn-tech-start" id="btn-tech-start-work" onclick="startWorkOnOT()">⚙️ Iniciar Trabajo</button>
+          <button type="button" class="btn-tech-status btn-tech-hold" id="btn-tech-pause-work" onclick="pauseWorkOnOT()" style="display: none;">⏳ Poner en Espera</button>
+          <button type="button" class="btn-tech-status btn-tech-start" id="btn-tech-resume-work" onclick="resumeWorkOnOT()" style="display: none; background: var(--accent-blue); border-color: var(--accent-blue); color: white;">▶️ Reanudar Trabajo</button>
+          <button type="button" class="btn-tech-status btn-tech-finish" id="btn-tech-finish-work" onclick="finishWorkOnOT()" style="display: none;">✓ Finalizar Trabajo</button>
+          <button type="button" class="btn-tech-status" id="btn-tech-handoff-work" onclick="openHandoffModal()" style="display: none; background: #475569; border-color: #475569; color: white;">🔄 Transferir OT</button>
         </div>
 
         <h4 style="font-weight: 700; color: var(--accent-blue); font-size: 1rem; border-left: 3px solid var(--accent-blue); padding-left: 8px; margin-top: 15px;">Registro de Bitácora Técnica</h4>
@@ -4112,20 +4107,28 @@
               <span id="tech-evidence-summary-badge" class="badge badge-priority-baja" style="font-size: 0.78rem;">0 Evidencias</span>
             </div>
 
-            <!-- Botones de Acción Rápida por Categoría -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px;">
-              <button type="button" class="btn-table-action" onclick="triggerTechPhotoUpload('ANTES')" style="background: #0284c7; color: white; border: none; padding: 10px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <span>🔵</span> <span>+ Foto ANTES</span>
-              </button>
-              <button type="button" class="btn-table-action" onclick="triggerTechPhotoUpload('DURANTE')" style="background: #eab308; color: #0f172a; border: none; padding: 10px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <span>🟡</span> <span>+ DURANTE</span>
-              </button>
-              <button type="button" class="btn-table-action" onclick="openHallazgoEvidenceModal()" style="background: #ef4444; color: white; border: none; padding: 10px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <span>🔴</span> <span>+ HALLAZGO</span>
-              </button>
-              <button type="button" class="btn-table-action" onclick="triggerTechPhotoUpload('DESPUES')" style="background: #16a34a; color: white; border: none; padding: 10px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <span>🟢</span> <span>+ Foto DESPUÉS</span>
-              </button>
+            <!-- Control Único de Carga de Evidencias -->
+            <div style="background: rgba(255,255,255,0.03); border: 1px dashed var(--accent-blue); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;">
+              <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                <div style="flex: 1 1 160px; min-width: 150px;">
+                  <label for="tech-photo-stage-select" style="font-size: 0.8rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">Etapa de la Evidencia:</label>
+                  <select id="tech-photo-stage-select" class="form-control" style="font-size: 0.88rem; padding: 8px 10px;">
+                    <option value="DURANTE" selected>🟡 Durante el trabajo</option>
+                    <option value="ANTES">🔵 Antes de iniciar</option>
+                    <option value="DESPUES">🟢 Trabajo terminado (Después)</option>
+                    <option value="HALLAZGO">🔴 Hallazgo técnico</option>
+                  </select>
+                </div>
+                <div style="flex: 2 1 220px; min-width: 180px;">
+                  <label for="tech-photo-desc-input" style="font-size: 0.8rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">Descripción u observación (opcional):</label>
+                  <input type="text" id="tech-photo-desc-input" class="form-control" placeholder="Ej. Cambio de refacción, estado inicial...">
+                </div>
+                <div style="flex: 0 0 auto;">
+                  <button type="button" class="btn-nav btn-nav-primary" onclick="triggerSingleTechPhotoUpload()" style="background: var(--accent-blue); color: white; padding: 9px 18px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; gap: 8px; white-space: nowrap;">
+                    <span>📷</span> <span>Cargar Evidencia</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- Barra de Progreso de Subida Asíncrona -->
@@ -4141,7 +4144,7 @@
 
             <!-- Lista / Galería de Evidencias de la OT -->
             <div id="tech-ot-photos-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;">
-              <p style="grid-column: 1 / -1; color: #94a3b8; font-size: 0.82rem; margin: 4px 0; text-align: center; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">Sin evidencias fotográficas adjuntas aún. Añade fotos con los botones superiores.</p>
+              <p style="grid-column: 1 / -1; color: #94a3b8; font-size: 0.82rem; margin: 4px 0; text-align: center; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">Sin evidencias fotográficas adjuntas aún. Añade fotos usando el botón superior.</p>
             </div>
             <input type="file" id="tech-photo-hidden-file-input" accept="image/jpeg,image/png,image/webp" style="display: none;" onchange="onTechPhotoSelected(this)">
           </div>
@@ -6026,16 +6029,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.6.14"></script>
-  <script src="agents-client.js?v=3.6.14"></script>
-  <script src="app.js?v=3.6.14"></script>
-  <script src="dashboard.js?v=3.6.14"></script>
+  <script src="seed.js?v=3.6.15"></script>
+  <script src="agents-client.js?v=3.6.15"></script>
+  <script src="app.js?v=3.6.15"></script>
+  <script src="dashboard.js?v=3.6.15"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.6.14')
+        navigator.serviceWorker.register('./sw.js?v=3.6.15')
           .then(reg => {
             reg.update();
             console.log('✅ ServiceWorker registrado:', reg.scope);
