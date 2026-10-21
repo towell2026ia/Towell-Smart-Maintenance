@@ -43,11 +43,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.6.17"></script>
+  <script src="config.js?v=3.6.18"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.6.17">
+  <link rel="stylesheet" href="style.css?v=3.6.18">
   <style>
     .calendar-event.correctivo-realizada {
       background: #16a34a !important;
@@ -3522,7 +3522,7 @@
       <div class="modal-footer" style="background: #f1f5f9; padding: 16px 24px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
         <span style="font-size: 0.82rem; color: #64748b;">🔒 Vista de Auditoría 360° para Súper Administrador.</span>
         <div style="display: flex; gap: 10px; align-items: center;">
-          <button type="button" class="btn-action-secondary" style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5; font-weight:600;" onclick="adminDeleteCurrent360Order()" title="Eliminar definitivamente esta OT de prueba y sus evidencias">🗑️ Eliminar OT de Prueba</button>
+          <button type="button" id="btn-admin-delete-360-ot" class="btn-action-secondary" style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5; font-weight:600; display: none;" onclick="adminDeleteCurrent360Order()" title="Eliminar">🗑️ Eliminar</button>
           <button type="button" class="btn-action-primary" onclick="closeModal('modal-ot-360-audit')">Cerrar Auditoría</button>
         </div>
       </div>
@@ -3777,7 +3777,7 @@
         </div>
       </div>
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <button type="button" class="btn-logout" onclick="adminDeleteCurrentReviewRequest()" style="width: auto; background: #fee2e2; color: #b91c1c; border-color: #fca5a5; font-weight: 600;" title="Eliminar definitivamente esta solicitud de prueba y sus evidencias">🗑️ Eliminar Solicitud de Prueba</button>
+        <button type="button" id="btn-admin-delete-review-req" class="btn-logout" onclick="adminDeleteCurrentReviewRequest()" style="width: auto; background: #fee2e2; color: #b91c1c; border-color: #fca5a5; font-weight: 600; display: none;" title="Eliminar">🗑️ Eliminar</button>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <button class="btn-tech-status btn-tech-hold" onclick="requestMoreInfoFromApplicant()" style="width: auto;">Solicitar Más Información</button>
           <button class="btn-tech-status btn-tech-start" onclick="convertToWorkOrder()" style="width: auto;">Convertir en OT Oficial</button>
@@ -6048,16 +6048,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.6.17"></script>
-  <script src="agents-client.js?v=3.6.17"></script>
-  <script src="app.js?v=3.6.17"></script>
-  <script src="dashboard.js?v=3.6.17"></script>
+  <script src="seed.js?v=3.6.18"></script>
+  <script src="agents-client.js?v=3.6.18"></script>
+  <script src="app.js?v=3.6.18"></script>
+  <script src="dashboard.js?v=3.6.18"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.6.17')
+        navigator.serviceWorker.register('./sw.js?v=3.6.18')
           .then(reg => {
             reg.update();
             console.log('✅ ServiceWorker registrado:', reg.scope);
@@ -6113,7 +6113,7 @@
           <div id="lightbox-desc-box" style="margin-top: 4px; color: #e2e8f0; font-style: italic;"></div>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
-          <button id="lightbox-btn-delete" type="button" class="btn-action-danger" style="background: #ef4444; color: white; border: none; padding: 7px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" onclick="deleteCurrentLightboxPhoto()">🗑️ Eliminar Evidencia</button>
+          <button id="lightbox-btn-delete" type="button" class="btn-action-danger" style="background: #ef4444; color: white; border: none; padding: 7px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" onclick="deleteCurrentLightboxPhoto()" title="Eliminar">🗑️ Eliminar</button>
           <button type="button" class="btn-action-secondary" style="background: #334155; color: white; border: none; padding: 6px 14px;" onclick="closePhotoLightbox()">Cerrar</button>
         </div>
       </div>

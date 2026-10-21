@@ -4628,87 +4628,98 @@ async function deleteOTPhoto(evidenceId, otId, photoUrl = null, refreshCallback 
     const serviceKey = typeof SUPABASE_SERVICE_ROLE_KEY !== 'undefined' ? SUPABASE_SERVICE_ROLE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZnBzYXZrZWZocnhmYnRxemVjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjE0MzU5NywiZXhwIjoyMDk3NzE5NTk3fQ.o7GCLoa5YoDFWOxfvPayokuJhVYQvd2s5YtEq8DAs2U';
 
     try {
-      // A. Intento por id_evidencia numérico directo
-      if (cleanEvId && !isInitialEv && !isFinalEv && /^\d+$/.test(cleanEvId)) {
-        await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?id_evidencia=eq.${encodeURIComponent(cleanEvId)}`, {
-          method: 'DELETE',
-          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
-        });
-        await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?id_evidencia=eq.${encodeURIComponent(cleanEvId)}`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': serviceKey,
-            'Authorization': `Bearer ${serviceKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
-        });
+      // A. Intento directo por id_evidencia (UUID, número o string no sintético)
+      if (cleanEvId && !cleanEvId.startsWith('LOCAL-') && !cleanEvId.startsWith('INITIAL-EV-') && !cleanEvId.startsWith('FINAL-EV-')) {
+        if (supabaseClient) {
+          try { await supabaseClient.from('evidencias_orden').delete().eq('id_evidencia', cleanEvId); } catch(e) {}
+        }
+        try {
+          await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?id_evidencia=eq.${encodeURIComponent(cleanEvId)}`, {
+            method: 'DELETE',
+            headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+          });
+          await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?id_evidencia=eq.${encodeURIComponent(cleanEvId)}`, {
+            method: 'PATCH',
+            headers: {
+              'apikey': serviceKey,
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
+          });
+        } catch(e) {}
       }
 
-      // B. Intento por url_archivo si está disponible
-      if (targetUrl) {
-        await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?url_archivo=eq.${encodeURIComponent(targetUrl)}`, {
-          method: 'DELETE',
-          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
-        });
-        await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?url_archivo=eq.${encodeURIComponent(targetUrl)}`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': serviceKey,
-            'Authorization': `Bearer ${serviceKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
-        });
-      }
-
-      // C. Desactivar / Eliminar evidencias por OT
+      // B. Búsqueda y eliminación exhaustiva en la OT correspondiente
       if (cleanOtId) {
         let otUuid = null;
         try { otUuid = await resolveOrderUUID(cleanOtId); } catch(e) {}
 
-        if (isInitialEv) {
-          await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?tipo_evidencia=eq.ANTES&observaciones=ilike.*${encodeURIComponent(cleanOtId)}*`, {
-            method: 'PATCH',
-            headers: {
-              'apikey': serviceKey,
-              'Authorization': `Bearer ${serviceKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
-          });
-          if (otUuid) {
-            await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?tipo_evidencia=eq.ANTES&id_orden=eq.${otUuid}`, {
-              method: 'PATCH',
-              headers: {
-                'apikey': serviceKey,
-                'Authorization': `Bearer ${serviceKey}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
-            });
+        const filterOr = otUuid 
+          ? `or=(id_orden.eq.${otUuid},observaciones.ilike.*${encodeURIComponent(cleanOtId)}*)` 
+          : `observaciones.ilike.*${encodeURIComponent(cleanOtId)}*`;
+
+        const getRes = await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?${filterOr}&select=id_evidencia,url_archivo,nombre_archivo,tipo_evidencia,observaciones`, {
+          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+        });
+
+        if (getRes.ok) {
+          const rows = await getRes.json();
+          if (Array.isArray(rows) && rows.length > 0) {
+            for (const r of rows) {
+              let matchThisRow = false;
+              if (cleanEvId && String(r.id_evidencia).toLowerCase() === cleanEvId.toLowerCase()) {
+                matchThisRow = true;
+              } else if (targetUrl && r.url_archivo) {
+                if (r.url_archivo === targetUrl) {
+                  matchThisRow = true;
+                } else if (targetUrl.length > 30 && r.url_archivo.substring(0, 80) === targetUrl.substring(0, 80)) {
+                  matchThisRow = true;
+                }
+              } else if (isInitialEv && (r.tipo_evidencia === 'ANTES' || r.tipo_evidencia === 'INICIAL')) {
+                matchThisRow = true;
+              } else if (isFinalEv && (r.tipo_evidencia === 'DESPUES' || r.tipo_evidencia === 'DESPUÉS' || r.tipo_evidencia === 'FINAL')) {
+                matchThisRow = true;
+              }
+
+              if (matchThisRow && r.id_evidencia) {
+                if (supabaseClient) {
+                  try { await supabaseClient.from('evidencias_orden').delete().eq('id_evidencia', r.id_evidencia); } catch(e) {}
+                }
+                try {
+                  await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?id_evidencia=eq.${r.id_evidencia}`, {
+                    method: 'DELETE',
+                    headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+                  });
+                  await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?id_evidencia=eq.${r.id_evidencia}`, {
+                    method: 'PATCH',
+                    headers: {
+                      'apikey': serviceKey,
+                      'Authorization': `Bearer ${serviceKey}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
+                  });
+                } catch(e) {}
+              }
+            }
           }
-        } else if (isFinalEv) {
-          await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?tipo_evidencia=in.(DESPUES,DESPUÉS)&observaciones=ilike.*${encodeURIComponent(cleanOtId)}*`, {
-            method: 'PATCH',
-            headers: {
-              'apikey': serviceKey,
-              'Authorization': `Bearer ${serviceKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
-          });
-          if (otUuid) {
-            await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?tipo_evidencia=in.(DESPUES,DESPUÉS)&id_orden=eq.${otUuid}`, {
-              method: 'PATCH',
-              headers: {
-                'apikey': serviceKey,
-                'Authorization': `Bearer ${serviceKey}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
-            });
+        }
+      }
+
+      // C. Limpieza en Supabase Storage si no es dataUrl
+      if (targetUrl && !targetUrl.startsWith('data:') && targetUrl.includes('/storage/v1/object/')) {
+        try {
+          const matchBucket = targetUrl.match(/\/object\/(?:public|authenticated|sign)\/([^/]+)\/(.+)$/);
+          if (matchBucket && matchBucket[1] && matchBucket[2]) {
+            const bucketName = matchBucket[1];
+            const filePath = decodeURIComponent(matchBucket[2].split('?')[0]);
+            if (supabaseClient && supabaseClient.storage) {
+              await supabaseClient.storage.from(bucketName).remove([filePath]);
+            }
           }
+        } catch (stErr) {
+          console.warn('[deleteOTPhoto] Error eliminando objeto en storage:', stErr);
         }
       }
     } catch (eRest) {
@@ -5332,6 +5343,7 @@ function deleteCurrentLightboxPhoto() {
   const { photoUrl, metadata } = window._currentLightboxEvidence;
   const evId = metadata.evidenceId || metadata.id || null;
   const otId = metadata.ot || null;
+  closePhotoLightbox();
   deleteOTPhoto(evId, otId, photoUrl);
 }
 
@@ -8707,7 +8719,7 @@ function renderAdminRequestsTable() {
         <td>
           <div style="display:flex; gap:6px; align-items:center;">
             <button class="btn-table-action" onclick="openReviewModal('${r.id}')">Revisar / Convertir en OT</button>
-            <button class="btn-action-danger" style="padding:4px 8px; font-size:0.8rem; border-radius:4px; border:1px solid #fca5a5; background:#fee2e2; color:#dc2626; cursor:pointer;" onclick="adminDeleteRequest('${r.id}')" title="Eliminar Solicitud de Prueba">🗑️</button>
+            ${isCurrentUserSuperAdmin() ? `<button class="btn-action-danger" style="padding:4px 8px; font-size:0.8rem; border-radius:4px; border:1px solid #fca5a5; background:#fee2e2; color:#dc2626; cursor:pointer;" onclick="adminDeleteRequest('${r.id}')" title="Eliminar">🗑️</button>` : ''}
           </div>
         </td>
       </tr>
@@ -8716,19 +8728,18 @@ function renderAdminRequestsTable() {
   tbody.innerHTML = html;
 }
 
-// Eliminación de Solicitudes de prueba por el Administrador
+// Eliminación de Solicitudes por el Súper Administrador
 async function adminDeleteRequest(reqId) {
   if (!reqId) return;
   const cleanId = String(reqId).trim();
 
-  // Validar rol de administrador
-  const role = currentUser ? (currentUser.role || '').toLowerCase() : '';
-  if (role !== 'admin' && role !== 'superadmin' && !isSuperAdmin(currentUser)) {
-    alert('⚠️ Solo los administradores pueden eliminar solicitudes de prueba.');
+  // Validar rol exclusivo de Súper Administrador
+  if (!isCurrentUserSuperAdmin()) {
+    alert('⚠️ Acceso denegado: Solo el Súper Administrador tiene permisos para eliminar solicitudes.');
     return;
   }
 
-  const ok = confirm(`¿Deseas eliminar permanentemente la Solicitud "${cleanId}"?\n\nEsta acción borrará el registro de prueba y sus evidencias asociadas sin afectar métricas ni KPIs.`);
+  const ok = confirm(`¿Deseas eliminar permanentemente la Solicitud "${cleanId}"?\n\nEsta acción borrará el registro y sus evidencias asociadas de forma definitiva.`);
   if (!ok) return;
 
   // 1. LocalStorage solicitudes
@@ -8966,6 +8977,10 @@ function openReviewModal(reqId) {
       prefTechEl.innerText = 'Sin preferencia';
       prefTechEl.style.color = '#64748b';
     }
+  }
+  const btnDelReq = document.getElementById('btn-admin-delete-review-req');
+  if (btnDelReq) {
+    btnDelReq.style.display = isCurrentUserSuperAdmin() ? 'inline-block' : 'none';
   }
   openModal('modal-admin-review');
 }
@@ -9289,7 +9304,7 @@ function renderAdminOrdersTable(filteredOrders) {
           <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
             <button class="btn-action-primary" style="padding:4px 8px; font-size:0.78rem; background:#0f172a; border-color:#0f172a;" onclick="openAdmin360OTAuditModal('${o.id || o.uuid}')">🔍 Auditoría 360°</button>
             <button class="btn-table-action" style="padding:4px 8px; font-size:0.78rem;" onclick="viewOrderHistoryLogs('${o.id || o.uuid}')">Logs</button>
-            <button class="btn-action-danger" style="padding:4px 8px; font-size:0.78rem; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:4px; cursor:pointer;" onclick="adminDeleteOrder('${o.id || o.uuid}')" title="Eliminar OT de Prueba">🗑️</button>
+            ${isCurrentUserSuperAdmin() ? `<button class="btn-action-danger" style="padding:4px 8px; font-size:0.78rem; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:4px; cursor:pointer;" onclick="adminDeleteOrder('${o.id || o.uuid}')" title="Eliminar">🗑️</button>` : ''}
           </div>
         </td>
       </tr>
@@ -9298,19 +9313,18 @@ function renderAdminOrdersTable(filteredOrders) {
   if (tbody) tbody.innerHTML = html;
 }
 
-// Eliminación de Órdenes de Trabajo de prueba por el Administrador
+// Eliminación de Órdenes de Trabajo por el Súper Administrador
 async function adminDeleteOrder(orderId) {
   if (!orderId) return;
   const cleanId = String(orderId).trim();
 
-  // Validar rol de administrador
-  const role = currentUser ? (currentUser.role || '').toLowerCase() : '';
-  if (role !== 'admin' && role !== 'superadmin' && !isSuperAdmin(currentUser)) {
-    alert('⚠️ Solo los administradores pueden eliminar órdenes de trabajo de prueba.');
+  // Validar rol exclusivo de Súper Administrador
+  if (!isCurrentUserSuperAdmin()) {
+    alert('⚠️ Acceso denegado: Solo el Súper Administrador tiene permisos para eliminar órdenes de trabajo.');
     return;
   }
 
-  const ok = confirm(`¿Deseas eliminar permanentemente la Orden de Trabajo "${cleanId}"?\n\nEsta acción borrará la OT, subtareas, bitácora y evidencias asociadas sin afectar indicadores ni KPIs.`);
+  const ok = confirm(`¿Deseas eliminar permanentemente la Orden de Trabajo "${cleanId}"?\n\nEsta acción borrará la OT, subtareas, bitácora y evidencias asociadas de forma definitiva.`);
   if (!ok) return;
 
   // 1. Eliminar de LocalStorage (TSMAI_orders / TSMAI_DEMO_orders)
@@ -19450,15 +19464,35 @@ function switchCalendarTab(tab) {
 }
 
 // Helper: Comprobar si el usuario actual es Super Administrador
-function isCurrentUserSuperAdmin() {
-  const user = (typeof currentUser !== 'undefined' && currentUser)
-    ? currentUser
+function isCurrentUserSuperAdmin(userToCheck = null) {
+  const user = userToCheck || (typeof currentUser !== 'undefined' && currentUser)
+    ? (userToCheck || currentUser)
     : (typeof appState !== 'undefined' && appState.currentUser ? appState.currentUser : null);
 
   if (!user) return false;
+
+  // Técnicos y solicitantes jamás son super administradores
+  const roleKey = typeof normalizeUserRole === 'function' ? normalizeUserRole(user.rol || user.role) : '';
+  if (roleKey === 'tech' || roleKey === 'solicitante') return false;
+  if (user.role === 'tech' || user.role === 'solicitante') return false;
+  if (user.cve_tecnico && String(user.cve_tecnico).startsWith('T-')) return false;
+
   const rawRol = String(user.rol || user.role || user.user_metadata?.rol || '').toUpperCase().trim();
+  const email = String(user.email || user.correo || '').toLowerCase().trim();
+  const superAdminEmails = [
+    'jmrodriguez@towell.com.mx',
+    'cbenites@towelmex.com',
+    'mantenimiento@towelmex.com',
+    'f.hernandez@towell.com.mx',
+    'fran.hrdz93@gmail.com',
+    'admin@tsm-ai.com'
+  ];
+
+  if (superAdminEmails.includes(email)) return true;
   return rawRol === 'SUPER_ADMINISTRADOR' || rawRol === 'SUPERADMIN' || rawRol === 'SUPER_ADMIN';
 }
+window.isCurrentUserSuperAdmin = isCurrentUserSuperAdmin;
+window.isSuperAdmin = isCurrentUserSuperAdmin;
 
 // Handler de cambio de motivo para mostrar/ocultar comentario obligatorio
 function onRescheduleMotivoChange() {
@@ -22884,6 +22918,10 @@ async function openAdmin360OTAuditModal(orderId, explicitMachineId) {
   }
 
   // Abrir Modal
+  const btnDelOt = document.getElementById('btn-admin-delete-360-ot');
+  if (btnDelOt) {
+    btnDelOt.style.display = isCurrentUserSuperAdmin() ? 'inline-block' : 'none';
+  }
   switchAdmin360Tab('general');
   openModal('modal-ot-360-audit');
 }
