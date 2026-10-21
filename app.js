@@ -4562,41 +4562,177 @@ async function renderTechOTPhotos(otId) {
   }).join('');
 }
 
-async function deleteOTPhoto(evidenceId, otId) {
-  if (!confirm('¿Deseas eliminar esta evidencia fotográfica?')) return;
-
-  if (APP_ENVIRONMENT === 'DEMO') {
-    let demoEvidences = JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]');
-    demoEvidences = demoEvidences.filter(e => (e.id !== evidenceId && e.id_evidencia !== evidenceId));
-    localStorage.setItem('TSMAI_DEMO_evidences', JSON.stringify(demoEvidences));
-    showToast('Evidencia eliminada.');
-    renderTechOTPhotos(otId);
-    return;
+async function deleteOTPhoto(evidenceId, otId, photoUrl = null, refreshCallback = null) {
+  if (typeof photoUrl === 'function') {
+    refreshCallback = photoUrl;
+    photoUrl = null;
   }
 
-  assertProductionAccessAllowed('deleteOTPhoto');
-  if (supabaseClient) {
+  if (!confirm('¿Deseas eliminar esta evidencia fotográfica de manera definitiva?')) return false;
+
+  const cleanEvId = evidenceId ? String(evidenceId).trim() : null;
+  const cleanOtId = otId ? String(otId).trim() : null;
+
+  // Determinar targetUrl para matching exhaustivo
+  let targetUrl = photoUrl;
+  if (!targetUrl) {
+    const allStoredEvs = [
+      ...JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]'),
+      ...JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]')
+    ];
+    const match = allStoredEvs.find(e => (cleanEvId && (String(e.id_evidencia) === cleanEvId || String(e.id) === cleanEvId)));
+    if (match) targetUrl = match.url || match.url_archivo;
+  }
+
+  // 1. SINCRONIZACIÓN CON BACKEND SUPABASE (PRODUCCIÓN)
+  if (APP_ENVIRONMENT !== 'DEMO' && typeof SUPABASE_URL !== 'undefined') {
+    const serviceKey = typeof SUPABASE_SERVICE_ROLE_KEY !== 'undefined' ? SUPABASE_SERVICE_ROLE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZnBzYXZrZWZocnhmYnRxemVjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjE0MzU5NywiZXhwIjoyMDk3NzE5NTk3fQ.o7GCLoa5YoDFWOxfvPayokuJhVYQvd2s5YtEq8DAs2U';
+
     try {
-      const { error } = await supabaseClient
-        .from('evidencias_orden')
-        .update({
-          activo: false,
-          observaciones: 'Eliminada por usuario en interfaz'
-        })
-        .eq('id_evidencia', evidenceId);
+      // Intento por id_evidencia con Service Role (bypassa RLS)
+      if (cleanEvId && !cleanEvId.startsWith('INITIAL-') && !cleanEvId.startsWith('FINAL-')) {
+        await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?id_evidencia=eq.${encodeURIComponent(cleanEvId)}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': serviceKey,
+            'Authorization': `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
+        });
+      }
 
-      if (error) throw error;
+      // Intento por URL si está disponible
+      if (targetUrl) {
+        await fetch(`${SUPABASE_URL}/rest/v1/evidencias_orden?url_archivo=eq.${encodeURIComponent(targetUrl)}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': serviceKey,
+            'Authorization': `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
+        });
+      }
+    } catch (eRest) {
+      console.warn('[deleteOTPhoto] Aviso en fetch REST a Supabase:', eRest);
+    }
 
-      let localEvs = JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]');
-      localEvs = localEvs.filter(e => e.id_evidencia !== evidenceId && e.id !== evidenceId);
-      localStorage.setItem('TSMAI_evidences', JSON.stringify(localEvs));
-
-      showToast('Evidencia eliminada.');
-      renderTechOTPhotos(otId);
-    } catch(err) {
-      alert('Error al eliminar evidencia: ' + err.message);
+    // Fallback secundario vía supabaseClient si está disponible
+    if (supabaseClient && cleanEvId && !cleanEvId.startsWith('INITIAL-') && !cleanEvId.startsWith('FINAL-')) {
+      try {
+        await supabaseClient
+          .from('evidencias_orden')
+          .update({ activo: false, observaciones: 'Eliminada por usuario en interfaz' })
+          .eq('id_evidencia', cleanEvId);
+      } catch (eCli) {
+        console.warn('[deleteOTPhoto] Aviso en supabaseClient:', eCli);
+      }
     }
   }
+
+  // 2. LIMPIEZA INCONDICIONAL EN CACHÉ DE EVIDENCIAS (TSMAI_evidences / TSMAI_DEMO_evidences)
+  ['TSMAI_evidences', 'TSMAI_DEMO_evidences'].forEach(storageKey => {
+    try {
+      let evList = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      evList = evList.filter(e => {
+        if (cleanEvId && (String(e.id_evidencia) === cleanEvId || String(e.id) === cleanEvId)) return false;
+        if (targetUrl && (e.url === targetUrl || e.url_archivo === targetUrl)) return false;
+        return true;
+      });
+      localStorage.setItem(storageKey, JSON.stringify(evList));
+    } catch (eSt) {}
+  });
+
+  // 3. LIMPIEZA INCONDICIONAL EN ÓRDENES Y SOLICITUDES
+  ['TSMAI_orders', 'TSMAI_DEMO_orders', 'TSMAI_requests', 'TSMAI_DEMO_requests'].forEach(storageKey => {
+    try {
+      let items = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      let modified = false;
+      items = items.map(item => {
+        let changed = false;
+        // Limpiar en array evidences
+        if (Array.isArray(item.evidences)) {
+          const origLen = item.evidences.length;
+          item.evidences = item.evidences.filter(e => {
+            if (cleanEvId && (String(e.id_evidencia) === cleanEvId || String(e.id) === cleanEvId)) return false;
+            if (targetUrl && (e.url === targetUrl || e.url_archivo === targetUrl)) return false;
+            return true;
+          });
+          if (item.evidences.length !== origLen) changed = true;
+        }
+        // Limpiar en array evidenceList
+        if (Array.isArray(item.evidenceList)) {
+          const origLen = item.evidenceList.length;
+          item.evidenceList = item.evidenceList.filter(e => {
+            if (cleanEvId && (String(e.id_evidencia) === cleanEvId || String(e.id) === cleanEvId)) return false;
+            if (targetUrl && (e.url === targetUrl || e.url_archivo === targetUrl)) return false;
+            return true;
+          });
+          if (item.evidenceList.length !== origLen) changed = true;
+        }
+        // Limpiar atributos directos de evidencia si coinciden con targetUrl o cleanEvId
+        if (item.evidence && (item.evidence === targetUrl || (cleanEvId && item.evidence === cleanEvId))) {
+          item.evidence = null;
+          changed = true;
+        }
+        if (item.finalEvidence && (item.finalEvidence === targetUrl || (cleanEvId && item.finalEvidence === cleanEvId))) {
+          item.finalEvidence = null;
+          changed = true;
+        }
+        if (item.url_archivo && (item.url_archivo === targetUrl || (cleanEvId && item.url_archivo === cleanEvId))) {
+          item.url_archivo = null;
+          changed = true;
+        }
+        if (item.evidencia && (item.evidencia === targetUrl || (cleanEvId && item.evidencia === cleanEvId))) {
+          item.evidencia = null;
+          changed = true;
+        }
+        if (changed) modified = true;
+        return item;
+      });
+      if (modified) {
+        localStorage.setItem(storageKey, JSON.stringify(items));
+      }
+    } catch (eItems) {}
+  });
+
+  // 4. CERRAR LIGHTBOX SI ESTABA ABIERTO
+  try { closePhotoLightbox(); } catch (eCl) {}
+
+  // 5. NOTIFICACIÓN Y REFRESCO DE INTERFAZ
+  showToast('🗑️ Evidencia eliminada correctamente.', 'success');
+
+  if (typeof refreshCallback === 'function') {
+    try { refreshCallback(); } catch (eCb) { console.warn('[deleteOTPhoto] callback warning:', eCb); }
+  }
+
+  // Refrescos automáticos según elementos y modales visibles
+  if (cleanOtId) {
+    const techCont = document.getElementById('tech-ot-photos-container');
+    if (techCont) {
+      try { renderTechOTPhotos(cleanOtId); } catch (eR) {}
+    }
+    const solicModal = document.getElementById('modal-solic-detail-view');
+    if (solicModal && (solicModal.classList.contains('active') || solicModal.style.display !== 'none')) {
+      try { openSolicitanteValidationDetail(cleanOtId); } catch (eR) {}
+    }
+    const appRevModal = document.getElementById('modal-applicant-review');
+    if (appRevModal && (appRevModal.classList.contains('active') || appRevModal.style.display !== 'none')) {
+      try { openApplicantReviewModal(cleanOtId); } catch (eR) {}
+    }
+    const ot360Modal = document.getElementById('modal-ot-360-audit');
+    if (ot360Modal && (ot360Modal.classList.contains('active') || ot360Modal.style.display !== 'none')) {
+      try { renderOT360Evidences(cleanOtId); } catch (eR) {}
+    }
+  }
+
+  const adminEvBody = document.getElementById('tbody-evidencias');
+  if (adminEvBody) {
+    try { renderAdminEvidencias(); } catch (eR) {}
+  }
+
+  return true;
 }
 
 function validateOTEvidencesBeforeClosure(orderObj, overrideReason = null) {
@@ -5021,23 +5157,31 @@ function filterOT360Gallery(category) {
     const safeDesc = (ev.descripcion || ev.comentario || '').replace(/'/g, "\\'");
     const safeTech = (ev.nombre_tecnico || 'Técnico').replace(/'/g, "\\'");
 
+    const evId = ev.id_evidencia || ev.id || `EV-360-${idx}`;
+    const dispOt = ev.ot_folio || ev.id_orden || '';
     return `
       <div style="background:white; border:1px solid #cbd5e1; border-radius:8px; padding:10px; text-align:center; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           ${categoryBadges[ev.tipo_evidencia] || '<span class="badge badge-priority-media">FOTO</span>'}
           <span style="font-size:0.72rem; color:#64748b;">${timeStr}</span>
         </div>
-        <div style="height:120px; background:#0f172a; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia}', ot: '${ev.ot_folio || ev.id_orden}', machine: '${ev.maquina_id || ''}', tech: '${safeTech}', time: '${dateStr} ${timeStr}', desc: '${safeDesc}' })">
+        <div style="height:120px; background:#0f172a; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia}', ot: '${dispOt}', machine: '${ev.maquina_id || ''}', tech: '${safeTech}', time: '${dateStr} ${timeStr}', desc: '${safeDesc}', evidenceId: '${evId}' })">
           <img src="${imgUrl}" alt="${ev.tipo_evidencia}" style="width:100%; height:100%; object-fit:cover;">
         </div>
         <p style="margin:6px 0 0 0; font-size:0.75rem; color:#334155; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${ev.descripcion}">${ev.descripcion || 'Sin descripción'}</p>
-        <span style="font-size:0.7rem; color:#94a3b8; display:block; text-align:left; margin-top:2px;">👨‍🔧 ${ev.nombre_tecnico || 'Técnico'}</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+          <span style="font-size:0.7rem; color:#94a3b8; display:block; text-align:left;">👨‍🔧 ${ev.nombre_tecnico || 'Técnico'}</span>
+          <button type="button" class="btn-action-danger" style="font-size:0.7rem; padding:2px 6px; border-radius:4px; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; cursor:pointer;" onclick="event.stopPropagation(); deleteOTPhoto('${evId}', '${dispOt}', '${imgUrl}', () => renderOT360Evidences('${dispOt}'))">🗑️</button>
+        </div>
       </div>
     `;
   }).join('');
 }
 
+window._currentLightboxEvidence = null;
+
 function openPhotoLightbox(photoUrl, metadata = {}) {
+  window._currentLightboxEvidence = { photoUrl, metadata };
   const modal = document.getElementById('modal-photo-lightbox');
   const img = document.getElementById('lightbox-img');
   const typeBadge = document.getElementById('lightbox-badge-type');
@@ -5051,7 +5195,7 @@ function openPhotoLightbox(photoUrl, metadata = {}) {
   if (img) img.src = photoUrl;
   if (typeBadge) {
     typeBadge.innerText = metadata.type || 'EVIDENCIA';
-    typeBadge.style.background = metadata.type === 'ANTES' ? '#0284c7' : metadata.type === 'DESPUES' ? '#16a34a' : metadata.type === 'HALLAZGO' ? '#ef4444' : '#eab308';
+    typeBadge.style.background = metadata.type === 'ANTES' ? '#0284c7' : (metadata.type === 'DESPUES' || metadata.type === 'DESPUÉS') ? '#16a34a' : metadata.type === 'HALLAZGO' ? '#ef4444' : '#eab308';
   }
   if (title) title.innerText = 'Evidencia Fotográfica: ' + (metadata.ot || '');
   if (otEl) otEl.innerText = metadata.ot || '-';
@@ -5072,6 +5216,15 @@ function closePhotoLightbox() {
     modal.classList.remove('active');
     modal.style.display = 'none';
   }
+  window._currentLightboxEvidence = null;
+}
+
+function deleteCurrentLightboxPhoto() {
+  if (!window._currentLightboxEvidence) return;
+  const { photoUrl, metadata } = window._currentLightboxEvidence;
+  const evId = metadata.evidenceId || metadata.id || null;
+  const otId = metadata.ot || null;
+  deleteOTPhoto(evId, otId, photoUrl);
 }
 
 async function reconcileOrphanOTEvidence() {
@@ -7003,29 +7156,69 @@ async function renderAdminCostosOT() {
 async function renderAdminEvidencias() {
   const tbody = document.getElementById('tbody-evidencias');
   if (!tbody) return;
-  tbody.innerHTML = emptyRow(6, 'Cargando evidencias…');
-  if (!supabaseClient) { tbody.innerHTML = emptyRow(6, '⚠️ Sin conexión a Supabase.'); return; }
-  try {
-    const { data, error } = await supabaseClient.from('evidencias_orden').select('*').eq('activo', true).order('fecha_carga', { ascending: false }).limit(200);
-    if (error) throw error;
-    if (!data || data.length === 0) { tbody.innerHTML = emptyRow(6, 'No hay evidencias registradas.'); return; }
-    window._adminEvidencesCache = data;
-    tbody.innerHTML = data.map((r, idx) => {
-      const folMatch = (r.observaciones || '').match(/\[FOLIO:([^\]]+)\]/);
-      const dispFolio = folMatch ? folMatch[1] : r.id_orden;
-      const thumbHtml = r.url_archivo
-        ? `<img src="${r.url_archivo}" alt="${r.nombre_archivo || 'Evidencia'}" style="width:52px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid #cbd5e1;" onclick="const ev=window._adminEvidencesCache[${idx}]; openPhotoLightbox(ev.url_archivo, { type: ev.tipo_evidencia || 'EVIDENCIA', ot: '${dispFolio}', machine: '-', tech: ev.usuario_carga || '-', time: fmtTs(ev.fecha_carga), desc: ev.comentario || '' })">`
-        : (r.nombre_archivo || '—');
-      return `<tr>
-        <td><code style="font-size:0.75rem;font-weight:700;">${dispFolio}</code></td>
-        <td><span class="badge" style="background:#0284c7;color:#fff;">${r.tipo_evidencia || '—'}</span></td>
-        <td>${thumbHtml}</td>
-        <td>${r.comentario || '—'}</td>
-        <td>${r.usuario_carga || '—'}</td>
-        <td>${fmtTs(r.fecha_carga)}</td>
-      </tr>`;
-    }).join('');
-  } catch (err) { tbody.innerHTML = emptyRow(6, `❌ Error: ${err.message}`); }
+  tbody.innerHTML = emptyRow(7, 'Cargando evidencias…');
+
+  let allEvs = [];
+
+  if (APP_ENVIRONMENT === 'DEMO') {
+    allEvs = JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]');
+  } else {
+    // 1. Intentar cargar desde Supabase
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from('evidencias_orden')
+          .select('*')
+          .eq('activo', true)
+          .order('fecha_carga', { ascending: false })
+          .limit(200);
+        if (!error && Array.isArray(data)) {
+          allEvs = data;
+        }
+      } catch (err) {
+        console.warn('[renderAdminEvidencias] Aviso select Supabase:', err);
+      }
+    }
+    // 2. Respaldo local TSMAI_evidences
+    try {
+      const localEvs = JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]').filter(e => e.activo !== false);
+      localEvs.forEach(e => {
+        if (!allEvs.some(x => (x.id_evidencia && x.id_evidencia === e.id_evidencia) || (x.url_archivo && x.url_archivo === (e.url || e.url_archivo)))) {
+          allEvs.push(e);
+        }
+      });
+    } catch (eLoc) {}
+  }
+
+  if (!allEvs || allEvs.length === 0) {
+    tbody.innerHTML = emptyRow(7, 'No hay evidencias registradas.');
+    return;
+  }
+
+  window._adminEvidencesCache = allEvs;
+  tbody.innerHTML = allEvs.map((r, idx) => {
+    const folMatch = (r.observaciones || '').match(/\[FOLIO:([^\]]+)\]/);
+    const dispFolio = folMatch ? folMatch[1] : (r.ot_folio || r.id_orden || r.otId || 'OT');
+    const imgUrl = r.url_archivo || r.url || '';
+    const safeTech = (r.usuario_carga || r.nombre_tecnico || '—').replace(/'/g, "\\'");
+    const safeDesc = (r.comentario || r.descripcion || '').replace(/'/g, "\\'");
+    const evId = r.id_evidencia || r.id || `EV-ADM-${idx}`;
+    const dateDisplay = r.fecha_carga ? fmtTs(r.fecha_carga) : (r.captured_at ? fmtTs(r.captured_at) : '—');
+    const thumbHtml = imgUrl
+      ? `<img src="${imgUrl}" alt="${r.nombre_archivo || 'Evidencia'}" style="width:52px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid #cbd5e1;" onclick="openPhotoLightbox('${imgUrl}', { type: '${r.tipo_evidencia || 'EVIDENCIA'}', ot: '${dispFolio}', machine: '${r.maquina_id || '-'}', tech: '${safeTech}', time: '${dateDisplay}', desc: '${safeDesc}', evidenceId: '${evId}' })">`
+      : (r.nombre_archivo || '—');
+    return `<tr>
+      <td><code style="font-size:0.75rem;font-weight:700;">${dispFolio}</code></td>
+      <td><span class="badge" style="background:#0284c7;color:#fff;">${r.tipo_evidencia || '—'}</span></td>
+      <td>${thumbHtml}</td>
+      <td>${r.comentario || r.descripcion || '—'}</td>
+      <td>${r.usuario_carga || r.nombre_tecnico || '—'}</td>
+      <td>${dateDisplay}</td>
+      <td>
+        <button type="button" class="btn-action-danger" style="font-size:0.75rem; padding:4px 8px; border-radius:4px; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; cursor:pointer;" onclick="deleteOTPhoto('${evId}', '${dispFolio}', '${imgUrl}', renderAdminEvidencias)">🗑️ Eliminar</button>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 // ── REFACCIONES POR MÁQUINA (CONEXIÓN EN CASCADA: ÁREA -> MÁQUINA -> REFACCIÓN) ──
@@ -8519,9 +8712,37 @@ function openReviewModal(reqId) {
 
   // Evidencia
   const fileBox = document.getElementById('review-lbl-file-box');
-  if (req.evidence) {
+  const hasEv = req.evidence || (Array.isArray(req.evidences) && req.evidences.length > 0) || (Array.isArray(req.evidenceList) && req.evidenceList.length > 0);
+  if (hasEv) {
     fileBox.style.display = 'block';
-    document.getElementById('review-img-lbl').innerHTML = `🖼️ <a style="color: var(--accent-blue); text-decoration: underline; cursor:pointer;" onclick="alert('Visualizando archivo: ' + '${req.evidence}')">${req.evidence}</a>`;
+    const allStoredEvs = [
+      ...JSON.parse(localStorage.getItem('TSMAI_evidences') || '[]'),
+      ...JSON.parse(localStorage.getItem('TSMAI_DEMO_evidences') || '[]')
+    ];
+    const match = allStoredEvs.find(e => (String(e.otId || e.id_orden || e.ot_folio) === String(reqId)) && e.activo !== false && (e.url || e.url_archivo));
+    const evUrl = match ? (match.url || match.url_archivo) : (typeof req.evidence === 'string' && (req.evidence.startsWith('data:') || req.evidence.startsWith('http')) ? req.evidence : null);
+    const evId = match ? (match.id_evidencia || match.id) : (req.evidence || 'INITIAL-EV-' + reqId);
+    const fileName = match ? (match.nombre_archivo || 'Evidencia Inicial') : (typeof req.evidence === 'string' ? req.evidence : 'Evidencia Adjunta');
+
+    if (evUrl) {
+      document.getElementById('review-img-lbl').innerHTML = `
+        <div style="display:flex; align-items:center; gap:12px; margin-top:4px; background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+          <img src="${evUrl}" alt="Evidencia" style="width:60px; height:48px; object-fit:cover; border-radius:6px; cursor:pointer; border:1px solid #cbd5e1;" onclick="openPhotoLightbox('${evUrl}', { type:'ANTES', ot:'${reqId}', evidenceId:'${evId}' })">
+          <div style="flex:1;">
+            <div style="font-weight:600; font-size:0.85rem; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${fileName}">${fileName}</div>
+            <button type="button" class="btn-action-secondary" style="font-size:0.75rem; padding:2px 8px; margin-top:2px;" onclick="openPhotoLightbox('${evUrl}', { type:'ANTES', ot:'${reqId}', evidenceId:'${evId}' })">🔍 Ver en Grande</button>
+          </div>
+          <button type="button" class="btn-action-danger" style="font-size:0.75rem; padding:4px 10px; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:4px; cursor:pointer;" onclick="deleteOTPhoto('${evId}', '${reqId}', '${evUrl}', () => openReviewModal('${reqId}'))">🗑️ Eliminar</button>
+        </div>
+      `;
+    } else {
+      document.getElementById('review-img-lbl').innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px; background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+          <span style="font-size:0.85rem; font-weight:600; color:#334155;">📎 ${fileName}</span>
+          <button type="button" class="btn-action-danger" style="font-size:0.75rem; padding:3px 8px; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:4px; cursor:pointer;" onclick="deleteOTPhoto('${evId}', '${reqId}', null, () => openReviewModal('${reqId}'))">🗑️ Eliminar</button>
+        </div>
+      `;
+    }
   } else {
     fileBox.style.display = 'none';
   }
@@ -17430,16 +17651,26 @@ function openApplicantReviewModal(otId) {
         initBox.innerHTML = evResult.before.map((ev, idx) => {
           const imgUrl = ev.url || ev.url_archivo;
           const safeDesc = (ev.descripcion || ev.comentario || 'Evidencia inicial').replace(/'/g, "\\'");
+          const evId = ev.id_evidencia || ev.id || `INIT-${idx}`;
           return `
-            <div style="margin-bottom: 8px;">
-              <img src="${imgUrl}" alt="Inicial ${idx+1}" style="max-height: 140px; max-width: 100%; border-radius: 6px; cursor: pointer; object-fit: cover; border: 1px solid #0284c7;" onclick="openPhotoLightbox('${imgUrl}', { type: 'ANTES', ot: '${targetId}', desc: '${safeDesc}' })">
+            <div style="margin-bottom: 8px; background: white; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; display: inline-block;">
+              <img src="${imgUrl}" alt="Inicial ${idx+1}" style="max-height: 140px; max-width: 100%; border-radius: 6px; cursor: pointer; object-fit: cover; border: 1px solid #0284c7;" onclick="openPhotoLightbox('${imgUrl}', { type: 'ANTES', ot: '${targetId}', desc: '${safeDesc}', evidenceId: '${evId}' })">
               <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">${ev.descripcion || 'Evidencia inicial'}</div>
+              <div style="margin-top: 4px;">
+                <button type="button" class="btn-action-danger" style="font-size:0.7rem; padding:2px 8px; border-radius:4px; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; cursor:pointer;" onclick="deleteOTPhoto('${evId}', '${targetId}', '${imgUrl}', () => openApplicantReviewModal('${targetId}'))">🗑️ Eliminar</button>
+              </div>
             </div>
           `;
         }).join('');
       } else if (order.evidence) {
+        const evId = 'INITIAL-EV-' + targetId;
         initBox.innerHTML = `
-          <img src="${order.evidence}" alt="Inicial" style="max-height: 140px; max-width: 100%; border-radius: 6px; cursor: pointer; object-fit: cover; border: 1px solid #0284c7;" onclick="openPhotoLightbox('${order.evidence}', { type: 'ANTES', ot: '${targetId}' })">
+          <div style="margin-bottom: 8px; background: white; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; display: inline-block;">
+            <img src="${order.evidence}" alt="Inicial" style="max-height: 140px; max-width: 100%; border-radius: 6px; cursor: pointer; object-fit: cover; border: 1px solid #0284c7;" onclick="openPhotoLightbox('${order.evidence}', { type: 'ANTES', ot: '${targetId}', evidenceId: '${evId}' })">
+            <div style="margin-top: 4px;">
+              <button type="button" class="btn-action-danger" style="font-size:0.7rem; padding:2px 8px; border-radius:4px; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; cursor:pointer;" onclick="deleteOTPhoto('${evId}', '${targetId}', '${order.evidence}', () => openApplicantReviewModal('${targetId}'))">🗑️ Eliminar</button>
+            </div>
+          </div>
         `;
       } else {
         initBox.innerHTML = `<span style="color: var(--text-muted); font-size: 0.85rem;">Sin evidencia inicial cargada</span>`;
@@ -17453,19 +17684,29 @@ function openApplicantReviewModal(otId) {
           const imgUrl = ev.url || ev.url_archivo;
           const badgeColor = ev.tipo_evidencia === 'DESPUES' ? '#16a34a' : ev.tipo_evidencia === 'HALLAZGO' ? '#ef4444' : '#eab308';
           const safeDesc = (ev.descripcion || ev.comentario || 'Evidencia técnica').replace(/'/g, "\\'");
+          const evId = ev.id_evidencia || ev.id || `FINAL-${idx}`;
           return `
-            <div style="margin-bottom: 8px;">
+            <div style="margin-bottom: 8px; background: white; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; display: inline-block; margin-right: 6px;">
               <span class="badge" style="background: ${badgeColor}; color: white; font-size: 0.65rem; margin-bottom: 4px; display: inline-block;">${ev.tipo_evidencia}</span>
               <div>
-                <img src="${imgUrl}" alt="${ev.tipo_evidencia} ${idx+1}" style="max-height: 140px; max-width: 100%; border-radius: 6px; cursor: pointer; object-fit: cover; border: 1px solid #cbd5e1;" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia}', ot: '${targetId}', desc: '${safeDesc}' })">
+                <img src="${imgUrl}" alt="${ev.tipo_evidencia} ${idx+1}" style="max-height: 140px; max-width: 100%; border-radius: 6px; cursor: pointer; object-fit: cover; border: 1px solid #cbd5e1;" onclick="openPhotoLightbox('${imgUrl}', { type: '${ev.tipo_evidencia}', ot: '${targetId}', desc: '${safeDesc}', evidenceId: '${evId}' })">
               </div>
               <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">${ev.descripcion || ev.comentario || 'Evidencia de trabajo'}</div>
+              <div style="margin-top: 4px;">
+                <button type="button" class="btn-action-danger" style="font-size:0.7rem; padding:2px 8px; border-radius:4px; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; cursor:pointer;" onclick="deleteOTPhoto('${evId}', '${targetId}', '${imgUrl}', () => openApplicantReviewModal('${targetId}'))">🗑️ Eliminar</button>
+              </div>
             </div>
           `;
         }).join('');
       } else if (order.finalEvidence) {
+        const evId = 'FINAL-EV-' + targetId;
         finalBox.innerHTML = `
-          <img src="${order.finalEvidence}" alt="Final" style="max-height: 140px; max-width: 100%; border-radius: 6px; cursor: pointer; object-fit: cover; border: 1px solid #16a34a;" onclick="openPhotoLightbox('${order.finalEvidence}', { type: 'DESPUES', ot: '${targetId}' })">
+          <div style="margin-bottom: 8px; background: white; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; display: inline-block;">
+            <img src="${order.finalEvidence}" alt="Final" style="max-height: 140px; max-width: 100%; border-radius: 6px; cursor: pointer; object-fit: cover; border: 1px solid #16a34a;" onclick="openPhotoLightbox('${order.finalEvidence}', { type: 'DESPUES', ot: '${targetId}', evidenceId: '${evId}' })">
+            <div style="margin-top: 4px;">
+              <button type="button" class="btn-action-danger" style="font-size:0.7rem; padding:2px 8px; border-radius:4px; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; cursor:pointer;" onclick="deleteOTPhoto('${evId}', '${targetId}', '${order.finalEvidence}', () => openApplicantReviewModal('${targetId}'))">🗑️ Eliminar</button>
+            </div>
+          </div>
         `;
       } else {
         finalBox.innerHTML = `<span style="color: var(--text-muted); font-size: 0.85rem;">Sin evidencias registradas por el técnico</span>`;
@@ -19806,6 +20047,24 @@ function onSolicitanteMachineSelectChange(machineId) {
   }
 }
 
+function handleSolicFileChange(input) {
+  const previewBox = document.getElementById('solic-file-preview-box');
+  const nameEl = document.getElementById('solic-file-preview-name');
+  if (input.files && input.files[0]) {
+    if (previewBox) previewBox.style.display = 'flex';
+    if (nameEl) nameEl.innerText = '📷 ' + input.files[0].name;
+  } else {
+    if (previewBox) previewBox.style.display = 'none';
+  }
+}
+
+function clearSolicFileInput() {
+  const input = document.getElementById('solic-req-file');
+  if (input) input.value = '';
+  const previewBox = document.getElementById('solic-file-preview-box');
+  if (previewBox) previewBox.style.display = 'none';
+}
+
 let isSubmittingRequest = false;
 
 async function submitSolicitanteNewRequest() {
@@ -19967,7 +20226,7 @@ async function renderSolicitanteTracking() {
   if (!tbody) return;
   if (!currentUser) return;
 
-  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:#64748b;">Cargando únicamente tus solicitudes...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#64748b;">Cargando únicamente tus solicitudes...</td></tr>';
 
   let localReqs = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
   let localOrders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
@@ -19990,7 +20249,7 @@ async function renderSolicitanteTracking() {
   const sortedItems = Array.from(allItemsMap.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
   if (sortedItems.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:#64748b;">No tienes solicitudes generadas por tu usuario registradas aún.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#64748b;">No tienes solicitudes generadas por tu usuario registradas aún.</td></tr>';
     return;
   }
 
@@ -20019,6 +20278,9 @@ async function renderSolicitanteTracking() {
       <td><code style="font-size:0.75rem;">${item.otId || item.id_orden || item.id}</code></td>
       <td>${item.assignedTech || item.nombre_tecnico || 'Por asignar'}</td>
       <td>${item.dueDate ? fmtDate(item.dueDate) : 'Por definir'}</td>
+      <td>
+        <button type="button" class="btn-action-secondary" style="font-size:0.75rem; padding:4px 8px; border-radius:4px; white-space:nowrap;" onclick="openSolicitanteValidationDetail('${item.id}')">🔍 Ver / Evidencias</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -20897,14 +21159,17 @@ async function renderSolicitanteValidations() {
 let activeValidationOrderId = null;
 
 async function openSolicitanteValidationDetail(orderId) {
-  const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
-  const order = orders.find(o => o.id === orderId);
+  const allOrdersAndReqs = [
+    ...JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]'),
+    ...JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]')
+  ];
+  const order = allOrdersAndReqs.find(o => String(o.id || o.folio || '').trim() === String(orderId).trim() || String(o.otId || '').trim() === String(orderId).trim());
   if (!order) return;
 
   activeValidationOrderId = orderId;
 
   // General details
-  document.getElementById('solic-detail-modal-title').innerText = `🔍 Detalle de Trabajo Realizado — OT: ${order.id}`;
+  document.getElementById('solic-detail-modal-title').innerText = `🔍 Detalle de Trabajo Realizado — Folio/OT: ${order.id || orderId}`;
   document.getElementById('solic-detail-req-id').innerText = order.reqId || order.id;
   document.getElementById('solic-detail-req-date').innerText = fmtDate(order.date);
   document.getElementById('solic-detail-req-machine').innerText = order.machine || order.location || 'Equipo';
@@ -20948,12 +21213,14 @@ async function openSolicitanteValidationDetail(orderId) {
           const safeDesc = (ev.descripcion || ev.comentario || 'Evidencia inicial').replace(/'/g, "\\'");
           const safeTech = (ev.nombre_tecnico || order.assignedTech || 'Técnico').replace(/'/g, "\\'");
           const timeStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleString('es-MX');
+          const evId = ev.id_evidencia || ev.id || `BEFORE-${idx}`;
           return `
-            <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #fff; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-              <img src="${imgUrl}" alt="Antes ${idx + 1}" style="width: 100%; height: 90px; object-fit: cover; cursor: pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: 'ANTES', ot: '${orderId}', machine: '${ev.maquina_id || order.machine || ''}', tech: '${safeTech}', time: '${timeStr}', desc: '${safeDesc}' })">
+            <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #fff; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); padding-bottom: 4px;">
+              <img src="${imgUrl}" alt="Antes ${idx + 1}" style="width: 100%; height: 90px; object-fit: cover; cursor: pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: 'ANTES', ot: '${orderId}', machine: '${ev.maquina_id || order.machine || ''}', tech: '${safeTech}', time: '${timeStr}', desc: '${safeDesc}', evidenceId: '${evId}' })">
               <div style="padding: 4px; font-size: 0.72rem; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${ev.descripcion || ev.comentario || ''}">
                 ${ev.descripcion || ev.comentario || `Antes #${idx + 1}`}
               </div>
+              <button type="button" class="btn-action-danger" style="font-size: 0.68rem; padding: 2px 8px; border-radius: 4px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; cursor: pointer; margin-top: 2px;" onclick="event.stopPropagation(); deleteOTPhoto('${evId}', '${orderId}', '${imgUrl}', () => openSolicitanteValidationDetail('${orderId}'))">🗑️ Eliminar</button>
             </div>
           `;
         }).join('');
@@ -20968,12 +21235,14 @@ async function openSolicitanteValidationDetail(orderId) {
           const safeDesc = (ev.descripcion || ev.comentario || 'Evidencia final').replace(/'/g, "\\'");
           const safeTech = (ev.nombre_tecnico || order.assignedTech || 'Técnico').replace(/'/g, "\\'");
           const timeStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleString('es-MX');
+          const evId = ev.id_evidencia || ev.id || `AFTER-${idx}`;
           return `
-            <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #fff; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-              <img src="${imgUrl}" alt="Después ${idx + 1}" style="width: 100%; height: 90px; object-fit: cover; cursor: pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: 'DESPUÉS', ot: '${orderId}', machine: '${ev.maquina_id || order.machine || ''}', tech: '${safeTech}', time: '${timeStr}', desc: '${safeDesc}' })">
+            <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #fff; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); padding-bottom: 4px;">
+              <img src="${imgUrl}" alt="Después ${idx + 1}" style="width: 100%; height: 90px; object-fit: cover; cursor: pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: 'DESPUÉS', ot: '${orderId}', machine: '${ev.maquina_id || order.machine || ''}', tech: '${safeTech}', time: '${timeStr}', desc: '${safeDesc}', evidenceId: '${evId}' })">
               <div style="padding: 4px; font-size: 0.72rem; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${ev.descripcion || ev.comentario || ''}">
                 ${ev.descripcion || ev.comentario || `Después #${idx + 1}`}
               </div>
+              <button type="button" class="btn-action-danger" style="font-size: 0.68rem; padding: 2px 8px; border-radius: 4px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; cursor: pointer; margin-top: 2px;" onclick="event.stopPropagation(); deleteOTPhoto('${evId}', '${orderId}', '${imgUrl}', () => openSolicitanteValidationDetail('${orderId}'))">🗑️ Eliminar</button>
             </div>
           `;
         }).join('');
@@ -20989,12 +21258,14 @@ async function openSolicitanteValidationDetail(orderId) {
           const safeDesc = (ev.descripcion || ev.comentario || tName).replace(/'/g, "\\'");
           const safeTech = (ev.nombre_tecnico || order.assignedTech || 'Técnico').replace(/'/g, "\\'");
           const timeStr = new Date(ev.captured_at || ev.created_at || Date.now()).toLocaleString('es-MX');
+          const evId = ev.id_evidencia || ev.id || `DURING-${idx}`;
           return `
-            <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #fff; width: 85px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-              <img src="${imgUrl}" alt="${tName} ${idx + 1}" style="width: 100%; height: 65px; object-fit: cover; cursor: pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: '${tName}', ot: '${orderId}', machine: '${ev.maquina_id || order.machine || ''}', tech: '${safeTech}', time: '${timeStr}', desc: '${safeDesc}' })">
+            <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #fff; width: 95px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); padding-bottom: 4px;">
+              <img src="${imgUrl}" alt="${tName} ${idx + 1}" style="width: 100%; height: 65px; object-fit: cover; cursor: pointer;" onclick="openPhotoLightbox('${imgUrl}', { type: '${tName}', ot: '${orderId}', machine: '${ev.maquina_id || order.machine || ''}', tech: '${safeTech}', time: '${timeStr}', desc: '${safeDesc}', evidenceId: '${evId}' })">
               <div style="padding: 2px 4px; font-size: 0.68rem; color: #64748b; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 ${tName}
               </div>
+              <button type="button" class="btn-action-danger" style="font-size: 0.65rem; padding: 1px 6px; border-radius: 4px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; cursor: pointer; margin-top: 2px;" onclick="event.stopPropagation(); deleteOTPhoto('${evId}', '${orderId}', '${imgUrl}', () => openSolicitanteValidationDetail('${orderId}'))">🗑️</button>
             </div>
           `;
         }).join('');

@@ -43,11 +43,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.6.15"></script>
+  <script src="config.js?v=3.6.16"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.6.15">
+  <link rel="stylesheet" href="style.css?v=3.6.16">
 </head>
 <body>
 
@@ -1827,7 +1827,7 @@
             <div><h3 style="font-weight:700;font-size:1.2rem;margin:0;">📎 Evidencias de Órdenes de Trabajo</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Archivos e imágenes adjuntos a las órdenes de trabajo.</p></div>
             <button class="btn-nav btn-nav-primary" onclick="renderAdminEvidencias()">↻ Recargar</button>
           </div>
-          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>OT (ID)</th><th>Tipo</th><th>Archivo</th><th>Comentario</th><th>Cargado Por</th><th>Fecha Carga</th></tr></thead><tbody id="tbody-evidencias"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando evidencias...</td></tr></tbody></table></div>
+          <div style="overflow-x:auto;"><table class="custom-table"><thead><tr><th>OT (ID)</th><th>Tipo</th><th>Archivo</th><th>Comentario</th><th>Cargado Por</th><th>Fecha Carga</th><th>Acciones</th></tr></thead><tbody id="tbody-evidencias"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Cargando evidencias...</td></tr></tbody></table></div>
         </div>
 
         <!-- ====== PANEL: REFACCIONES POR MÁQUINA ====== -->
@@ -2676,7 +2676,11 @@
 
               <div class="form-group">
                 <label for="solic-req-file">9. Evidencia (Fotografía / Celular)</label>
-                <input type="file" id="solic-req-file" class="form-control" accept="image/*">
+                <input type="file" id="solic-req-file" class="form-control" accept="image/*" onchange="handleSolicFileChange(this)">
+                <div id="solic-file-preview-box" style="display: none; margin-top: 8px; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px;">
+                  <span id="solic-file-preview-name" style="font-size: 0.82rem; color: #334155; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+                  <button type="button" style="background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; border-radius: 4px; font-size: 0.75rem; padding: 3px 8px; cursor: pointer; white-space: nowrap;" onclick="clearSolicFileInput()">❌ Quitar archivo</button>
+                </div>
               </div>
 
               <div class="form-group">
@@ -2717,10 +2721,11 @@
                   <th>OT Relacionada</th>
                   <th>Técnico Asignado</th>
                   <th>Fecha Compromiso</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody id="tbody-solic-tracking">
-                <tr><td colspan="10" style="text-align:center; padding: 30px; color: #64748b;">Cargando tus solicitudes...</td></tr>
+                <tr><td colspan="11" style="text-align:center; padding: 30px; color: #64748b;">Cargando tus solicitudes...</td></tr>
               </tbody>
             </table>
           </div>
@@ -6029,16 +6034,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.6.15"></script>
-  <script src="agents-client.js?v=3.6.15"></script>
-  <script src="app.js?v=3.6.15"></script>
-  <script src="dashboard.js?v=3.6.15"></script>
+  <script src="seed.js?v=3.6.16"></script>
+  <script src="agents-client.js?v=3.6.16"></script>
+  <script src="app.js?v=3.6.16"></script>
+  <script src="dashboard.js?v=3.6.16"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.6.15')
+        navigator.serviceWorker.register('./sw.js?v=3.6.16')
           .then(reg => {
             reg.update();
             console.log('✅ ServiceWorker registrado:', reg.scope);
@@ -6093,7 +6098,8 @@
           <div style="margin-top: 2px;"><strong>Técnico:</strong> <span id="lightbox-tech" style="color: #f1f5f9;">-</span> | <strong>Fecha/Hora:</strong> <span id="lightbox-timestamp" style="color: #f1f5f9;">-</span></div>
           <div id="lightbox-desc-box" style="margin-top: 4px; color: #e2e8f0; font-style: italic;"></div>
         </div>
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button id="lightbox-btn-delete" type="button" class="btn-action-danger" style="background: #ef4444; color: white; border: none; padding: 7px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" onclick="deleteCurrentLightboxPhoto()">🗑️ Eliminar Evidencia</button>
           <button type="button" class="btn-action-secondary" style="background: #334155; color: white; border: none; padding: 6px 14px;" onclick="closePhotoLightbox()">Cerrar</button>
         </div>
       </div>
