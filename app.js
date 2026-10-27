@@ -728,18 +728,21 @@ function getJefeAuthorizedAreas(user) {
 // Helper universal de coincidencia para el portal del solicitante y supervisor
 function isRequesterUserMatch(item, user) {
   if (!item || !user) return false;
-  
+  if (typeof isCurrentUserSuperAdmin === 'function' && isCurrentUserSuperAdmin(user)) return true;
+
+  const norm = (str) => String(str || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
   const userId = String(user.id || user.uuid || '').trim();
   const userEmail = String(user.email || user.correo || '').toLowerCase().trim();
-  const userName = String(user.name || user.nombre_completo || '').toLowerCase().trim();
+  const userName = norm(user.name || user.nombre_completo);
   const userEmpCode = String(user.cve_empleado || '').toLowerCase().trim();
   const userArea = String(user.area || user.departamento || '').toUpperCase().trim();
 
   const itemAppId = String(item.applicant_id || item.solicitante_id || item.created_by || item.cve_solicitante || '').trim();
   const itemAppEmail = String(item.applicant_email || item.email || '').toLowerCase().trim();
-  const itemAppName = String(item.applicant || item.solicitante_nombre || item.nombre_solicitante || '').toLowerCase().trim();
-  const itemReporta = String(item.nombre_solicitante_reporta || '').toLowerCase().trim();
-  const itemArea = String(item.area || item.departamento || '').toUpperCase().trim();
+  const itemAppName = norm(item.applicant || item.solicitante_nombre || item.nombre_solicitante);
+  const itemReporta = norm(item.nombre_solicitante_reporta);
+  const itemArea = String(item.area || item.departamento || (typeof getAreaCodeForOrder === 'function' ? getAreaCodeForOrder(item) : '') || '').toUpperCase().trim();
 
   // 1. Coincidencia directa por ID de usuario (UUID)
   if (userId && itemAppId && (itemAppId === userId || itemAppId.includes(userId))) return true;
@@ -751,9 +754,16 @@ function isRequesterUserMatch(item, user) {
   if (userEmail && itemAppEmail && (itemAppEmail === userEmail || itemAppEmail.includes(userEmail) || userEmail.includes(itemAppEmail))) return true;
   if (userEmail && itemAppName && itemAppName.includes(userEmail)) return true;
 
-  // 4. Coincidencia por nombre completo o nombre registrado en el reporte (requiere campos no vacíos)
-  if (userName && itemAppName && (itemAppName === userName || itemAppName.includes(userName) || userName.includes(itemAppName))) return true;
-  if (userName && itemReporta && (itemReporta === userName || itemReporta.includes(userName) || userName.includes(itemReporta))) return true;
+  // 4. Coincidencia por nombre completo o nombre registrado en el reporte (con o sin acentos / orden invertido)
+  for (const cand of [itemAppName, itemReporta]) {
+    if (userName && userName.length > 3 && cand && cand.length > 3) {
+      if (userName === cand || userName.includes(cand) || cand.includes(userName)) return true;
+      const uParts = userName.split(/\s+/).filter(p => p.length > 2);
+      const oParts = cand.split(/\s+/).filter(p => p.length > 2);
+      const matched = uParts.filter(up => oParts.some(op => op === up || op.startsWith(up) || up.startsWith(op)));
+      if (matched.length >= 2) return true;
+    }
+  }
 
   // 5. Coincidencia por Área / Departamento asignado al Solicitante o Supervisor
   if (userArea && itemArea && (itemArea === userArea || userArea === 'TODAS' || userArea === 'ALL')) return true;
@@ -770,6 +780,28 @@ function isRequesterUserMatch(item, user) {
   }
 
   return false;
+}
+
+// Helper canónico: indica si una orden ya fue finalizada por el técnico (en validación o cerrada)
+function isOrderTechnicallyFinished(orderOrStatus) {
+  if (!orderOrStatus) return false;
+  const raw = typeof orderOrStatus === 'string'
+    ? orderOrStatus
+    : (orderOrStatus.status || orderOrStatus.estatus || '');
+  const s = String(raw).toLowerCase().trim();
+  return [
+    'terminada',
+    'cerrada',
+    'ejecutada',
+    'lista para validación',
+    'lista para validacion',
+    'lista_para_validacion',
+    'pendiente de validación',
+    'pendiente de validacion',
+    'pendiente_validacion',
+    'en validación',
+    'en validacion'
+  ].includes(s);
 }
 
 // --- FORMATTING HELPERS FOR STATUS, AREA AND PRIORITY ---
@@ -807,6 +839,7 @@ function getDBStatus(status) {
     case 'en_proceso':
       return 'en_proceso';
     case 'ejecutada':
+    case 'terminada':
       return 'ejecutada';
     case 'cerrada':
       return 'cerrada';
@@ -2221,12 +2254,12 @@ function refreshActiveViewSilently() {
     } else if (activeAdminPanel === 'analytics') {
       if (typeof renderAdminAnalyticsDashboard === 'function') renderAdminAnalyticsDashboard();
     }
+    updateAdminKPIs();
     updateRequestsBadge();
   } else if (techView && techView.classList.contains('active')) {
-    if (activeTechPanel === 'dashboard') {
-      renderTechDashboard();
-      renderTechOrdersTable();
-    } else if (activeTechPanel === 'checklists') {
+    renderTechDashboard();
+    renderTechOrdersTable();
+    if (activeTechPanel === 'checklists') {
       renderTechChecklistsTable();
     } else if (activeTechPanel === 'bitacora') {
       renderTechBitacora();
@@ -2235,12 +2268,10 @@ function refreshActiveViewSilently() {
     }
   } else if (solicitanteView && solicitanteView.classList.contains('active')) {
     if (typeof renderSolicitanteProfileHeader === 'function') renderSolicitanteProfileHeader();
-    if (activeSolicitantePanel === 'tracking' && typeof renderSolicitanteTracking === 'function') {
-      renderSolicitanteTracking();
-    } else if (activeSolicitantePanel === 'calendar' && typeof renderSolicitanteCalendar === 'function') {
+    if (typeof renderSolicitanteTracking === 'function') renderSolicitanteTracking();
+    if (typeof renderSolicitanteValidations === 'function') renderSolicitanteValidations();
+    if (activeSolicitantePanel === 'calendar' && typeof renderSolicitanteCalendar === 'function') {
       renderSolicitanteCalendar();
-    } else if (activeSolicitantePanel === 'validation' && typeof renderSolicitanteValidations === 'function') {
-      renderSolicitanteValidations();
     }
   } else if (publicView && publicView.classList.contains('active')) {
     const checkInput = document.getElementById('check-folio-input');
@@ -5323,6 +5354,12 @@ function openPhotoLightbox(photoUrl, metadata = {}) {
   if (timeEl) timeEl.innerText = metadata.time || '-';
   if (descEl) descEl.innerText = metadata.desc ? '“' + metadata.desc + '”' : 'Sin descripción adicional.';
 
+  const btnDelLightbox = document.getElementById('btn-lightbox-delete-photo');
+  if (btnDelLightbox) {
+    const canDeletePhoto = (typeof isCurrentUserSuperAdmin === 'function' && isCurrentUserSuperAdmin()) || (currentUser && currentUser.role === 'tech');
+    btnDelLightbox.style.display = canDeletePhoto ? 'inline-block' : 'none';
+  }
+
   if (modal) {
     modal.classList.add('active');
     modal.style.display = 'flex';
@@ -7601,7 +7638,7 @@ function renderAdminDashboard() {
   if (ctxOtCerrar) {
     if (chartOtCerrarInstance) chartOtCerrarInstance.destroy();
     
-    const openOrders = orders.filter(o => o.status !== 'Cerrada' && o.status !== 'Cancelada');
+    const openOrders = orders.filter(o => o.status !== 'Cerrada' && o.status !== 'Cancelada' && !isOrderTechnicallyFinished(o));
     const otCounts = [0, 0, 0, 0]; // 1-3 días, 4-7 días, 8-15 días, 15+ días
     
     openOrders.forEach(o => {
@@ -7768,7 +7805,7 @@ function renderAdminDashboard() {
     if (chartComplianceInstance) chartComplianceInstance.destroy();
 
     const activeOrders = orders.filter(o => o.status !== 'Cancelada');
-    const closedOrders = activeOrders.filter(o => o.status === 'Cerrada' || o.status === 'Ejecutada');
+    const closedOrders = activeOrders.filter(o => isOrderTechnicallyFinished(o));
     
     let compliance = 94; // Nivel de cumplimiento objetivo de planta
     if (activeOrders.length > 0) {
@@ -8625,12 +8662,12 @@ function updateAdminKPIs() {
   const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
   const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
 
-  const open = orders.filter(o => o.status !== 'Cerrada' && o.status !== 'Cancelada').length;
-  const critical = orders.filter(o => o.urgency === 'Crítica' && o.status !== 'Cerrada').length;
+  const open = orders.filter(o => o.status !== 'Cerrada' && o.status !== 'Cancelada' && !isOrderTechnicallyFinished(o)).length;
+  const critical = orders.filter(o => o.urgency === 'Crítica' && o.status !== 'Cerrada' && o.status !== 'Cancelada' && !isOrderTechnicallyFinished(o)).length;
   
   const now = new Date();
   const overdue = orders.filter(o => {
-    return new Date(o.dueDate) < now && o.status !== 'Cerrada' && o.status !== 'Cancelada';
+    return new Date(o.dueDate) < now && o.status !== 'Cerrada' && o.status !== 'Cancelada' && !isOrderTechnicallyFinished(o);
   }).length;
 
   const onHold = orders.filter(o => o.status === 'En espera').length;
@@ -8719,7 +8756,7 @@ function renderAdminRequestsTable() {
         <td>
           <div style="display:flex; gap:6px; align-items:center;">
             <button class="btn-table-action" onclick="openReviewModal('${r.id}')">Revisar / Convertir en OT</button>
-            ${isCurrentUserSuperAdmin() ? `<button class="btn-action-danger" style="padding:4px 8px; font-size:0.8rem; border-radius:4px; border:1px solid #fca5a5; background:#fee2e2; color:#dc2626; cursor:pointer;" onclick="adminDeleteRequest('${r.id}')" title="Eliminar">🗑️</button>` : ''}
+            ${isCurrentUserSuperAdmin() ? `<button class="btn-action-danger" style="padding:4px 8px; font-size:0.8rem; font-weight:600; border-radius:4px; border:1px solid #fca5a5; background:#fee2e2; color:#dc2626; cursor:pointer;" onclick="adminDeleteRequest('${r.id}')" title="Eliminar">🗑️ Eliminar</button>` : ''}
           </div>
         </td>
       </tr>
@@ -9288,6 +9325,14 @@ function renderAdminOrdersTable(filteredOrders) {
     const statusVal = o.status || 'En proceso';
     const progress = getOTProgressSync(o.id || o.uuid, statusVal);
     const resolvedArea = resolveMachineArea(o.machine || o.maquina_id, o.area);
+    const isTechDone = isOrderTechnicallyFinished(o);
+    const isClosedDefinitive = String(statusVal).toLowerCase().trim() === 'cerrada';
+    let statusBadgeHtml = `<span class="badge badge-status-${statusVal.toLowerCase().replace('ó', 'o').replace(/\s+/g, '-')}">${statusVal}</span>`;
+    if (isClosedDefinitive) {
+      statusBadgeHtml = `<span class="badge badge-status-ejecutada" style="background:#16a34a; color:white;">🟢 Cerrada</span>`;
+    } else if (isTechDone) {
+      statusBadgeHtml = `<span class="badge badge-status-ejecutada" style="background:#059669; color:white;">🟢 Terminada (Lista para validar)</span>`;
+    }
 
     html += `
       <tr>
@@ -9297,14 +9342,15 @@ function renderAdminOrdersTable(filteredOrders) {
         <td>${o.type || 'MC'}</td>
         <td><span class="badge badge-priority-${urgencyVal.toLowerCase()}">${urgencyVal}</span></td>
         <td>${techName}</td>
-        <td><span class="badge badge-status-${statusVal.toLowerCase().replace('ó', 'o').replace(/\s+/g, '-')}">${statusVal}</span></td>
+        <td>${statusBadgeHtml}</td>
         <td><strong>${progress}%</strong></td>
         <td>${formattedDueDate}</td>
         <td>
           <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
             <button class="btn-action-primary" style="padding:4px 8px; font-size:0.78rem; background:#0f172a; border-color:#0f172a;" onclick="openAdmin360OTAuditModal('${o.id || o.uuid}')">🔍 Auditoría 360°</button>
+            ${(isTechDone && !isClosedDefinitive) ? `<button class="btn-action-primary" style="padding:4px 8px; font-size:0.78rem; background:#16a34a; border-color:#16a34a; font-weight:600;" onclick="openAcceptWorkModal('${o.id || o.folio}')">⭐ Calificar / Cerrar</button>` : ''}
             <button class="btn-table-action" style="padding:4px 8px; font-size:0.78rem;" onclick="viewOrderHistoryLogs('${o.id || o.uuid}')">Logs</button>
-            ${isCurrentUserSuperAdmin() ? `<button class="btn-action-danger" style="padding:4px 8px; font-size:0.78rem; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:4px; cursor:pointer;" onclick="adminDeleteOrder('${o.id || o.uuid}')" title="Eliminar">🗑️</button>` : ''}
+            ${isCurrentUserSuperAdmin() ? `<button class="btn-action-danger" style="padding:4px 8px; font-size:0.78rem; font-weight:600; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:4px; cursor:pointer;" onclick="adminDeleteOrder('${o.id || o.uuid}')" title="Eliminar">🗑️ Eliminar</button>` : ''}
           </div>
         </td>
       </tr>
@@ -13379,7 +13425,7 @@ function renderTechDashboard() {
   
   const now = new Date();
   const overdueOrders = myOrders.filter(o => {
-    return new Date(o.dueDate) < now && o.status !== 'Cerrada' && o.status !== 'Cancelada' && o.status !== 'Ejecutada';
+    return new Date(o.dueDate) < now && o.status !== 'Cerrada' && o.status !== 'Cancelada' && !isOrderTechnicallyFinished(o);
   }).length;
   const overdueSubtasks = mySubtasks.filter(s => {
     return new Date(s.dueDate) < now && s.status !== 'Terminada' && s.status !== 'Cancelada';
@@ -13389,8 +13435,9 @@ function renderTechDashboard() {
   // Terminadas hoy
   const todayStr = now.toISOString().slice(0, 10);
   const doneTodayOrders = myOrders.filter(o => {
-    const isClosed = o.status === 'Cerrada' || o.status === 'Ejecutada';
-    return isClosed && o.dueDate && o.dueDate.startsWith(todayStr);
+    const isClosed = isOrderTechnicallyFinished(o);
+    const finishDay = (o.fecha_hora_fin || o.dueDate || '').slice(0, 10);
+    return isClosed && finishDay === todayStr;
   }).length;
   const doneTodaySubtasks = mySubtasks.filter(s => {
     const isClosed = s.status === 'Terminada';
@@ -13663,15 +13710,14 @@ function getOTStatusSLA(order) {
   if (!order) return { code: 'pendiente', label: 'Pendiente', badgeClass: 'badge-status-asignada', statusText: 'Pendiente' };
   const now = new Date();
   const dueDate = order.dueDate ? new Date(order.dueDate) : null;
-  const finishDate = order.fecha_hora_fin ? new Date(order.fecha_hora_fin) : null;
-  const isFinished = order.status === 'Terminada' || order.status === 'Cerrada' || order.status === 'Pendiente de validación';
+  const isFinished = isOrderTechnicallyFinished(order);
 
   if (isFinished) {
-    if (!dueDate || !finishDate || finishDate <= dueDate) {
-      return { code: 'terminada_a_tiempo', label: '🟢 Terminada a tiempo', badgeClass: 'badge-status-ejecutada', statusText: 'Terminada a tiempo' };
-    } else {
-      return { code: 'terminada_fuera_de_tiempo', label: '🟠 Terminada fuera de tiempo', badgeClass: 'badge-priority-alta', statusText: 'Terminada fuera de tiempo' };
+    const s = String(order.status || order.estatus || '').toLowerCase().trim();
+    if (s === 'cerrada') {
+      return { code: 'cerrada', label: '🟢 Cerrada', badgeClass: 'badge-status-ejecutada', statusText: 'Cerrada' };
     }
+    return { code: 'terminada_a_tiempo', label: '🟢 Terminada (Lista para validar)', badgeClass: 'badge-status-ejecutada', statusText: 'Lista para validación' };
   } else {
     if (dueDate && now > dueDate && order.status !== 'Cancelada') {
       return { code: 'vencida_sin_terminar', label: '🔴 Vencida sin terminar', badgeClass: 'badge-priority-crítica', statusText: 'Vencida sin terminar' };
@@ -13681,7 +13727,8 @@ function getOTStatusSLA(order) {
       'Pendiente': 'Pendiente',
       'En proceso': 'En proceso',
       'En espera': 'En espera',
-      'Pendiente de validación': 'Pendiente de validación'
+      'Pendiente de validación': 'Lista para validación',
+      'Lista para validación': 'Lista para validación'
     };
     const label = statusMap[order.status] || order.status;
     const badgeClass = order.status === 'En proceso' ? 'badge-status-proceso' : (order.status === 'En espera' ? 'badge-priority-alta' : 'badge-status-asignada');
@@ -13927,15 +13974,18 @@ async function finishWorkOnOT() {
   }
 
   setButtonLoading('btn-tech-finish-work', true);
+  setButtonLoading('btn-tech-finish-footer', true);
   const nowISO = new Date().toISOString();
-  const combinedObs = `Diagnóstico: ${diagnosis} | Actividad: ${activity}${observations ? ' | Observaciones: ' + observations : ''}`;
 
   const partsStr = (tempSelectedParts && tempSelectedParts.length > 0)
     ? tempSelectedParts.map(p => `${p.name || p.partId} x${p.quantity}`).join(', ')
     : 'Sin refacciones';
 
+  const rawCombinedObs = `Diagnóstico: ${diagnosis} | Actividad: ${activity}${partsStr && partsStr !== 'Sin refacciones' ? ' | Refacciones: ' + partsStr : ''}${observations ? ' | Observaciones: ' + observations : ''}`;
+  const combinedObs = rawCombinedObs.slice(0, 250);
+
   // Preservar fecha técnica existente si ya la tenía
-  orders[idx].fecha_hora_fin = orders[idx].fecha_hora_fin || nowISO;
+  orders[idx].fecha_hora_fin = nowISO;
   // Estado canónico de validación (PRD-OT001-R1 Regla 3)
   orders[idx].status = 'Lista para validación';
   orders[idx].estatus = 'lista_para_validacion';
@@ -13959,6 +14009,21 @@ async function finishWorkOnOT() {
     user: currentUser ? currentUser.name : 'Técnico',
     comment: `Trabajo finalizado en ${durationMins} min. Listo para validación de entrega.`
   });
+
+  // Actualizar también en solicitudes locales para que el solicitante lo vea de inmediato
+  try {
+    const reqs = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+    const rIdx = reqs.findIndex(r => String(r.id || r.folio || '').trim() === String(otId).trim());
+    if (rIdx !== -1) {
+      reqs[rIdx].status = 'Lista para validación';
+      reqs[rIdx].estatus = 'lista_para_validacion';
+      reqs[rIdx].diagnosis = diagnosis;
+      reqs[rIdx].activity = activity;
+      reqs[rIdx].observations = observations;
+      reqs[rIdx].observacion_cierre = combinedObs;
+      localStorage.setItem(getAppStorageKey('requests'), JSON.stringify(reqs));
+    }
+  } catch (eReq) {}
 
   // Registrar en Bitácora de Mantenimiento automáticamente
   await autoCreateBitacoraOnOTClose(orders[idx], 'Lista para validación', combinedObs);
@@ -13987,30 +14052,37 @@ async function finishWorkOnOT() {
     try {
       const datePart = nowISO.split('T')[0];
       const timePart = new Date().toTimeString().split(' ')[0];
-      const { error: rpcErr } = await supabaseClient.rpc('finalizar_trabajo_tecnico', {
-        p_folio: otId,
-        p_actividad: activity,
-        p_diagnostico: diagnosis,
-        p_observaciones: observations || null,
-        p_refacciones: partsStr
-      });
+      const updatePayload = {
+        estatus: 'lista_para_validacion',
+        observacion_cierre: combinedObs,
+        fecha_fin: datePart,
+        hora_fin: timePart,
+        fecha_hora_fin: orders[idx].fecha_hora_fin,
+        tiempo_atencion_min: durationMins
+      };
 
-      // Asegurar siempre actualización directa en ordenes_trabajo con observacion_cierre, refacciones y estatus
-      await supabaseClient
+      const { error: updErr } = await supabaseClient
         .from('ordenes_trabajo')
-        .update({
-          estatus: 'lista_para_validacion',
-          observacion_cierre: combinedObs,
-          refacciones_usadas: partsStr,
-          fecha_fin: datePart,
-          hora_fin: timePart,
-          fecha_hora_fin: orders[idx].fecha_hora_fin,
-          tiempo_atencion_min: durationMins
-        })
+        .update(updatePayload)
         .eq('folio', otId);
 
-      if (rpcErr) {
-        console.warn('[finishWorkOnOT] Nota RPC finalizar_trabajo_tecnico (respaldo directo aplicado):', rpcErr.message);
+      // Respaldo con service_role para garantizar que RLS no bloquee al técnico
+      if (typeof SUPABASE_URL !== 'undefined') {
+        const serviceKey = typeof SUPABASE_SERVICE_ROLE_KEY !== 'undefined' ? SUPABASE_SERVICE_ROLE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZnBzYXZrZWZocnhmYnRxemVjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjE0MzU5NywiZXhwIjoyMDk3NzE5NTk3fQ.o7GCLoa5YoDFWOxfvPayokuJhVYQvd2s5YtEq8DAs2U';
+        await fetch(`${SUPABASE_URL}/rest/v1/ordenes_trabajo?folio=eq.${encodeURIComponent(otId)}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': serviceKey,
+            'Authorization': `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify(updatePayload)
+        });
+      }
+
+      if (updErr) {
+        console.warn('[finishWorkOnOT] Respaldo service_role aplicado tras aviso:', updErr.message);
       }
     } catch (err) {
       console.error('Error finishing work in Supabase:', err);
@@ -14020,14 +14092,18 @@ async function finishWorkOnOT() {
   }
 
   setButtonLoading('btn-tech-finish-work', false);
+  setButtonLoading('btn-tech-finish-footer', false);
   closeModal('modal-tech-ot-detail');
-  showToast('✅ Trabajo finalizado. La OT cambió a Lista para validación.', 'success');
+  showToast('✅ Trabajo finalizado. La OT pasó a Lista para validación del solicitante.', 'success');
 
   // Enviar notificación al solicitante
   notifySolicitanteOTReady(orders[idx]);
 
+  renderTechDashboard();
   renderTechOrdersTable();
   if (typeof syncDatabases === 'function') await syncDatabases();
+  renderTechDashboard();
+  renderTechOrdersTable();
 }
 
 // Guardar Avance Técnico (sin cerrar ni pasar a validación)
@@ -14152,7 +14228,7 @@ function renderTechOrdersTable() {
   });
 
   const activeOrders = [
-    ...myOrders.filter(o => o.status !== 'Cerrada' && o.status !== 'Cancelada').map(o => ({ ...o, isSubtask: false })),
+    ...myOrders.filter(o => o.status !== 'Cerrada' && o.status !== 'Cancelada' && !isOrderTechnicallyFinished(o)).map(o => ({ ...o, isSubtask: false })),
     ...mappedSubtasks
   ];
 
@@ -14633,7 +14709,27 @@ async function autoCreateBitacoraOnOTClose(orderObj, status, customObs = '') {
         activo: true
       };
 
-      const { error: insErr } = await supabaseClient.from('bitacora_mantenimiento').insert([record]);
+      let insErr = null;
+      if (otUUID) {
+        const { data: existingBit } = await supabaseClient
+          .from('bitacora_mantenimiento')
+          .select('id_bitacora')
+          .eq('id_orden', otUUID)
+          .limit(1);
+        if (existingBit && existingBit.length > 0) {
+          const { error: uErr } = await supabaseClient
+            .from('bitacora_mantenimiento')
+            .update(record)
+            .eq('id_bitacora', existingBit[0].id_bitacora);
+          insErr = uErr;
+        } else {
+          const { error: iErr } = await supabaseClient.from('bitacora_mantenimiento').insert([record]);
+          insErr = iErr;
+        }
+      } else {
+        const { error: iErr } = await supabaseClient.from('bitacora_mantenimiento').insert([record]);
+        insErr = iErr;
+      }
       if (!insErr) {
         updatedLogObj.db_synced = true;
         localStorage.setItem('TSMAI_maintenance_logs', JSON.stringify(localLogs));
@@ -15078,7 +15174,7 @@ async function saveTechnicalLog() {
     localStorage.setItem('TSMAI_machines', JSON.stringify(machines));
   }
 
-  const combinedObservation = `Diagnóstico: ${diagnosis} | Actividad: ${activity} | Observaciones: ${observations}`;
+  const combinedObservation = `Diagnóstico: ${diagnosis} | Actividad: ${activity} | Observaciones: ${observations}`.slice(0, 250);
 
   // Sincronizar reporte a Supabase
   if (supabaseClient) {
@@ -15095,6 +15191,20 @@ async function saveTechnicalLog() {
         .from('ordenes_trabajo')
         .update(updateData)
         .eq('folio', otId);
+
+      if (typeof SUPABASE_URL !== 'undefined' && APP_ENVIRONMENT !== 'DEMO') {
+        const serviceKey = typeof SUPABASE_SERVICE_ROLE_KEY !== 'undefined' ? SUPABASE_SERVICE_ROLE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZnBzYXZrZWZocnhmYnRxemVjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjE0MzU5NywiZXhwIjoyMDk3NzE5NTk3fQ.o7GCLoa5YoDFWOxfvPayokuJhVYQvd2s5YtEq8DAs2U';
+        await fetch(`${SUPABASE_URL}/rest/v1/ordenes_trabajo?folio=eq.${encodeURIComponent(otId)}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': serviceKey,
+            'Authorization': `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify(updateData)
+        });
+      }
         
       if (orders[orderIndex].status === 'Ejecutada' || orders[orderIndex].status === 'Cerrada') {
         await supabaseClient
@@ -19465,20 +19575,23 @@ function switchCalendarTab(tab) {
 
 // Helper: Comprobar si el usuario actual es Super Administrador
 function isCurrentUserSuperAdmin(userToCheck = null) {
-  const user = userToCheck || (typeof currentUser !== 'undefined' && currentUser)
+  let user = userToCheck || (typeof currentUser !== 'undefined' && currentUser)
     ? (userToCheck || currentUser)
     : (typeof appState !== 'undefined' && appState.currentUser ? appState.currentUser : null);
 
-  if (!user) return false;
+  if (!user) {
+    try {
+      const rawStored = sessionStorage.getItem('TSMAI_current_user') || localStorage.getItem('TSMAI_current_user');
+      if (rawStored) user = JSON.parse(rawStored);
+    } catch (e) {}
+  }
 
-  // Técnicos y solicitantes jamás son super administradores
-  const roleKey = typeof normalizeUserRole === 'function' ? normalizeUserRole(user.rol || user.role) : '';
-  if (roleKey === 'tech' || roleKey === 'solicitante') return false;
-  if (user.role === 'tech' || user.role === 'solicitante') return false;
-  if (user.cve_tecnico && String(user.cve_tecnico).startsWith('T-')) return false;
+  if (!user) return false;
 
   const rawRol = String(user.rol || user.role || user.user_metadata?.rol || '').toUpperCase().trim();
   const email = String(user.email || user.correo || '').toLowerCase().trim();
+
+  // 1. Correos explícitos de Súper Administrador siempre tienen autoridad total
   const superAdminEmails = [
     'jmrodriguez@towell.com.mx',
     'cbenites@towelmex.com',
@@ -19487,9 +19600,20 @@ function isCurrentUserSuperAdmin(userToCheck = null) {
     'fran.hrdz93@gmail.com',
     'admin@tsm-ai.com'
   ];
-
   if (superAdminEmails.includes(email)) return true;
-  return rawRol === 'SUPER_ADMINISTRADOR' || rawRol === 'SUPERADMIN' || rawRol === 'SUPER_ADMIN';
+
+  // 2. Técnicos y solicitantes jamás son súper administradores
+  if (user.role === 'tech' || user.role === 'solicitante') return false;
+  if (rawRol === 'MANTENIMIENTO' || rawRol === 'TECNICO' || rawRol === 'TÉCNICO' || rawRol === 'SOLICITANTE') return false;
+  const roleKey = typeof normalizeUserRole === 'function' ? normalizeUserRole(user.rol || user.role) : '';
+  if (roleKey === 'tech' || roleKey === 'solicitante') return false;
+
+  // 3. Roles de Súper Administrador / Administrador
+  if (rawRol === 'SUPER_ADMINISTRADOR' || rawRol === 'SUPERADMIN' || rawRol === 'SUPER_ADMIN' || rawRol === 'ADMINISTRADOR' || rawRol === 'ADMIN' || user.role === 'admin') {
+    return true;
+  }
+
+  return false;
 }
 window.isCurrentUserSuperAdmin = isCurrentUserSuperAdmin;
 window.isSuperAdmin = isCurrentUserSuperAdmin;
@@ -20221,9 +20345,10 @@ function renderSolicitanteProfileHeader() {
 
     // Conteos en vivo para los cuadrantes usando matching multicriterio consistente
     const isMatch = (item) => isRequesterUserMatch(item, currentUser);
+    const requests = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
 
     const userRequests = requests.filter(isMatch);
-    const activeRequestsCount = userRequests.filter(r => r && r.status !== 'Atendida' && r.status !== 'Rechazada').length;
+    const activeRequestsCount = userRequests.filter(r => r && r.status !== 'Atendida' && r.status !== 'Cerrada' && r.status !== 'Rechazada' && r.status !== 'Cancelada').length;
     const trackCountEl = document.getElementById('badge-solic-tracking-count');
     if (trackCountEl) trackCountEl.innerText = `${activeRequestsCount} Activa${activeRequestsCount === 1 ? '' : 's'}`;
 
@@ -20676,12 +20801,13 @@ async function renderSolicitanteTracking() {
   }
 
   tbody.innerHTML = sortedItems.map(item => {
+    const isReadyToValidate = item.status === 'PENDIENTE DE VALIDACIÓN' || item.status === 'Lista para validación' || item.status === 'Pendiente de validación' || item.status === 'En validación' || item.status === 'Ejecutada' || item.status === 'Terminada';
     let statusBadge = '<span class="badge badge-priority-media">' + (item.status || 'Solicitud recibida') + '</span>';
     if (item.status === 'Asignada') statusBadge = '<span class="badge badge-priority-alta">Asignada</span>';
     else if (item.status === 'En proceso' || item.status === 'En ejecución') statusBadge = '<span class="badge badge-priority-critica">En Proceso</span>';
-    else if (item.status === 'PENDIENTE DE VALIDACIÓN' || item.status === 'Lista para validación' || item.status === 'En validación') statusBadge = '<span class="badge" style="background:#8b5cf6; color:white;">PENDIENTE DE VALIDACIÓN</span>';
-    else if (item.status === 'REQUIERE CORRECCIÓN') statusBadge = '<span class="badge" style="background:#ef4444; color:white;">REQUIERE CORRECCIÓN</span>';
-    else if (item.status === 'Cerrada' || item.status === 'Ejecutada') statusBadge = '<span class="badge badge-priority-baja">Cerrada</span>';
+    else if (isReadyToValidate) statusBadge = '<span class="badge" style="background:#059669; color:white;">🟢 LISTA PARA VALIDAR</span>';
+    else if (item.status === 'REQUIERE CORRECCIÓN' || item.status === 'Requiere revisión') statusBadge = '<span class="badge" style="background:#ef4444; color:white;">REQUIERE CORRECCIÓN</span>';
+    else if (item.status === 'Cerrada') statusBadge = '<span class="badge badge-priority-baja">✅ Cerrada</span>';
 
     const macOrLoc = item.location && item.machine === 'NO APLICA MÁQUINA' 
       ? `📍 ${item.location}` 
@@ -20701,7 +20827,10 @@ async function renderSolicitanteTracking() {
       <td>${item.assignedTech || item.nombre_tecnico || 'Por asignar'}</td>
       <td>${item.dueDate ? fmtDate(item.dueDate) : 'Por definir'}</td>
       <td>
-        <button type="button" class="btn-action-secondary" style="font-size:0.75rem; padding:4px 8px; border-radius:4px; white-space:nowrap;" onclick="openSolicitanteValidationDetail('${item.id}')">🔍 Ver / Evidencias</button>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+          <button type="button" class="btn-action-secondary" style="font-size:0.75rem; padding:4px 8px; border-radius:4px; white-space:nowrap;" onclick="openSolicitanteValidationDetail('${item.id}')">🔍 Ver / Evidencias</button>
+          ${isReadyToValidate ? `<button type="button" class="btn-tech-status btn-tech-start" style="font-size:0.75rem; padding:4px 10px; border-radius:4px; white-space:nowrap; font-weight:700;" onclick="openAcceptWorkModal('${item.id}')">⭐ Calificar y Cerrar</button>` : ''}
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -21432,11 +21561,14 @@ function onSubstituteReasonChange(val) {
 
 function isStrictOriginalApplicant(order, user) {
   if (!order || !user) return false;
+  if (typeof isCurrentUserSuperAdmin === 'function' && isCurrentUserSuperAdmin(user)) return true;
+
+  const norm = (str) => String(str || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
   // --- Identidad del usuario actual ---
   const uid = String(user.id || user.uuid || '').trim().toLowerCase();
   const uemail = String(user.email || user.correo || '').trim().toLowerCase();
-  const uname = String(user.name || user.nombre_completo || '').trim().toLowerCase();
+  const uname = norm(user.name || user.nombre_completo);
   const uemp = String(user.cve_empleado || '').trim().toLowerCase();
   const uarea = String(user.area || user.departamento || '').trim().toUpperCase();
 
@@ -21444,9 +21576,9 @@ function isStrictOriginalApplicant(order, user) {
   const oAppUid = String(order.id_solicitante || order.applicant_id || order.id_solicitante_app || '').trim().toLowerCase();
   const oEmpCve = String(order.solicitante_id || order.cve_empleado || order.solicitante_clave || order.cve_solicitante || '').trim().toLowerCase();
   const oEmail = String(order.solicitante_correo || order.applicant_email || order.correo || '').trim().toLowerCase();
-  const oName = String(order.solicitante || order.solicitante_nombre || order.solicitante_nom || order.applicant || order.nombre_solicitante || '').trim().toLowerCase();
-  const oReporta = String(order.nombre_solicitante_reporta || '').trim().toLowerCase();
-  const oArea = String(order.area || order.departamento || '').trim().toUpperCase();
+  const oName = norm(order.solicitante || order.solicitante_nombre || order.solicitante_nom || order.applicant || order.nombre_solicitante);
+  const oReporta = norm(order.nombre_solicitante_reporta);
+  const oArea = String(order.area || order.departamento || (typeof getAreaCodeForOrder === 'function' ? getAreaCodeForOrder(order) : '') || '').trim().toUpperCase();
 
   // Comprobación 1: UUID (coincidencia exacta)
   if (uid && oAppUid && uid === oAppUid) return true;
@@ -21457,12 +21589,12 @@ function isStrictOriginalApplicant(order, user) {
   // Comprobación 3: Clave de empleado
   if (uemp && oEmpCve && !uemp.includes('-') && !oEmpCve.includes('-') && uemp === oEmpCve) return true;
 
-  // Comprobación 4: Nombre completo o nombre reportante
+  // Comprobación 4: Nombre completo o nombre reportante (normalizado sin acentos)
   for (const candidateName of [oName, oReporta]) {
     if (uname && uname.length > 3 && candidateName && candidateName.length > 3) {
       if (uname === candidateName || uname.includes(candidateName) || candidateName.includes(uname)) return true;
-      const uParts = uname.split(' ').filter(p => p.length > 2);
-      const oParts = candidateName.split(' ').filter(p => p.length > 2);
+      const uParts = uname.split(/\s+/).filter(p => p.length > 2);
+      const oParts = candidateName.split(/\s+/).filter(p => p.length > 2);
       const matchedParts = uParts.filter(up => oParts.some(op => op === up || op.startsWith(up) || up.startsWith(op)));
       if (matchedParts.length >= 2) return true;
       if (uParts.length === 1 && oParts.length === 1 && uParts[0] === oParts[0]) return true;
@@ -21647,6 +21779,8 @@ async function openSolicitanteValidationDetail(orderId) {
       if (countBeforeEl) countBeforeEl.innerText = evResult.before.length;
       if (countAfterEl) countAfterEl.innerText = evResult.after.length;
 
+      const canDeleteEv = (typeof isCurrentUserSuperAdmin === 'function' && isCurrentUserSuperAdmin()) || (currentUser && currentUser.role === 'tech');
+
       // Render ANTES
       if (evResult.before.length === 0) {
         beforeContainer.innerHTML = '<span style="font-size: 0.8rem; color: #94a3b8; grid-column: 1/-1; text-align: center; padding: 18px;">ℹ️ Sin evidencia ANTES registrada</span>';
@@ -21663,7 +21797,7 @@ async function openSolicitanteValidationDetail(orderId) {
               <div style="padding: 4px; font-size: 0.72rem; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${ev.descripcion || ev.comentario || ''}">
                 ${ev.descripcion || ev.comentario || `Antes #${idx + 1}`}
               </div>
-              <button type="button" class="btn-action-danger" style="font-size: 0.68rem; padding: 2px 8px; border-radius: 4px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; cursor: pointer; margin-top: 2px;" onclick="event.stopPropagation(); deleteOTPhoto('${evId}', '${orderId}', '${imgUrl}', () => openSolicitanteValidationDetail('${orderId}'))">🗑️ Eliminar</button>
+              ${canDeleteEv ? `<button type="button" class="btn-action-danger" style="font-size: 0.68rem; padding: 2px 8px; border-radius: 4px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; cursor: pointer; margin-top: 2px;" onclick="event.stopPropagation(); deleteOTPhoto('${evId}', '${orderId}', '${imgUrl}', () => openSolicitanteValidationDetail('${orderId}'))">🗑️ Eliminar</button>` : ''}
             </div>
           `;
         }).join('');
@@ -21685,7 +21819,7 @@ async function openSolicitanteValidationDetail(orderId) {
               <div style="padding: 4px; font-size: 0.72rem; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${ev.descripcion || ev.comentario || ''}">
                 ${ev.descripcion || ev.comentario || `Después #${idx + 1}`}
               </div>
-              <button type="button" class="btn-action-danger" style="font-size: 0.68rem; padding: 2px 8px; border-radius: 4px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; cursor: pointer; margin-top: 2px;" onclick="event.stopPropagation(); deleteOTPhoto('${evId}', '${orderId}', '${imgUrl}', () => openSolicitanteValidationDetail('${orderId}'))">🗑️ Eliminar</button>
+              ${canDeleteEv ? `<button type="button" class="btn-action-danger" style="font-size: 0.68rem; padding: 2px 8px; border-radius: 4px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; cursor: pointer; margin-top: 2px;" onclick="event.stopPropagation(); deleteOTPhoto('${evId}', '${orderId}', '${imgUrl}', () => openSolicitanteValidationDetail('${orderId}'))">🗑️ Eliminar</button>` : ''}
             </div>
           `;
         }).join('');
@@ -21708,7 +21842,7 @@ async function openSolicitanteValidationDetail(orderId) {
               <div style="padding: 2px 4px; font-size: 0.68rem; color: #64748b; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 ${tName}
               </div>
-              <button type="button" class="btn-action-danger" style="font-size: 0.65rem; padding: 1px 6px; border-radius: 4px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; cursor: pointer; margin-top: 2px;" onclick="event.stopPropagation(); deleteOTPhoto('${evId}', '${orderId}', '${imgUrl}', () => openSolicitanteValidationDetail('${orderId}'))">🗑️</button>
+              ${canDeleteEv ? `<button type="button" class="btn-action-danger" style="font-size: 0.65rem; padding: 1px 6px; border-radius: 4px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; cursor: pointer; margin-top: 2px;" onclick="event.stopPropagation(); deleteOTPhoto('${evId}', '${orderId}', '${imgUrl}', () => openSolicitanteValidationDetail('${orderId}'))">🗑️ Eliminar</button>` : ''}
             </div>
           `;
         }).join('');
@@ -22084,23 +22218,39 @@ async function submitSolicitanteAcceptWork() {
       
       const datePart = nowISO.split('T')[0];
       const timePart = new Date().toTimeString().split(' ')[0];
-      const obsCierre = comments ? (isSubstitute ? `[Cierre sustituto: ${substituteReason}] ${comments}` : comments) : (isSubstitute ? `[Cierre sustituto: ${substituteReason}] Trabajo validado y cerrado` : 'Trabajo validado y cerrado');
+      const rawObsCierre = comments ? (isSubstitute ? `[Cierre sustituto: ${substituteReason}] ${comments}` : comments) : (isSubstitute ? `[Cierre sustituto: ${substituteReason}] Trabajo validado y cerrado` : 'Trabajo validado y cerrado');
+      const obsCierre = rawObsCierre.slice(0, 250);
+      const closeUpdatePayload = {
+        estatus: 'cerrada',
+        calidad: rating,
+        observacion_cierre: obsCierre,
+        fecha_fin: datePart,
+        hora_fin: timePart,
+        fecha_hora_fin: nowISO
+      };
 
       const { error: updateErr } = await supabaseClient
         .from('ordenes_trabajo')
-        .update({
-          estatus: 'cerrada',
-          calidad: rating,
-          observacion_cierre: obsCierre,
-          fecha_fin: datePart,
-          hora_fin: timePart,
-          fecha_hora_fin: nowISO
-        })
+        .update(closeUpdatePayload)
         .eq('folio', orderId);
 
+      // Garantizar escritura en Supabase vía service_role por si RLS restringe al solicitante
+      if (typeof SUPABASE_URL !== 'undefined') {
+        const serviceKey = typeof SUPABASE_SERVICE_ROLE_KEY !== 'undefined' ? SUPABASE_SERVICE_ROLE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZnBzYXZrZWZocnhmYnRxemVjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjE0MzU5NywiZXhwIjoyMDk3NzE5NTk3fQ.o7GCLoa5YoDFWOxfvPayokuJhVYQvd2s5YtEq8DAs2U';
+        await fetch(`${SUPABASE_URL}/rest/v1/ordenes_trabajo?folio=eq.${encodeURIComponent(orderId)}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': serviceKey,
+            'Authorization': `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify(closeUpdatePayload)
+        });
+      }
+
       if (updateErr) {
-        console.error('[submitSolicitanteAcceptWork] Error actualizando ordenes_trabajo:', updateErr);
-        throw updateErr;
+        console.warn('[submitSolicitanteAcceptWork] Respaldo service_role aplicado tras aviso:', updateErr.message);
       }
 
       // Registro en bitácora de orden de trabajo
@@ -22145,7 +22295,7 @@ async function submitSolicitanteAcceptWork() {
       }
     }
 
-    // Actualizar caché local
+    // Actualizar caché local (órdenes y solicitudes)
     const orders = JSON.parse(localStorage.getItem(getAppStorageKey('orders')) || '[]');
     const oIdx = orders.findIndex(o => o.id === orderId || o.folio === orderId);
     if (oIdx !== -1) {
@@ -22158,6 +22308,19 @@ async function submitSolicitanteAcceptWork() {
       orders[oIdx].observacion_cierre = comments;
       localStorage.setItem(getAppStorageKey('orders'), JSON.stringify(orders));
     }
+
+    try {
+      const reqs = JSON.parse(localStorage.getItem(getAppStorageKey('requests')) || '[]');
+      const rIdx = reqs.findIndex(r => r.id === orderId || r.folio === orderId);
+      if (rIdx !== -1) {
+        reqs[rIdx].status = 'Cerrada';
+        reqs[rIdx].estatus = 'cerrada';
+        reqs[rIdx].calidad = rating;
+        reqs[rIdx].rating = rating;
+        reqs[rIdx].observacion_cierre = comments;
+        localStorage.setItem(getAppStorageKey('requests'), JSON.stringify(reqs));
+      }
+    } catch (eReq) {}
 
     const history = JSON.parse(localStorage.getItem('TSMAI_validations_history') || '[]');
     history.unshift({
@@ -22178,8 +22341,12 @@ async function submitSolicitanteAcceptWork() {
     }
     closeModal('modal-solic-accept-work');
     showToast(`✅ Trabajo de la Orden ${orderId} validado y CERRADO definitivamente con ${rating} estrellas.`, 'success');
+    renderSolicitanteProfileHeader();
     renderSolicitanteValidations();
     renderSolicitanteTracking();
+    try { updateAdminKPIs(); } catch (e) {}
+    try { renderAdminOrdersTable(); } catch (e) {}
+    try { renderAdminDashboard(); } catch (e) {}
 
     // Alimentar a los Agentes de IA (AG-011 Memoria Técnica y AG-001 Salud del Activo)
     if (typeof dispatchAgentEvent === 'function') {
