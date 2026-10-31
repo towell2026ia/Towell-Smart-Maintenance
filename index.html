@@ -43,11 +43,11 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración local (Supabase Keys) -->
-  <script src="config.js?v=3.6.19"></script>
+  <script src="config.js?v=3.6.21"></script>
   <!-- SheetJS for Excel Ingestion -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Estilos base con control de versión -->
-  <link rel="stylesheet" href="style.css?v=3.6.19">
+  <link rel="stylesheet" href="style.css?v=3.6.21">
   <style>
     .calendar-event.correctivo-realizada {
       background: #16a34a !important;
@@ -1097,22 +1097,22 @@
             <!-- Métricas Resumen del Proceso Seleccionado (Sincronizado Admin <-> Solicitante) -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
               <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; border-left: 4px solid #0284c7;">
-                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🛠️ Preventivos Anuales (<span id="admin-cal-kpi-proc-1">PF</span>)</div>
+                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🛠️ Preventivos Anuales (<span id="admin-cal-kpi-proc-1">TODOS</span>)</div>
                 <div style="font-size: 1.35rem; font-weight: 700; color: #0f172a; margin-top: 2px;" id="admin-cal-stat-prev">0</div>
                 <div style="font-size: 0.72rem; color: #94a3b8;">Catálogo + Refacciones + Fallas</div>
               </div>
               <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; border-left: 4px solid #f97316;">
-                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🔮 Predictivos Semanales (<span id="admin-cal-kpi-proc-2">PF</span>)</div>
+                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🔮 Predictivos Semanales (<span id="admin-cal-kpi-proc-2">TODOS</span>)</div>
                 <div style="font-size: 1.35rem; font-weight: 700; color: #0f172a; margin-top: 2px;" id="admin-cal-stat-pred">0</div>
                 <div style="font-size: 0.72rem; color: #94a3b8;">Segundas por rollo (AG-003)</div>
               </div>
               <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; border-left: 4px solid #059669;">
-                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🤖 Autónomos Semanales (<span id="admin-cal-kpi-proc-3">PF</span>)</div>
+                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600; text-transform: uppercase;">🤖 Autónomos Semanales (<span id="admin-cal-kpi-proc-3">TODOS</span>)</div>
                 <div style="font-size: 1.35rem; font-weight: 700; color: #0f172a; margin-top: 2px;" id="admin-cal-stat-auto">0</div>
                 <div style="font-size: 0.72rem; color: #94a3b8;">Fallas por máquina (AG-004)</div>
               </div>
               <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; border-left: 4px solid #6366f1;">
-                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600; text-transform: uppercase;">📅 Total Programadas (<span id="admin-cal-kpi-proc-4">PF</span>)</div>
+                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600; text-transform: uppercase;">📅 Total Programadas (<span id="admin-cal-kpi-proc-4">TODOS</span>)</div>
                 <div style="font-size: 1.35rem; font-weight: 700; color: #0f172a; margin-top: 2px;" id="admin-cal-stat-total">0</div>
                 <div style="font-size: 0.72rem; color: #94a3b8;">Eventos activos en proceso</div>
               </div>
@@ -1124,11 +1124,11 @@
               <div style="display: flex; align-items: center; gap: 8px;">
                 <label for="admin-cal-process-select" style="font-weight: 700; font-size: 0.85rem; color: #1e293b;">Proceso:</label>
                 <select id="admin-cal-process-select" class="form-control" onchange="onAdminCalendarProcessChange(this.value)" style="font-size: 0.85rem; font-weight: 700; height: 36px; padding: 4px 10px; border: 2px solid var(--primary-color); border-radius: 6px; background: white; cursor: pointer;">
-                  <option value="PF" selected>PF — Producción / Tejido</option>
+                  <option value="ALL" selected>🌐 Todos los Procesos (PF, CF, TF, AF)</option>
+                  <option value="PF">PF — Producción / Tejido</option>
                   <option value="CF">CF — Confección / Costura</option>
                   <option value="TF">TF — Tintorería / Acabados</option>
                   <option value="AF">AF — Servicios Auxiliares / Planta</option>
-                  <option value="ALL">🌐 Todos los Procesos (PF, CF, TF, AF)</option>
                 </select>
               </div>
 
@@ -1139,11 +1139,11 @@
                   <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-critical); display: inline-block;"></span> Correctivos (OT)
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
-                  <input type="checkbox" id="filter-cal-preventivo" onchange="renderAdminCalendar()" style="accent-color: var(--color-preventive); cursor: pointer;">
+                  <input type="checkbox" id="filter-cal-preventivo" checked onchange="renderAdminCalendar()" style="accent-color: var(--color-preventive); cursor: pointer;">
                   <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-preventive); display: inline-block;"></span> Preventivos
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
-                  <input type="checkbox" id="filter-cal-predictivo" onchange="renderAdminCalendar()" style="accent-color: #f97316; cursor: pointer;">
+                  <input type="checkbox" id="filter-cal-predictivo" checked onchange="renderAdminCalendar()" style="accent-color: #f97316; cursor: pointer;">
                   <span style="width: 10px; height: 10px; border-radius: 50%; background: #f97316; display: inline-block;"></span> Predictivos (IA)
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
@@ -1193,11 +1193,11 @@
                 <!-- Filtro por Proceso + Botones de Disparo de Agentes Vía AG-001 -->
                 <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                   <select id="calendar-table-process-select" class="form-control" onchange="onAdminCalendarProcessChange(this.value)" style="font-size: 0.8rem; font-weight: 700; height: 32px; padding: 2px 8px; border: 1.5px solid var(--primary-color); border-radius: 6px; background: white; cursor: pointer; width: auto;">
-                    <option value="PF" selected>Proceso: PF (Tejido)</option>
+                    <option value="ALL" selected>🌐 Todos (PF, CF, TF, AF)</option>
+                    <option value="PF">Proceso: PF (Tejido)</option>
                     <option value="CF">Proceso: CF (Confección)</option>
                     <option value="TF">Proceso: TF (Tintorería)</option>
                     <option value="AF">Proceso: AF (Auxiliares)</option>
-                    <option value="ALL">🌐 Todos (PF, CF, TF, AF)</option>
                   </select>
                   <button class="btn-table-action" onclick="triggerAgentPreventivo()" style="padding: 6px 12px; font-size: 0.8rem; background: #0284c7; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Dispara AG-002 vía AG-001">⚡ Generar AG-002</button>
                   <button class="btn-table-action" onclick="triggerAgentPredictivo()" style="padding: 6px 12px; font-size: 0.8rem; background: #ea580c; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Dispara AG-003 vía AG-001">⚡ Generar AG-003</button>
@@ -2804,11 +2804,11 @@
                   <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-critical); display: inline-block;"></span> Correctivos (OT)
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
-                  <input type="checkbox" id="filter-solic-cal-preventivo" onchange="renderSolicitanteCalendar()" style="accent-color: var(--color-preventive); cursor: pointer;">
+                  <input type="checkbox" id="filter-solic-cal-preventivo" checked onchange="renderSolicitanteCalendar()" style="accent-color: var(--color-preventive); cursor: pointer;">
                   <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-preventive); display: inline-block;"></span> Preventivos
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
-                  <input type="checkbox" id="filter-solic-cal-predictivo" onchange="renderSolicitanteCalendar()" style="accent-color: #f97316; cursor: pointer;">
+                  <input type="checkbox" id="filter-solic-cal-predictivo" checked onchange="renderSolicitanteCalendar()" style="accent-color: #f97316; cursor: pointer;">
                   <span style="width: 10px; height: 10px; border-radius: 50%; background: #f97316; display: inline-block;"></span> Predictivos (IA)
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
@@ -2853,6 +2853,7 @@
                   <label style="font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Tipo de Mantenimiento:</label>
                   <select id="filter-solic-table-type" class="form-control" style="font-size: 0.85rem; height: 36px;" onchange="renderSolicitanteCalendar()">
                     <option value="ALL">TODOS (Todos los tipos)</option>
+                    <option value="CORRECTIVO">🚨 CORRECTIVO (OT Cerradas)</option>
                     <option value="PREVENTIVO">🛠️ PREVENTIVO ANUAL / SEMANAL</option>
                     <option value="PREDICTIVO">🔮 PREDICTIVO SEMANAL</option>
                     <option value="AUTONOMO">🤖 AUTÓNOMO SEMANAL</option>
@@ -5543,46 +5544,63 @@
     </div>
   </div>
 
-  <!-- Modal: Editar Fecha de Propuesta -->
+  <!-- Modal: Editar Fecha y Técnico de Propuesta -->
   <div class="modal-overlay" id="modal-edit-proposal-date">
-    <div class="modal-card" style="max-width: 460px; background: #ffffff; color: #1e293b; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);">
+    <div class="modal-card" style="max-width: 480px; background: #ffffff; color: #1e293b; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);">
       <div class="modal-header" style="border-bottom: 1px solid #e2e8f0; padding: 16px 20px;">
-        <h4 style="font-weight:700; margin:0; font-size:1.15rem; color: #0f172a;">✏️ Reagendar Mantenimiento de Maquinaria</h4>
+        <h4 style="font-weight:700; margin:0; font-size:1.15rem; color: #0f172a;">✏️ Reagendar y Asignar Técnico</h4>
         <button class="btn-close-modal" onclick="closeModal('modal-edit-proposal-date')" style="color: #64748b;">×</button>
       </div>
       <div class="modal-body" style="padding: 20px;">
         <form id="form-edit-proposal-date" onsubmit="handleSaveProposalDate(event)">
           <input type="hidden" id="edit-proposal-detail-id">
           <input type="hidden" id="edit-proposal-orig-date-raw">
+          <input type="hidden" id="edit-proposal-orig-tech-raw">
           
           <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin-bottom:14px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <span style="font-size:0.8rem; color:#64748b; font-weight:600;">MÁQUINA:</span>
               <span id="edit-proposal-machine" style="font-weight:700; font-size:0.95rem; color:#0284c7;">--</span>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-              <span style="font-size:0.8rem; color:#64748b; font-weight:600;">SERVICIO / TAREA:</span>
-              <span id="edit-proposal-service" style="font-size:0.85rem; color:#334155; font-weight:600;">--</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:8px;">
+              <span style="font-size:0.8rem; color:#64748b; font-weight:600; white-space:nowrap;">SERVICIO / TAREA:</span>
+              <span id="edit-proposal-service" style="font-size:0.82rem; color:#334155; font-weight:600; text-align:right;">--</span>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
               <span style="font-size:0.8rem; color:#64748b; font-weight:600;">FECHA ORIGINAL:</span>
               <span id="edit-proposal-orig-date-display" style="font-size:0.85rem; color:#059669; font-weight:700;">--</span>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
               <span style="font-size:0.8rem; color:#64748b; font-weight:600;">FECHA ACTUAL:</span>
               <span id="edit-proposal-curr-date-display" style="font-size:0.85rem; color:#b45309; font-weight:700;">--</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.8rem; color:#64748b; font-weight:600;">TÉCNICO ACTUAL:</span>
+              <span id="edit-proposal-curr-tech-display" style="font-size:0.85rem; color:#0f172a; font-weight:700;">--</span>
             </div>
           </div>
 
           <div class="form-group" style="margin-bottom: 12px;">
             <label for="edit-proposal-new-date" style="font-weight: 600; display: block; margin-bottom: 4px; color: #334155;">Nueva Fecha Programada <span style="color:#ef4444;">*</span></label>
-            <input type="date" id="edit-proposal-new-date" class="form-control" required style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size:0.95rem;">
+            <input type="date" id="edit-proposal-new-date" class="form-control" required onchange="onRescheduleDateOrTechChange()" style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size:0.95rem;">
           </div>
 
           <div class="form-group" style="margin-bottom: 12px;">
-            <label for="edit-proposal-motivo" style="font-weight: 600; display: block; margin-bottom: 4px; color: #334155;">Motivo de Reagendamiento <span style="color:#ef4444;">*</span></label>
-            <select id="edit-proposal-motivo" class="form-control" required onchange="onRescheduleMotivoChange()" style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size:0.9rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label for="edit-proposal-technician" style="font-weight: 600; margin: 0; color: #334155;">👷 Técnico Responsable (Listado)</label>
+              <button type="button" onclick="clearProposalModalTechnician()" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:4px; padding:2px 8px; font-size:0.75rem; font-weight:700; cursor:pointer;" title="Quitar técnico asignado">🚫 Quitar Técnico</button>
+            </div>
+            <select id="edit-proposal-technician" class="form-control" onchange="onRescheduleDateOrTechChange()" style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size:0.9rem; font-weight:600;">
+              <option value="">🚫 — Sin técnico asignado (Por asignar) —</option>
+            </select>
+            <span style="font-size:0.74rem; color:#64748b; display:block; margin-top:3px;">Selecciona un técnico del listado o déjalo sin asignar antes de que llegue la fecha programada.</span>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="edit-proposal-motivo" style="font-weight: 600; display: block; margin-bottom: 4px; color: #334155;">Motivo de Reagendamiento / Cambio <span id="span-motivo-req" style="color:#ef4444;">*</span></label>
+            <select id="edit-proposal-motivo" class="form-control" onchange="onRescheduleMotivoChange()" style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; width: 100%; font-size:0.9rem;">
               <option value="">-- Seleccionar motivo --</option>
+              <option value="CAMBIO_TECNICO">Asignación, cambio o retiro manual de técnico</option>
               <option value="MAQUINA_EN_PRODUCCION">Máquina en producción activa</option>
               <option value="NO_AUTORIZADA_PARADA">Parada no autorizada</option>
               <option value="FALTA_REFACCION">Falta de refacción o insumo</option>
@@ -5602,7 +5620,7 @@
 
           <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; border-top: 1px solid #f1f5f9; padding-top: 14px;">
             <button type="button" class="btn-action-secondary" onclick="closeModal('modal-edit-proposal-date')">Cancelar</button>
-            <button type="submit" id="btn-submit-reschedule" class="btn-action-primary" style="background: #059669; color: #ffffff; padding: 10px 18px; border-radius: 6px; font-weight: 700; border: none; cursor:pointer;">💾 Guardar Reagendamiento</button>
+            <button type="submit" id="btn-submit-reschedule" class="btn-action-primary" style="background: #059669; color: #ffffff; padding: 10px 18px; border-radius: 6px; font-weight: 700; border: none; cursor:pointer;">💾 Guardar Cambios</button>
           </div>
         </form>
       </div>
@@ -5850,6 +5868,16 @@
           <div><strong>OT Asociada:</strong> <span id="cal-detail-ot" style="font-weight:700; color:var(--primary-color);">Ninguna</span></div>
         </div>
 
+        <div id="cal-detail-tech-select-wrapper" style="display:none; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:8px;">
+            <label for="cal-detail-tech-select" style="font-weight:700; font-size:0.82rem; color:#0369a1; margin:0;">👷 Asignar, Cambiar o Quitar Técnico Manualmente:</label>
+            <button type="button" onclick="updateCalendarEventDetailTechnician('')" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:4px; padding:2px 8px; font-size:0.74rem; font-weight:700; cursor:pointer;">🚫 Quitar Técnico</button>
+          </div>
+          <select id="cal-detail-tech-select" class="form-control" onchange="updateCalendarEventDetailTechnician(this.value)" style="font-size:0.85rem; font-weight:600; height:36px; background:white; border:1px solid #7dd3fc;">
+            <option value="">🚫 — Sin técnico asignado (Por asignar) —</option>
+          </select>
+        </div>
+
         <div id="section-cal-detail-reschedule-history" style="display:none; border-top: 1px dashed #cbd5e1; padding-top: 10px; margin-bottom: 12px;">
           <div style="font-weight: 600; font-size: 0.85rem; color: #b45309; margin-bottom: 6px; display:flex; align-items:center; gap:6px;">
             <span>📅 Historial de Reagendamientos:</span>
@@ -5862,7 +5890,7 @@
 
         <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
           <button type="button" class="btn-action-secondary" onclick="closeModal('modal-calendar-event-detail')">Cerrar</button>
-          <button type="button" class="btn-action-secondary" id="btn-cal-reschedule-detail" onclick="triggerRescheduleFromEventDetail()" style="display:none; background:#f59e0b; color:#ffffff; border:none; font-weight:700; cursor:pointer;">✏️ Reagendar Fecha</button>
+          <button type="button" class="btn-action-secondary" id="btn-cal-reschedule-detail" onclick="triggerRescheduleFromEventDetail()" style="display:none; background:#f59e0b; color:#ffffff; border:none; font-weight:700; cursor:pointer;">✏️ Reagendar / Cambiar Técnico</button>
           <button type="button" class="btn-action-primary" id="btn-cal-dispatch-now" onclick="dispatchCalendarEventNow()">⚡ Despachar Ahora a Solicitudes Nuevas</button>
         </div>
       </div>
@@ -6048,16 +6076,16 @@
   </div>
 
   <!-- Carga de Lógica seed.js, app.js y dashboard.js con Cache-Busting -->
-  <script src="seed.js?v=3.6.19"></script>
-  <script src="agents-client.js?v=3.6.19"></script>
-  <script src="app.js?v=3.6.19"></script>
-  <script src="dashboard.js?v=3.6.19"></script>
+  <script src="seed.js?v=3.6.21"></script>
+  <script src="agents-client.js?v=3.6.21"></script>
+  <script src="app.js?v=3.6.21"></script>
+  <script src="dashboard.js?v=3.6.21"></script>
 
   <!-- Registro de Service Worker PWA y Manejador de Instalación -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.6.19')
+        navigator.serviceWorker.register('./sw.js?v=3.6.21')
           .then(reg => {
             reg.update();
             console.log('✅ ServiceWorker registrado:', reg.scope);
